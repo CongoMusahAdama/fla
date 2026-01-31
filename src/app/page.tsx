@@ -118,19 +118,17 @@ export default function Home() {
     <main className="min-h-screen bg-gray-50">
       <Hero />
 
-      <section className="w-full px-4 md:px-8 py-20">
-        <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-12">
+      <section className="w-full px-4 md:px-8 py-10 md:py-20">
+        <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-8 md:gap-12">
 
-          {/* Sidebar */}
-          <aside className="w-full md:w-64 flex-shrink-0 space-y-8">
-
+          {/* Sidebar - Hidden on Mobile */}
+          <aside className="hidden md:block w-64 flex-shrink-0 space-y-8">
             {/* Categories */}
             <div>
               <h3 className="font-heading font-bold text-slate-900 mb-4 text-lg">Category</h3>
               <div className="space-y-2">
                 {['All Product', 'For Men', 'For Women'].map((cat, i) => (
                   <button key={cat} className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl text-sm font-medium transition-colors cursor-pointer ${i === 0 ? 'bg-slate-900 text-white' : 'bg-white text-slate-500 hover:bg-white hover:text-slate-900 hover:shadow-sm'}`}>
-                    {/* Simple Icons placeholder logic */}
                     <span className={i === 0 ? 'opacity-100' : 'opacity-50'}>
                       {i === 0 ? <LayoutGrid className="w-4 h-4" /> : <List className="w-4 h-4" />}
                     </span>
@@ -153,11 +151,25 @@ export default function Home() {
                 ))}
               </div>
             </div>
-
           </aside>
 
-          {/* Main Grid */}
+          {/* Main Content Areas */}
           <div className="flex-1">
+            {/* Mobile Categories - Horizontal Scroll */}
+            <div className="md:hidden mb-10">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-heading text-lg font-black text-slate-900 uppercase">Explore</h2>
+                <span className="text-[10px] font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded-full uppercase tracking-tighter">12 New Items</span>
+              </div>
+              <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2 -mx-4 px-4">
+                {['All Product', 'For Men', 'For Women', 'Accessories', 'Limited'].map((cat, i) => (
+                  <button key={cat} className={`flex-none px-6 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all ${i === 0 ? 'bg-slate-900 text-white shadow-lg' : 'bg-white text-slate-400 border border-slate-100 shadow-sm'}`}>
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div className="flex justify-between items-center mb-6">
               <h2 className="font-heading text-xl font-bold text-slate-900">New Arrivals</h2>
               <div className="flex gap-2">
@@ -166,7 +178,7 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
               {products.map((product, index) => (
                 <ProductCard key={product.id} {...product} index={index} />
               ))}
@@ -181,9 +193,7 @@ export default function Home() {
                 </button>
               </Link>
             </div>
-
           </div>
-
         </div>
       </section>
 

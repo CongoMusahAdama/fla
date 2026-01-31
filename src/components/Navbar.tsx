@@ -2,7 +2,7 @@
 "use client";
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { ShoppingBag, Search, Menu, X, User } from 'lucide-react';
+import { ShoppingBag, Search, Menu, X, User, Headset } from 'lucide-react';
 
 import { useRouter } from 'next/navigation';
 import { useCart } from '@/context/CartContext';
@@ -227,8 +227,9 @@ export default function Navbar() {
                                     setIsSupportOpen(true);
                                     setIsMenuOpen(false);
                                 }}
-                                className="block w-full py-4 px-6 bg-slate-900 text-white text-center rounded-2xl font-black uppercase tracking-widest text-[10px]"
+                                className="flex items-center justify-center gap-3 w-full py-4 px-6 bg-slate-900 text-white text-center rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-slate-800 transition-colors"
                             >
+                                <Headset className="w-4 h-4" />
                                 Contact Support
                             </button>
                         </div>

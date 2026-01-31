@@ -8,7 +8,7 @@ export default function ChatSupport() {
     const { isSupportOpen, setIsSupportOpen } = useCart();
 
     return (
-        <div className="fixed bottom-6 right-6 z-[9999] flex flex-col items-end">
+        <div className="fixed bottom-6 right-6 z-[50] flex flex-col items-end">
             {/* Support Box */}
             <div className={`mb-4 w-72 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden transition-all duration-300 origin-bottom-right ${isSupportOpen ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 translate-y-10 pointer-events-none'
                 }`}>
