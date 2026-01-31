@@ -11,7 +11,9 @@ import {
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 
-export default function AuthPage() {
+import { Suspense } from 'react';
+
+function AuthContent() {
     const [isLogin, setIsLogin] = useState(true);
     const [role, setRole] = useState<UserRole>('customer');
 
@@ -320,5 +322,13 @@ export default function AuthPage() {
                 }
             `}</style>
         </main>
+    );
+}
+
+export default function AuthPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen bg-white flex items-center justify-center">Loading...</div>}>
+            <AuthContent />
+        </Suspense>
     );
 }
