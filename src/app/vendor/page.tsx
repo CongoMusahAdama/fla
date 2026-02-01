@@ -21,6 +21,19 @@ const WhatsAppIcon = ({ className }: { className?: string }) => (
 
 type VendorSection = 'dashboard' | 'products' | 'orders' | 'wallet' | 'reviews' | 'notifications' | 'settings';
 
+interface Product {
+    id: number;
+    name: string;
+    price: string;
+    image: string;
+    images?: { url: string, label: string }[];
+    status: string;
+    sales: number;
+    quantity: number;
+    tailoringTime: string;
+    fabrication: string;
+}
+
 export default function VendorDashboard() {
     const { user, isAuthenticated, logout } = useAuth();
     const router = useRouter();
@@ -34,16 +47,16 @@ export default function VendorDashboard() {
         }
     }, [isAuthenticated, user, router]);
 
-    const [vendorProducts, setVendorProducts] = useState([
-        { id: 1, name: 'Tribal Heritage T-Shirt', price: '750', image: '/product-1.jpg', status: 'In Stock', sales: 45, quantity: 50, tailoringTime: '2 Days', fabrication: '100% Cotton' },
-        { id: 2, name: 'Artistic Mesh Shirt', price: '850', image: '/product-2.jpg', status: 'In Stock', sales: 32, quantity: 40, tailoringTime: '3 Days', fabrication: 'Silk Mesh' },
-        { id: 3, name: 'Signature Print Hoodie', price: '1,250', image: '/product-3.png', status: 'Low Stock', sales: 18, quantity: 5, tailoringTime: '5 Days', fabrication: 'Heavy Fleece' },
-        { id: 4, name: 'Bespoke Print Cap', price: '450', image: '/product-4.png', status: 'In Stock', sales: 56, quantity: 100, tailoringTime: '1 Day', fabrication: 'Canvas' },
-        { id: 5, name: 'Vibrant Pattern Tee', price: '650', image: '/product-5.png', status: 'In Stock', sales: 29, quantity: 60, tailoringTime: '2 Days', fabrication: 'Cotton' },
+    const [vendorProducts, setVendorProducts] = useState<Product[]>([
+        { id: 1, name: 'Tribal Heritage T-Shirt', price: '750', image: '/product-1.jpg', status: 'In Stock', sales: 45, quantity: 50, tailoringTime: '2 Days', fabrication: '100% Cotton', images: [{ url: '/product-1.jpg', label: 'Front' }] },
+        { id: 2, name: 'Artistic Mesh Shirt', price: '850', image: '/product-2.jpg', status: 'In Stock', sales: 32, quantity: 40, tailoringTime: '3 Days', fabrication: 'Silk Mesh', images: [{ url: '/product-2.jpg', label: 'Front' }] },
+        { id: 3, name: 'Signature Print Hoodie', price: '1,250', image: '/product-3.png', status: 'Low Stock', sales: 18, quantity: 5, tailoringTime: '5 Days', fabrication: 'Heavy Fleece', images: [{ url: '/product-3.png', label: 'Front' }] },
+        { id: 4, name: 'Bespoke Print Cap', price: '450', image: '/product-4.png', status: 'In Stock', sales: 56, quantity: 100, tailoringTime: '1 Day', fabrication: 'Canvas', images: [{ url: '/product-4.png', label: 'Front' }] },
+        { id: 5, name: 'Vibrant Pattern Tee', price: '650', image: '/product-5.png', status: 'In Stock', sales: 29, quantity: 60, tailoringTime: '2 Days', fabrication: 'Cotton', images: [{ url: '/product-5.png', label: 'Front' }] },
     ]);
 
     // Form States for Add/Edit
-    const [editingProduct, setEditingProduct] = useState<any>(null);
+    const [editingProduct, setEditingProduct] = useState<Product | null>(null);
     const [formName, setFormName] = useState('');
     const [formPrice, setFormPrice] = useState('');
     const [formCategory, setFormCategory] = useState('T-Shirt');
@@ -147,7 +160,7 @@ export default function VendorDashboard() {
         resetForm();
     };
 
-    const openEditModal = (product: any) => {
+    const openEditModal = (product: Product) => {
         setEditingProduct(product);
         setFormName(product.name);
         setFormPrice(product.price);
