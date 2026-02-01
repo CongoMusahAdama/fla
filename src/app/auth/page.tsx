@@ -15,23 +15,36 @@ import { Suspense } from 'react';
 
 // Memoized Input Component to prevent re-renders of the entire page on every keystroke
 const AuthInput = React.memo(({ label, type, placeholder, value, onChange, required, icon: Icon }: any) => {
+    const [showPassword, setShowPassword] = useState(false);
+    const isPassword = type === 'password';
+    const inputType = isPassword ? (showPassword ? 'text' : 'password') : type;
+
     return (
         <div className="space-y-1.5">
             {label && <label className="text-xs font-bold text-slate-700 ml-1">{label}</label>}
             <div className="relative group">
                 {Icon && (
-                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-slate-900 transition-colors">
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-slate-900 transition-colors pointer-events-none">
                         <Icon className="w-4 h-4" />
                     </div>
                 )}
                 <input
-                    type={type}
+                    type={inputType}
                     placeholder={placeholder}
                     required={required}
                     value={value}
                     onChange={(e) => onChange(e.target.value)}
-                    className={`w-full ${Icon ? 'pl-11' : 'px-4'} py-4 bg-slate-50 border-2 border-transparent rounded-2xl text-sm transition-all focus:bg-white focus:border-slate-100 focus:ring-4 focus:ring-slate-50 outline-none`}
+                    className={`w-full ${Icon ? 'pl-11' : 'px-4'} ${isPassword ? 'pr-12' : 'pr-4'} py-4 bg-white border-2 border-slate-100 rounded-2xl text-sm transition-all focus:border-slate-900 focus:ring-4 focus:ring-slate-900/5 outline-none`}
                 />
+                {isPassword && (
+                    <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-900 transition-colors p-1"
+                    >
+                        <span className="text-[10px] font-black uppercase tracking-widest">{showPassword ? 'Hide' : 'Show'}</span>
+                    </button>
+                )}
             </div>
         </div>
     );
