@@ -144,7 +144,7 @@ function ShopContent() {
             <Navbar />
 
             {/* Header Section - Modern Beige Style */}
-            <section className="bg-[#F5F2Ed] pt-32 pb-16 px-8 relative overflow-hidden">
+            <section className="bg-[#F5F2Ed] pt-32 pb-16 px-4 md:px-8 relative overflow-hidden">
                 <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between z-10 relative">
                     <div className="md:w-1/2 mb-8 md:mb-0">
                         <h1 className="font-heading text-5xl md:text-7xl font-bold text-slate-900 mb-4">Shop</h1>
@@ -171,25 +171,25 @@ function ShopContent() {
                 </div>
             </section>
 
-            {/* Filter Bar */}
-            <section className="sticky top-20 z-40 bg-white border-b border-gray-100 py-4 px-8">
+            {/* Filter Bar - Adjusted sticky offset for standard and mobile nav */}
+            <section className="sticky top-[80px] md:top-[100px] z-40 bg-white/95 backdrop-blur-md border-b border-gray-100 py-4 px-4 md:px-8">
                 <div className="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-4">
 
                     {/* Left: Filter groups */}
-                    <div className="flex flex-wrap items-center gap-6">
-                        <div className="flex items-center gap-2 text-slate-500 text-sm font-medium mr-2">
+                    <div className="flex flex-wrap items-center gap-3 md:gap-6">
+                        <div className="hidden sm:flex items-center gap-2 text-slate-500 text-sm font-medium mr-2">
                             <span>Filter by</span>
                             <div className="w-1.5 h-1.5 bg-brand-lemon rounded-full"></div>
                         </div>
 
                         {/* Search on Shop Page */}
-                        <div className="relative flex items-center group">
+                        <div className="relative flex items-center group w-full sm:w-auto">
                             <input
                                 type="text"
                                 placeholder="Search products..."
                                 value={localSearch}
                                 onChange={(e) => setLocalSearch(e.target.value)}
-                                className="pl-4 pr-10 py-2 bg-slate-50 border border-slate-200 rounded-full text-xs focus:bg-white focus:outline-none focus:border-brand-lemon w-44 transition-all focus:w-64"
+                                className="pl-4 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-full text-xs focus:bg-white focus:outline-none focus:border-brand-lemon w-full sm:w-44 transition-all sm:focus:w-64"
                             />
                             <div className="absolute right-3 text-slate-400">
                                 <Search className="w-3.5 h-3.5" />
@@ -282,7 +282,7 @@ function ShopContent() {
             </section>
 
             {/* Product Grid */}
-            <section className="px-8 py-16 min-h-[600px]">
+            <section className="px-4 md:px-8 py-12 md:py-16 min-h-[600px] overflow-x-hidden">
                 <div className="max-w-7xl mx-auto">
                     {filteredProducts.length > 0 ? (
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-12">

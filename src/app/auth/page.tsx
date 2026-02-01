@@ -13,6 +13,32 @@ import Swal from 'sweetalert2';
 
 import { Suspense } from 'react';
 
+// Memoized Input Component to prevent re-renders of the entire page on every keystroke
+const AuthInput = React.memo(({ label, type, placeholder, value, onChange, required, icon: Icon }: any) => {
+    return (
+        <div className="space-y-1.5">
+            {label && <label className="text-xs font-bold text-slate-700 ml-1">{label}</label>}
+            <div className="relative group">
+                {Icon && (
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-slate-900 transition-colors">
+                        <Icon className="w-4 h-4" />
+                    </div>
+                )}
+                <input
+                    type={type}
+                    placeholder={placeholder}
+                    required={required}
+                    value={value}
+                    onChange={(e) => onChange(e.target.value)}
+                    className={`w-full ${Icon ? 'pl-11' : 'px-4'} py-4 bg-slate-50 border-2 border-transparent rounded-2xl text-sm transition-all focus:bg-white focus:border-slate-100 focus:ring-4 focus:ring-slate-50 outline-none`}
+                />
+            </div>
+        </div>
+    );
+});
+
+AuthInput.displayName = 'AuthInput';
+
 function AuthContent() {
     const [isLogin, setIsLogin] = useState(true);
     const [role, setRole] = useState<UserRole>('customer');
@@ -255,58 +281,43 @@ function AuthContent() {
                                 <form onSubmit={handleSubmit} className="space-y-5">
                                     {isLogin ? (
                                         <div className="space-y-4">
-                                            <div className="space-y-1.5">
-                                                <label className="text-xs font-bold text-slate-700 ml-1">Email or Phone</label>
-                                                <input type="text" placeholder="you@email.com" required value={identifier} onChange={(e) => setIdentifier(e.target.value)} className="w-full px-4 py-4 bg-slate-50 border-none rounded-2xl text-sm transition-all focus:ring-2 focus:ring-slate-100" />
-                                            </div>
-                                            <div className="space-y-1.5">
-                                                <label className="text-xs font-bold text-slate-700 ml-1">Password</label>
-                                                <input type="password" placeholder="••••••••" required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-4 py-4 bg-slate-50 border-none rounded-2xl text-sm transition-all focus:ring-2 focus:ring-slate-100" />
-                                            </div>
+                                            <AuthInput
+                                                label="Email or Phone"
+                                                type="text"
+                                                placeholder="you@email.com"
+                                                required
+                                                value={identifier}
+                                                onChange={setIdentifier}
+                                                icon={User}
+                                            />
+                                            <AuthInput
+                                                label="Password"
+                                                type="password"
+                                                placeholder="••••••••"
+                                                required
+                                                value={password}
+                                                onChange={setPassword}
+                                                icon={Lock}
+                                            />
                                         </div>
                                     ) : (
                                         <div className="grid grid-cols-1 gap-4 overflow-y-auto max-h-[50vh] pr-2 custom-scrollbar">
-                                            <div className="space-y-1.5">
-                                                <label className="text-xs font-bold text-slate-700 ml-1">Full Name</label>
-                                                <input type="text" placeholder="Eg. Yasir Noori" required value={name} onChange={(e) => setName(e.target.value)} className="w-full px-4 py-4 bg-slate-50 border-none rounded-2xl text-sm focus:ring-2 focus:ring-slate-100" />
-                                            </div>
-                                            <div className="space-y-1.5">
-                                                <label className="text-xs font-bold text-slate-700 ml-1">Email Address</label>
-                                                <input type="email" placeholder="you@email.com" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-4 py-4 bg-slate-50 border-none rounded-2xl text-sm focus:ring-2 focus:ring-slate-100" />
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div className="space-y-1.5">
-                                                    <label className="text-xs font-bold text-slate-700 ml-1">Phone</label>
-                                                    <input type="tel" placeholder="024..." required value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full px-4 py-4 bg-slate-50 border-none rounded-2xl text-sm focus:ring-2 focus:ring-slate-100" />
+                                            <div className="space-y-4 pt-2 border-t border-slate-50 mt-2">
+                                                <AuthInput label="Full Name" type="text" placeholder="Eg. Yasir Noori" required value={name} onChange={setName} icon={User} />
+                                                <AuthInput label="Email Address" type="email" placeholder="you@email.com" required value={email} onChange={setEmail} icon={Mail} />
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    <AuthInput label="Phone" type="tel" placeholder="024..." required value={phone} onChange={setPhone} icon={Phone} />
+                                                    <AuthInput label="Location" type="text" placeholder="City" required value={location} onChange={setLocation} icon={MapPin} />
                                                 </div>
-                                                <div className="space-y-1.5">
-                                                    <label className="text-xs font-bold text-slate-700 ml-1">Location</label>
-                                                    <input type="text" placeholder="City" required value={location} onChange={(e) => setLocation(e.target.value)} className="w-full px-4 py-4 bg-slate-50 border-none rounded-2xl text-sm focus:ring-2 focus:ring-slate-100" />
-                                                </div>
-                                            </div>
-                                            {role === 'vendor' && (
-                                                <div className="space-y-4 pt-2 border-t border-slate-50 mt-2">
-                                                    <div className="space-y-1.5">
-                                                        <label className="text-xs font-bold text-slate-700 ml-1">Shop Name</label>
-                                                        <input type="text" placeholder="Eg. FLA Boutique" required value={shopName} onChange={(e) => setShopName(e.target.value)} className="w-full px-4 py-4 bg-slate-50 border-none rounded-2xl text-sm focus:ring-2 focus:ring-slate-100" />
+                                                {role === 'vendor' && (
+                                                    <div className="space-y-4 pt-4 border-t border-slate-100 mt-2">
+                                                        <AuthInput label="Shop Name" type="text" placeholder="Eg. FLA Boutique" required value={shopName} onChange={setShopName} icon={Store} />
+                                                        <AuthInput label="MoMo Number" type="tel" placeholder="024XXXXXXX" required value={paymentNumber} onChange={setPaymentNumber} icon={Phone} />
+                                                        <AuthInput label="Momo / Account Name" type="text" placeholder="Billing Name" required value={accountName} onChange={setAccountName} icon={CreditCard} />
                                                     </div>
-                                                    <div className="space-y-1.5">
-                                                        <label className="text-xs font-bold text-slate-700 ml-1">MoMo Number</label>
-                                                        <input type="tel" placeholder="024XXXXXXX" required value={paymentNumber} onChange={(e) => setPaymentNumber(e.target.value)} className="w-full px-4 py-4 bg-slate-50 border-none rounded-2xl text-sm focus:ring-2 focus:ring-slate-100" />
-                                                    </div>
-                                                    <div className="space-y-1.5">
-                                                        <label className="text-xs font-bold text-slate-700 ml-1">Momo / Account Name</label>
-                                                        <input type="text" placeholder="Billing Name" required value={accountName} onChange={(e) => setAccountName(e.target.value)} className="w-full px-4 py-4 bg-slate-50 border-none rounded-2xl text-sm focus:ring-2 focus:ring-slate-100" />
-                                                    </div>
-                                                </div>
-                                            )}
-                                            <div className="space-y-1.5">
-                                                <label className="text-xs font-bold text-slate-700 ml-1">Password</label>
-                                                <input type="password" placeholder="••••••••" required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-4 py-4 bg-slate-50 border-none rounded-2xl text-sm focus:ring-2 focus:ring-slate-100" />
-                                            </div>
-                                            <div className="space-y-1.5">
-                                                <label className="text-xs font-bold text-slate-700 ml-1">Confirm Password</label>
-                                                <input type="password" placeholder="••••••••" required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full px-4 py-4 bg-slate-50 border-none rounded-2xl text-sm focus:ring-2 focus:ring-slate-100" />
+                                                )}
+                                                <AuthInput label="Password" type="password" placeholder="••••••••" required value={password} onChange={setPassword} icon={Lock} />
+                                                <AuthInput label="Confirm Password" type="password" placeholder="••••••••" required value={confirmPassword} onChange={setConfirmPassword} icon={Lock} />
                                             </div>
                                         </div>
                                     )}
