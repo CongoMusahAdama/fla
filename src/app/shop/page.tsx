@@ -179,7 +179,7 @@ function ShopContent() {
                     <div className="flex flex-wrap items-center gap-6">
                         <div className="flex items-center gap-2 text-slate-500 text-sm font-medium mr-2">
                             <span>Filter by</span>
-                            <div className="w-1 h-1 bg-purple-600 rounded-full"></div>
+                            <div className="w-1.5 h-1.5 bg-brand-lemon rounded-full"></div>
                         </div>
 
                         {/* Search on Shop Page */}
@@ -189,7 +189,7 @@ function ShopContent() {
                                 placeholder="Search products..."
                                 value={localSearch}
                                 onChange={(e) => setLocalSearch(e.target.value)}
-                                className="pl-4 pr-10 py-2 bg-slate-50 border border-slate-200 rounded-full text-xs focus:bg-white focus:outline-none focus:border-purple-300 w-44 transition-all focus:w-64"
+                                className="pl-4 pr-10 py-2 bg-slate-50 border border-slate-200 rounded-full text-xs focus:bg-white focus:outline-none focus:border-brand-lemon w-44 transition-all focus:w-64"
                             />
                             <div className="absolute right-3 text-slate-400">
                                 <Search className="w-3.5 h-3.5" />
@@ -200,7 +200,7 @@ function ShopContent() {
                         <div className="relative">
                             <button
                                 onClick={() => toggleDropdown('Categories')}
-                                className={`flex items-center gap-1 text-sm font-bold transition-colors whitespace-nowrap cursor-pointer ${activeCategory !== 'All Product' ? 'text-purple-600' : 'text-slate-900 hover:text-purple-600'}`}
+                                className={`flex items-center gap-1 text-sm font-bold transition-colors whitespace-nowrap cursor-pointer ${activeCategory !== 'All Product' ? 'text-slate-900 bg-brand-lemon px-2 py-0.5 rounded-full' : 'text-slate-900 hover:text-brand-lemon'}`}
                             >
                                 Categories <ChevronDown className={`w-3.5 h-3.5 transition-transform ${openDropdown === 'Categories' ? 'rotate-180' : ''}`} />
                             </button>
@@ -214,7 +214,7 @@ function ShopContent() {
                                             setActiveCategory(cat);
                                             setOpenDropdown(null);
                                         }}
-                                        className={`w-full text-left px-4 py-3 rounded-lg text-sm font-bold flex justify-between items-center hover:bg-slate-50 transition-colors cursor-pointer ${activeCategory === cat ? 'text-purple-600 bg-purple-50' : 'text-slate-700'}`}
+                                        className={`w-full text-left px-4 py-3 rounded-lg text-sm font-bold flex justify-between items-center hover:bg-slate-50 transition-colors cursor-pointer ${activeCategory === cat ? 'text-slate-900 bg-brand-lemon' : 'text-slate-700'}`}
                                     >
                                         {cat}
                                         {activeCategory === cat && <Check className="w-3.5 h-3.5" />}
@@ -228,10 +228,10 @@ function ShopContent() {
                             <div className="relative" key={filter}>
                                 <button
                                     onClick={() => toggleDropdown(filter)}
-                                    className={`flex items-center gap-1 text-sm font-bold transition-colors whitespace-nowrap cursor-pointer ${activeFilters[filter] ? 'text-purple-600' : 'text-slate-900 hover:text-purple-600'}`}
+                                    className={`flex items-center gap-1 text-sm font-bold transition-colors whitespace-nowrap cursor-pointer ${activeFilters[filter] ? 'text-slate-900 bg-brand-lemon px-2 py-0.5 rounded-full' : 'text-slate-900 hover:text-brand-lemon'}`}
                                 >
                                     {filter} <ChevronDown className={`w-3.5 h-3.5 transition-transform ${openDropdown === filter ? 'rotate-180' : ''}`} />
-                                    {activeFilters[filter] && <span className="ml-1 text-[10px] bg-purple-100 px-1.5 rounded-full">{activeFilters[filter]}</span>}
+                                    {activeFilters[filter] && <span className="ml-1 text-[10px] bg-white/50 px-1.5 rounded-full">{activeFilters[filter]}</span>}
                                 </button>
 
                                 {/* Generic Dropdown Content */}
@@ -246,7 +246,7 @@ function ShopContent() {
                                                 }));
                                                 setOpenDropdown(null);
                                             }}
-                                            className={`w-full text-left px-4 py-2.5 rounded-lg text-xs font-bold flex justify-between items-center hover:bg-slate-50 transition-colors cursor-pointer ${activeFilters[filter] === option ? 'text-purple-600 bg-purple-50' : 'text-slate-700'}`}
+                                            className={`w-full text-left px-4 py-2.5 rounded-lg text-xs font-bold flex justify-between items-center hover:bg-slate-50 transition-colors cursor-pointer ${activeFilters[filter] === option ? 'text-slate-900 bg-brand-lemon' : 'text-slate-700'}`}
                                         >
                                             {option}
                                             {activeFilters[filter] === option && <Check className="w-3 h-3" />}
@@ -297,7 +297,7 @@ function ShopContent() {
                     ) : (
                         <div className="flex flex-col items-center justify-center py-20 text-slate-400">
                             <p className="text-lg font-medium">No products found in this category.</p>
-                            <button onClick={() => setActiveCategory('All Product')} className="mt-4 text-purple-600 font-bold hover:underline cursor-pointer">
+                            <button onClick={() => setActiveCategory('All Product')} className="mt-4 text-slate-900 bg-brand-lemon px-6 py-2 rounded-full font-bold hover:opacity-90 transition-all cursor-pointer">
                                 Clear Filters
                             </button>
                         </div>

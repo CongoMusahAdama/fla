@@ -18,7 +18,7 @@ const outfit = Outfit({
 });
 
 export const metadata: Metadata = {
-  title: "Fadlan | Custom-Print & Bespoke Tailoring",
+  title: "FLA | Custom-Print & Bespoke Tailoring",
   description: "Your Style, Tailored in Real-Time.",
 };
 

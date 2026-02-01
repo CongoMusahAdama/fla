@@ -15,6 +15,7 @@ export type User = {
     shopName?: string;
     productTypes?: string;
     accountName?: string;
+    momoNumber?: string;
     idFile?: any;
     logoFile?: any;
 };

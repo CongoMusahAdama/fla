@@ -2,8 +2,19 @@
 
 @theme inline {
   --color-brand-blue: #0f2744;
-  --font-sans: var(--font-montserrat), ui-sans-serif, system-ui, sans-serif;
-  --font-heading: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
+  --color-brand-lemon: #D8F800;
+  --font-sans: "Outfit", "Helvetica Neue", "Helvetica", "Arial", sans-serif;
+  --font-heading: "Outfit", "Helvetica Neue", "Helvetica", "Arial", sans-serif;
+
+  @keyframes marquee {
+    0% {
+      transform: translateX(0);
+    }
+
+    100% {
+      transform: translateX(-50%);
+    }
+  }
 }
 
 /* Custom Utilities if needed */
@@ -11,9 +22,32 @@
   .text-balance {
     text-wrap: balance;
   }
+
+  .animate-marquee {
+    animation: marquee 20s linear infinite;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #e2e8f0;
+    border-radius: 10px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #cbd5e1;
+  }
 }
 
 body {
+  color: unset;
+  font-size: unset;
   font-family: var(--font-sans);
 }
 

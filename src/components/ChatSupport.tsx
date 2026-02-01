@@ -53,20 +53,20 @@ export default function ChatSupport() {
                 </div>
             </div>
 
-            {/* Chat Button with Text */}
+            {/* Chat Button with Text (Desktop) / Icon (Mobile) */}
             <button
                 onClick={() => setIsSupportOpen(!isSupportOpen)}
-                className={`flex items-center gap-3 px-6 h-14 rounded-full shadow-2xl transition-all duration-300 group ${isSupportOpen ? 'bg-slate-900' : 'bg-slate-900 hover:scale-105 active:scale-95'
+                className={`flex items-center gap-3 px-4 md:px-6 h-14 rounded-full shadow-2xl transition-all duration-300 group ${isSupportOpen ? 'bg-slate-900 border border-brand-lemon/30' : 'bg-slate-900 hover:scale-105 active:scale-95'
                     }`}
             >
                 <div className="relative">
                     {isSupportOpen ? (
-                        <X className="w-5 h-5 text-white transition-transform duration-300" />
+                        <X className="w-5 h-5 text-brand-lemon transition-transform duration-300" />
                     ) : (
-                        <Headset className="w-5 h-5 text-white transition-transform duration-300 group-hover:rotate-12" />
+                        <Headset className="w-5 h-5 text-brand-lemon transition-transform duration-300 group-hover:rotate-12" />
                     )}
                 </div>
-                <span className="text-white text-xs font-bold tracking-wider uppercase">
+                <span className="hidden md:block text-brand-lemon text-xs font-bold tracking-wider uppercase">
                     {isSupportOpen ? 'Close' : 'Contact Support'}
                 </span>
             </button>

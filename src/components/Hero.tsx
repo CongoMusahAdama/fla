@@ -37,12 +37,12 @@ export default function Hero() {
 
                     <div className="flex flex-wrap gap-4">
                         <Link href="/shop">
-                            <button className="bg-black text-white px-10 py-4 rounded-md text-[10px] md:text-xs font-bold uppercase tracking-widest hover:bg-slate-900 transition-colors shadow-2xl cursor-pointer">
+                            <button className="bg-black text-white px-10 py-4 rounded-full text-xs font-bold hover:bg-slate-900 transition-all shadow-2xl cursor-pointer hover:scale-105 active:scale-95">
                                 Shop Now
                             </button>
                         </Link>
                         <Link href="/auth?role=vendor">
-                            <button className="bg-white/95 backdrop-blur-xl text-slate-900 border border-white/20 px-10 py-4 rounded-md text-[10px] md:text-xs font-black uppercase tracking-[0.2em] hover:bg-white transition-all duration-300 shadow-2xl cursor-pointer hover:scale-105 active:scale-95">
+                            <button className="bg-white/95 backdrop-blur-xl text-slate-900 border border-slate-200 px-10 py-4 rounded-full text-xs font-bold hover:bg-white transition-all duration-300 shadow-2xl cursor-pointer hover:scale-105 active:scale-95">
                                 Sell Now
                             </button>
                         </Link>

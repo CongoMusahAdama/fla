@@ -21,7 +21,7 @@ export default function AdminDashboard() {
     const stats = [
         { label: 'Total Revenue', value: 'GH₵ 12,450', icon: ShoppingBag, color: 'text-green-600', bg: 'bg-green-50' },
         { label: 'New Customers', value: '24', icon: Users, color: 'text-blue-600', bg: 'bg-blue-50' },
-        { label: 'Pending Orders', value: '8', icon: LayoutDashboard, color: 'text-purple-600', bg: 'bg-purple-50' },
+        { label: 'Pending Orders', value: '8', icon: LayoutDashboard, color: 'text-slate-900', bg: 'bg-brand-lemon' },
     ];
 
     return (
@@ -70,7 +70,7 @@ export default function AdminDashboard() {
                     <header className="flex justify-between items-center mb-10">
                         <div>
                             <h1 className="text-2xl font-black text-slate-900">Welcome Back, {user.name}</h1>
-                            <p className="text-slate-500 text-sm">Here's what's happening with Fadlan today.</p>
+                            <p className="text-slate-500 text-sm">Here's what's happening with FLA today.</p>
                         </div>
                         <Link href="/">
                             <button className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-50 transition-all">

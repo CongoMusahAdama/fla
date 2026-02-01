@@ -2,7 +2,7 @@
 "use client";
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { ShoppingBag, Search, Menu, X, User, Headset } from 'lucide-react';
+import { ShoppingBag, Search, Menu, X, User, Headset, LogOut } from 'lucide-react';
 
 import { useRouter } from 'next/navigation';
 import { useCart } from '@/context/CartContext';
@@ -46,9 +46,9 @@ export default function Navbar() {
     return (
         <header className="fixed w-full z-[100] transition-all duration-300">
             {/* Announcement Bar */}
-            <div className="bg-black text-white text-center py-2 px-4 transition-all duration-300 overflow-hidden h-9 flex items-center justify-center">
+            <div className="bg-black text-white py-2 px-4 transition-all duration-300 h-9 flex items-center justify-center relative">
                 <p className="text-[10px] md:text-xs font-bold uppercase tracking-[0.2em]">
-                    Free delivery within Tamale
+                    AUTHENTIC CLOTHING LINE
                 </p>
             </div>
 
@@ -75,9 +75,9 @@ export default function Navbar() {
                                 </button>
 
                                 {isAuthenticated ? (
-                                    <button onClick={logout} className="text-slate-400 p-1.5">
+                                    <Link href={user?.role === 'vendor' || user?.role === 'admin' ? '/admin' : '/dashboard'} className="text-slate-700 p-1.5">
                                         <User className="h-4 w-4" />
-                                    </button>
+                                    </Link>
                                 ) : (
                                     <Link href="/auth" className="text-slate-700 p-1.5">
                                         <User className="h-4 w-4" />
@@ -122,7 +122,7 @@ export default function Navbar() {
                                         href="/auth?role=vendor"
                                         className="font-sans text-xs font-black uppercase tracking-widest text-blue-600 hover:text-blue-800 transition-colors"
                                     >
-                                        + Sell on Fadlan
+                                        + Sell on FLA
                                     </Link>
                                 )}
                             </div>
@@ -157,9 +157,14 @@ export default function Navbar() {
                                     </div>
 
                                     {isAuthenticated ? (
-                                        <button onClick={logout} className="text-slate-400 p-2 hover:text-red-500 transition-colors">
-                                            <User className="h-5 w-5" />
-                                        </button>
+                                        <div className="flex items-center gap-2">
+                                            <Link href={user?.role === 'vendor' || user?.role === 'admin' ? '/admin' : '/dashboard'} className="text-slate-700 p-2 hover:text-slate-900 transition-colors">
+                                                <User className="h-5 w-5" />
+                                            </Link>
+                                            <button onClick={logout} className="text-slate-400 p-2 hover:text-red-500 transition-colors">
+                                                <LogOut className="h-4 w-4" />
+                                            </button>
+                                        </div>
                                     ) : (
                                         <Link href="/auth" className="text-slate-700 p-2 hover:text-slate-900 transition-colors">
                                             <User className="h-5 w-5" />
@@ -196,7 +201,7 @@ export default function Navbar() {
                                     key={item.name}
                                     href={item.href}
                                     onClick={() => setIsMenuOpen(false)}
-                                    className="text-2xl font-black text-slate-900 uppercase tracking-tighter hover:text-purple-600 transition-colors"
+                                    className="text-2xl font-black text-slate-900 uppercase tracking-tighter hover:text-brand-lemon transition-colors"
                                 >
                                     {item.name}
                                 </Link>
@@ -205,7 +210,7 @@ export default function Navbar() {
                                 <Link
                                     href="/admin"
                                     onClick={() => setIsMenuOpen(false)}
-                                    className="text-2xl font-black text-purple-600 uppercase tracking-tighter"
+                                    className="text-2xl font-black text-brand-lemon uppercase tracking-tighter"
                                 >
                                     {user.role === 'admin' ? 'Dashboard' : 'Vendor Panel'}
                                 </Link>
@@ -217,9 +222,9 @@ export default function Navbar() {
                                 <Link
                                     href="/auth"
                                     onClick={() => setIsMenuOpen(false)}
-                                    className="block w-full py-4 px-6 bg-blue-600 text-white text-center rounded-2xl font-black uppercase tracking-widest text-[10px] mb-4"
+                                    className="block w-full py-4 px-6 bg-blue-600 text-white text-center rounded-full font-bold text-xs mb-4"
                                 >
-                                    Sell on Fadlan
+                                    Sell on FLA
                                 </Link>
                             )}
                             <button
@@ -227,9 +232,9 @@ export default function Navbar() {
                                     setIsSupportOpen(true);
                                     setIsMenuOpen(false);
                                 }}
-                                className="flex items-center justify-center gap-3 w-full py-4 px-6 bg-slate-900 text-white text-center rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-slate-800 transition-colors"
+                                className="flex items-center justify-center gap-3 w-full py-4 px-6 bg-slate-900 text-white text-center rounded-full font-bold text-xs hover:bg-slate-800 transition-colors"
                             >
-                                <Headset className="w-4 h-4" />
+                                <Headset className="w-4 h-4 text-brand-lemon" />
                                 Contact Support
                             </button>
                         </div>

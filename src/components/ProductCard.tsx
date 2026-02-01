@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { Clock, ChevronLeft, ChevronRight, X, ShoppingBag } from 'lucide-react';
+import { Clock, ChevronLeft, ChevronRight, X, ShoppingBag, Star, Zap, Shield, Check } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
@@ -43,7 +43,7 @@ export default function ProductCard({ id, name, price, images, imageLabels, dura
                 cancelButtonText: 'Later'
             }).then((result) => {
                 if (result.isConfirmed) {
-                    router.push('/auth');
+                    router.push('/auth?role=customer');
                 }
             });
             return;
@@ -128,20 +128,17 @@ export default function ProductCard({ id, name, price, images, imageLabels, dura
                                     <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
                                     Delivery Address
                                 </label>
-                                <textarea id="guest-address" class="swal2-textarea !m-0 w-full !rounded-2xl !border-slate-100 !bg-slate-50 !px-4 !h-32 !text-sm focus:!ring-slate-900 focus:!border-slate-900" placeholder="e.g. Near Tamale Post Office, First floor..."></textarea>
+                                <textarea id="guest-address" class="swal2-textarea !m-0 w-full !rounded-2xl !border-slate-100 !bg-slate-50 !px-4 !h-32 !text-sm focus:!ring-slate-900 focus:!border-slate-900" placeholder="e.g. Near Post Office, First floor..."></textarea>
                             </div>
                         </div>
                     </div>
                 `,
                 focusConfirm: false,
                 confirmButtonText: 'Continue to Payment',
-                confirmButtonColor: '#9333ea',
-                showCancelButton: true,
-                cancelButtonText: 'Cancel',
-                cancelButtonColor: '#f1f5f9',
+                confirmButtonColor: '#E5FF7F',
                 customClass: {
                     popup: 'rounded-[40px] px-4 md:px-8',
-                    confirmButton: 'rounded-2xl px-8 py-4 font-black uppercase tracking-widest text-[10px]',
+                    confirmButton: 'rounded-2xl px-8 py-4 font-black uppercase tracking-widest text-[10px] !text-slate-900',
                     cancelButton: 'rounded-2xl px-8 py-4 font-black uppercase tracking-widest text-[10px] !text-slate-400'
                 },
                 preConfirm: () => {
@@ -170,8 +167,8 @@ export default function ProductCard({ id, name, price, images, imageLabels, dura
                 icon: 'info',
                 html: `
                     <div class="text-left text-sm space-y-3">
-                        <p>This item requires <b class="text-purple-600">${duration}</b> to be tailored.</p>
-                        <div class="bg-blue-50 p-3 rounded-lg border border-blue-100 text-slate-700">
+                        <p>This item requires <b class="text-slate-900 font-bold underline decoration-brand-lemon decoration-2">${duration}</b> to be tailored.</p>
+                        <div class="bg-brand-lemon/10 p-3 rounded-lg border border-brand-lemon/20 text-slate-700">
                             <p class="font-bold flex items-center gap-2"> Escrow Protected</p>
                             <p class="text-xs mt-1">Your funds are held in escrow until delivery.</p>
                         </div>
@@ -200,7 +197,7 @@ export default function ProductCard({ id, name, price, images, imageLabels, dura
             title: 'Choose Checkout Method',
             html: `
                 <div class="flex flex-col gap-3">
-                    <button id="pay-momo" class="swal2-confirm swal2-styled" style="background-color: #9333ea; margin: 0; width: 100%;">
+                    <button id="pay-momo" class="swal2-confirm swal2-styled" style="background-color: #E5FF7F; color: #0f172a; margin: 0; width: 100%;">
                         Pay with Mobile Money (MTN/Telecel)
                     </button>
                     <button id="xy-whatsapp" class="swal2-deny swal2-styled" style="background-color: #25D366; margin: 0; width: 100%;">
@@ -259,8 +256,8 @@ export default function ProductCard({ id, name, price, images, imageLabels, dura
                 
                 <style>
                     .network-card.active {
-                        border-color: #9333ea !important;
-                        background-color: #f5f3ff;
+                        border-color: #E5FF7F !important;
+                        background-color: #fafd9a10;
                     }
                 </style>
             `,
@@ -293,8 +290,8 @@ export default function ProductCard({ id, name, price, images, imageLabels, dura
                 <div class="text-left space-y-6 mt-2">
                     
                     <!-- Amount Display -->
-                    <div class="flex flex-col items-center justify-center py-4 bg-purple-50 rounded-xl border border-purple-100">
-                        <span class="text-xs font-bold text-purple-600 uppercase tracking-widest mb-1">Total Amount</span>
+                    <div class="flex flex-col items-center justify-center py-4 bg-brand-lemon/10 rounded-xl border border-brand-lemon/20">
+                        <span class="text-xs font-bold text-slate-900 uppercase tracking-widest mb-1">Total Amount</span>
                         <span class="text-3xl font-black text-slate-900">GH₵${price}</span>
                     </div>
 
@@ -308,13 +305,13 @@ export default function ProductCard({ id, name, price, images, imageLabels, dura
                         </div>
                         
                         <div class="space-y-3 pl-11">
-                            <div class="bg-white border border-slate-200 rounded-lg p-3 shadow-sm flex justify-between items-center group hover:border-purple-400 transition-colors">
+                            <div class="bg-white border border-slate-200 rounded-lg p-3 shadow-sm flex justify-between items-center group hover:border-brand-lemon transition-colors">
                                 <span id="momo-1" class="font-mono font-bold text-lg text-slate-800 tracking-wider">0505112925</span>
-                                <button data-target="momo-1" class="copy-btn text-[10px] bg-slate-100 text-slate-500 px-2 py-1 rounded font-bold group-hover:bg-purple-100 group-hover:text-purple-600 transition-colors cursor-pointer border-none uppercase tracking-wide hover:shadow-sm">COPY</button>
+                                <button data-target="momo-1" class="copy-btn text-[10px] bg-slate-100 text-slate-500 px-2 py-1 rounded font-bold group-hover:bg-brand-lemon group-hover:text-slate-900 transition-colors cursor-pointer border-none uppercase tracking-wide hover:shadow-sm">COPY</button>
                             </div>
-                            <div class="bg-white border border-slate-200 rounded-lg p-3 shadow-sm flex justify-between items-center group hover:border-purple-400 transition-colors">
+                            <div class="bg-white border border-slate-200 rounded-lg p-3 shadow-sm flex justify-between items-center group hover:border-brand-lemon transition-colors">
                                 <span id="momo-2" class="font-mono font-bold text-lg text-slate-800 tracking-wider">0256774847</span>
-                                <button data-target="momo-2" class="copy-btn text-[10px] bg-slate-100 text-slate-500 px-2 py-1 rounded font-bold group-hover:bg-purple-100 group-hover:text-purple-600 transition-colors cursor-pointer border-none uppercase tracking-wide hover:shadow-sm">COPY</button>
+                                <button data-target="momo-2" class="copy-btn text-[10px] bg-slate-100 text-slate-500 px-2 py-1 rounded font-bold group-hover:bg-brand-lemon group-hover:text-slate-900 transition-colors cursor-pointer border-none uppercase tracking-wide hover:shadow-sm">COPY</button>
                             </div>
                             <div class="flex items-center gap-2 mt-2">
                                 <span class="text-xs text-slate-400 font-medium">Merchant Name:</span>
@@ -336,15 +333,16 @@ export default function ProductCard({ id, name, price, images, imageLabels, dura
                 </div>
             `,
             confirmButtonText: 'I Have Paid',
-            confirmButtonColor: '#9333ea',
-            showCancelButton: true,
-            cancelButtonText: 'Wait, Cancel',
-            cancelButtonColor: '#cbd5e1', // slate-300
-            width: '95%',
-            padding: '2em',
+            confirmButtonColor: '#E5FF7F',
             customClass: {
+                confirmButton: '!text-slate-900 font-bold',
                 popup: 'rounded-2xl shadow-2xl'
             },
+            showCancelButton: true,
+            cancelButtonText: 'Wait, Cancel',
+            cancelButtonColor: '#cbd5e1',
+            width: '95%',
+            padding: '2em',
             didOpen: () => {
                 // Add simple copy functionality for the numbers
                 document.querySelectorAll('.copy-btn').forEach(btn => {
@@ -378,7 +376,10 @@ export default function ProductCard({ id, name, price, images, imageLabels, dura
                     'aria-label': 'Upload your payment screenshot'
                 },
                 confirmButtonText: 'Submit Order',
-                confirmButtonColor: '#9333ea',
+                confirmButtonColor: '#E5FF7F',
+                customClass: {
+                    confirmButton: '!text-slate-900 font-bold'
+                },
                 showCancelButton: true,
                 inputValidator: (result) => {
                     return !result && 'You need to select a screenshot image!'
@@ -402,7 +403,10 @@ export default function ProductCard({ id, name, price, images, imageLabels, dura
                         </div>
                     `,
                     icon: 'success',
-                    confirmButtonColor: '#9333ea'
+                    confirmButtonColor: '#E5FF7F',
+                    customClass: {
+                        confirmButton: '!text-slate-900 font-bold'
+                    }
                 });
             }
         }
@@ -448,117 +452,96 @@ export default function ProductCard({ id, name, price, images, imageLabels, dura
                 className={`bg-white p-4 rounded-3xl group hover:shadow-xl transition-all duration-700 ease-out border border-transparent hover:border-gray-100 cursor-pointer ${isVisible ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-10 scale-95'
                     }`}>
                 {/* Image Container */}
-                <div className="relative w-full aspect-square bg-[#f4f4f5] rounded-2xl overflow-hidden mb-4 group/image">
-                    {/* Production Badge */}
-                    <div className="absolute top-3 left-3 z-20 flex items-center gap-1.5 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-lg text-[10px] font-bold shadow-sm text-slate-700">
-                        <Clock className="w-3 h-3 text-brand-blue" />
-                        {duration}
+                <div className="relative w-full aspect-[4/5] bg-[#F7F7F7] rounded-3xl overflow-hidden mb-5 group/image transition-all duration-500 hover:shadow-inner">
+                    {/* New Arrival Badge */}
+                    <div className="absolute top-4 left-4 z-20 bg-[#DFEA73] text-[#2C3E02] text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-tighter shadow-sm">
+                        New Arrival
                     </div>
 
-                    {/* View Label (Front/Back/Side) */}
-                    {imageLabels && imageLabels[currentImageIndex] && (
-                        <div className="absolute top-3 right-3 z-20 bg-black/80 backdrop-blur-sm px-2 py-1 rounded-lg text-[10px] font-bold shadow-sm text-white">
-                            {imageLabels[currentImageIndex]}
-                        </div>
-                    )}
-
-                    {/* Sold Out Overlay */}
-                    {isSoldOut && (
-                        <div className="absolute inset-0 z-30 bg-white/60 backdrop-blur-[1px] flex items-center justify-center">
-                            <span className="bg-slate-900 text-white px-3 py-1 rounded-full font-bold uppercase tracking-wide text-xs">
-                                Sold Out
-                            </span>
-                        </div>
-                    )}
+                    {/* Rating Badge */}
+                    <div className="absolute bottom-4 left-4 z-20 bg-white/95 backdrop-blur-sm px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-sm border border-slate-100 group-hover:scale-105 transition-transform">
+                        <span className="text-[11px] font-black text-slate-900">4.9</span>
+                        <Star className="w-3 h-3 fill-brand-lemon text-brand-lemon" />
+                        <span className="text-[9px] font-black text-slate-400/40">(214)</span>
+                    </div>
 
                     {/* Carousel Image */}
-                    <div className="w-full h-full relative">
+                    <div className="w-full h-full relative p-4">
                         <Image
                             src={images[currentImageIndex]}
                             alt={`${name} view ${currentImageIndex + 1}`}
                             fill
-                            className={`object-cover transition-all duration-500 ${isSoldOut ? 'grayscale' : ''}`}
+                            className={`object-contain transition-all duration-700 group-hover/image:scale-105 ${isSoldOut ? 'grayscale' : ''}`}
                         />
                     </div>
-
-                    {/* Navigation Arrows (Visible on Hover) */}
-                    {images.length > 1 && !isSoldOut && (
-                        <>
-                            <button
-                                onClick={prevImage}
-                                className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/80 hover:bg-white rounded-full flex items-center justify-center opacity-0 group-hover/image:opacity-100 transition-opacity z-20 shadow-sm"
-                            >
-                                <ChevronLeft className="w-4 h-4 text-slate-900" />
-                            </button>
-                            <button
-                                onClick={nextImage}
-                                className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/80 hover:bg-white rounded-full flex items-center justify-center opacity-0 group-hover/image:opacity-100 transition-opacity z-20 shadow-sm"
-                            >
-                                <ChevronRight className="w-4 h-4 text-slate-900" />
-                            </button>
-
-                            {/* Dots Indicator */}
-                            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-20">
-                                {images.map((_, idx) => (
-                                    <div
-                                        key={idx}
-                                        className={`w-1.5 h-1.5 rounded-full transition-colors ${idx === currentImageIndex ? 'bg-slate-900' : 'bg-slate-300'}`}
-                                    />
-                                ))}
-                            </div>
-                        </>
-                    )}
                 </div>
 
-                {/* Info */}
-                <div className="mb-3">
-                    <h3 className="font-heading font-bold text-slate-900 text-lg truncate">{name}</h3>
-                    <div className="flex justify-between items-center mt-1">
-                        <span className="font-sans font-semibold text-slate-600">GH₵{price}</span>
-                        {!isSoldOut && (
-                            <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold">
-                                {stock} Left
-                            </span>
-                        )}
+                {/* Info Section */}
+                <div className="space-y-3 px-1">
+                    <h3 className="font-heading font-black text-slate-900 text-base md:text-lg leading-tight line-clamp-1 group-hover:text-brand-lemon transition-colors">
+                        {name}
+                    </h3>
+
+                    {/* Feature Highlights */}
+                    <div className="space-y-2 pb-3 border-b border-slate-100">
+                        <div className="flex items-center gap-2 text-slate-500">
+                            <Zap className="w-3.5 h-3.5 text-slate-400" />
+                            <span className="text-[10px] font-bold uppercase tracking-tight">Customized Tailoring</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-slate-500">
+                            <Shield className="w-3.5 h-3.5 text-slate-400" />
+                            <span className="text-[10px] font-bold uppercase tracking-tight">Premium Fabric Choice</span>
+                        </div>
+                    </div>
+
+                    {/* Price & Rating Summary (Mobile First) */}
+                    <div className="flex justify-between items-center pt-2 pb-3 border-b border-slate-50 mb-3">
+                        <div className="flex flex-col">
+                            <span className="text-slate-300 line-through text-[9px] font-bold">GH₵{Math.round(price * 1.15)}</span>
+                            <span className="font-sans font-black text-slate-900 text-base md:text-lg tracking-tight -mt-1">GH₵{price}</span>
+                        </div>
+                        <div className="flex items-center gap-1 bg-slate-50 px-2 py-1 rounded-lg">
+                            <Star className="w-2.5 h-2.5 fill-brand-lemon text-brand-lemon" />
+                            <span className="text-[10px] font-black text-slate-900">4.9</span>
+                        </div>
+                    </div>
+
+                    {/* Size Selection (Quick Access) */}
+                    <div className="flex gap-1.5 mb-4 overflow-x-auto pb-1 no-scrollbar" onClick={(e) => e.stopPropagation()}>
+                        {['S', 'M', 'L', 'XL'].map(size => (
+                            <button
+                                key={size}
+                                onClick={() => !isSoldOut && setSelectedSize(size)}
+                                disabled={isSoldOut}
+                                className={`flex-none w-8 h-8 rounded-lg text-[10px] font-black border transition-all active:scale-90
+                                    ${selectedSize === size
+                                        ? 'bg-brand-lemon text-slate-900 border-brand-lemon shadow-sm'
+                                        : 'bg-white text-slate-400 border-slate-100 hover:border-slate-200'
+                                    }
+                                `}
+                            >
+                                {size}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Quick Action Buttons */}
+                    <div className="flex flex-col md:grid md:grid-cols-2 gap-2 mt-4" onClick={(e) => e.stopPropagation()}>
+                        <button
+                            onClick={() => setIsDetailModalOpen(true)}
+                            className="flex items-center justify-center py-3 px-6 rounded-full border border-slate-900 text-[11px] font-bold text-slate-900 bg-white hover:bg-slate-50 transition-all active:scale-[0.98] cursor-pointer whitespace-nowrap"
+                        >
+                            Learn More
+                        </button>
+                        <button
+                            onClick={handleAddToCart}
+                            disabled={isAdding}
+                            className="flex items-center justify-center py-3 px-6 rounded-full bg-slate-900 text-white text-[11px] font-bold hover:bg-slate-800 transition-all active:scale-[0.98] cursor-pointer whitespace-nowrap"
+                        >
+                            {isAdding ? '...' : 'Add to Cart'}
+                        </button>
                     </div>
                 </div>
-
-                {/* Size Actions */}
-                <div className="flex gap-1 mb-4 overflow-x-auto pb-1 no-scrollbar" onClick={(e) => e.stopPropagation()}>
-                    {['S', 'M', 'L', 'XL'].map(size => (
-                        <button
-                            key={size}
-                            onClick={() => !isSoldOut && setSelectedSize(size)}
-                            disabled={isSoldOut}
-                            className={`flex-none w-8 h-8 rounded-full text-xs font-bold border transition-all
-                    ${selectedSize === size
-                                    ? 'bg-slate-900 text-white border-slate-900'
-                                    : 'bg-white text-slate-400 border-gray-100 hover:border-slate-300'}
-                  `}
-                        >
-                            {size}
-                        </button>
-                    ))}
-                </div>
-
-                {/* Buttons */}
-                <div className="grid grid-cols-2 gap-2" onClick={(e) => e.stopPropagation()}>
-                    <button
-                        onClick={handleAddToCart}
-                        disabled={isSoldOut || isAdding}
-                        className="flex items-center justify-center gap-1 py-2.5 rounded-xl border border-gray-200 text-xs font-bold text-slate-700 hover:bg-gray-50 transition-colors disabled:opacity-50 cursor-pointer"
-                    >
-                        {isAdding ? 'Adding...' : 'Add to Cart'}
-                    </button>
-                    <button
-                        onClick={handleBuyNow}
-                        disabled={isSoldOut}
-                        className="flex items-center justify-center gap-1 py-2.5 rounded-xl bg-purple-600 text-white text-xs font-bold hover:bg-purple-700 transition-colors disabled:opacity-50 cursor-pointer"
-                    >
-                        Buy Now
-                    </button>
-                </div>
-
             </div>
 
             {/* Detail Modal */}
@@ -591,7 +574,7 @@ export default function ProductCard({ id, name, price, images, imageLabels, dura
                                     <button
                                         key={idx}
                                         onClick={() => setCurrentImageIndex(idx)}
-                                        className={`flex-shrink-0 w-8 h-10 md:w-10 md:h-14 rounded-lg overflow-hidden border-2 transition-all ${idx === currentImageIndex ? 'border-purple-600 scale-110 shadow-lg' : 'border-transparent opacity-60 hover:opacity-100'}`}
+                                        className={`flex-shrink-0 w-8 h-10 md:w-10 md:h-14 rounded-lg overflow-hidden border-2 transition-all ${idx === currentImageIndex ? 'border-brand-lemon scale-110 shadow-lg' : 'border-transparent opacity-60 hover:opacity-100'}`}
                                     >
                                         <div className="relative w-full h-full">
                                             <Image src={img} alt="thumb" fill className="object-cover" />
@@ -604,7 +587,7 @@ export default function ProductCard({ id, name, price, images, imageLabels, dura
                         {/* Right: Info */}
                         <div className="flex-1 p-6 md:p-10 overflow-y-auto">
                             <div className="flex flex-wrap items-center gap-2 mb-3">
-                                <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-purple-600 bg-purple-50 px-2 md:px-3 py-1 rounded-full">New Collection</span>
+                                <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-900 bg-brand-lemon px-2 md:px-3 py-1 rounded-full">New Collection</span>
                                 <div className="flex items-center gap-1.5 text-slate-400 text-[9px] md:text-[10px] font-bold">
                                     <Clock className="w-3 h-3" />
                                     Ready in {duration}
@@ -650,12 +633,48 @@ export default function ProductCard({ id, name, price, images, imageLabels, dura
                                     </div>
                                     <div className="flex flex-col text-left">
                                         <span className="text-[8px] md:text-[9px] font-bold text-slate-400 uppercase mb-0.5">Origin</span>
-                                        <span className="text-[10px] md:text-[11px] font-bold text-slate-900">Crafted in Tamale</span>
+                                        <span className="text-[10px] md:text-[11px] font-bold text-slate-900">Expertly Crafted</span>
                                     </div>
                                     <div className="flex flex-col text-left">
                                         <span className="text-[8px] md:text-[9px] font-bold text-slate-400 uppercase mb-0.5">Shipping</span>
-                                        <span className="text-[10px] md:text-[11px] font-bold text-slate-900">Free Local Delivery</span>
+                                        <span className="text-[10px] md:text-[11px] font-bold text-slate-900">Fast Delivery</span>
                                     </div>
+                                </div>
+
+                                {/* Size Selection in Modal */}
+                                <div>
+                                    <h4 className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2 text-left">Select Silhouette</h4>
+                                    <div className="flex gap-2">
+                                        {['S', 'M', 'L', 'XL'].map(size => (
+                                            <button
+                                                key={size}
+                                                onClick={() => setSelectedSize(size)}
+                                                className={`w-10 h-10 md:w-12 md:h-12 rounded-xl font-black border-2 transition-all text-xs
+                                                    ${selectedSize === size ? 'border-brand-lemon bg-brand-lemon text-slate-900' : 'border-slate-100 text-slate-400 hover:border-slate-200'}
+                                                `}
+                                            >
+                                                {size}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Modal Actions */}
+                                <div className="grid grid-cols-2 gap-3 pt-6 border-t border-slate-100">
+                                    <button
+                                        onClick={handleAddToCart}
+                                        disabled={isAdding}
+                                        className="py-4 rounded-full border-2 border-slate-100 font-bold text-xs text-slate-600 hover:bg-slate-50 transition-all flex items-center justify-center gap-2"
+                                    >
+                                        <ShoppingBag className="w-4 h-4" />
+                                        {isAdding ? 'Adding...' : 'Add to Cart'}
+                                    </button>
+                                    <button
+                                        onClick={handleBuyNow}
+                                        className="py-4 rounded-full bg-brand-lemon text-slate-900 font-bold text-xs shadow-lg shadow-brand-lemon/20 hover:scale-[1.02] transition-all"
+                                    >
+                                        Buy Now
+                                    </button>
                                 </div>
                             </div>
                         </div>

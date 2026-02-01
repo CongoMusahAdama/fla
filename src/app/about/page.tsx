@@ -116,7 +116,7 @@ export default function AboutPage() {
                     </div>
 
                     <div className="mt-20">
-                        <Link href="/shop" className="px-10 py-5 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-purple-600 transition-all shadow-xl shadow-slate-200">
+                        <Link href="/shop" className="px-10 py-5 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-brand-lemon hover:text-slate-900 transition-all shadow-xl shadow-slate-200">
                             Explore the collection
                         </Link>
                     </div>
@@ -128,7 +128,7 @@ export default function AboutPage() {
                     <p className="text-slate-500 italic text-lg leading-relaxed mb-10">
                         "Our platform connects customers with creative clothing vendors on one secure digital platform. We empower fashion creators and clothing brands to reach more customers while giving shoppers access to personalized, high-quality apparel — all in one convenient platform."
                     </p>
-                    <div className="w-12 h-1 bg-purple-600 mx-auto" />
+                    <div className="w-12 h-1 bg-brand-lemon mx-auto" />
                 </div>
             </section>
         </main>

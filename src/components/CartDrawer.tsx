@@ -82,8 +82,8 @@ export default function CartDrawer() {
             title: '<span class="text-xl font-bold text-slate-900">Payment Details</span>',
             html: `
                 <div class="text-left space-y-4">
-                    <div class="bg-purple-50 p-4 rounded-xl text-center">
-                        <p class="text-[10px] font-bold text-purple-600 uppercase">Grand Total</p>
+                    <div class="bg-brand-lemon/10 p-4 rounded-xl text-center border border-brand-lemon/20">
+                        <p class="text-[10px] font-bold text-slate-500 uppercase">Grand Total</p>
                         <p class="text-3xl font-black text-slate-900">GH₵${subtotal}</p>
                     </div>
                     <p class="text-xs font-bold text-slate-700">Send Mobile Money to:</p>
@@ -100,12 +100,13 @@ export default function CartDrawer() {
                 </div>
             `,
             confirmButtonText: 'I Have Paid',
-            confirmButtonColor: '#9333ea',
-            showCancelButton: true,
-            width: '95%',
+            confirmButtonColor: '#E5FF7F',
             customClass: {
+                confirmButton: '!text-slate-900 font-bold',
                 popup: 'rounded-2xl shadow-2xl'
-            }
+            },
+            showCancelButton: true,
+            width: '95%'
         });
 
         if (isConfirmed) {
@@ -114,7 +115,10 @@ export default function CartDrawer() {
                 text: 'Upload your screenshot to finalize order',
                 input: 'file',
                 confirmButtonText: 'Finish Order',
-                confirmButtonColor: '#9333ea'
+                confirmButtonColor: '#E5FF7F',
+                customClass: {
+                    confirmButton: '!text-slate-900 font-bold'
+                }
             });
         }
     };
@@ -134,7 +138,7 @@ export default function CartDrawer() {
             }).then((result) => {
                 if (result.isConfirmed) {
                     setIsCartOpen(false);
-                    router.push('/auth');
+                    router.push('/auth?role=customer');
                 }
             });
             return;
@@ -155,19 +159,20 @@ export default function CartDrawer() {
                     </div>
                     <div class="border-t border-dashed border-slate-200 pt-3 flex justify-between items-center">
                         <span class="font-bold text-slate-900">Total payable:</span>
-                        <span class="text-xl font-black text-purple-600">GH₵${subtotal}</span>
+                        <span class="text-xl font-black text-slate-900 bg-brand-lemon px-2 rounded">GH₵${subtotal}</span>
                     </div>
                 </div>
             `,
             showCancelButton: true,
             confirmButtonText: 'Proceed to Payment',
-            confirmButtonColor: '#9333ea',
+            confirmButtonColor: '#E5FF7F',
+            customClass: {
+                confirmButton: '!text-slate-900 font-bold',
+                popup: 'rounded-2xl shadow-2xl'
+            },
             cancelButtonText: 'Wait, Continue Shopping',
             cancelButtonColor: '#cbd5e1',
-            width: '95%',
-            customClass: {
-                popup: 'rounded-2xl shadow-2xl'
-            }
+            width: '95%'
         });
 
         if (isConfirmed) {
@@ -286,7 +291,7 @@ export default function CartDrawer() {
                         <p className="text-[10px] text-slate-400 text-center mb-4">Shipping and taxes calculated at checkout.</p>
                         <button
                             onClick={handleCheckout}
-                            className="w-full py-4 bg-purple-600 text-white font-bold rounded-xl hover:bg-purple-700 transition-colors shadow-lg active:scale-[0.98] transition-transform"
+                            className="w-full py-4 bg-brand-lemon text-slate-900 font-bold rounded-full hover:bg-brand-lemon/90 transition-all shadow-lg active:scale-[0.98]"
                         >
                             Checkout Now
                         </button>

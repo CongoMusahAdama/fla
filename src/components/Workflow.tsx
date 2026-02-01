@@ -41,11 +41,11 @@ export default function Workflow() {
 
                     {steps.map((step) => (
                         <div key={step.id} className="relative flex flex-col items-center text-center group">
-                            <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-lg border border-gray-100 mb-6 group-hover:scale-110 transition-transform duration-300 group-hover:border-brand-blue">
-                                <step.icon className="w-10 h-10 text-brand-blue" />
+                            <div className="w-24 h-24 bg-white rounded-3xl flex items-center justify-center shadow-xl border border-gray-100 mb-8 group-hover:scale-110 transition-transform duration-300 group-hover:border-brand-lemon group-hover:bg-brand-lemon/5">
+                                <step.icon className="w-10 h-10 text-slate-900 group-hover:text-slate-900 transition-colors" />
                             </div>
                             <div className="absolute top-0 right-1/4 -mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <CheckCircle className="w-6 h-6 text-green-500 bg-white rounded-full" />
+                                <CheckCircle className="w-6 h-6 text-brand-lemon bg-slate-900 rounded-full" />
                             </div>
 
                             <h3 className="font-heading text-xl font-bold text-slate-900 mb-3">{step.title}</h3>
