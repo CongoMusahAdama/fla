@@ -624,8 +624,19 @@ export default function CustomerDashboard() {
                 </div>
             </aside>
 
+            {/* Dashboard Mobile Header */}
+            <header className="md:hidden fixed top-0 left-0 w-full z-[80] bg-white/95 backdrop-blur-md border-b border-slate-100 h-16 flex items-center justify-between px-6 mt-9">
+                <Link href="/" className="font-heading font-black text-xl tracking-tighter text-slate-900 uppercase">FLA.</Link>
+                <button
+                    onClick={() => setIsSidebarOpen(true)}
+                    className="p-2 bg-slate-900 text-white rounded-full shadow-lg"
+                >
+                    <Menu className="w-4 h-4" />
+                </button>
+            </header>
+
             {/* Main Content Area */}
-            <div className="flex-1 h-screen overflow-y-auto overflow-x-hidden relative">
+            <div className="flex-1 min-h-screen md:h-screen md:overflow-y-auto overflow-x-hidden relative">
                 {/* Fixed Top Bar (Desktop Only) */}
                 <header className="hidden md:flex sticky top-0 z-50 bg-[#FDFDFF]/80 backdrop-blur-md px-10 py-6 items-center justify-between border-b border-slate-100/50">
                     <div className="relative w-96 max-w-sm">

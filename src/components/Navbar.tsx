@@ -44,15 +44,15 @@ export default function Navbar() {
     ];
 
     return (
-        <header className="fixed w-full z-[100] transition-all duration-300">
+        <header className="fixed w-full z-[100] transition-all duration-300 pointer-events-none">
             {/* Announcement Bar */}
-            <div className="bg-black text-white py-2 px-4 transition-all duration-300 h-9 flex items-center justify-center relative">
+            <div className="bg-black text-white py-2 px-4 transition-all duration-300 h-9 flex items-center justify-center relative pointer-events-auto">
                 <p className="text-[10px] md:text-xs font-bold uppercase tracking-[0.2em]">
                     AUTHENTIC CLOTHING LINE
                 </p>
             </div>
 
-            <nav className={`transition-all duration-300 border-b ${isScrolled
+            <nav className={`transition-all duration-300 border-b pointer-events-auto ${isScrolled
                 ? 'bg-white shadow-md border-gray-100 h-16 md:h-20'
                 : 'bg-white/95 backdrop-blur-sm border-gray-200 h-20 md:h-24'
                 }`}>
