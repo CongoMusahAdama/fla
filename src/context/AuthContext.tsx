@@ -42,14 +42,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, []);
 
     const login = async (identifier: string, password: string) => {
-        // Mock login
-        // Check if identifier is email or looks like phone
+        // Production-ready mock login with specific credentials
+        if (identifier === 'fadlan@gmail.com' && password === 'fadlan') {
+            // Check current role from context or use a default
+            // In a real app, this would be an API call
+            const mockUser: User = {
+                id: 'fadlan-unique-id',
+                name: 'Fadlan FLA',
+                email: identifier,
+                role: identifier.includes('vendor') || localStorage.getItem('last_intended_role') === 'vendor' ? 'vendor' : 'customer'
+            };
+            setUser(mockUser);
+            localStorage.setItem('fla_user', JSON.stringify(mockUser));
+            return;
+        }
+
+        // Standard mock login for any other credentials
         const mockUser: User = {
-            id: '1',
+            id: 'mock-1',
             name: identifier.includes('@') ? identifier.split('@')[0] : 'Guest User',
             email: identifier.includes('@') ? identifier : 'guest@example.com',
             phone: !identifier.includes('@') ? identifier : undefined,
-            role: 'customer' // Default role
+            role: localStorage.getItem('last_intended_role') === 'vendor' ? 'vendor' : 'customer'
         };
         setUser(mockUser);
         localStorage.setItem('fla_user', JSON.stringify(mockUser));
