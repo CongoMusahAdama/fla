@@ -39,24 +39,92 @@ const AuthInput = React.memo(({ label, type, placeholder, value, onChange, requi
 
 AuthInput.displayName = 'AuthInput';
 
-function AuthContent() {
-    const [isLogin, setIsLogin] = useState(true);
-    const [role, setRole] = useState<UserRole>('customer');
+const LoginForm = ({ onLogin }: { onLogin: (id: string, pass: string) => void }) => {
+    const [identifier, setIdentifier] = useState('');
+    const [password, setPassword] = useState('');
 
-    // Common Fields
+    return (
+        <form onSubmit={(e) => { e.preventDefault(); onLogin(identifier, password); }} className="space-y-4 animate-in fade-in duration-500">
+            <AuthInput
+                label="Email or Phone"
+                type="text"
+                placeholder="you@email.com"
+                required
+                value={identifier}
+                onChange={setIdentifier}
+                icon={User}
+            />
+            <AuthInput
+                label="Password"
+                type="password"
+                placeholder="••••••••"
+                required
+                value={password}
+                onChange={setPassword}
+                icon={Lock}
+            />
+            <div className="pt-4">
+                <button type="submit" className="w-full py-4 bg-emerald-950 text-white rounded-full font-bold text-sm tracking-wide hover:bg-slate-800 transition-all shadow-xl shadow-emerald-900/10 active:scale-[0.98]">
+                    Sign In
+                </button>
+            </div>
+        </form>
+    );
+};
+
+const RegisterForm = ({ role, onSignup }: { role: UserRole, onSignup: (data: any) => void }) => {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [phone, setPhone] = useState('');
     const [location, setLocation] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
-    const [identifier, setIdentifier] = useState(''); // Email or Phone for login
 
-    // Vendor Specific Fields
+    // Vendor Specific
     const [shopName, setShopName] = useState('');
     const [productTypes, setProductTypes] = useState('');
     const [accountName, setAccountName] = useState('');
     const [paymentNumber, setPaymentNumber] = useState('');
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        onSignup({ name, email, phone, location, password, confirmPassword, shopName, productTypes, accountName, paymentNumber });
+    };
+
+    return (
+        <form onSubmit={handleSubmit} className="space-y-4 animate-in fade-in duration-500">
+            <div className="grid grid-cols-1 gap-4 overflow-y-auto max-h-[45vh] md:max-h-none pr-1 custom-scrollbar pb-4">
+                <AuthInput label="Full Name" type="text" placeholder="Eg. Yasir Noori" required value={name} onChange={setName} icon={User} />
+                <AuthInput label="Email Address" type="email" placeholder="you@email.com" required value={email} onChange={setEmail} icon={Mail} />
+                <div className="grid grid-cols-2 gap-4">
+                    <AuthInput label="Phone" type="tel" placeholder="024..." required value={phone} onChange={setPhone} icon={Phone} />
+                    <AuthInput label="Location" type="text" placeholder="City" required value={location} onChange={setLocation} icon={MapPin} />
+                </div>
+
+                {role === 'vendor' && (
+                    <div className="space-y-4 pt-4 border-t border-slate-100 mt-2">
+                        <AuthInput label="Shop Name" type="text" placeholder="Eg. FLA Boutique" required value={shopName} onChange={setShopName} icon={Store} />
+                        <AuthInput label="MoMo Number" type="tel" placeholder="024XXXXXXX" required value={paymentNumber} onChange={setPaymentNumber} icon={Phone} />
+                        <AuthInput label="Momo / Account Name" type="text" placeholder="Billing Name" required value={accountName} onChange={setAccountName} icon={CreditCard} />
+                    </div>
+                )}
+
+                <AuthInput label="Password" type="password" placeholder="••••••••" required value={password} onChange={setPassword} icon={Lock} />
+                <AuthInput label="Confirm Password" type="password" placeholder="••••••••" required value={confirmPassword} onChange={setConfirmPassword} icon={Lock} />
+            </div>
+            <div className="pt-4">
+                <button type="submit" className="w-full py-4 bg-emerald-950 text-white rounded-full font-bold text-sm tracking-wide hover:bg-slate-800 transition-all shadow-xl shadow-emerald-900/10 active:scale-[0.98]">
+                    {role === 'vendor' ? 'Register Business' : 'Create Account'}
+                </button>
+            </div>
+        </form>
+    );
+};
+
+function AuthContent() {
+    const [isLogin, setIsLogin] = useState(true);
+    const [role, setRole] = useState<UserRole>('customer');
+
     const [showOTP, setShowOTP] = useState(false);
     const [otp, setOtp] = useState(['', '', '', '']);
     const [timer, setTimer] = useState(60);
@@ -89,70 +157,69 @@ function AuthContent() {
         return () => clearInterval(interval);
     }, [showOTP, timer]);
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleLogin = async (identifier: string, pass: string) => {
         try {
-            if (isLogin) {
-                await login(identifier, password);
-            } else {
-                if (password !== confirmPassword) {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Password Mismatch',
-                        text: 'Passwords do not match. Please check and try again.'
-                    });
-                    return;
-                }
-
-                const vendorData = role === 'vendor' ? {
-                    shopName,
-                    productTypes,
-                    accountName,
-                    momoNumber: paymentNumber,
-                } : {};
-
-                await signup(name, email, phone, location, password, role, vendorData);
-
-                if (role === 'vendor') {
-                    setShowOTP(true);
-                    Swal.fire({
-                        icon: 'info',
-                        title: 'Verification Needed',
-                        text: `We've sent a 4-digit code to ${email}. Please verify your business account.`,
-                        customClass: { popup: 'rounded-[32px]' }
-                    });
-                    return;
-                }
-            }
-
-            Swal.fire({
-                icon: 'success',
-                title: isLogin ? 'Welcome Back!' : 'Account Created',
-                text: 'Redirecting you to FLA...',
-                timer: 2000,
-                showConfirmButton: false
-            });
-
-            setTimeout(() => {
-                router.push(role === 'vendor' ? '/vendor' : '/dashboard');
-            }, 2000);
+            await login(identifier, pass);
+            showSuccess(true);
         } catch (error) {
-            Swal.fire({
-                icon: 'error',
-                title: 'Oops...',
-                text: 'Something went wrong. Please try again.'
-            });
+            showError();
         }
+    };
+
+    const handleSignup = async (data: any) => {
+        if (data.password !== data.confirmPassword) {
+            Swal.fire({ icon: 'error', title: 'Password Mismatch', text: 'Passwords do not match.' });
+            return;
+        }
+
+        try {
+            const vendorData = role === 'vendor' ? {
+                shopName: data.shopName,
+                productTypes: data.productTypes,
+                accountName: data.accountName,
+                momoNumber: data.paymentNumber,
+            } : {};
+
+            await signup(data.name, data.email, data.phone, data.location, data.password, role, vendorData);
+
+            if (role === 'vendor') {
+                setShowOTP(true);
+                Swal.fire({
+                    icon: 'info',
+                    title: 'Verification Needed',
+                    text: `We've sent a 4-digit code to ${data.email}.`,
+                    customClass: { popup: 'rounded-[32px]' }
+                });
+            } else {
+                showSuccess(false);
+            }
+        } catch (error) {
+            showError();
+        }
+    };
+
+    const showSuccess = (isLog: boolean) => {
+        Swal.fire({
+            icon: 'success',
+            title: isLog ? 'Welcome Back!' : 'Account Created',
+            text: 'Redirecting you to FLA...',
+            timer: 2000,
+            showConfirmButton: false
+        });
+        setTimeout(() => {
+            router.push(role === 'vendor' ? '/vendor' : '/dashboard');
+        }, 2000);
+    };
+
+    const showError = () => {
+        Swal.fire({ icon: 'error', title: 'Oops...', text: 'Something went wrong.' });
     };
 
     const handleOtpChange = (index: number, value: string) => {
         if (!/^\d*$/.test(value)) return;
         const newOtp = [...otp];
-        // Take only last character if multiple are typed
         newOtp[index] = value.slice(-1);
         setOtp(newOtp);
-
-        // Auto focus next
         if (value && index < 3) {
             const nextInput = document.getElementById(`otp-${index + 1}`);
             nextInput?.focus();
@@ -185,37 +252,18 @@ function AuthContent() {
     const handleVerifyOtp = async () => {
         const code = otp.join('');
         if (code.length < 4) return;
-
-        // Simulated check
-        Swal.fire({
-            title: 'Verifying...',
-            didOpen: () => Swal.showLoading(),
-            allowOutsideClick: false,
-            customClass: { popup: 'rounded-[32px]' }
-        });
-
+        Swal.fire({ title: 'Verifying...', didOpen: () => Swal.showLoading(), allowOutsideClick: false, customClass: { popup: 'rounded-[32px]' } });
         setTimeout(() => {
-            Swal.fire({
-                icon: 'success',
-                title: 'Vandor Verified! 🎉',
-                text: 'Your business account is now active.',
-                timer: 2000,
-                showConfirmButton: false,
-                customClass: { popup: 'rounded-[32px]' }
-            });
-
-            setTimeout(() => {
-                router.push('/vendor');
-            }, 2000);
+            Swal.fire({ icon: 'success', title: 'Vandor Verified! 🎉', text: 'Your business account is now active.', timer: 2000, showConfirmButton: false, customClass: { popup: 'rounded-[32px]' } });
+            setTimeout(() => { router.push('/vendor'); }, 2000);
         }, 1500);
     };
 
     return (
         <main className="min-h-screen bg-[#E5E7EB]/30 flex items-start md:items-center justify-center p-4 md:p-8 pt-28 md:pt-24">
             <div className="bg-white w-full max-w-6xl min-h-[85vh] rounded-[48px] shadow-2xl overflow-hidden flex flex-col md:flex-row border border-gray-100">
-                {/* Left Column */}
                 <div className="w-full md:w-[45%] p-8 md:p-16 flex flex-col justify-between relative bg-white">
-                    <Link href="/" className="inline-flex items-center gap-2 mb-12">
+                    <Link href="/" className="inline-flex items-center gap-2 mb-8">
                         <div className="w-8 h-8 bg-slate-900 rounded-full flex items-center justify-center">
                             <div className="w-4 h-4 border-2 border-white rotate-45" />
                         </div>
@@ -230,20 +278,11 @@ function AuthContent() {
                                         <MessageSquare className="w-8 h-8" />
                                     </div>
                                     <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tighter mb-2">Verify Studio</h2>
-                                    <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">Sent to {email}</p>
+                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">A code was sent to your email.</p>
                                 </div>
                                 <div className="flex gap-3 mb-8">
                                     {otp.map((digit, i) => (
-                                        <input
-                                            key={i}
-                                            id={`otp-${i}`}
-                                            type="text"
-                                            maxLength={1}
-                                            value={digit}
-                                            onChange={(e) => handleOtpChange(i, e.target.value)}
-                                            onPaste={handlePaste}
-                                            className="w-full aspect-square bg-slate-50 border-none rounded-2xl text-2xl font-black text-center focus:ring-4 focus:ring-[#D8F800]/20"
-                                        />
+                                        <input key={i} id={`otp-${i}`} type="text" maxLength={1} value={digit} onChange={(e) => handleOtpChange(i, e.target.value)} onPaste={handlePaste} className="w-full aspect-square bg-slate-50 border-none rounded-2xl text-2xl font-black text-center focus:ring-4 focus:ring-[#D8F800]/20" />
                                     ))}
                                 </div>
                                 <button onClick={handleVerifyOtp} disabled={otp.join('').length < 4} className="w-full py-5 bg-slate-900 text-white rounded-full font-black text-xs uppercase tracking-[0.2em] mb-6 hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/10 disabled:opacity-50">
@@ -253,15 +292,13 @@ function AuthContent() {
                                     {timer > 0 ? (
                                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Resend code in {timer}s</p>
                                     ) : (
-                                        <button onClick={handleResendOtp} className="text-[10px] font-black text-slate-900 uppercase tracking-widest hover:underline">
-                                            Didn't get the code? Resend
-                                        </button>
+                                        <button onClick={handleResendOtp} className="text-[10px] font-black text-slate-900 uppercase tracking-widest hover:underline">Didn't get the code? Resend</button>
                                     )}
                                 </div>
                             </div>
                         ) : (
                             <React.Fragment>
-                                <header className="mb-8">
+                                <header className="mb-6">
                                     <h2 className="text-4xl font-black text-slate-900 uppercase tracking-tighter mb-1">
                                         {isLogin ? 'WELCOME BACK' : (role === 'vendor' ? 'NEW STUDIO' : 'JOIN THE TRIBE')}
                                     </h2>
@@ -270,7 +307,6 @@ function AuthContent() {
                                     </p>
                                 </header>
 
-                                {/* Role Selector - Hidden if role is pre-specified in URL */}
                                 {!searchParams.get('role') && (
                                     <div className="flex p-1 bg-slate-50 rounded-full mb-6 border border-slate-100">
                                         <button onClick={() => { setRole('customer'); localStorage.setItem('last_intended_role', 'customer'); }} className={`flex-1 py-2 text-[10px] font-bold rounded-full transition-all ${role === 'customer' ? 'bg-white text-slate-900 shadow-sm border border-slate-100' : 'text-slate-400 hover:text-slate-600'}`}>Customer</button>
@@ -278,69 +314,31 @@ function AuthContent() {
                                     </div>
                                 )}
 
-                                <form onSubmit={handleSubmit} className="space-y-5">
-                                    {isLogin ? (
-                                        <div className="space-y-4">
-                                            <AuthInput
-                                                label="Email or Phone"
-                                                type="text"
-                                                placeholder="you@email.com"
-                                                required
-                                                value={identifier}
-                                                onChange={setIdentifier}
-                                                icon={User}
-                                            />
-                                            <AuthInput
-                                                label="Password"
-                                                type="password"
-                                                placeholder="••••••••"
-                                                required
-                                                value={password}
-                                                onChange={setPassword}
-                                                icon={Lock}
-                                            />
-                                        </div>
-                                    ) : (
-                                        <div className="grid grid-cols-1 gap-4 overflow-y-auto max-h-[50vh] pr-2 custom-scrollbar">
-                                            <div className="space-y-4 pt-2 border-t border-slate-50 mt-2">
-                                                <AuthInput label="Full Name" type="text" placeholder="Eg. Yasir Noori" required value={name} onChange={setName} icon={User} />
-                                                <AuthInput label="Email Address" type="email" placeholder="you@email.com" required value={email} onChange={setEmail} icon={Mail} />
-                                                <div className="grid grid-cols-2 gap-4">
-                                                    <AuthInput label="Phone" type="tel" placeholder="024..." required value={phone} onChange={setPhone} icon={Phone} />
-                                                    <AuthInput label="Location" type="text" placeholder="City" required value={location} onChange={setLocation} icon={MapPin} />
-                                                </div>
-                                                {role === 'vendor' && (
-                                                    <div className="space-y-4 pt-4 border-t border-slate-100 mt-2">
-                                                        <AuthInput label="Shop Name" type="text" placeholder="Eg. FLA Boutique" required value={shopName} onChange={setShopName} icon={Store} />
-                                                        <AuthInput label="MoMo Number" type="tel" placeholder="024XXXXXXX" required value={paymentNumber} onChange={setPaymentNumber} icon={Phone} />
-                                                        <AuthInput label="Momo / Account Name" type="text" placeholder="Billing Name" required value={accountName} onChange={setAccountName} icon={CreditCard} />
-                                                    </div>
-                                                )}
-                                                <AuthInput label="Password" type="password" placeholder="••••••••" required value={password} onChange={setPassword} icon={Lock} />
-                                                <AuthInput label="Confirm Password" type="password" placeholder="••••••••" required value={confirmPassword} onChange={setConfirmPassword} icon={Lock} />
-                                            </div>
-                                        </div>
-                                    )}
-                                    <div className="space-y-3 pt-4">
-                                        <button type="submit" className="w-full py-4 bg-emerald-950 text-white rounded-full font-bold text-sm tracking-wide hover:bg-slate-800 transition-all shadow-xl shadow-emerald-900/10 active:scale-[0.98]">
-                                            {isLogin ? 'Sign In' : (role === 'vendor' ? 'Register Business' : 'Create Account')}
-                                        </button>
-                                        <button type="button" onClick={() => setIsLogin(!isLogin)} className="w-full py-4 bg-[#D8F800] text-slate-900 rounded-full font-bold text-sm hover:opacity-90 transition-all">
-                                            {isLogin ? 'Create Account' : 'Sign In'}
-                                        </button>
-                                    </div>
-                                </form>
+                                {isLogin ? (
+                                    <LoginForm onLogin={handleLogin} />
+                                ) : (
+                                    <RegisterForm role={role} onSignup={handleSignup} />
+                                )}
+
+                                <div className="pt-2 text-center">
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsLogin(!isLogin)}
+                                        className="text-xs font-black text-slate-400 uppercase tracking-widest hover:text-slate-900 transition-colors py-4 inline-block"
+                                    >
+                                        {isLogin ? "Don't have an account? Sign Up" : "Already have an account? Login"}
+                                    </button>
+                                </div>
                             </React.Fragment>
                         )}
                     </div>
 
-                    <div className="mt-12 flex items-center gap-2 text-slate-400">
+                    <div className="mt-8 flex items-center justify-center md:justify-start gap-2 text-slate-300">
                         <Mail className="w-4 h-4" />
-                        <span className="text-xs font-bold tracking-tight">Help@FLA.com</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest">Help@FLA.com</span>
                     </div>
                 </div>
 
-                {/* Right Column */}
                 <div className="hidden md:flex w-[55%] relative p-10">
                     <div className="relative w-full h-full rounded-[40px] overflow-hidden group">
                         <Image src="/hero-model.png" alt="Fashion Inspiration" fill className="object-cover group-hover:scale-105 transition-transform duration-[3s]" />
@@ -352,25 +350,10 @@ function AuthContent() {
                             <h3 className="text-4xl lg:text-5xl font-black text-white leading-tight mb-4 drop-shadow-lg">
                                 The simplest way <br /> to manage <span className="text-[#E5FF7F]">your style.</span>
                             </h3>
-                            <div className="flex gap-2">
-                                <div className="w-2 h-2 rounded-full bg-white/40" />
-                                <div className="w-2 h-2 rounded-full bg-white" />
-                                <div className="w-2 h-2 rounded-full bg-white/40" />
-                                <div className="w-2 h-2 rounded-full bg-white/40" />
-                            </div>
-                        </div>
-                        <div className="absolute bottom-10 right-10 flex gap-4">
-                            <button className="w-12 h-12 rounded-full bg-[#D8F800]/20 backdrop-blur-md flex items-center justify-center text-[#D8F800] border border-[#D8F800]/30 hover:bg-[#D8F800] hover:text-slate-900 transition-all">
-                                <ArrowLeft className="w-5 h-5" />
-                            </button>
-                            <button className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white border border-white/30 hover:bg-white hover:text-slate-900 transition-all">
-                                <ArrowRight className="w-5 h-5" />
-                            </button>
                         </div>
                     </div>
                 </div>
             </div>
-
             <style jsx>{`
                 .custom-scrollbar::-webkit-scrollbar { width: 4px; }
                 .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }

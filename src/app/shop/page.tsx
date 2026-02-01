@@ -171,8 +171,8 @@ function ShopContent() {
                 </div>
             </section>
 
-            {/* Filter Bar - Adjusted sticky offset for standard and mobile nav */}
-            <section className="sticky top-[80px] md:top-[100px] z-40 bg-white/95 backdrop-blur-md border-b border-gray-100 py-4 px-4 md:px-8">
+            {/* Filter Bar - Adjusted sticky offset for standard and mobile nav (100px total height) */}
+            <section className="sticky top-[100px] z-40 bg-white/95 backdrop-blur-md border-b border-gray-100 py-4 px-4 md:px-8 transition-all duration-300">
                 <div className="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-4">
 
                     {/* Left: Filter groups */}
