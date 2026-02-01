@@ -22,7 +22,7 @@ const AuthInput = React.memo(({ label, type, placeholder, value, onChange, requi
     return (
         <div className="space-y-1.5">
             {label && <label className="text-xs font-bold text-slate-700 ml-1">{label}</label>}
-            <div className="relative group">
+            <div className="relative group z-10">
                 {Icon && (
                     <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-slate-900 transition-colors pointer-events-none">
                         <Icon className="w-4 h-4" />
@@ -34,13 +34,13 @@ const AuthInput = React.memo(({ label, type, placeholder, value, onChange, requi
                     required={required}
                     value={value}
                     onChange={(e) => onChange(e.target.value)}
-                    className={`w-full ${Icon ? 'pl-11' : 'px-4'} ${isPassword ? 'pr-12' : 'pr-4'} py-4 bg-white border-2 border-slate-100 rounded-2xl text-sm transition-all focus:border-slate-900 focus:ring-4 focus:ring-slate-900/5 outline-none`}
+                    className={`w-full ${Icon ? 'pl-11' : 'px-4'} ${isPassword ? 'pr-12' : 'pr-4'} py-4 bg-white border-2 border-slate-100 rounded-2xl text-base md:text-sm transition-all focus:border-slate-900 focus:ring-4 focus:ring-slate-900/5 outline-none touch-manipulation`}
                 />
                 {isPassword && (
                     <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-900 transition-colors p-1"
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-900 transition-colors p-2 cursor-pointer z-20 touch-manipulation"
                     >
                         <span className="text-[10px] font-black uppercase tracking-widest">{showPassword ? 'Hide' : 'Show'}</span>
                     </button>
