@@ -546,35 +546,38 @@ export default function ProductCard({ id, name, price, images, imageLabels, dura
 
             {/* Detail Modal */}
             {isDetailModalOpen && (
-                <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 md:p-8">
+                <div className="fixed inset-0 z-[1000] flex items-end md:items-center justify-center p-0 md:p-8">
                     <div
-                        className="absolute inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity"
+                        className="absolute inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity duration-500"
                         onClick={() => setIsDetailModalOpen(false)}
                     />
-                    <div className="relative bg-white w-full max-w-4xl h-fit md:max-h-[85vh] overflow-y-auto md:overflow-hidden rounded-[32px] md:rounded-[40px] shadow-2xl flex flex-col md:flex-row animate-in fade-in zoom-in duration-300">
-                        {/* Close Button */}
+                    <div className="relative bg-white w-full max-w-4xl h-[92vh] md:h-auto md:max-h-[85vh] overflow-hidden rounded-t-[40px] md:rounded-[40px] shadow-2xl flex flex-col md:flex-row animate-in slide-in-from-bottom md:zoom-in-95 duration-500">
+                        {/* Mobile Handle */}
+                        <div className="md:hidden absolute top-3 left-1/2 -translate-x-1/2 w-12 h-1.5 bg-slate-200/50 rounded-full z-50" />
+
+                        {/* Close Button - Desktop & Mobile fallback */}
                         <button
                             onClick={() => setIsDetailModalOpen(false)}
-                            className="absolute top-4 right-4 md:top-6 md:right-6 z-50 p-2 bg-white/80 backdrop-blur-sm rounded-full shadow-lg text-slate-900 hover:bg-white transition-all scale-100 hover:scale-110"
+                            className="absolute top-5 right-5 z-50 p-3 bg-white/90 backdrop-blur-md rounded-full shadow-xl text-slate-900 hover:bg-brand-lemon hover:scale-110 active:scale-95 transition-all outline-none"
                         >
-                            <X className="w-5 h-5 md:w-6 md:h-6" />
+                            <X className="w-5 h-5" />
                         </button>
 
                         {/* Left: Gallery */}
-                        <div className="w-full md:w-1/2 h-[350px] md:h-auto relative bg-[#f8f8f8]">
+                        <div className="w-full md:w-1/2 h-[45vh] md:h-auto relative bg-[#f8f8f8] group/gallery">
                             <Image
                                 src={images[currentImageIndex]}
                                 alt={name}
                                 fill
-                                className="object-cover"
+                                className="object-cover md:object-contain p-4 transition-transform duration-700 group-hover/gallery:scale-105"
                             />
                             {/* Thumbnails */}
-                            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 md:gap-3 px-3 py-1.5 bg-white/40 backdrop-blur-md rounded-2xl border border-white/20 max-w-[90%] overflow-x-auto no-scrollbar">
+                            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2 md:gap-3 px-4 py-2 bg-white/60 backdrop-blur-xl rounded-2xl border border-white/40 max-w-[90%] overflow-x-auto no-scrollbar shadow-lg">
                                 {images.map((img, idx) => (
                                     <button
                                         key={idx}
                                         onClick={() => setCurrentImageIndex(idx)}
-                                        className={`flex-shrink-0 w-8 h-10 md:w-10 md:h-14 rounded-lg overflow-hidden border-2 transition-all ${idx === currentImageIndex ? 'border-brand-lemon scale-110 shadow-lg' : 'border-transparent opacity-60 hover:opacity-100'}`}
+                                        className={`flex-shrink-0 w-10 h-10 md:w-12 md:h-16 rounded-xl overflow-hidden border-2 transition-all ${idx === currentImageIndex ? 'border-brand-lemon scale-110 shadow-md' : 'border-transparent opacity-50 hover:opacity-100'}`}
                                     >
                                         <div className="relative w-full h-full">
                                             <Image src={img} alt="thumb" fill className="object-cover" />
@@ -585,97 +588,100 @@ export default function ProductCard({ id, name, price, images, imageLabels, dura
                         </div>
 
                         {/* Right: Info */}
-                        <div className="flex-1 p-6 md:p-10 overflow-y-auto">
-                            <div className="flex flex-wrap items-center gap-2 mb-3">
-                                <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-900 bg-brand-lemon px-2 md:px-3 py-1 rounded-full">New Collection</span>
-                                <div className="flex items-center gap-1.5 text-slate-400 text-[9px] md:text-[10px] font-bold">
-                                    <Clock className="w-3 h-3" />
-                                    Ready in {duration}
+                        <div className="flex-1 overflow-y-auto h-full flex flex-col relative">
+                            <div className="p-8 md:p-10 pb-32 md:pb-10 space-y-8">
+                                <div className="space-y-4">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-900 bg-brand-lemon px-3 py-1 rounded-full shadow-sm">Bespoke Collection</span>
+                                        <div className="flex items-center gap-1.5 text-emerald-500 text-[10px] font-black uppercase tracking-widest">
+                                            <Zap className="w-3 h-3 fill-current" />
+                                            Active Tailoring
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <h2 className="font-heading text-3xl md:text-4xl font-black text-slate-900 mb-2 leading-tight tracking-tighter uppercase">{name}</h2>
+                                        <div className="flex items-center gap-4">
+                                            <p className="text-2xl md:text-3xl font-black text-slate-900 tracking-tighter">GH₵{price}</p>
+                                            <div className="h-6 w-[1px] bg-slate-100" />
+                                            <div className="flex items-center gap-1">
+                                                <Star className="w-4 h-4 fill-brand-lemon text-brand-lemon" />
+                                                <span className="text-xs font-black text-slate-900">4.9</span>
+                                                <span className="text-[10px] font-bold text-slate-300 ml-1">(214 Reviews)</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-8">
+                                    {/* Description */}
+                                    <div className="p-5 bg-slate-50 rounded-[24px] border border-slate-100/50">
+                                        <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-3">The Narrative</h4>
+                                        <p className="text-slate-600 text-xs md:text-sm leading-relaxed text-left font-medium">
+                                            Crafted with precision using premium bespoke tailoring techniques. This piece features our signature {name.toLowerCase()} design, combining traditional aesthetics with modern comfort. Every stitch is a testament to our commitment to excellence.
+                                        </p>
+                                    </div>
+
+                                    {/* Details Grid */}
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="flex items-center gap-3 p-4 rounded-2xl bg-white border border-slate-100 shadow-sm">
+                                            <Clock className="w-5 h-5 text-slate-900" />
+                                            <div className="flex flex-col">
+                                                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Tailoring</span>
+                                                <span className="text-[11px] font-black text-slate-900">{duration}</span>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-3 p-4 rounded-2xl bg-white border border-slate-100 shadow-sm">
+                                            <Shield className="w-5 h-5 text-slate-900" />
+                                            <div className="flex flex-col">
+                                                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Quality</span>
+                                                <span className="text-[11px] font-black text-slate-900">Bespoke</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Size Selection */}
+                                    <div className="space-y-4">
+                                        <div className="flex justify-between items-center px-1">
+                                            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Select Silhouette</h4>
+                                            <button className="text-[10px] font-black text-slate-900 uppercase tracking-widest underline decoration-brand-lemon decoration-2 underline-offset-4">Size Guide</button>
+                                        </div>
+                                        <div className="flex gap-3">
+                                            {['S', 'M', 'L', 'XL'].map(size => (
+                                                <button
+                                                    key={size}
+                                                    onClick={() => setSelectedSize(size)}
+                                                    className={`w-14 h-14 md:w-16 md:h-16 rounded-2xl font-black border-2 transition-all text-sm
+                                                        ${selectedSize === size
+                                                            ? 'border-slate-900 bg-slate-900 text-white shadow-xl shadow-slate-900/20 scale-105'
+                                                            : 'border-slate-100 text-slate-400 hover:border-slate-200 bg-white'
+                                                        }
+                                                    `}
+                                                >
+                                                    {size}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
-                            <h2 className="font-heading text-xl md:text-3xl font-black text-slate-900 mb-1 md:mb-2 leading-tight">{name}</h2>
-                            <p className="text-xl md:text-2xl font-black text-slate-900 mb-4 md:mb-6 font-sans">GH₵{price}</p>
-
-                            <div className="space-y-5 md:space-y-6">
-                                {/* Description */}
-                                <div>
-                                    <h4 className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 md:mb-2 text-left">The Narrative</h4>
-                                    <p className="text-slate-600 text-[11px] md:text-xs leading-relaxed text-left">
-                                        Crafted with precision using premium bespoke tailoring techniques. This piece features our signature {name.toLowerCase()} design, combining traditional aesthetics with modern comfort. Every stitch is a testament to our commitment to excellence.
-                                    </p>
-                                </div>
-
-                                {/* Size Selection - Read Only for preview */}
-                                <div>
-                                    <h4 className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 md:mb-2 text-left">Available Silhouettes</h4>
-                                    <div className="flex gap-2">
-                                        {['S', 'M', 'L', 'XL'].map(size => (
-                                            <div
-                                                key={size}
-                                                className="w-8 h-8 md:w-10 md:h-10 rounded-lg md:rounded-xl font-bold border-2 border-slate-100 bg-slate-50 text-slate-400 flex items-center justify-center text-[10px] md:text-xs"
-                                            >
-                                                {size}
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                {/* Details List */}
-                                <div className="grid grid-cols-2 gap-3 md:gap-4 pt-4 md:pt-6 border-t border-slate-100">
-                                    <div className="flex flex-col text-left">
-                                        <span className="text-[8px] md:text-[9px] font-bold text-slate-400 uppercase mb-0.5">Fabrication</span>
-                                        <span className="text-[10px] md:text-[11px] font-bold text-slate-900">100% Cotton Print</span>
-                                    </div>
-                                    <div className="flex flex-col text-left">
-                                        <span className="text-[8px] md:text-[9px] font-bold text-slate-400 uppercase mb-0.5">Tailoring Time</span>
-                                        <span className="text-[10px] md:text-[11px] font-bold text-slate-900">{duration}</span>
-                                    </div>
-                                    <div className="flex flex-col text-left">
-                                        <span className="text-[8px] md:text-[9px] font-bold text-slate-400 uppercase mb-0.5">Origin</span>
-                                        <span className="text-[10px] md:text-[11px] font-bold text-slate-900">Expertly Crafted</span>
-                                    </div>
-                                    <div className="flex flex-col text-left">
-                                        <span className="text-[8px] md:text-[9px] font-bold text-slate-400 uppercase mb-0.5">Shipping</span>
-                                        <span className="text-[10px] md:text-[11px] font-bold text-slate-900">Fast Delivery</span>
-                                    </div>
-                                </div>
-
-                                {/* Size Selection in Modal */}
-                                <div>
-                                    <h4 className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2 text-left">Select Silhouette</h4>
-                                    <div className="flex gap-2">
-                                        {['S', 'M', 'L', 'XL'].map(size => (
-                                            <button
-                                                key={size}
-                                                onClick={() => setSelectedSize(size)}
-                                                className={`w-10 h-10 md:w-12 md:h-12 rounded-xl font-black border-2 transition-all text-xs
-                                                    ${selectedSize === size ? 'border-brand-lemon bg-brand-lemon text-slate-900' : 'border-slate-100 text-slate-400 hover:border-slate-200'}
-                                                `}
-                                            >
-                                                {size}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                {/* Modal Actions */}
-                                <div className="grid grid-cols-2 gap-3 pt-6 border-t border-slate-100">
-                                    <button
-                                        onClick={handleAddToCart}
-                                        disabled={isAdding}
-                                        className="py-4 rounded-full border-2 border-slate-100 font-bold text-xs text-slate-600 hover:bg-slate-50 transition-all flex items-center justify-center gap-2"
-                                    >
-                                        <ShoppingBag className="w-4 h-4" />
-                                        {isAdding ? 'Adding...' : 'Add to Cart'}
-                                    </button>
-                                    <button
-                                        onClick={handleBuyNow}
-                                        className="py-4 rounded-full bg-brand-lemon text-slate-900 font-bold text-xs shadow-lg shadow-brand-lemon/20 hover:scale-[1.02] transition-all"
-                                    >
-                                        Buy Now
-                                    </button>
-                                </div>
+                            {/* Modal Actions - Sticky Bottom */}
+                            <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8 bg-white/80 backdrop-blur-xl border-t border-slate-100 flex gap-4 z-50">
+                                <button
+                                    onClick={handleAddToCart}
+                                    disabled={isAdding}
+                                    className="flex-1 py-5 rounded-3xl bg-slate-50 border border-slate-200 font-black text-[10px] uppercase tracking-[0.2em] text-slate-900 hover:bg-slate-100 transition-all flex items-center justify-center gap-3 active:scale-95"
+                                >
+                                    <ShoppingBag className="w-4 h-4" />
+                                    {isAdding ? 'Adding...' : 'Add to Bag'}
+                                </button>
+                                <button
+                                    onClick={handleBuyNow}
+                                    className="flex-[1.5] py-5 rounded-3xl bg-brand-lemon text-slate-900 font-black text-[10px] uppercase tracking-[0.2em] shadow-[0_15px_30px_rgba(229,255,127,0.3)] hover:shadow-[0_20px_40px_rgba(229,255,127,0.4)] hover:scale-[1.02] transition-all active:scale-95"
+                                >
+                                    Quick Checkout
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -684,3 +690,4 @@ export default function ProductCard({ id, name, price, images, imageLabels, dura
         </>
     );
 }
+
