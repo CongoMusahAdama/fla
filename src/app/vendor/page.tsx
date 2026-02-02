@@ -191,7 +191,7 @@ export default function VendorDashboard() {
         switch (activeSection) {
             case 'dashboard':
                 return (
-                    <div className="space-y-6 md:space-y-8 animate-in fade-in duration-500 pt-2 md:pt-0">
+                    <div className="space-y-6 md:space-y-8 animate-in fade-in duration-500 md:pt-0">
                         {/* Welcome Header */}
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                             <div>
@@ -737,7 +737,7 @@ export default function VendorDashboard() {
                     </div>
                 </header>
 
-                <div className="px-6 pt-2 md:pt-12 md:px-12 pb-24 w-full max-w-[95%] mx-auto min-h-full">
+                <div className="px-6 pt-28 md:pt-12 md:px-12 pb-24 w-full max-w-[95%] mx-auto">
                     {renderContent()}
                 </div>
 

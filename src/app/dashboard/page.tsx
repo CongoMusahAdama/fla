@@ -658,7 +658,7 @@ export default function CustomerDashboard() {
                     </div>
                 </header>
 
-                <div className="p-6 md:p-12 pt-36 md:pt-12 pb-24 w-full max-w-[95%] mx-auto min-h-full">
+                <div className="p-6 md:p-12 pt-28 md:pt-12 pb-24 w-full max-w-[95%] mx-auto">
                     {renderContent()}
                 </div>
 
