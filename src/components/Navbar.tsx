@@ -185,62 +185,64 @@ export default function Navbar() {
             </nav>
 
             {/* Mobile Menu Drawer */}
-            <div className={`fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] transition-opacity duration-300 md:hidden ${isMenuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
-                <div className={`absolute top-0 right-0 w-[80%] max-w-sm h-full bg-white shadow-2xl transition-transform duration-500 ease-out ${isMenuOpen ? 'translate-x-0' : 'translate-x-full'}`}>
-                    <div className="flex flex-col h-full p-8">
-                        <div className="flex justify-between items-center mb-12">
-                            <span className="font-heading text-2xl font-black uppercase tracking-widest">Menu</span>
-                            <button onClick={() => setIsMenuOpen(false)} className="p-2 text-slate-400 hover:text-slate-900 transition-colors">
-                                <X className="h-6 w-6" />
-                            </button>
-                        </div>
+            {isMenuOpen && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] animate-in fade-in duration-300 md:hidden">
+                    <div className="absolute top-0 right-0 w-[80%] max-w-sm h-full bg-white shadow-2xl animate-in slide-in-from-right duration-500">
+                        <div className="flex flex-col h-full p-8">
+                            <div className="flex justify-between items-center mb-12">
+                                <span className="font-heading text-2xl font-black uppercase tracking-widest">Menu</span>
+                                <button onClick={() => setIsMenuOpen(false)} className="p-2 text-slate-400 hover:text-slate-900 transition-colors">
+                                    <X className="h-6 w-6" />
+                                </button>
+                            </div>
 
-                        <div className="flex flex-col space-y-6">
-                            {menuItems.map((item) => (
-                                <Link
-                                    key={item.name}
-                                    href={item.href}
-                                    onClick={() => setIsMenuOpen(false)}
-                                    className="text-2xl font-black text-slate-900 uppercase tracking-tighter hover:text-brand-lemon transition-colors"
-                                >
-                                    {item.name}
-                                </Link>
-                            ))}
-                            {(user?.role === 'admin' || user?.role === 'vendor') && (
-                                <Link
-                                    href="/admin"
-                                    onClick={() => setIsMenuOpen(false)}
-                                    className="text-2xl font-black text-brand-lemon uppercase tracking-tighter"
-                                >
-                                    {user.role === 'admin' ? 'Dashboard' : 'Vendor Panel'}
-                                </Link>
-                            )}
-                        </div>
+                            <div className="flex flex-col space-y-6">
+                                {menuItems.map((item) => (
+                                    <Link
+                                        key={item.name}
+                                        href={item.href}
+                                        onClick={() => setIsMenuOpen(false)}
+                                        className="text-2xl font-black text-slate-900 uppercase tracking-tighter hover:text-brand-lemon transition-colors"
+                                    >
+                                        {item.name}
+                                    </Link>
+                                ))}
+                                {(user?.role === 'admin' || user?.role === 'vendor') && (
+                                    <Link
+                                        href="/admin"
+                                        onClick={() => setIsMenuOpen(false)}
+                                        className="text-2xl font-black text-brand-lemon uppercase tracking-tighter"
+                                    >
+                                        {user.role === 'admin' ? 'Dashboard' : 'Vendor Panel'}
+                                    </Link>
+                                )}
+                            </div>
 
-                        <div className="mt-auto pt-10 border-t border-slate-100">
-                            {!isAuthenticated && (
-                                <Link
-                                    href="/auth"
-                                    onClick={() => setIsMenuOpen(false)}
-                                    className="block w-full py-4 px-6 bg-blue-600 text-white text-center rounded-full font-bold text-xs mb-4"
+                            <div className="mt-auto pt-10 border-t border-slate-100">
+                                {!isAuthenticated && (
+                                    <Link
+                                        href="/auth"
+                                        onClick={() => setIsMenuOpen(false)}
+                                        className="block w-full py-4 px-6 bg-blue-600 text-white text-center rounded-full font-bold text-xs mb-4"
+                                    >
+                                        Sell on FLA
+                                    </Link>
+                                )}
+                                <button
+                                    onClick={() => {
+                                        setIsSupportOpen(true);
+                                        setIsMenuOpen(false);
+                                    }}
+                                    className="flex items-center justify-center gap-3 w-full py-4 px-6 bg-slate-900 text-white text-center rounded-full font-bold text-xs hover:bg-slate-800 transition-colors"
                                 >
-                                    Sell on FLA
-                                </Link>
-                            )}
-                            <button
-                                onClick={() => {
-                                    setIsSupportOpen(true);
-                                    setIsMenuOpen(false);
-                                }}
-                                className="flex items-center justify-center gap-3 w-full py-4 px-6 bg-slate-900 text-white text-center rounded-full font-bold text-xs hover:bg-slate-800 transition-colors"
-                            >
-                                <Headset className="w-4 h-4 text-brand-lemon" />
-                                Contact Support
-                            </button>
+                                    <Headset className="w-4 h-4 text-brand-lemon" />
+                                    Contact Support
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
+            )}
         </header >
     );
 }

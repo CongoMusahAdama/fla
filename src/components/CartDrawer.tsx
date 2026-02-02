@@ -183,10 +183,13 @@ export default function CartDrawer() {
     return (
         <>
             {/* Backdrop */}
-            <div
-                className={`fixed inset-0 bg-black/50 backdrop-blur-sm z-[9998] transition-opacity duration-300 ${isCartOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
-                aria-hidden="true"
-            />
+            {isCartOpen && (
+                <div
+                    className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9998] animate-in fade-in duration-300"
+                    aria-hidden="true"
+                    onClick={() => setIsCartOpen(false)}
+                />
+            )}
 
             {/* Drawer */}
             <div
