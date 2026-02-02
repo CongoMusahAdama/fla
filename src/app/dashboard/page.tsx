@@ -262,13 +262,13 @@ export default function CustomerDashboard() {
                 );
             case 'orders':
                 return (
-                    <div className="space-y-8 animate-in fade-in duration-500">
-                        <div className="flex items-center justify-between">
+                    <div className="space-y-6 md:space-y-8 animate-in fade-in duration-500 pt-2 md:pt-0">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-0">
                             <div>
                                 <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">My Orders</h1>
                                 <p className="text-slate-500 text-sm mt-1">Manage and track your fashion orders.</p>
                             </div>
-                            <div className="flex bg-slate-100 p-1 rounded-full overflow-x-auto no-scrollbar max-w-full">
+                            <div className="flex bg-slate-100 p-1 rounded-full overflow-x-auto no-scrollbar max-w-full self-start md:self-auto">
                                 {['All', 'Active', 'Completed'].map(f => (
                                     <button
                                         key={f}
@@ -751,7 +751,7 @@ export default function CustomerDashboard() {
                     </div>
                 </header>
 
-                <div className="p-6 md:p-12 pt-28 md:pt-12 pb-24 w-full max-w-[95%] mx-auto">
+                <div className="p-6 md:p-12 pt-36 md:pt-12 pb-24 w-full max-w-[95%] mx-auto">
                     {renderContent()}
                 </div>
 
