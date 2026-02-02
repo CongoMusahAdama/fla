@@ -551,16 +551,16 @@ export default function ProductCard({ id, name, price, images, imageLabels, dura
                         className="absolute inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity duration-500"
                         onClick={() => setIsDetailModalOpen(false)}
                     />
-                    <div className="relative bg-white w-full max-w-4xl h-[92vh] md:h-auto md:max-h-[85vh] overflow-hidden rounded-t-[40px] md:rounded-[40px] shadow-2xl flex flex-col md:flex-row animate-in slide-in-from-bottom md:zoom-in-95 duration-500">
+                    <div className="relative bg-white w-full max-w-4xl h-[92vh] md:h-auto md:max-h-[85vh] overflow-hidden rounded-t-[40px] md:rounded-[40px] shadow-2xl flex flex-col md:flex-row animate-in slide-in-from-bottom md:zoom-in-95 duration-500 pointer-events-auto">
                         {/* Mobile Handle */}
-                        <div className="md:hidden absolute top-3 left-1/2 -translate-x-1/2 w-12 h-1.5 bg-slate-200/50 rounded-full z-50" />
+                        <div className="md:hidden absolute top-3 left-1/2 -translate-x-1/2 w-12 h-1.5 bg-slate-200/50 rounded-full z-50 py-4" />
 
-                        {/* Close Button - Desktop & Mobile fallback */}
+                        {/* Close Button - Enhanced for Mobile */}
                         <button
                             onClick={() => setIsDetailModalOpen(false)}
-                            className="absolute top-5 right-5 z-50 p-3 bg-white/90 backdrop-blur-md rounded-full shadow-xl text-slate-900 hover:bg-brand-lemon hover:scale-110 active:scale-95 transition-all outline-none"
+                            className="absolute top-4 right-4 z-50 bg-white/50 backdrop-blur-md hover:bg-white text-slate-900 rounded-full p-2.5 shadow-sm transition-all active:scale-95 border border-white/20"
                         >
-                            <X className="w-5 h-5" />
+                            <X className="w-6 h-6" />
                         </button>
 
                         {/* Left: Gallery */}

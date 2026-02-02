@@ -186,12 +186,12 @@ export default function Navbar() {
 
             {/* Mobile Menu Drawer */}
             {isMenuOpen && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] animate-in fade-in duration-300 md:hidden">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] animate-in fade-in duration-300 md:hidden pointer-events-auto">
                     <div className="absolute top-0 right-0 w-[80%] max-w-sm h-full bg-white shadow-2xl animate-in slide-in-from-right duration-500">
                         <div className="flex flex-col h-full p-8">
                             <div className="flex justify-between items-center mb-12">
                                 <span className="font-heading text-2xl font-black uppercase tracking-widest">Menu</span>
-                                <button onClick={() => setIsMenuOpen(false)} className="p-2 text-slate-400 hover:text-slate-900 transition-colors">
+                                <button onClick={() => setIsMenuOpen(false)} className="p-2 text-slate-400 hover:text-slate-900 transition-colors pointer-events-auto">
                                     <X className="h-6 w-6" />
                                 </button>
                             </div>
