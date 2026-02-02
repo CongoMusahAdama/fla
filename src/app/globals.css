@@ -51,6 +51,14 @@ body {
   font-family: var(--font-sans);
 }
 
+button,
+a,
+input,
+select,
+textarea {
+  touch-action: manipulation;
+}
+
 h1,
 h2,
 h3,
