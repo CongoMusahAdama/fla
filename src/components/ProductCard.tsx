@@ -526,15 +526,26 @@ export default function ProductCard({ id, name, price, images, imageLabels, dura
                     </div>
 
                     {/* Quick Action Buttons */}
-                    <div className="flex flex-col md:grid md:grid-cols-2 gap-2 mt-4 relative z-20" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex flex-col md:grid md:grid-cols-2 gap-2 mt-4 relative z-20" onClick={(e) => {
+                        console.log('[Mobile Debug] Button Container Clicked');
+                        e.stopPropagation();
+                    }}>
                         <button
-                            onClick={() => setIsDetailModalOpen(true)}
+                            onClick={() => {
+                                console.log('[Mobile Debug] Learn More Clicked');
+                                setIsDetailModalOpen(true);
+                            }}
+                            onTouchStart={() => console.log('[Mobile Debug] Learn More TouchStart')}
                             className="flex items-center justify-center py-3.5 px-6 rounded-full border border-slate-900 text-[11px] font-bold text-slate-900 bg-white hover:bg-slate-50 transition-all active:scale-[0.98] cursor-pointer whitespace-nowrap touch-manipulation"
                         >
                             Learn More
                         </button>
                         <button
-                            onClick={handleAddToCart}
+                            onClick={() => {
+                                console.log('[Mobile Debug] Add to Cart Clicked');
+                                handleAddToCart();
+                            }}
+                            onTouchStart={() => console.log('[Mobile Debug] Add to Cart TouchStart')}
                             disabled={isAdding}
                             className="flex items-center justify-center py-3.5 px-6 rounded-full bg-slate-900 text-white text-[11px] font-bold hover:bg-slate-800 transition-all active:scale-[0.98] cursor-pointer whitespace-nowrap touch-manipulation"
                         >

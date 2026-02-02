@@ -33,7 +33,13 @@ const AuthInput = React.memo(({ label, type, placeholder, value, onChange, requi
                     placeholder={placeholder}
                     required={required}
                     value={value}
-                    onChange={(e) => onChange(e.target.value)}
+                    onChange={(e) => {
+                        console.log(`[Mobile Debug] Input Changed: ${label} = ${e.target.value}`);
+                        onChange(e.target.value);
+                    }}
+                    onFocus={() => console.log(`[Mobile Debug] Input Focused: ${label}`)}
+                    onBlur={() => console.log(`[Mobile Debug] Input Blurred: ${label}`)}
+                    onTouchStart={() => console.log(`[Mobile Debug] Input TouchStart: ${label}`)}
                     className={`w-full ${Icon ? 'pl-11' : 'px-4'} ${isPassword ? 'pr-12' : 'pr-4'} py-4 bg-white border-2 border-slate-100 rounded-2xl text-base md:text-sm transition-all focus:border-slate-900 focus:ring-4 focus:ring-slate-900/5 outline-none touch-manipulation`}
                 />
                 {isPassword && (
