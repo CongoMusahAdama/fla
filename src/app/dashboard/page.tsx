@@ -179,29 +179,44 @@ export default function CustomerDashboard() {
                                 </div>
                                 <div className="bg-white rounded-[32px] border border-slate-100 shadow-sm overflow-hidden">
                                     {recentOrders.map((order, i) => (
-                                        <div key={i} className={`p-5 flex items-center gap-4 ${i !== recentOrders.length - 1 ? 'border-b border-slate-50' : ''}`}>
-                                            <div className="relative w-16 h-20 bg-slate-50 rounded-xl overflow-hidden flex-shrink-0">
-                                                <Image src={order.image} alt={order.name} fill className="object-cover" />
+                                        <div key={i} className={`p-4 md:p-5 flex flex-col sm:flex-row sm:items-center gap-4 ${i !== recentOrders.length - 1 ? 'border-b border-slate-50' : ''}`}>
+                                            <div className="flex items-start gap-4 flex-1">
+                                                <div className="relative w-16 h-20 bg-slate-50 rounded-xl overflow-hidden flex-shrink-0 border border-slate-100">
+                                                    <Image src={order.image} alt={order.name} fill className="object-cover" />
+                                                </div>
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="flex justify-between items-start">
+                                                        <div>
+                                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">{order.id}</p>
+                                                            <h3 className="font-bold text-slate-900 truncate pr-2 text-sm md:text-base">{order.name}</h3>
+                                                        </div>
+                                                        <span className={`flex-shrink-0 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest sm:hidden ${order.status === 'Processing' ? 'bg-blue-50 text-blue-600' : 'bg-brand-lemon text-slate-900'
+                                                            }`}>
+                                                            {order.status}
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-xs text-slate-500 mt-0.5">{order.vendor}</p>
+                                                    <p className="font-sans font-black text-slate-900 mt-2 sm:hidden">GH₵{order.price}</p>
+                                                </div>
                                             </div>
-                                            <div className="flex-1 min-w-0">
-                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">{order.id}</p>
-                                                <h3 className="font-bold text-slate-900 truncate">{order.name}</h3>
-                                                <p className="text-xs text-slate-500">{order.vendor}</p>
-                                            </div>
-                                            <div className="text-right flex flex-col items-end gap-2">
-                                                <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${order.status === 'Processing' ? 'bg-blue-50 text-blue-600' : 'bg-brand-lemon text-slate-900'
-                                                    }`}>
-                                                    {order.status}
-                                                </span>
-                                                <p className="font-sans font-black text-slate-900">GH₵{order.price}</p>
-                                                <div className="flex items-center gap-2">
+
+                                            <div className="flex items-center justify-between sm:flex-col sm:items-end gap-3 sm:gap-2 pl-20 sm:pl-0 -mt-2 sm:mt-0">
+                                                <div className="hidden sm:block text-right">
+                                                    <span className={`inline-block px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest mb-1 ${order.status === 'Processing' ? 'bg-blue-50 text-blue-600' : 'bg-brand-lemon text-slate-900'
+                                                        }`}>
+                                                        {order.status}
+                                                    </span>
+                                                    <p className="font-sans font-black text-slate-900">GH₵{order.price}</p>
+                                                </div>
+
+                                                <div className="flex items-center gap-3">
                                                     {order.status === 'Shipped' && (
                                                         <button
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
                                                                 setRatingOrder({ id: order.id, name: order.name });
                                                             }}
-                                                            className="text-[9px] font-black text-brand-lemon uppercase tracking-widest hover:underline"
+                                                            className="text-[9px] font-black text-brand-lemon uppercase tracking-widest hover:underline py-2"
                                                         >
                                                             Rate
                                                         </button>
@@ -211,10 +226,10 @@ export default function CustomerDashboard() {
                                                             e.stopPropagation();
                                                             handleSendOrderToWhatsApp(order);
                                                         }}
-                                                        className="h-8 w-8 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-all shadow-sm"
+                                                        className="h-9 w-9 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-all shadow-sm border border-emerald-100"
                                                         title="Send to WhatsApp"
                                                     >
-                                                        <WhatsAppIcon className="w-4 h-4" />
+                                                        <WhatsAppIcon className="w-4.5 h-4.5" />
                                                     </button>
                                                 </div>
                                             </div>
@@ -270,7 +285,85 @@ export default function CustomerDashboard() {
                         </div>
 
                         <div className="bg-white rounded-[40px] border border-slate-100 shadow-sm overflow-hidden">
-                            <div className="overflow-x-auto">
+                            {/* Mobile Card View */}
+                            <div className="md:hidden">
+                                {[1, 2, 3, 4]
+                                    .map(i => ({
+                                        id: i,
+                                        status: i % 2 === 0 ? 'Delivered' : 'In Printing',
+                                        isCompleted: i % 2 === 0
+                                    }))
+                                    .filter(order => {
+                                        if (orderFilter === 'All') return true;
+                                        if (orderFilter === 'Active') return !order.isCompleted;
+                                        if (orderFilter === 'Completed') return order.isCompleted;
+                                        return true;
+                                    })
+                                    .map((order) => {
+                                        const i = order.id;
+                                        return (
+                                            <div key={i} className="p-5 border-b border-slate-50 last:border-none">
+                                                <div className="flex gap-4 mb-4">
+                                                    <div className="relative w-20 h-24 bg-slate-50 rounded-2xl overflow-hidden flex-shrink-0 border border-slate-100">
+                                                        <Image
+                                                            src={i % 2 === 0 ? `/product-${(i % 2) + 1}.jpg` : `/product-${(i % 3) + 3}.png`}
+                                                            alt="p"
+                                                            fill
+                                                            className="object-cover"
+                                                        />
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex justify-between items-start mb-1">
+                                                            <p className="text-[10px] font-black text-slate-400 uppercase">#FLA-882{i}</p>
+                                                            <span className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${order.isCompleted ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'
+                                                                }`}>
+                                                                {order.status}
+                                                            </span>
+                                                        </div>
+                                                        <h3 className="font-bold text-slate-900 text-sm mb-1 line-clamp-2">Signature Print Shirt {i}</h3>
+                                                        <p className="text-xs text-slate-500 font-medium">FLA Bespoke</p>
+                                                        <p className="font-sans font-black text-slate-900 mt-2">GH₵ 750</p>
+                                                    </div>
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <button
+                                                        onClick={() => setTrackingOrder({
+                                                            id: `#FLA-882${i}`,
+                                                            name: `Signature Print Shirt ${i}`,
+                                                            status: order.status,
+                                                            step: order.isCompleted ? 5 : 2,
+                                                            price: '750',
+                                                            image: i % 2 === 0 ? `/product-${(i % 2) + 1}.jpg` : `/product-${(i % 3) + 3}.png`
+                                                        })}
+                                                        className="py-3 bg-slate-900 text-white rounded-full text-[10px] font-bold uppercase tracking-widest hover:bg-slate-800 transition-all active:scale-95 text-center"
+                                                    >
+                                                        Track Order
+                                                    </button>
+                                                    <div className="flex gap-3">
+                                                        {order.isCompleted && (
+                                                            <button
+                                                                onClick={() => setRatingOrder({ id: i, name: `Signature Print Shirt ${i}` })}
+                                                                className="flex-1 py-3 bg-brand-lemon text-slate-900 rounded-full text-[10px] font-bold uppercase tracking-widest hover:shadow-lg transition-all text-center"
+                                                            >
+                                                                Rate
+                                                            </button>
+                                                        )}
+                                                        <button
+                                                            onClick={() => handleSendOrderToWhatsApp({ id: `#FLA-882${i}`, name: `Signature Print Shirt ${i}`, price: '750', status: order.status })}
+                                                            className="flex-1 py-3 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-full flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-all shadow-sm group"
+                                                            title="Send Order to WhatsApp"
+                                                        >
+                                                            <WhatsAppIcon className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                            </div>
+
+                            {/* Desktop Table View */}
+                            <div className="overflow-x-auto hidden md:block">
                                 <table className="w-full text-left">
                                     <thead>
                                         <tr className="border-b border-slate-50">
@@ -625,7 +718,7 @@ export default function CustomerDashboard() {
             </aside>
 
             {/* Dashboard Mobile Header */}
-            <header className="md:hidden fixed top-0 left-0 w-full z-[80] bg-white/95 backdrop-blur-md border-b border-slate-100 h-16 flex items-center justify-between px-6 mt-9">
+            <header className="md:hidden fixed top-0 left-0 w-full z-[80] bg-white/95 backdrop-blur-md border-b border-slate-100 h-16 flex items-center justify-between px-6 mt-14">
                 <Link href="/" className="font-heading font-black text-xl tracking-tighter text-slate-900 uppercase">FLA.</Link>
                 <button
                     onClick={() => setIsSidebarOpen(true)}
