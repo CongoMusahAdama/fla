@@ -2,6 +2,8 @@
 
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+
 export type UserRole = 'customer' | 'admin' | 'vendor';
 
 export type User = {
@@ -33,60 +35,110 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
 
-    // Mock persistence
+    // Load user from localStorage on mount
     useEffect(() => {
         const savedUser = localStorage.getItem('fla_user');
-        if (savedUser) {
+        const savedToken = localStorage.getItem('fla_token');
+        if (savedUser && savedToken) {
             setUser(JSON.parse(savedUser));
         }
     }, []);
 
     const login = async (identifier: string, password: string) => {
-        // Production-ready mock login with specific credentials
-        if (identifier === 'fadlan@gmail.com' && password === 'fadlan') {
-            // Check current role from context or use a default
-            // In a real app, this would be an API call
+        try {
+            const response = await fetch(`${API_URL}/auth/login`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email: identifier, password }),
+            });
+
+            if (!response.ok) {
+                // Fallback to mock for development
+                if (identifier === 'fadlan@gmail.com' && password === 'fadlan') {
+                    const mockUser: User = {
+                        id: 'fadlan-unique-id',
+                        name: 'Fadlan FLA',
+                        email: identifier,
+                        role: localStorage.getItem('last_intended_role') === 'vendor' ? 'vendor' : 'customer'
+                    };
+                    setUser(mockUser);
+                    localStorage.setItem('fla_user', JSON.stringify(mockUser));
+                    return;
+                }
+                throw new Error('Invalid credentials');
+            }
+
+            const data = await response.json();
+            const loggedInUser: User = {
+                id: data.user.id,
+                name: data.user.name || identifier.split('@')[0],
+                email: data.user.email,
+                role: data.user.role || 'customer',
+            };
+
+            setUser(loggedInUser);
+            localStorage.setItem('fla_user', JSON.stringify(loggedInUser));
+            localStorage.setItem('fla_token', data.access_token);
+        } catch (error) {
+            // Fallback to mock login for development
+            console.warn('API login failed, using mock login:', error);
             const mockUser: User = {
-                id: 'fadlan-unique-id',
-                name: 'Fadlan FLA',
-                email: identifier,
-                role: identifier.includes('vendor') || localStorage.getItem('last_intended_role') === 'vendor' ? 'vendor' : 'customer'
+                id: 'mock-1',
+                name: identifier.includes('@') ? identifier.split('@')[0] : 'Guest User',
+                email: identifier.includes('@') ? identifier : 'guest@example.com',
+                phone: !identifier.includes('@') ? identifier : undefined,
+                role: localStorage.getItem('last_intended_role') === 'vendor' ? 'vendor' : 'customer'
             };
             setUser(mockUser);
             localStorage.setItem('fla_user', JSON.stringify(mockUser));
-            return;
         }
-
-        // Standard mock login for any other credentials
-        const mockUser: User = {
-            id: 'mock-1',
-            name: identifier.includes('@') ? identifier.split('@')[0] : 'Guest User',
-            email: identifier.includes('@') ? identifier : 'guest@example.com',
-            phone: !identifier.includes('@') ? identifier : undefined,
-            role: localStorage.getItem('last_intended_role') === 'vendor' ? 'vendor' : 'customer'
-        };
-        setUser(mockUser);
-        localStorage.setItem('fla_user', JSON.stringify(mockUser));
     };
 
     const signup = async (name: string, email: string, phone: string, location: string, password: string, role: UserRole = 'customer', vendorData?: Partial<User>) => {
-        // Mock signup
-        const mockUser: User = {
-            id: Math.random().toString(36).substr(2, 9),
-            name,
-            email,
-            phone,
-            location,
-            role,
-            ...vendorData
-        };
-        setUser(mockUser);
-        localStorage.setItem('fla_user', JSON.stringify(mockUser));
+        try {
+            const response = await fetch(`${API_URL}/auth/register`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    email,
+                    password,
+                    name,
+                    phone,
+                    role,
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error('Registration failed');
+            }
+
+            // Auto-login after successful registration
+            await login(email, password);
+        } catch (error) {
+            console.warn('API signup failed, using mock signup:', error);
+            // Fallback mock signup
+            const mockUser: User = {
+                id: Math.random().toString(36).substr(2, 9),
+                name,
+                email,
+                phone,
+                location,
+                role,
+                ...vendorData
+            };
+            setUser(mockUser);
+            localStorage.setItem('fla_user', JSON.stringify(mockUser));
+        }
     };
 
     const logout = () => {
         setUser(null);
         localStorage.removeItem('fla_user');
+        localStorage.removeItem('fla_token');
     };
 
     return (
