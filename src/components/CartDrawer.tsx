@@ -10,7 +10,7 @@ import { useRouter } from 'next/navigation';
 
 export default function CartDrawer() {
     const { cartItems, isCartOpen, setIsCartOpen, removeFromCart, updateQuantity } = useCart();
-    const { isAuthenticated } = useAuth();
+    const { isAuthenticated, user } = useAuth();
     const router = useRouter();
     const drawerRef = useRef<HTMLDivElement>(null);
 
@@ -34,43 +34,72 @@ export default function CartDrawer() {
         }
     }, [isCartOpen]);
 
+    const getImageUrl = (url: string) => {
+        if (!url || url === '/product-1.jpg') return '/product-1.jpg';
+        if (url.startsWith('http')) return url;
+        const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '');
+        if (url.startsWith('/')) return `${baseUrl}${url}`;
+        return `${baseUrl}/uploads/${url}`;
+    };
+
     const subtotal = cartItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
 
     const handleMomoFlow = async () => {
+        // Fetch vendor details for the first item (assuming all items from same vendor)
+        let vendorPaymentMethods: Array<{ network: string; accountNumber: string; accountName: string }> = [];
+
+        if (cartItems.length > 0 && cartItems[0].vendorId) {
+            try {
+                const token = localStorage.getItem('fla_token');
+                const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/users/${cartItems[0].vendorId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (response.ok) {
+                    const vendorData = await response.json();
+                    vendorPaymentMethods = vendorData.paymentMethods || [];
+                }
+            } catch (error) {
+                console.error('Error fetching vendor details:', error);
+            }
+        }
+
         let selectedProvider = '';
         await Swal.fire({
-            title: '<span class="text-xl font-bold text-slate-900">Select Network</span>',
+            title: 'SELECT PAYMENT NETWORK',
             html: `
-                <div class="grid grid-cols-3 gap-3 mb-2 mt-4">
-                    <button id="cart-mtn" class="network-card flex flex-col items-center p-4 rounded-xl border-2 border-slate-100 hover:border-yellow-400 transition-all cursor-pointer group">
-                        <div class="w-12 h-12 mb-2 rounded-lg overflow-hidden flex items-center justify-center bg-yellow-400 p-1 shadow-sm group-hover:scale-105 transition-transform">
+                <div class="grid grid-cols-3 gap-4 mb-2 mt-6">
+                    <button id="cart-mtn" class="network-card flex flex-col items-center p-5 rounded-2xl border-2 border-slate-100 hover:border-yellow-400 hover:shadow-lg transition-all cursor-pointer group">
+                        <div class="w-14 h-14 mb-3 rounded-xl overflow-hidden flex items-center justify-center bg-yellow-400 p-2 shadow-md group-hover:scale-110 transition-transform">
                             <img src="/payment-logos/mtn.png" alt="MTN" class="w-full h-full object-contain" />
                         </div>
-                        <span class="text-[10px] font-bold text-slate-700 uppercase tracking-tighter">MTN MoMo</span>
+                        <span class="text-[10px] font-black text-slate-700 uppercase tracking-wider">MTN MoMo</span>
                     </button>
-                    <button id="cart-telecel" class="network-card flex flex-col items-center p-4 rounded-xl border-2 border-slate-100 hover:border-red-500 transition-all cursor-pointer group">
-                        <div class="w-12 h-12 mb-2 rounded-lg overflow-hidden flex items-center justify-center bg-white p-1 shadow-sm group-hover:scale-105 transition-transform border border-slate-50">
+                    <button id="cart-telecel" class="network-card flex flex-col items-center p-5 rounded-2xl border-2 border-slate-100 hover:border-red-500 hover:shadow-lg transition-all cursor-pointer group">
+                        <div class="w-14 h-14 mb-3 rounded-xl overflow-hidden flex items-center justify-center bg-white p-2 shadow-md group-hover:scale-110 transition-transform border border-slate-100">
                             <img src="/payment-logos/telecel.png" alt="Telecel" class="w-full h-full object-contain" />
                         </div>
-                        <span class="text-[10px] font-bold text-slate-700 uppercase tracking-tighter">Telecel Cash</span>
+                        <span class="text-[10px] font-black text-slate-700 uppercase tracking-wider">Telecel Cash</span>
                     </button>
-                    <button id="cart-at" class="network-card flex flex-col items-center p-4 rounded-xl border-2 border-slate-100 hover:border-blue-500 transition-all cursor-pointer group">
-                        <div class="w-12 h-12 mb-2 rounded-lg overflow-hidden flex items-center justify-center bg-blue-500 p-1 shadow-sm group-hover:scale-105 transition-transform">
-                            <img src="/payment-logos/at.png" alt="AT" class="w-full h-full object-contain" />
+                    <button id="cart-tigo" class="network-card flex flex-col items-center p-5 rounded-2xl border-2 border-slate-100 hover:border-blue-500 hover:shadow-lg transition-all cursor-pointer group">
+                        <div class="w-14 h-14 mb-3 rounded-xl overflow-hidden flex items-center justify-center bg-blue-500 p-2 shadow-md group-hover:scale-110 transition-transform">
+                            <img src="/payment-logos/tigo.png" alt="Tigo" class="w-full h-full object-contain" />
                         </div>
-                        <span class="text-[10px] font-bold text-slate-700 uppercase tracking-tighter">AT Money</span>
+                        <span class="text-[10px] font-black text-slate-700 uppercase tracking-wider">Tigo Cash</span>
                     </button>
                 </div>
             `,
-            width: '95%',
+            width: '90%',
+            showConfirmButton: false,
             customClass: {
-                popup: 'rounded-2xl shadow-2xl'
+                popup: 'rounded-[40px] shadow-2xl p-10 bg-white border-none',
+                title: 'text-2xl font-black text-slate-900 tracking-tighter uppercase mb-4'
             },
+            backdrop: 'rgba(15, 23, 42, 0.7)',
             didOpen: () => {
-                ['mtn', 'telecel', 'at'].forEach(c => {
+                ['mtn', 'telecel', 'tigo'].forEach(c => {
                     document.getElementById(`cart-${c}`)?.addEventListener('click', () => {
                         selectedProvider = c.toUpperCase();
-                        Swal.clickConfirm();
+                        Swal.close();
                     });
                 });
             }
@@ -78,48 +107,223 @@ export default function CartDrawer() {
 
         if (!selectedProvider) return;
 
+        // Find matching payment method from vendor or use defaults
+        let momoNumber = '';
+        let accountName = '';
+
+        const vendorMethod = vendorPaymentMethods.find(m => m.network === selectedProvider);
+
+        if (vendorMethod) {
+            // Vendor has this payment method set up
+            momoNumber = vendorMethod.accountNumber;
+            accountName = vendorMethod.accountName;
+        } else {
+            // Use default numbers based on selected network
+            if (selectedProvider === 'MTN') {
+                momoNumber = '0256774847';
+                accountName = 'FLA Store';
+            } else if (selectedProvider === 'TELECEL') {
+                momoNumber = '0505112925';
+                accountName = 'FLA Store';
+            } else if (selectedProvider === 'TIGO') {
+                momoNumber = '0256774847'; // Default
+                accountName = 'FLA Store';
+            } else {
+                momoNumber = '0256774847';
+                accountName = 'FLA Store';
+            }
+        }
+
         const { isConfirmed } = await Swal.fire({
-            title: '<span class="text-xl font-bold text-slate-900">Payment Details</span>',
+            title: 'PAYMENT DETAILS',
             html: `
-                <div class="text-left space-y-4">
-                    <div class="bg-brand-lemon/10 p-4 rounded-xl text-center border border-brand-lemon/20">
-                        <p class="text-[10px] font-bold text-slate-500 uppercase">Grand Total</p>
-                        <p class="text-3xl font-black text-slate-900">GH₵${subtotal}</p>
+                <div class="text-left space-y-6">
+                    <div class="bg-gradient-to-br from-brand-lemon to-yellow-300 p-6 rounded-2xl text-center border-2 border-yellow-400 shadow-lg">
+                        <p class="text-[10px] font-black text-slate-700 uppercase tracking-widest mb-2">Amount to Pay</p>
+                        <p class="text-4xl font-black text-slate-900">GH₵${subtotal}</p>
                     </div>
-                    <p class="text-xs font-bold text-slate-700">Send Mobile Money to:</p>
-                    <div class="space-y-2">
-                        <div class="flex justify-between items-center p-3 bg-white border border-slate-200 rounded-lg">
-                            <span class="font-mono font-bold">0505112925</span>
-                            <span class="text-[10px] bg-slate-100 px-2 py-1 rounded">MOMO 1</span>
+                    
+                    <div class="bg-slate-900 p-5 rounded-2xl text-white">
+                        <p class="text-[10px] font-black uppercase tracking-widest mb-3 text-brand-lemon">📱 Send ${selectedProvider} Money To:</p>
+                        <div class="flex justify-between items-center p-4 bg-white/10 backdrop-blur rounded-xl mb-3">
+                            <div>
+                                <p class="font-mono font-black text-2xl text-white">${momoNumber}</p>
+                                <p class="text-xs text-slate-300 mt-1">${accountName}</p>
+                            </div>
+                            <span class="text-[10px] bg-brand-lemon text-slate-900 px-3 py-1.5 rounded-full font-black uppercase tracking-wider">${selectedProvider}</span>
                         </div>
-                        <div class="flex justify-between items-center p-3 bg-white border border-slate-200 rounded-lg">
-                            <span class="font-mono font-bold">0256774847</span>
-                            <span class="text-[10px] bg-slate-100 px-2 py-1 rounded">MOMO 2</span>
-                        </div>
+                    </div>
+
+                    <div class="bg-blue-50 border-2 border-blue-200 p-4 rounded-2xl">
+                        <p class="text-xs font-black text-blue-900 uppercase tracking-wide mb-2">⚠️ Important Instructions:</p>
+                        <ol class="text-xs text-blue-800 space-y-1 list-decimal list-inside">
+                            <li>Send <strong>GH₵${subtotal}</strong> to the number above</li>
+                            <li>Take a <strong>screenshot</strong> of the payment confirmation</li>
+                            <li>Click "I Have Paid" and upload your screenshot</li>
+                            <li>Your order will be processed once verified</li>
+                        </ol>
                     </div>
                 </div>
             `,
             confirmButtonText: 'I Have Paid',
-            confirmButtonColor: '#E5FF7F',
-            customClass: {
-                confirmButton: '!text-slate-900 font-bold',
-                popup: 'rounded-2xl shadow-2xl'
-            },
             showCancelButton: true,
-            width: '95%'
+            cancelButtonText: 'Cancel',
+            buttonsStyling: false,
+            customClass: {
+                popup: 'rounded-[40px] shadow-2xl p-10 bg-slate-50 border-none',
+                title: 'text-2xl font-black text-slate-900 tracking-tighter uppercase mb-6',
+                confirmButton: 'bg-slate-900 text-white rounded-full px-10 py-4 text-[11px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all mx-2 shadow-lg',
+                cancelButton: 'bg-slate-200 text-slate-600 rounded-full px-10 py-4 text-[11px] font-black uppercase tracking-widest hover:bg-slate-300 transition-all mx-2'
+            },
+            width: '90%',
+            backdrop: 'rgba(15, 23, 42, 0.7)'
         });
 
         if (isConfirmed) {
-            Swal.fire({
-                title: 'Confirm Payment',
-                text: 'Upload your screenshot to finalize order',
+            const { value: file } = await Swal.fire({
+                title: 'CONFIRM PAYMENT',
+                text: 'Upload your payment screenshot to finalize your order',
                 input: 'file',
+                inputAttributes: {
+                    accept: 'image/*',
+                    'aria-label': 'Upload payment screenshot'
+                },
                 confirmButtonText: 'Finish Order',
-                confirmButtonColor: '#E5FF7F',
+                showCancelButton: true,
+                cancelButtonText: 'Go Back',
+                buttonsStyling: false,
                 customClass: {
-                    confirmButton: '!text-slate-900 font-bold'
-                }
+                    popup: 'rounded-[40px] shadow-2xl p-10 bg-white border-none',
+                    title: 'text-2xl font-black text-slate-900 tracking-tighter uppercase mb-4',
+                    htmlContainer: 'text-slate-600 text-sm mb-6',
+                    confirmButton: 'bg-brand-lemon text-slate-900 rounded-full px-10 py-4 text-[11px] font-black uppercase tracking-widest hover:shadow-lg transition-all mx-2',
+                    cancelButton: 'bg-slate-200 text-slate-600 rounded-full px-10 py-4 text-[11px] font-black uppercase tracking-widest hover:bg-slate-300 transition-all mx-2'
+                },
+                backdrop: 'rgba(15, 23, 42, 0.7)'
             });
+
+            if (file) {
+                try {
+                    const token = localStorage.getItem('fla_token');
+
+                    // Show uploading message
+                    Swal.fire({
+                        title: 'UPLOADING PROOF...',
+                        text: 'Please wait while we process your payment screenshot',
+                        allowOutsideClick: false,
+                        didOpen: () => Swal.showLoading(),
+                        customClass: {
+                            popup: 'rounded-[40px] shadow-2xl p-10 bg-white border-none',
+                            title: 'text-2xl font-black text-slate-900 tracking-tighter uppercase mb-4'
+                        }
+                    });
+
+                    // Upload screenshot first
+                    const formData = new FormData();
+                    formData.append('file', file);
+
+                    const uploadResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/upload`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: formData
+                    });
+
+                    if (!uploadResponse.ok) {
+                        throw new Error('Failed to upload payment screenshot');
+                    }
+
+                    const uploadData = await uploadResponse.json();
+                    const paymentProofUrl = uploadData.url || uploadData.path || uploadData.filename;
+
+                    // Create order with payment proof
+                    const orderData = {
+                        items: cartItems.map(item => ({
+                            productId: item.id,
+                            name: item.name,
+                            price: item.price,
+                            quantity: item.quantity,
+                            size: item.size,
+                            image: item.image
+                        })),
+                        totalAmount: subtotal,
+                        vendorId: cartItems[0]?.vendorId,
+                        shippingAddress: user?.address || 'Pickup at Studio',
+                        shippingCity: user?.location || 'Accra',
+                        shippingRegion: 'Greater Accra',
+                        paymentMethod: `MOMO - ${selectedProvider}`,
+                        paymentProof: paymentProofUrl,
+                        notes: 'Order from main bag'
+                    };
+
+                    console.log('Creating order with data:', orderData);
+                    console.log('Payment proof URL:', paymentProofUrl);
+
+                    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(orderData)
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json().catch(() => ({}));
+                        const errorMessage = errorData.message || errorData.error || `Server error: ${response.status}`;
+                        throw new Error(errorMessage);
+                    }
+
+                    Swal.fire({
+                        title: 'ORDER COMPLETED! 🎉',
+                        html: `
+                            <div class="text-center space-y-4">
+                                <p class="text-slate-600 text-sm">Your bespoke items are now in the tailoring queue.</p>
+                                <div class="bg-brand-lemon/10 p-4 rounded-2xl border border-brand-lemon/20">
+                                    <p class="text-xs font-bold text-slate-700">We'll notify you once your order is ready for delivery!</p>
+                                </div>
+                            </div>
+                        `,
+                        icon: 'success',
+                        iconColor: '#E5FF7F',
+                        confirmButtonText: 'View My Orders',
+                        buttonsStyling: false,
+                        customClass: {
+                            popup: 'rounded-[40px] shadow-2xl p-10 bg-white border-none',
+                            title: 'text-2xl font-black text-slate-900 tracking-tighter uppercase mb-4',
+                            confirmButton: 'bg-slate-900 text-white rounded-full px-10 py-4 text-[11px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-lg'
+                        }
+                    });
+
+                    // Clear cart
+                    cartItems.forEach(item => removeFromCart(item.id, item.size));
+                    setIsCartOpen(false);
+                    router.push('/dashboard');
+                } catch (error: any) {
+                    console.error('Order creation error:', error);
+                    Swal.fire({
+                        title: 'SUBMISSION FAILED',
+                        html: `
+                            <div class="text-left space-y-3">
+                                <p class="text-slate-600 text-sm">${error.message || 'An error occurred while processing your order.'}</p>
+                                <div class="bg-red-50 p-3 rounded-xl border border-red-100">
+                                    <p class="text-xs text-red-600">Please try again or contact support if the issue persists.</p>
+                                </div>
+                            </div>
+                        `,
+                        icon: 'error',
+                        iconColor: '#EF4444',
+                        confirmButtonText: 'Try Again',
+                        buttonsStyling: false,
+                        customClass: {
+                            popup: 'rounded-[40px] shadow-2xl p-10 bg-white border-none',
+                            title: 'text-2xl font-black text-slate-900 tracking-tighter uppercase mb-4',
+                            confirmButton: 'bg-slate-900 text-white rounded-full px-10 py-4 text-[11px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-lg'
+                        }
+                    });
+                }
+            }
         }
     };
 
@@ -127,52 +331,67 @@ export default function CartDrawer() {
         if (cartItems.length === 0) return;
 
         if (!isAuthenticated) {
+            setIsCartOpen(false); // Close cart before showing modal
             Swal.fire({
-                title: 'Sign In Required',
+                title: 'SIGN IN REQUIRED',
                 text: 'Please log in to proceed with your bag checkout.',
                 icon: 'info',
+                iconColor: '#0F172A',
                 showCancelButton: true,
                 confirmButtonText: 'Sign In Now',
-                confirmButtonColor: '#0f172a',
-                cancelButtonText: 'Later'
+                cancelButtonText: 'Later',
+                buttonsStyling: false,
+                customClass: {
+                    popup: 'rounded-[32px] border-none shadow-2xl p-8 md:p-12 bg-white',
+                    title: 'text-2xl font-black text-slate-900 tracking-tighter uppercase mb-2',
+                    htmlContainer: 'text-slate-500 font-medium text-sm mb-8',
+                    confirmButton: 'bg-slate-900 text-white rounded-full px-8 py-4 text-[11px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all mx-2',
+                    cancelButton: 'bg-slate-100 text-slate-500 rounded-full px-8 py-4 text-[11px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all mx-2'
+                }
             }).then((result) => {
                 if (result.isConfirmed) {
-                    setIsCartOpen(false);
                     router.push('/auth?role=customer');
                 }
             });
             return;
         }
 
+        setIsCartOpen(false); // Close cart before showing modal
+
         const { isConfirmed } = await Swal.fire({
-            title: '<span class="text-xl font-bold text-slate-900">Confirm Order</span>',
+            title: 'CONFIRM YOUR ORDER',
             html: `
-                <div class="text-left space-y-4 py-2">
-                    <p class="text-xs text-slate-500 font-medium uppercase tracking-widest">Order Summary</p>
-                    <div class="space-y-2 max-h-40 overflow-y-auto px-1">
-                        ${cartItems.map(item => `
-                            <div class="flex justify-between items-center text-xs">
-                                <span class="font-bold text-slate-800">${item.name} (${item.size}) x${item.quantity}</span>
-                                <span class="text-slate-600 font-mono">GH₵${item.price * item.quantity}</span>
-                            </div>
-                        `).join('')}
+                <div class="text-left space-y-6 py-4">
+                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                        <p class="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-3">Order Summary</p>
+                        <div class="space-y-2.5 max-h-48 overflow-y-auto">
+                            ${cartItems.map(item => `
+                                <div class="flex justify-between items-center text-sm bg-white p-3 rounded-xl">
+                                    <span class="font-bold text-slate-900">${item.name} <span class="text-slate-400 text-xs">(${item.size})</span> <span class="text-brand-lemon text-xs">×${item.quantity}</span></span>
+                                    <span class="text-slate-900 font-black">GH₵${item.price * item.quantity}</span>
+                                </div>
+                            `).join('')}
+                        </div>
                     </div>
-                    <div class="border-t border-dashed border-slate-200 pt-3 flex justify-between items-center">
-                        <span class="font-bold text-slate-900">Total payable:</span>
-                        <span class="text-xl font-black text-slate-900 bg-brand-lemon px-2 rounded">GH₵${subtotal}</span>
+                    <div class="border-t-2 border-dashed border-slate-200 pt-4 flex justify-between items-center">
+                        <span class="font-black text-slate-900 uppercase tracking-wider text-sm">Total Payable:</span>
+                        <span class="text-2xl font-black text-slate-900 bg-brand-lemon px-4 py-2 rounded-xl shadow-sm">GH₵${subtotal}</span>
                     </div>
                 </div>
             `,
             showCancelButton: true,
             confirmButtonText: 'Proceed to Payment',
-            confirmButtonColor: '#E5FF7F',
+            cancelButtonText: 'Continue Shopping',
+            buttonsStyling: false,
             customClass: {
-                confirmButton: '!text-slate-900 font-bold',
-                popup: 'rounded-2xl shadow-2xl'
+                popup: 'rounded-[40px] border-none shadow-2xl p-10 bg-white',
+                title: 'text-2xl font-black text-slate-900 tracking-tighter uppercase mb-6',
+                htmlContainer: 'text-slate-600',
+                confirmButton: 'bg-slate-900 text-white rounded-full px-10 py-4 text-[11px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all mx-2 shadow-lg',
+                cancelButton: 'bg-slate-100 text-slate-500 rounded-full px-10 py-4 text-[11px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all mx-2'
             },
-            cancelButtonText: 'Wait, Continue Shopping',
-            cancelButtonColor: '#cbd5e1',
-            width: '95%'
+            width: '90%',
+            backdrop: 'rgba(15, 23, 42, 0.7)'
         });
 
         if (isConfirmed) {
@@ -237,10 +456,11 @@ export default function CartDrawer() {
                                 {/* Image */}
                                 <div className="relative w-20 h-24 flex-shrink-0 bg-gray-100 rounded-lg overflow-hidden border border-gray-100">
                                     <Image
-                                        src={item.image}
+                                        src={getImageUrl(item.image)}
                                         alt={item.name}
                                         fill
                                         className="object-cover"
+                                        unoptimized
                                     />
                                 </div>
 

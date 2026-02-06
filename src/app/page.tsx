@@ -1,3 +1,4 @@
+"use client";
 
 import Hero from "@/components/Hero";
 import ProductCard from "@/components/ProductCard";
@@ -5,114 +6,29 @@ import Footer from "@/components/Footer";
 import ProcessSection from "@/components/ProcessSection";
 import Link from 'next/link';
 import { Filter, ChevronRight, LayoutGrid, List } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
 
 export default function Home() {
-  const products = [
-    {
-      id: "1",
-      name: "Tribal Print Shirt",
-      price: 850,
-      images: [
-        "/product-1.jpg",
-        "/product-3.png",
-        "/product-4.png"
-      ],
-      imageLabels: ["Front", "Back", "Side"],
-      duration: "3 working days",
-      stock: 8,
-    },
-    {
-      id: "2",
-      name: "Geometric Print Shirt",
-      price: 750,
-      images: [
-        "/product-3.png",
-        "/product-1.jpg",
-        "/product-5.png"
-      ],
-      imageLabels: ["Front", "Back", "Side"],
-      duration: "3 working days",
-      stock: 12,
-    },
-    {
-      id: "3",
-      name: "Abstract Circle Print",
-      price: 900,
-      images: [
-        "/product-2.jpg",
-        "/product-4.png",
-        "/product-5.png"
-      ],
-      imageLabels: ["Front", "Back", "Side"],
-      duration: "3 working days",
-      stock: 10,
-    },
-    {
-      id: "4",
-      name: "Forest Night Print",
-      price: 950,
-      images: [
-        "/product-4.png",
-        "/product-1.jpg",
-        "/product-2.jpg"
-      ],
-      imageLabels: ["Front", "Back", "Side"],
-      duration: "3 working days",
-      stock: 7,
-    },
-    {
-      id: "5",
-      name: "Brushstroke Print Polo",
-      price: 650,
-      images: [
-        "/product-5.png",
-        "/product-3.png",
-        "/product-4.png"
-      ],
-      imageLabels: ["Front", "Back", "Side"],
-      duration: "3 working days",
-      stock: 15,
-    },
-    {
-      id: "6",
-      name: "Oxford Cotton Shirt",
-      price: 450,
-      images: [
-        "https://images.unsplash.com/photo-1596755094514-f87e34085b2c?auto=format&fit=crop&w=800&q=80",
-        "https://images.unsplash.com/photo-1549117122-3cd2269a84b5?auto=format&fit=crop&w=800&q=80",
-        "https://images.unsplash.com/photo-1596755094514-f87e34085b2c?auto=format&fit=crop&w=600&q=80"
-      ],
-      imageLabels: ["Front", "Back", "Side"],
-      duration: "24h",
-      stock: 12,
-    },
-    {
-      id: "7",
-      name: "Geometric Block Print",
-      price: 850,
-      images: [
-        "/product-3.png",
-        "/product-2.jpg",
-        "/product-5.png"
-      ],
-      imageLabels: ["Front", "Back", "Side"],
-      duration: "3 working days",
-      stock: 9,
-    },
-    {
-      id: "8",
-      name: "Brushstroke Art Print",
-      price: 700,
-      images: [
-        "/product-5.png",
-        "/product-1.jpg",
-        "/product-4.png"
-      ],
-      imageLabels: ["Front", "Back", "Side"],
-      duration: "3 working days",
-      stock: 11,
-    },
-  ];
+  const [products, setProducts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchLatestProducts = async () => {
+      try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/products?limit=9&sort=latest`);
+        if (response.ok) {
+          const data = await response.json();
+          setProducts(data);
+        }
+      } catch (error) {
+        console.error('Error fetching latest products:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchLatestProducts();
+  }, []);
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -188,9 +104,28 @@ export default function Home() {
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-              {products.map((product, index) => (
-                <ProductCard key={product.id} {...product} index={index} />
-              ))}
+              {loading ? (
+                Array(6).fill(0).map((_, i) => (
+                  <div key={i} className="aspect-[3/4] bg-slate-100 animate-pulse rounded-2xl" />
+                ))
+              ) : products.length > 0 ? (
+                products.map((product, index) => (
+                  <ProductCard
+                    key={product._id}
+                    id={product._id}
+                    name={product.name}
+                    price={product.price}
+                    images={product.images || ['/product-1.jpg']}
+                    stock={product.stock}
+                    vendorId={product.vendorId}
+                    index={index}
+                  />
+                ))
+              ) : (
+                <div className="col-span-full py-20 text-center text-slate-400">
+                  No products found.
+                </div>
+              )}
             </div>
 
             {/* Explore More Button */}

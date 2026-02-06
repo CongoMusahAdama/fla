@@ -21,4 +21,39 @@ export class CreateUserDto {
     @IsString()
     @IsOptional()
     role?: string;
+
+    @IsString()
+    @IsOptional()
+    shopName?: string;
+
+    @IsOptional()
+    paymentMethods?: Array<{
+        network: string;
+        accountNumber: string;
+        accountName: string;
+    }>;
+
+    @IsString()
+    @IsOptional()
+    bio?: string;
+
+    @IsString()
+    @IsOptional()
+    productTypes?: string;
+
+    @IsString()
+    @IsOptional()
+    location?: string;
+
+    @IsString()
+    @IsOptional()
+    address?: string;
+
+    @IsString()
+    @IsOptional()
+    profileImage?: string;
+
+    @IsString()
+    @IsOptional()
+    bannerImage?: string;
 }

@@ -1,6 +1,6 @@
 
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import Footer from "@/components/Footer";
@@ -14,10 +14,44 @@ import { Suspense } from 'react';
 // Wrap content in Suspense for search params
 function ShopContent() {
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+    const [products, setProducts] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
     const [activeCategory, setActiveCategory] = useState('All Product');
     const [openDropdown, setOpenDropdown] = useState<string | null>(null);
     const [activeFilters, setActiveFilters] = useState<Record<string, string>>({});
     const [localSearch, setLocalSearch] = useState('');
+
+    useEffect(() => {
+        const fetchProducts = async () => {
+            setLoading(true);
+            try {
+                let url = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/products?`;
+                if (activeCategory !== 'All Product') {
+                    const cat = activeCategory === 'For Men' ? 'Men' : activeCategory === 'For Women' ? 'Women' : activeCategory;
+                    url += `category=${cat}&`;
+                }
+                if (localSearch) {
+                    url += `search=${localSearch}&`;
+                }
+
+                const response = await fetch(url);
+                if (response.ok) {
+                    const data = await response.json();
+                    setProducts(data);
+                }
+            } catch (error) {
+                console.error('Error fetching shop products:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        const timer = setTimeout(() => {
+            fetchProducts();
+        }, 500); // Debounce search
+
+        return () => clearTimeout(timer);
+    }, [activeCategory, localSearch]);
 
     const searchParams = useSearchParams();
     const searchQuery = searchParams.get('search');
@@ -30,105 +64,10 @@ function ShopContent() {
     };
 
     // Using the same product data as homepage for consistency
-    const products = [
-        {
-            id: "1",
-            name: "Tribal Print Shirt",
-            price: 850,
-            category: "For Men",
-            images: ["/product-1.jpg", "/product-3.png", "/product-4.png"],
-            imageLabels: ["Front", "Back", "Side"],
-            duration: "3 working days",
-            stock: 8,
-        },
-        {
-            id: "2",
-            name: "Geometric Print Shirt",
-            price: 750,
-            category: "For Men",
-            images: ["/product-3.png", "/product-1.jpg", "/product-5.png"],
-            imageLabels: ["Front", "Back", "Side"],
-            duration: "3 working days",
-            stock: 12,
-        },
-        {
-            id: "3",
-            name: "Abstract Circle Print",
-            price: 900,
-            category: "For Women",
-            images: ["/product-2.jpg", "/product-4.png", "/product-5.png"],
-            imageLabels: ["Front", "Back", "Side"],
-            duration: "3 working days",
-            stock: 10,
-        },
-        {
-            id: "4",
-            name: "Forest Night Print",
-            price: 950,
-            category: "For Men",
-            images: ["/product-4.png", "/product-1.jpg", "/product-2.jpg"],
-            imageLabels: ["Front", "Back", "Side"],
-            duration: "3 working days",
-            stock: 7,
-        },
-        {
-            id: "5",
-            name: "Brushstroke Print Polo",
-            price: 650,
-            category: "For Men",
-            images: ["/product-5.png", "/product-3.png", "/product-4.png"],
-            imageLabels: ["Front", "Back", "Side"],
-            duration: "3 working days",
-            stock: 15,
-        },
-        {
-            id: "6",
-            name: "Oxford Cotton Shirt",
-            price: 450,
-            category: "For Women",
-            images: [
-                "https://images.unsplash.com/photo-1596755094514-f87e34085b2c?auto=format&fit=crop&w=800&q=80",
-                "https://images.unsplash.com/photo-1549117122-3cd2269a84b5?auto=format&fit=crop&w=800&q=80",
-                "https://images.unsplash.com/photo-1596755094514-f87e34085b2c?auto=format&fit=crop&w=600&q=80"
-            ],
-            imageLabels: ["Front", "Back", "Side"],
-            duration: "3 working days",
-            stock: 12,
-        },
-        {
-            id: "7",
-            name: "Geometric Block Print",
-            price: 850,
-            category: "For Men",
-            images: ["/product-3.png", "/product-2.jpg", "/product-5.png"],
-            imageLabels: ["Front", "Back", "Side"],
-            duration: "3 working days",
-            stock: 9,
-        },
-        {
-            id: "8",
-            name: "Brushstroke Art Print",
-            price: 700,
-            category: "For Women",
-            images: ["/product-5.png", "/product-1.jpg", "/product-4.png"],
-            imageLabels: ["Front", "Back", "Side"],
-            duration: "3 working days",
-            stock: 11,
-        },
-    ];
 
     const categories = ['All Product', 'For Men', 'For Women'];
 
-    let filteredProducts = activeCategory === 'All Product'
-        ? products
-        : products.filter(p => p.category === activeCategory);
-
-    if (searchQuery || localSearch) {
-        const query = (searchQuery || localSearch).toLowerCase();
-        filteredProducts = filteredProducts.filter(p =>
-            p.name.toLowerCase().includes(query)
-        );
-    }
+    const filteredProducts = products;
 
     // Toggle dropdown
     const toggleDropdown = (name: string) => {
@@ -284,14 +223,25 @@ function ShopContent() {
             {/* Product Grid */}
             <section className="px-4 md:px-8 py-12 md:py-16 min-h-[600px] overflow-x-hidden">
                 <div className="max-w-7xl mx-auto">
-                    {filteredProducts.length > 0 ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-12">
-                            {filteredProducts.map((product, index) => (
-                                <ProductCard key={product.id} {...product} index={index} />
+                    {loading ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+                            {Array(8).fill(0).map((_, i) => (
+                                <div key={i} className="aspect-[3/4] bg-slate-50 animate-pulse rounded-2xl" />
                             ))}
-                            {/* Logic to show more items if "All Product" is selected to fill the grid, or just show filtered results */}
-                            {activeCategory === 'All Product' && filteredProducts.slice(0, 4).map((product, index) => (
-                                <ProductCard key={`dup-${product.id}`} {...product} index={index + 8} />
+                        </div>
+                    ) : products.length > 0 ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-12">
+                            {products.map((product, index) => (
+                                <ProductCard
+                                    key={product._id}
+                                    id={product._id}
+                                    name={product.name}
+                                    price={product.price}
+                                    images={product.images || ['/product-1.jpg']}
+                                    stock={product.stock}
+                                    vendorId={product.vendorId}
+                                    index={index}
+                                />
                             ))}
                         </div>
                     ) : (

@@ -20,6 +20,34 @@ export class User {
     @Prop({ default: 'customer' })
     role: string;
 
+    @Prop()
+    shopName?: string;
+
+    @Prop({ type: [Object], default: [] })
+    paymentMethods?: Array<{
+        network: string;
+        accountNumber: string;
+        accountName: string;
+    }>;
+
+    @Prop()
+    bio?: string;
+
+    @Prop()
+    productTypes?: string;
+
+    @Prop()
+    location?: string;
+
+    @Prop()
+    address?: string;
+
+    @Prop()
+    profileImage?: string;
+
+    @Prop()
+    bannerImage?: string;
+
     @Prop({ default: Date.now })
     createdAt: Date;
 }

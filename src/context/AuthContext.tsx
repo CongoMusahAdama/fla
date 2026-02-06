@@ -12,12 +12,16 @@ export type User = {
     email: string;
     phone?: string;
     location?: string;
+    address?: string;
     role: UserRole;
+    profileImage?: string;
+    bannerImage?: string;
     // Vendor specific
     shopName?: string;
     productTypes?: string;
     accountName?: string;
     momoNumber?: string;
+    bio?: string;
     idFile?: any;
     logoFile?: any;
 };
@@ -27,21 +31,29 @@ type AuthContextType = {
     login: (identifier: string, password: string) => Promise<void>;
     signup: (name: string, email: string, phone: string, location: string, password: string, role?: UserRole, vendorData?: Partial<User>) => Promise<void>;
     logout: () => void;
+    updateUser: (updatedData: Partial<User>) => void;
     isAuthenticated: boolean;
+    isLoading: boolean;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
 
     // Load user from localStorage on mount
     useEffect(() => {
         const savedUser = localStorage.getItem('fla_user');
         const savedToken = localStorage.getItem('fla_token');
         if (savedUser && savedToken) {
-            setUser(JSON.parse(savedUser));
+            try {
+                setUser(JSON.parse(savedUser));
+            } catch (e) {
+                console.error('Failed to parse saved user', e);
+            }
         }
+        setIsLoading(false);
     }, []);
 
     const login = async (identifier: string, password: string) => {
@@ -55,44 +67,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             });
 
             if (!response.ok) {
-                // Fallback to mock for development
-                if (identifier === 'fadlan@gmail.com' && password === 'fadlan') {
-                    const mockUser: User = {
-                        id: 'fadlan-unique-id',
-                        name: 'Fadlan FLA',
-                        email: identifier,
-                        role: localStorage.getItem('last_intended_role') === 'vendor' ? 'vendor' : 'customer'
-                    };
-                    setUser(mockUser);
-                    localStorage.setItem('fla_user', JSON.stringify(mockUser));
-                    return;
-                }
-                throw new Error('Invalid credentials');
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.message || 'Invalid credentials');
             }
 
             const data = await response.json();
             const loggedInUser: User = {
-                id: data.user.id,
-                name: data.user.name || identifier.split('@')[0],
+                id: data.user.id || data.user._id,
+                name: data.user.name,
                 email: data.user.email,
+                phone: data.user.phone,
+                location: data.user.location,
+                address: data.user.address,
                 role: data.user.role || 'customer',
+                profileImage: data.user.profileImage,
+                bannerImage: data.user.bannerImage,
+                shopName: data.user.shopName,
+                momoNumber: data.user.momoNumber,
+                accountName: data.user.accountName,
+                bio: data.user.bio,
+                productTypes: data.user.productTypes,
             };
 
             setUser(loggedInUser);
             localStorage.setItem('fla_user', JSON.stringify(loggedInUser));
             localStorage.setItem('fla_token', data.access_token);
         } catch (error) {
-            // Fallback to mock login for development
-            console.warn('API login failed, using mock login:', error);
-            const mockUser: User = {
-                id: 'mock-1',
-                name: identifier.includes('@') ? identifier.split('@')[0] : 'Guest User',
-                email: identifier.includes('@') ? identifier : 'guest@example.com',
-                phone: !identifier.includes('@') ? identifier : undefined,
-                role: localStorage.getItem('last_intended_role') === 'vendor' ? 'vendor' : 'customer'
-            };
-            setUser(mockUser);
-            localStorage.setItem('fla_user', JSON.stringify(mockUser));
+            console.error('Login error:', error);
+            throw error;
         }
     };
 
@@ -108,30 +110,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     password,
                     name,
                     phone,
+                    location,
                     role,
+                    ...vendorData
                 }),
             });
 
             if (!response.ok) {
-                throw new Error('Registration failed');
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.message || 'Registration failed');
             }
 
             // Auto-login after successful registration
             await login(email, password);
         } catch (error) {
-            console.warn('API signup failed, using mock signup:', error);
-            // Fallback mock signup
-            const mockUser: User = {
-                id: Math.random().toString(36).substr(2, 9),
-                name,
-                email,
-                phone,
-                location,
-                role,
-                ...vendorData
-            };
-            setUser(mockUser);
-            localStorage.setItem('fla_user', JSON.stringify(mockUser));
+            console.error('Signup error:', error);
+            throw error;
         }
     };
 
@@ -141,13 +135,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.removeItem('fla_token');
     };
 
+    const updateUser = (updatedData: Partial<User>) => {
+        if (!user) return;
+        const newUser = { ...user, ...updatedData };
+        setUser(newUser);
+        localStorage.setItem('fla_user', JSON.stringify(newUser));
+    };
+
     return (
         <AuthContext.Provider value={{
             user,
             login,
             signup,
             logout,
-            isAuthenticated: !!user
+            updateUser,
+            isAuthenticated: !!user,
+            isLoading
         }}>
             {children}
         </AuthContext.Provider>

@@ -7,7 +7,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import {
     User, Mail, Lock, ChevronRight, ArrowLeft, Phone, MapPin,
-    Store, Package, CreditCard, Upload, ArrowRight, MessageSquare
+    Store, Package, CreditCard, Upload, ArrowRight, MessageSquare, Check
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 
@@ -93,15 +93,35 @@ const RegisterForm = ({ role, onSignup }: { role: UserRole, onSignup: (data: any
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
 
+    // Password Validation Rules
+    const hasMinLength = password.length >= 8;
+    const hasNumber = /\d/.test(password);
+    const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+    const allRulesPassed = hasMinLength && hasNumber && hasSpecialChar;
+
     // Vendor Specific
     const [shopName, setShopName] = useState('');
     const [productTypes, setProductTypes] = useState('');
-    const [accountName, setAccountName] = useState('');
-    const [paymentNumber, setPaymentNumber] = useState('');
+    const [paymentMethods, setPaymentMethods] = useState([{
+        network: 'MTN',
+        accountNumber: '',
+        accountName: ''
+    }]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        onSignup({ name, email, phone, location, password, confirmPassword, shopName, productTypes, accountName, paymentNumber });
+
+        if (role === 'vendor' && !allRulesPassed) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Weak Password',
+                text: 'Please ensure your studio password meets all security requirements.',
+                confirmButtonColor: '#0f172a'
+            });
+            return;
+        }
+
+        onSignup({ name, email, phone, location, password, confirmPassword, shopName, productTypes, paymentMethods });
     };
 
     return (
@@ -117,12 +137,118 @@ const RegisterForm = ({ role, onSignup }: { role: UserRole, onSignup: (data: any
                 {role === 'vendor' && (
                     <div className="space-y-4 pt-4 border-t border-slate-100 mt-2">
                         <AuthInput label="Shop Name" type="text" placeholder="Eg. FLA Boutique" required value={shopName} onChange={setShopName} icon={Store} />
-                        <AuthInput label="MoMo Number" type="tel" placeholder="024XXXXXXX" required value={paymentNumber} onChange={setPaymentNumber} icon={Phone} />
-                        <AuthInput label="Momo / Account Name" type="text" placeholder="Billing Name" required value={accountName} onChange={setAccountName} icon={CreditCard} />
+
+                        {/* Payment Methods */}
+                        <div className="space-y-3">
+                            <label className="text-xs font-bold text-slate-700 ml-1">Payment Methods</label>
+                            {paymentMethods.map((method, index) => (
+                                <div key={index} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Method {index + 1}</span>
+                                        {paymentMethods.length > 1 && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setPaymentMethods(paymentMethods.filter((_, i) => i !== index))}
+                                                className="text-[10px] font-bold text-red-500 hover:text-red-700 uppercase tracking-wider"
+                                            >
+                                                Remove
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    {/* Network Dropdown */}
+                                    <div className="relative group">
+                                        <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-slate-900 transition-colors pointer-events-none w-4 h-4" />
+                                        <select
+                                            value={method.network}
+                                            onChange={(e) => {
+                                                const updated = [...paymentMethods];
+                                                updated[index].network = e.target.value;
+                                                setPaymentMethods(updated);
+                                            }}
+                                            required
+                                            className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm transition-all focus:border-slate-900 focus:ring-2 focus:ring-slate-900/5 outline-none appearance-none cursor-pointer"
+                                        >
+                                            <option value="MTN">MTN Mobile Money</option>
+                                            <option value="TELECEL">Telecel Cash</option>
+                                            <option value="TIGO">Tigo Cash</option>
+                                        </select>
+                                        <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 rotate-90 text-slate-400 pointer-events-none w-4 h-4" />
+                                    </div>
+
+                                    {/* Account Number */}
+                                    <div className="relative group">
+                                        <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-slate-900 transition-colors pointer-events-none w-4 h-4" />
+                                        <input
+                                            type="tel"
+                                            placeholder="024XXXXXXX"
+                                            required
+                                            value={method.accountNumber}
+                                            onChange={(e) => {
+                                                const updated = [...paymentMethods];
+                                                updated[index].accountNumber = e.target.value;
+                                                setPaymentMethods(updated);
+                                            }}
+                                            className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm transition-all focus:border-slate-900 focus:ring-2 focus:ring-slate-900/5 outline-none"
+                                        />
+                                    </div>
+
+                                    {/* Account Name */}
+                                    <div className="relative group">
+                                        <CreditCard className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-slate-900 transition-colors pointer-events-none w-4 h-4" />
+                                        <input
+                                            type="text"
+                                            placeholder="Account Name"
+                                            required
+                                            value={method.accountName}
+                                            onChange={(e) => {
+                                                const updated = [...paymentMethods];
+                                                updated[index].accountName = e.target.value;
+                                                setPaymentMethods(updated);
+                                            }}
+                                            className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm transition-all focus:border-slate-900 focus:ring-2 focus:ring-slate-900/5 outline-none"
+                                        />
+                                    </div>
+                                </div>
+                            ))}
+
+                            {/* Add Payment Method Button */}
+                            <button
+                                type="button"
+                                onClick={() => setPaymentMethods([...paymentMethods, { network: 'MTN', accountNumber: '', accountName: '' }])}
+                                className="w-full py-3 bg-white border-2 border-dashed border-slate-200 rounded-xl text-xs font-bold text-slate-400 hover:text-slate-900 hover:border-slate-900 transition-all uppercase tracking-wider"
+                            >
+                                + Add Another Payment Method
+                            </button>
+                        </div>
                     </div>
                 )}
 
                 <AuthInput label="Password" type="password" placeholder="••••••••" required value={password} onChange={setPassword} icon={Lock} />
+
+                {role === 'vendor' && (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2 px-1">
+                        <div className={`flex items-center gap-1.5 transition-all ${hasMinLength ? 'text-emerald-500' : 'text-slate-300'}`}>
+                            <div className={`w-4 h-4 rounded-full flex items-center justify-center border ${hasMinLength ? 'bg-emerald-500/10 border-emerald-500/20' : 'border-slate-200'}`}>
+                                <Check className={`w-2.5 h-2.5 ${hasMinLength ? 'opacity-100' : 'opacity-0'}`} />
+                            </div>
+                            <span className="text-[9px] font-black uppercase tracking-widest">8+ Chars</span>
+                        </div>
+                        <div className={`flex items-center gap-1.5 transition-all ${hasNumber ? 'text-emerald-500' : 'text-slate-300'}`}>
+                            <div className={`w-4 h-4 rounded-full flex items-center justify-center border ${hasNumber ? 'bg-emerald-500/10 border-emerald-500/20' : 'border-slate-200'}`}>
+                                <Check className={`w-2.5 h-2.5 ${hasNumber ? 'opacity-100' : 'opacity-0'}`} />
+                            </div>
+                            <span className="text-[9px] font-black uppercase tracking-widest">Numeric</span>
+                        </div>
+                        <div className={`flex items-center gap-1.5 transition-all ${hasSpecialChar ? 'text-emerald-500' : 'text-slate-300'}`}>
+                            <div className={`w-4 h-4 rounded-full flex items-center justify-center border ${hasSpecialChar ? 'bg-emerald-500/10 border-emerald-500/20' : 'border-slate-200'}`}>
+                                <Check className={`w-2.5 h-2.5 ${hasSpecialChar ? 'opacity-100' : 'opacity-0'}`} />
+                            </div>
+                            <span className="text-[9px] font-black uppercase tracking-widest">Special</span>
+                        </div>
+                    </div>
+                )}
+
                 <AuthInput label="Confirm Password" type="password" placeholder="••••••••" required value={confirmPassword} onChange={setConfirmPassword} icon={Lock} />
             </div>
             <div className="pt-4">
@@ -174,8 +300,8 @@ function AuthContent() {
         try {
             await login(identifier, pass);
             showSuccess(true);
-        } catch (error) {
-            showError();
+        } catch (error: any) {
+            showError(error.message);
         }
     };
 
@@ -189,43 +315,114 @@ function AuthContent() {
             const vendorData = role === 'vendor' ? {
                 shopName: data.shopName,
                 productTypes: data.productTypes,
-                accountName: data.accountName,
-                momoNumber: data.paymentNumber,
+                paymentMethods: data.paymentMethods,
             } : {};
 
             await signup(data.name, data.email, data.phone, data.location, data.password, role, vendorData);
 
             if (role === 'vendor') {
-                setShowOTP(true);
-                Swal.fire({
-                    icon: 'info',
-                    title: 'Verification Needed',
-                    text: `We've sent a 4-digit code to ${data.email}.`,
-                    customClass: { popup: 'rounded-[32px]' }
-                });
+                // Send OTP email
+                try {
+                    console.log('Sending OTP to:', data.email);
+                    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/auth/send-otp`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email: data.email, name: data.name })
+                    });
+
+                    console.log('OTP response status:', response.status);
+                    const responseData = await response.json();
+                    console.log('OTP response data:', responseData);
+
+                    if (!response.ok) {
+                        throw new Error(responseData.message || 'Failed to send OTP');
+                    }
+
+                    // Store email in state for OTP verification
+                    (window as any).vendorEmail = data.email;
+
+                    setShowOTP(true);
+                    Swal.fire({
+                        icon: 'success',
+                        iconColor: '#059669',
+                        title: 'CHECK YOUR EMAIL',
+                        html: `
+                            <div class="text-center space-y-3">
+                                <p class="text-slate-600 text-sm">We've sent a 4-digit verification code to:</p>
+                                <p class="text-slate-900 font-bold text-lg">${data.email}</p>
+                                <div class="bg-blue-50 p-3 rounded-xl border border-blue-100 mt-4">
+                                    <p class="text-xs text-blue-600">📧 Check your inbox and enter the code to activate your vendor account.</p>
+                                </div>
+                            </div>
+                        `,
+                        confirmButtonText: 'Got It',
+                        buttonsStyling: false,
+                        customClass: {
+                            popup: 'rounded-[32px] border-none shadow-2xl p-10 bg-white',
+                            title: 'text-2xl font-black text-slate-900 tracking-tighter uppercase mb-4',
+                            confirmButton: 'bg-slate-900 text-white rounded-full px-10 py-4 text-[11px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all'
+                        }
+                    });
+                } catch (otpError: any) {
+                    console.error('OTP send error:', otpError);
+                    console.error('Error details:', otpError.message);
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Account Created',
+                        html: `
+                            <div class="text-left space-y-3">
+                                <p class="text-slate-600 text-sm">Your account was created but we couldn't send the verification email.</p>
+                                <div class="bg-red-50 p-3 rounded-xl border border-red-100">
+                                    <p class="text-xs text-red-600">Error: ${otpError.message}</p>
+                                </div>
+                                <p class="text-slate-600 text-sm">Please contact support.</p>
+                            </div>
+                        `,
+                        customClass: { popup: 'rounded-[32px]' }
+                    });
+                }
             } else {
                 showSuccess(false);
             }
-        } catch (error) {
-            showError();
+        } catch (error: any) {
+            showError(error.message);
         }
     };
 
     const showSuccess = (isLog: boolean) => {
         Swal.fire({
             icon: 'success',
-            title: isLog ? 'Welcome Back!' : 'Account Created',
-            text: 'Redirecting you to FLA...',
+            iconColor: '#059669',
+            title: isLog ? 'WELCOME BACK!' : 'ACCOUNT CREATED',
+            text: isLog ? 'Your fashion journey continues...' : 'Welcome to the world of FLA.',
             timer: 2000,
-            showConfirmButton: false
+            showConfirmButton: false,
+            customClass: {
+                popup: 'rounded-[32px] border-none shadow-2xl p-10 bg-white',
+                title: 'text-2xl font-black text-slate-900 tracking-tighter uppercase mb-2',
+                htmlContainer: 'text-slate-500 font-medium text-sm',
+            }
         });
         setTimeout(() => {
             router.push(role === 'vendor' ? '/vendor' : '/dashboard');
         }, 2000);
     };
 
-    const showError = () => {
-        Swal.fire({ icon: 'error', title: 'Oops...', text: 'Something went wrong.' });
+    const showError = (msg?: string) => {
+        Swal.fire({
+            icon: 'error',
+            iconColor: '#E11D48',
+            title: 'AUTH FAILED',
+            text: msg || 'Please check your credentials and try again.',
+            confirmButtonText: 'TRY AGAIN',
+            buttonsStyling: false,
+            customClass: {
+                popup: 'rounded-[32px] border-none shadow-2xl p-10 bg-white',
+                title: 'text-2xl font-black text-slate-900 tracking-tighter uppercase mb-2',
+                htmlContainer: 'text-slate-500 font-medium text-sm mb-6',
+                confirmButton: 'bg-slate-900 text-white rounded-full px-10 py-4 text-[11px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all'
+            }
+        });
     };
 
     const handleOtpChange = (index: number, value: string) => {
@@ -250,26 +447,133 @@ function AuthContent() {
         }
     };
 
-    const handleResendOtp = () => {
-        setTimer(60);
-        Swal.fire({
-            icon: 'success',
-            title: 'OTP Resent',
-            text: 'Please check your email again.',
-            timer: 2000,
-            showConfirmButton: false,
-            customClass: { popup: 'rounded-[32px]' }
-        });
+    const handleResendOtp = async () => {
+        try {
+            const email = (window as any).vendorEmail;
+            if (!email) {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'Email not found. Please try registering again.' });
+                return;
+            }
+
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/auth/resend-otp`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email })
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to resend OTP');
+            }
+
+            setTimer(60);
+            Swal.fire({
+                icon: 'success',
+                iconColor: '#059669',
+                title: 'OTP RESENT',
+                text: 'A new verification code has been sent to your email.',
+                timer: 2000,
+                showConfirmButton: false,
+                customClass: {
+                    popup: 'rounded-[32px] border-none shadow-2xl p-8 bg-white',
+                    title: 'text-xl font-black text-slate-900 tracking-tighter uppercase'
+                }
+            });
+        } catch (error) {
+            console.error('Resend OTP error:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Failed to Resend',
+                text: 'Could not resend OTP. Please try again.',
+                customClass: { popup: 'rounded-[32px]' }
+            });
+        }
     };
 
     const handleVerifyOtp = async () => {
         const code = otp.join('');
-        if (code.length < 4) return;
-        Swal.fire({ title: 'Verifying...', didOpen: () => Swal.showLoading(), allowOutsideClick: false, customClass: { popup: 'rounded-[32px]' } });
-        setTimeout(() => {
-            Swal.fire({ icon: 'success', title: 'Vandor Verified! 🎉', text: 'Your business account is now active.', timer: 2000, showConfirmButton: false, customClass: { popup: 'rounded-[32px]' } });
-            setTimeout(() => { router.push('/vendor'); }, 2000);
-        }, 1500);
+        if (code.length < 4) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Incomplete Code',
+                text: 'Please enter all 4 digits.',
+                customClass: { popup: 'rounded-[32px]' }
+            });
+            return;
+        }
+
+        const email = (window as any).vendorEmail;
+        if (!email) {
+            Swal.fire({ icon: 'error', title: 'Error', text: 'Email not found. Please try registering again.' });
+            return;
+        }
+
+        Swal.fire({
+            title: 'VERIFYING...',
+            html: '<div class="text-slate-600 text-sm">Please wait while we verify your code</div>',
+            didOpen: () => Swal.showLoading(),
+            allowOutsideClick: false,
+            customClass: {
+                popup: 'rounded-[32px] border-none shadow-2xl p-10 bg-white',
+                title: 'text-xl font-black text-slate-900 tracking-tighter uppercase'
+            }
+        });
+
+        try {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/auth/verify-otp`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, code })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                Swal.fire({
+                    icon: 'success',
+                    iconColor: '#059669',
+                    title: 'VENDOR VERIFIED! 🎉',
+                    html: `
+                        <div class="text-center space-y-3">
+                            <p class="text-slate-600 text-sm">Your business account is now active!</p>
+                            <div class="bg-green-50 p-3 rounded-xl border border-green-100">
+                                <p class="text-xs text-green-600">✅ You can now start adding products and managing your store.</p>
+                            </div>
+                        </div>
+                    `,
+                    timer: 3000,
+                    showConfirmButton: false,
+                    customClass: {
+                        popup: 'rounded-[32px] border-none shadow-2xl p-10 bg-white',
+                        title: 'text-2xl font-black text-slate-900 tracking-tighter uppercase mb-4'
+                    }
+                });
+                setTimeout(() => { router.push('/vendor'); }, 3000);
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    iconColor: '#EF4444',
+                    title: 'INVALID CODE',
+                    text: result.message || 'The code you entered is incorrect or has expired.',
+                    confirmButtonText: 'Try Again',
+                    buttonsStyling: false,
+                    customClass: {
+                        popup: 'rounded-[32px] border-none shadow-2xl p-10 bg-white',
+                        title: 'text-2xl font-black text-slate-900 tracking-tighter uppercase mb-4',
+                        confirmButton: 'bg-slate-900 text-white rounded-full px-10 py-4 text-[11px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all'
+                    }
+                });
+                // Clear OTP inputs
+                setOtp(['', '', '', '']);
+            }
+        } catch (error) {
+            console.error('Verify OTP error:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Verification Failed',
+                text: 'Could not verify OTP. Please try again.',
+                customClass: { popup: 'rounded-[32px]' }
+            });
+        }
     };
 
     return (

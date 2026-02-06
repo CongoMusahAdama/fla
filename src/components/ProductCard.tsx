@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { Clock, ChevronLeft, ChevronRight, X, ShoppingBag, Star, Zap, Shield, Check } from 'lucide-react';
+import { Clock, ChevronLeft, ChevronRight, X, MessageSquare, ShoppingBag, Star, Zap, Shield, Check, Heart } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
@@ -14,12 +14,13 @@ interface ProductCardProps {
     price: number;
     images: string[];
     imageLabels?: string[];
-    duration: string;
+    duration?: string;
     stock: number;
     index: number;
+    vendorId?: string;
 }
 
-export default function ProductCard({ id, name, price, images, imageLabels, duration, stock, index }: ProductCardProps) {
+export default function ProductCard({ id, name, price, images, imageLabels, duration = '3 working days', stock, index, vendorId }: ProductCardProps) {
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [selectedSize, setSelectedSize] = useState<string | null>(null);
     const [isVisible, setIsVisible] = useState(false);
@@ -27,7 +28,16 @@ export default function ProductCard({ id, name, price, images, imageLabels, dura
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     const { addToCart } = useCart();
     const { isAuthenticated } = useAuth();
+    const [isWishlisted, setIsWishlisted] = useState(false);
     const router = useRouter();
+
+    const getImageUrl = (url: string) => {
+        if (!url || url === '/product-1.jpg') return '/product-1.jpg';
+        if (url.startsWith('http')) return url;
+        const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '');
+        if (url.startsWith('/')) return `${baseUrl}${url}`;
+        return `${baseUrl}/uploads/${url}`;
+    };
 
     const isSoldOut = stock === 0;
 
@@ -67,7 +77,8 @@ export default function ProductCard({ id, name, price, images, imageLabels, dura
                 price,
                 image: images[0],
                 size: selectedSize!,
-                quantity: 1
+                quantity: 1,
+                vendorId: vendorId
             });
             setIsAdding(false);
             const Toast = Swal.mixin({
@@ -87,6 +98,54 @@ export default function ProductCard({ id, name, price, images, imageLabels, dura
                 title: 'Added to cart'
             })
         }, 500);
+    };
+
+    const toggleWishlist = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!isAuthenticated) {
+            Swal.fire({
+                title: 'Sign In Required',
+                text: 'Join FLA to save your favorite bespoke designs.',
+                icon: 'info',
+                confirmButtonText: 'Join Now',
+                confirmButtonColor: '#0f172a'
+            });
+            return;
+        }
+
+        try {
+            const token = localStorage.getItem('fla_token');
+            const method = isWishlisted ? 'DELETE' : 'POST';
+            const url = isWishlisted
+                ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/wishlist/${id}`
+                : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/wishlist`;
+
+            const response = await fetch(url, {
+                method,
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: isWishlisted ? undefined : JSON.stringify({ productId: id })
+            });
+
+            if (response.ok) {
+                setIsWishlisted(!isWishlisted);
+                const Toast = Swal.mixin({
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 2000,
+                    timerProgressBar: true
+                });
+                Toast.fire({
+                    icon: 'success',
+                    title: isWishlisted ? 'Removed from Wishlist' : 'Added to Wishlist'
+                });
+            }
+        } catch (error) {
+            console.error('Error toggling wishlist:', error);
+        }
     };
 
     const handleBuyNow = async () => {
@@ -387,27 +446,55 @@ export default function ProductCard({ id, name, price, images, imageLabels, dura
             });
 
             if (file) {
-                Swal.fire({
-                    title: 'Order Received!',
-                    html: `
-                        <div class="text-center space-y-3">
-                            <p class="text-sm text-slate-600">We are verifying your payment. You will receive a confirmation shortly.</p>
-                            ${guestInfo ? `
-                                <div class="bg-gray-50 p-4 rounded-xl text-left border border-gray-100 mt-4">
-                                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Delivering To:</p>
-                                    <p class="text-xs font-bold text-slate-800">${guestInfo.name}</p>
-                                    <p class="text-xs text-slate-500 mt-1">${guestInfo.address}</p>
-                                    <p class="text-xs text-slate-500 mt-1 font-mono">${guestInfo.phone}</p>
-                                </div>
-                            ` : ''}
-                        </div>
-                    `,
-                    icon: 'success',
-                    confirmButtonColor: '#E5FF7F',
-                    customClass: {
-                        confirmButton: '!text-slate-900 font-bold'
+                try {
+                    const token = localStorage.getItem('fla_token');
+
+                    const orderData = {
+                        items: [{
+                            productId: id,
+                            name: name,
+                            price: price,
+                            quantity: 1,
+                            size: selectedSize,
+                            image: images[0]
+                        }],
+                        totalAmount: price,
+                        vendorId: vendorId,
+                        shippingAddress: guestInfo?.address || (isAuthenticated ? 'Registered Address' : 'Pickup at Studio'),
+                        shippingCity: isAuthenticated ? 'Accra' : 'Accra',
+                        shippingRegion: 'Greater Accra',
+                        paymentMethod: `MOMO - ${selectedProvider}`,
+                        notes: guestInfo ? `Guest: ${guestInfo.name} (${guestInfo.phone})` : 'Quick Buy'
+                    };
+
+                    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(orderData)
+                    });
+
+                    if (!response.ok) throw new Error('Failed to create order');
+
+                    Swal.fire({
+                        title: 'Order Completed!',
+                        text: 'Your bespoked item is now in the tailoring queue.',
+                        icon: 'success',
+                        confirmButtonColor: '#0f172a'
+                    });
+
+                    if (isAuthenticated) {
+                        router.push('/dashboard');
                     }
-                });
+                } catch (error: any) {
+                    Swal.fire({
+                        title: 'Submission Failed',
+                        text: error.message,
+                        icon: 'error'
+                    });
+                }
             }
         }
     };
@@ -454,9 +541,24 @@ export default function ProductCard({ id, name, price, images, imageLabels, dura
                 {/* Image Container */}
                 <div className="relative w-full aspect-[4/5] bg-[#F7F7F7] rounded-3xl overflow-hidden mb-5 group/image transition-all duration-500 hover:shadow-inner">
                     {/* New Arrival Badge */}
-                    <div className="absolute top-4 left-4 z-20 bg-[#DFEA73] text-[#2C3E02] text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-tighter shadow-sm">
-                        New Arrival
+                    <div className="absolute top-4 left-4 z-20 flex flex-col gap-2">
+                        <div className="bg-[#DFEA73] text-[#2C3E02] text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-tighter shadow-sm w-fit">
+                            New Arrival
+                        </div>
+                        {isSoldOut && (
+                            <div className="bg-slate-900/90 backdrop-blur-md text-red-500 text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest border border-red-500/30 w-fit animate-pulse">
+                                Sold Out
+                            </div>
+                        )}
                     </div>
+
+                    {/* Wishlist Button */}
+                    <button
+                        onClick={toggleWishlist}
+                        className="absolute top-4 right-4 z-20 w-10 h-10 bg-white/90 backdrop-blur-md rounded-full flex items-center justify-center shadow-lg hover:scale-110 active:scale-90 transition-all group/heart"
+                    >
+                        <Heart className={`w-5 h-5 transition-colors ${isWishlisted ? 'fill-red-500 text-red-500' : 'text-slate-400 group-hover/heart:text-red-400'}`} />
+                    </button>
 
                     {/* Rating Badge */}
                     <div className="absolute bottom-4 left-4 z-20 bg-white/95 backdrop-blur-sm px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-sm border border-slate-100 group-hover:scale-105 transition-transform">
@@ -468,10 +570,11 @@ export default function ProductCard({ id, name, price, images, imageLabels, dura
                     {/* Carousel Image */}
                     <div className="w-full h-full relative p-4">
                         <Image
-                            src={images[currentImageIndex]}
+                            src={getImageUrl(images[currentImageIndex])}
                             alt={`${name} view ${currentImageIndex + 1}`}
                             fill
                             className={`object-contain transition-all duration-700 group-hover/image:scale-105 ${isSoldOut ? 'grayscale' : ''}`}
+                            unoptimized
                         />
                     </div>
                 </div>
@@ -551,7 +654,7 @@ export default function ProductCard({ id, name, price, images, imageLabels, dura
                         className="absolute inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity duration-500"
                         onClick={() => setIsDetailModalOpen(false)}
                     />
-                    <div className="relative bg-white w-full max-w-4xl h-[92vh] md:h-auto md:max-h-[85vh] overflow-hidden rounded-t-[40px] md:rounded-[40px] shadow-2xl flex flex-col md:flex-row animate-in slide-in-from-bottom md:zoom-in-95 duration-500 pointer-events-auto">
+                    <div className="relative bg-white w-full max-w-4xl h-[92vh] md:h-auto md:max-h-[85vh] rounded-t-[40px] md:rounded-[40px] shadow-2xl flex flex-col md:flex-row animate-in slide-in-from-bottom md:zoom-in-95 duration-500 pointer-events-auto overflow-hidden">
                         {/* Mobile Handle */}
                         <div className="md:hidden absolute top-3 left-1/2 -translate-x-1/2 w-12 h-1.5 bg-slate-200/50 rounded-full z-50 py-4" />
 
@@ -566,10 +669,11 @@ export default function ProductCard({ id, name, price, images, imageLabels, dura
                         {/* Left: Gallery */}
                         <div className="w-full md:w-1/2 h-[45vh] md:h-auto relative bg-[#f8f8f8] group/gallery">
                             <Image
-                                src={images[currentImageIndex]}
+                                src={getImageUrl(images[currentImageIndex])}
                                 alt={name}
                                 fill
                                 className="object-cover md:object-contain p-4 transition-transform duration-700 group-hover/gallery:scale-105"
+                                unoptimized
                             />
                             {/* Thumbnails */}
                             <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2 md:gap-3 px-4 py-2 bg-white/60 backdrop-blur-xl rounded-2xl border border-white/40 max-w-[90%] overflow-x-auto no-scrollbar shadow-lg">
@@ -580,7 +684,7 @@ export default function ProductCard({ id, name, price, images, imageLabels, dura
                                         className={`flex-shrink-0 w-10 h-10 md:w-12 md:h-16 rounded-xl overflow-hidden border-2 transition-all ${idx === currentImageIndex ? 'border-brand-lemon scale-110 shadow-md' : 'border-transparent opacity-50 hover:opacity-100'}`}
                                     >
                                         <div className="relative w-full h-full">
-                                            <Image src={img} alt="thumb" fill className="object-cover" />
+                                            <Image src={getImageUrl(img)} alt="thumb" fill className="object-cover" unoptimized />
                                         </div>
                                     </button>
                                 ))}
@@ -588,7 +692,7 @@ export default function ProductCard({ id, name, price, images, imageLabels, dura
                         </div>
 
                         {/* Right: Info */}
-                        <div className="flex-1 overflow-y-auto h-full flex flex-col relative">
+                        <div className="flex-1 flex flex-col relative overflow-y-auto overscroll-contain">
                             <div className="p-8 md:p-10 pb-32 md:pb-10 space-y-8">
                                 <div className="space-y-4">
                                     <div className="flex flex-wrap items-center gap-2">
@@ -646,15 +750,15 @@ export default function ProductCard({ id, name, price, images, imageLabels, dura
                                             <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Select Silhouette</h4>
                                             <button className="text-[10px] font-black text-slate-900 uppercase tracking-widest underline decoration-brand-lemon decoration-2 underline-offset-4">Size Guide</button>
                                         </div>
-                                        <div className="flex gap-3">
-                                            {['S', 'M', 'L', 'XL'].map(size => (
+                                        <div className="flex flex-wrap gap-3">
+                                            {(images.length > 0 ? ['S', 'M', 'L', 'XL', '2XL', '3XL'] : ['S', 'M', 'L', 'XL']).map(size => (
                                                 <button
                                                     key={size}
                                                     onClick={() => setSelectedSize(size)}
-                                                    className={`w-14 h-14 md:w-16 md:h-16 rounded-2xl font-black border-2 transition-all text-sm
+                                                    className={`min-w-[3.5rem] h-14 md:h-16 px-4 rounded-2xl font-black border-2 transition-all text-sm
                                                         ${selectedSize === size
                                                             ? 'border-slate-900 bg-slate-900 text-white shadow-xl shadow-slate-900/20 scale-105'
-                                                            : 'border-slate-100 text-slate-400 hover:border-slate-200 bg-white'
+                                                            : 'border-slate-100 text-slate-400 hover:border-slate-200 bg-white hover:scale-105'
                                                         }
                                                     `}
                                                 >

@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     LayoutDashboard, ShoppingBag, Heart, Bell, User,
     HelpCircle, LogOut, Package, Clock, CheckCircle2,
@@ -26,7 +26,7 @@ const WhatsAppIcon = ({ className }: { className?: string }) => (
 type DashboardSection = 'home' | 'orders' | 'wishlist' | 'notifications' | 'profile' | 'help';
 
 export default function CustomerDashboard() {
-    const { user, logout } = useAuth();
+    const { user, logout, updateUser, isAuthenticated, isLoading } = useAuth();
     const router = useRouter();
     const [activeSection, setActiveSection] = useState<DashboardSection>('home');
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -40,6 +40,12 @@ export default function CustomerDashboard() {
     const [showLiveSupport, setShowLiveSupport] = useState(false);
     const [disputeStep, setDisputeStep] = useState(1);
     const [chatInput, setChatInput] = useState('');
+
+    // Dispute Form States
+    const [disputeOrderId, setDisputeOrderId] = useState('');
+    const [disputeCategory, setDisputeCategory] = useState('Wrong Sizing');
+    const [disputeDescription, setDisputeDescription] = useState('');
+    const [isSubmittingDispute, setIsSubmittingDispute] = useState(false);
 
     const handleSendOrderToWhatsApp = (order: any) => {
         const phone = "233505112925";
@@ -55,13 +61,69 @@ export default function CustomerDashboard() {
         setChatInput('');
     };
 
+    // Dashboard Data States
+    const [dashboardData, setDashboardData] = useState<any>(null);
+    const [orders, setOrders] = useState<any[]>([]);
+    const [notifications, setNotifications] = useState<any[]>([]);
+    const [wishlist, setWishlist] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
+    const [isUpdating, setIsUpdating] = useState(false);
+
     // Profile States
     const [profileName, setProfileName] = useState(user?.name || '');
     const [profileEmail, setProfileEmail] = useState(user?.email || '');
-    const [profilePhone, setProfilePhone] = useState('+233 24 000 0000');
-    const [profileCity, setProfileCity] = useState('Accra');
+    const [profilePhone, setProfilePhone] = useState(user?.phone || '+233 24 000 0000');
+    const [profileCity, setProfileCity] = useState(user?.location || 'Accra');
     const [profileAddress, setProfileAddress] = useState('');
     const [profileImage, setProfileImage] = useState<string | null>(null);
+
+    useEffect(() => {
+        const fetchDashboardData = async () => {
+            try {
+                const token = localStorage.getItem('fla_token');
+                const headers = {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                };
+
+                const [statsRes, ordersRes, wishlistRes, notificationsRes] = await Promise.all([
+                    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/dashboard/customer/stats`, { headers }),
+                    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders/my-orders`, { headers }),
+                    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/wishlist/my-wishlist`, { headers }),
+                    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/notifications/my-notifications`, { headers })
+                ]);
+
+                if (statsRes.ok) setDashboardData(await statsRes.json());
+                if (ordersRes.ok) setOrders(await ordersRes.json());
+                if (wishlistRes.ok) setWishlist(await wishlistRes.json());
+                if (notificationsRes.ok) setNotifications(await notificationsRes.json());
+            } catch (error) {
+                console.error('Error fetching dashboard data:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        if (user) {
+            fetchDashboardData();
+            // Sync profile states
+            setProfileName(user.name || '');
+            setProfileEmail(user.email || '');
+            setProfilePhone(user.phone || '');
+            setProfileCity(user.location || '');
+            setProfileAddress(user.address || '');
+            setProfileImage(user.profileImage || null);
+        }
+    }, [user]);
+
+    const getImageUrl = (url: string) => {
+        if (!url || url === '/product-1.jpg') return '/product-1.jpg';
+        if (url.startsWith('http')) return url;
+        const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '');
+        if (url.startsWith('/')) return `${baseUrl}${url}`;
+        return `${baseUrl}/uploads/${url}`;
+    };
+
     const fileInputRef = React.useRef<HTMLInputElement>(null);
 
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -75,35 +137,95 @@ export default function CustomerDashboard() {
         }
     };
 
-    const handleUpdateProfile = () => {
-        // In a real app, you'd call an API here
-        Swal.fire({
-            icon: 'success',
-            title: 'Profile Updated',
-            text: 'Your information has been successfully saved.',
-            customClass: {
-                popup: 'rounded-[32px]',
-                confirmButton: 'bg-slate-900 rounded-full px-8 py-3'
+    const handleUpdateProfile = async () => {
+        setIsUpdating(true);
+        try {
+            const token = localStorage.getItem('fla_token');
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/auth/profile`, {
+                method: 'PATCH',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    name: profileName,
+                    email: profileEmail,
+                    phone: profilePhone,
+                    location: profileCity,
+                    address: profileAddress,
+                    profileImage: profileImage
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                console.error('Profile update failed:', errorData);
+                throw new Error(errorData.message || 'Failed to update profile');
             }
-        });
+
+            const updatedUser = await response.json();
+
+            // Map backend fields to frontend context expectations if necessary
+            updateUser({
+                name: updatedUser.name,
+                email: updatedUser.email,
+                phone: updatedUser.phone,
+                location: updatedUser.location,
+                address: updatedUser.address,
+                profileImage: updatedUser.profileImage
+            });
+
+            Swal.fire({
+                icon: 'success',
+                title: 'PROFILE UPDATED',
+                text: 'Your information has been successfully saved to our database.',
+                confirmButtonText: 'EXCELLENT',
+                buttonsStyling: false,
+                customClass: {
+                    popup: 'rounded-[32px] border-none shadow-2xl p-10 bg-white',
+                    title: 'text-2xl font-black text-slate-900 tracking-tighter uppercase mb-2',
+                    htmlContainer: 'text-slate-500 font-medium text-sm mb-6',
+                    confirmButton: 'bg-slate-900 text-white rounded-full px-10 py-4 text-[11px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all'
+                }
+            });
+        } catch (error: any) {
+            console.error('Profile update error:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'UPDATE FAILED',
+                text: error.message || 'An error occurred while saving your changes.',
+                confirmButtonText: 'TRY AGAIN',
+                buttonsStyling: false,
+                customClass: {
+                    popup: 'rounded-[32px] border-none shadow-2xl p-10 bg-white',
+                    title: 'text-2xl font-black text-slate-900 tracking-tighter uppercase mb-2',
+                    htmlContainer: 'text-slate-500 font-medium text-sm mb-6',
+                    confirmButton: 'bg-slate-900 text-white rounded-full px-10 py-4 text-[11px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all'
+                }
+            });
+        } finally {
+            setIsUpdating(false);
+        }
     };
 
     const handleLogout = () => {
         Swal.fire({
             title: 'SAD TO SEE YOU GO! 👋',
             text: "Are you sure you want to end your fashion session?",
-            icon: 'warning',
+            icon: 'info',
+            iconColor: '#0F172A',
             showCancelButton: true,
             confirmButtonColor: '#0F172A',
-            cancelButtonColor: '#f8fafc',
-            confirmButtonText: 'YES, LOGOUT',
-            cancelButtonText: 'CANCEL',
+            cancelButtonColor: '#F1F5F9',
+            confirmButtonText: 'Sign Out',
+            cancelButtonText: 'Stay Logged In',
+            buttonsStyling: false,
             customClass: {
-                popup: 'rounded-[40px] border-none shadow-2xl p-12',
-                title: 'text-2xl font-black text-slate-900 tracking-tighter',
-                htmlContainer: 'text-sm text-slate-500 font-medium pb-4',
-                confirmButton: 'rounded-full px-10 py-4 text-[10px] font-black uppercase tracking-[0.2em] shadow-xl shadow-slate-900/20',
-                cancelButton: 'rounded-full px-10 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 hover:text-slate-900 transition-colors'
+                popup: 'rounded-[32px] border-none shadow-2xl p-8 md:p-12 bg-white',
+                title: 'text-2xl font-black text-slate-900 tracking-tighter uppercase mb-2',
+                htmlContainer: 'text-slate-500 font-medium text-sm mb-8',
+                confirmButton: 'bg-slate-900 text-white rounded-full px-8 py-4 text-[11px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all mx-2',
+                cancelButton: 'bg-slate-100 text-slate-500 rounded-full px-8 py-4 text-[11px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all mx-2'
             }
         }).then((result) => {
             if (result.isConfirmed) {
@@ -111,6 +233,74 @@ export default function CustomerDashboard() {
                 router.push('/');
             }
         });
+    };
+
+    const handleSubmitDispute = async () => {
+        if (!disputeOrderId || !disputeDescription) {
+            Swal.fire({
+                icon: 'error',
+                title: 'FIELDS REQUIRED',
+                text: 'Please select an order and describe the issue.',
+                confirmButtonText: 'OK',
+                buttonsStyling: false,
+                customClass: {
+                    popup: 'rounded-[32px] border-none shadow-2xl p-10 bg-white',
+                    title: 'text-2xl font-black text-slate-900 tracking-tighter uppercase mb-2',
+                    confirmButton: 'bg-slate-900 text-white rounded-full px-8 py-3 text-[11px] font-black uppercase tracking-widest'
+                }
+            });
+            return;
+        }
+
+        setIsSubmittingDispute(true);
+        try {
+            const token = localStorage.getItem('fla_token');
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/support/dispute`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    orderId: disputeOrderId,
+                    category: disputeCategory,
+                    description: disputeDescription
+                })
+            });
+
+            if (!response.ok) throw new Error('Failed to submit dispute');
+
+            Swal.fire({
+                icon: 'success',
+                title: 'DISPUTE SUBMITTED',
+                text: 'Our team will review your case and contact you soon.',
+                confirmButtonText: 'UNDERSTOOD',
+                buttonsStyling: false,
+                customClass: {
+                    popup: 'rounded-[32px] border-none shadow-2xl p-10 bg-white',
+                    title: 'text-2xl font-black text-slate-900 tracking-tighter uppercase mb-2',
+                    htmlContainer: 'text-slate-500 font-medium text-sm mb-6',
+                    confirmButton: 'bg-slate-900 text-white rounded-full px-10 py-4 text-[11px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all'
+                }
+            });
+            setShowDisputeForm(false);
+            setDisputeDescription('');
+        } catch (error: any) {
+            Swal.fire({
+                icon: 'error',
+                title: 'SUBMISSION FAILED',
+                text: error.message,
+                confirmButtonText: 'OK',
+                buttonsStyling: false,
+                customClass: {
+                    popup: 'rounded-[32px] border-none shadow-2xl p-10 bg-white',
+                    title: 'text-2xl font-black text-slate-900 tracking-tighter uppercase mb-2',
+                    confirmButton: 'bg-slate-900 text-white rounded-full px-8 py-3 text-[11px] font-black uppercase tracking-widest'
+                }
+            });
+        } finally {
+            setIsSubmittingDispute(false);
+        }
     };
 
     const sidebarItems = [
@@ -122,16 +312,39 @@ export default function CustomerDashboard() {
         { id: 'help', label: 'Help Center', icon: HelpCircle },
     ];
 
-    const stats = [
-        { label: 'Active Orders', value: '2', icon: Package, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100', section: 'orders', filter: 'Active' },
-        { label: 'Pending Deliveries', value: '1', icon: Clock, color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-100', section: 'orders', filter: 'Active' },
-        { label: 'Completed', value: '12', icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100', section: 'orders', filter: 'Completed' },
-        { label: 'Wallet Balance', value: 'GH₵ 1,250', icon: Wallet, color: 'text-slate-900', bg: 'bg-brand-lemon/20', border: 'border-brand-lemon/30', section: 'home', filter: 'All' },
-    ];
-
-    const recentOrders = [
-        { id: 'FLA-8821', name: 'Tribal Print Shirt', status: 'Processing', vendor: 'Signature Print', price: '850', image: '/product-1.jpg' },
-        { id: 'FLA-8794', name: 'Abstract Circle Dress', status: 'Shipped', vendor: 'FLA Bespoke', price: '1,200', image: '/product-3.png' },
+    const statsList = [
+        {
+            label: 'Total Spent',
+            value: `GH₵ ${dashboardData?.totalSpent || 0}`,
+            icon: Wallet,
+            color: 'text-slate-900',
+            bg: 'bg-brand-lemon/20',
+            border: 'border-brand-lemon/30'
+        },
+        {
+            label: 'Active Orders',
+            value: dashboardData?.activeOrders || '0',
+            icon: Package,
+            color: 'text-blue-600',
+            bg: 'bg-blue-50',
+            border: 'border-blue-100'
+        },
+        {
+            label: 'Wishlist Items',
+            value: dashboardData?.wishlistCount || '0',
+            icon: Heart,
+            color: 'text-rose-600',
+            bg: 'bg-rose-50',
+            border: 'border-rose-100'
+        },
+        {
+            label: 'Completed',
+            value: orders.filter(o => o.status === 'delivered').length.toString(),
+            icon: CheckCircle2,
+            color: 'text-emerald-600',
+            bg: 'bg-emerald-50',
+            border: 'border-emerald-100'
+        },
     ];
 
     const renderContent = () => {
@@ -147,14 +360,10 @@ export default function CustomerDashboard() {
 
                         {/* Stats Grid */}
                         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                            {stats.map((stat, i) => (
-                                <button
+                            {statsList.map((stat, i) => (
+                                <div
                                     key={i}
-                                    onClick={() => {
-                                        setActiveSection(stat.section as DashboardSection);
-                                        setOrderFilter(stat.filter);
-                                    }}
-                                    className={`p-5 rounded-[24px] border ${stat.border} shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all group overflow-hidden relative text-left w-full active:scale-95`}
+                                    className={`p-5 rounded-[24px] border ${stat.border} shadow-sm group overflow-hidden relative text-left w-full`}
                                 >
                                     <div className="absolute -right-2 -top-2 w-16 h-16 bg-white/10 rounded-full blur-2xl group-hover:scale-150 transition-transform" />
                                     <div className={`w-10 h-10 ${stat.bg} ${stat.color} rounded-xl flex items-center justify-center mb-4 relative z-10 group-hover:scale-110 transition-transform`}>
@@ -164,7 +373,7 @@ export default function CustomerDashboard() {
                                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{stat.label}</p>
                                         <p className="text-xl font-black text-slate-900 mt-1">{stat.value}</p>
                                     </div>
-                                </button>
+                                </div>
                             ))}
                         </div>
 
@@ -178,63 +387,60 @@ export default function CustomerDashboard() {
                                     </button>
                                 </div>
                                 <div className="bg-white rounded-[32px] border border-slate-100 shadow-sm overflow-hidden">
-                                    {recentOrders.map((order, i) => (
-                                        <div key={i} className={`p-4 md:p-5 flex flex-col sm:flex-row sm:items-center gap-4 ${i !== recentOrders.length - 1 ? 'border-b border-slate-50' : ''}`}>
-                                            <div className="flex items-start gap-4 flex-1">
-                                                <div className="relative w-16 h-20 bg-slate-50 rounded-xl overflow-hidden flex-shrink-0 border border-slate-100">
-                                                    <Image src={order.image} alt={order.name} fill className="object-cover" />
-                                                </div>
-                                                <div className="min-w-0 flex-1">
-                                                    <div className="flex justify-between items-start">
-                                                        <div>
-                                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">{order.id}</p>
-                                                            <h3 className="font-bold text-slate-900 truncate pr-2 text-sm md:text-base">{order.name}</h3>
+                                    {orders.length > 0 ? (
+                                        orders.slice(0, 5).map((order, i) => (
+                                            <div key={i} className={`p-4 md:p-5 flex flex-col sm:flex-row sm:items-center gap-4 ${i !== Math.min(orders.length, 5) - 1 ? 'border-b border-slate-50' : ''}`}>
+                                                <div className="flex items-start gap-4 flex-1">
+                                                    <div className="relative w-16 h-20 bg-slate-50 rounded-xl overflow-hidden flex-shrink-0 border border-slate-100">
+                                                        <Image src={getImageUrl(order.items[0]?.image || '/product-1.jpg')} alt={order.items[0]?.name || 'Product'} fill className="object-cover" unoptimized />
+                                                    </div>
+                                                    <div className="min-w-0 flex-1">
+                                                        <div className="flex justify-between items-start">
+                                                            <div>
+                                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">#ORD-{order._id.slice(-6).toUpperCase()}</p>
+                                                                <h3 className="font-bold text-slate-900 truncate pr-2 text-sm md:text-base">{order.items[0]?.name || 'Multiple Items'}</h3>
+                                                            </div>
+                                                            <span className={`flex-shrink-0 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest sm:hidden ${['delivered', 'cancelled'].includes(order.status) ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'
+                                                                }`}>
+                                                                {order.status}
+                                                            </span>
                                                         </div>
-                                                        <span className={`flex-shrink-0 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest sm:hidden ${order.status === 'Processing' ? 'bg-blue-50 text-blue-600' : 'bg-brand-lemon text-slate-900'
+                                                        <p className="text-xs text-slate-500 mt-0.5">{order.vendorName || 'FLA Vendor'}</p>
+                                                        <p className="font-sans font-black text-slate-900 mt-2 sm:hidden">GH₵ {order.totalAmount}</p>
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex items-center justify-between sm:flex-col sm:items-end gap-3 sm:gap-2 pl-20 sm:pl-0 -mt-2 sm:mt-0">
+                                                    <div className="hidden sm:block text-right">
+                                                        <span className={`inline-block px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest mb-1 ${['delivered', 'cancelled'].includes(order.status) ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'
                                                             }`}>
                                                             {order.status}
                                                         </span>
+                                                        <p className="font-sans font-black text-slate-900">GH₵ {order.totalAmount}</p>
                                                     </div>
-                                                    <p className="text-xs text-slate-500 mt-0.5">{order.vendor}</p>
-                                                    <p className="font-sans font-black text-slate-900 mt-2 sm:hidden">GH₵{order.price}</p>
-                                                </div>
-                                            </div>
 
-                                            <div className="flex items-center justify-between sm:flex-col sm:items-end gap-3 sm:gap-2 pl-20 sm:pl-0 -mt-2 sm:mt-0">
-                                                <div className="hidden sm:block text-right">
-                                                    <span className={`inline-block px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest mb-1 ${order.status === 'Processing' ? 'bg-blue-50 text-blue-600' : 'bg-brand-lemon text-slate-900'
-                                                        }`}>
-                                                        {order.status}
-                                                    </span>
-                                                    <p className="font-sans font-black text-slate-900">GH₵{order.price}</p>
-                                                </div>
-
-                                                <div className="flex items-center gap-3">
-                                                    {order.status === 'Shipped' && (
+                                                    <div className="flex items-center gap-3">
                                                         <button
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
-                                                                setRatingOrder({ id: order.id, name: order.name });
+                                                                handleSendOrderToWhatsApp(order);
                                                             }}
-                                                            className="text-[9px] font-black text-brand-lemon uppercase tracking-widest hover:underline py-2"
+                                                            className="h-9 w-9 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-all shadow-sm border border-emerald-100"
+                                                            title="Send to WhatsApp"
                                                         >
-                                                            Rate
+                                                            <WhatsAppIcon className="w-4.5 h-4.5" />
                                                         </button>
-                                                    )}
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            handleSendOrderToWhatsApp(order);
-                                                        }}
-                                                        className="h-9 w-9 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-all shadow-sm border border-emerald-100"
-                                                        title="Send to WhatsApp"
-                                                    >
-                                                        <WhatsAppIcon className="w-4.5 h-4.5" />
-                                                    </button>
+                                                    </div>
                                                 </div>
                                             </div>
+                                        ))
+                                    ) : (
+                                        <div className="p-12 text-center">
+                                            <ShoppingBag className="w-12 h-12 text-slate-200 mx-auto mb-4" />
+                                            <p className="text-slate-500 font-medium">No orders found yet.</p>
+                                            <Link href="/" className="text-sm font-black text-slate-900 underline mt-2 inline-block">Start Shopping</Link>
                                         </div>
-                                    ))}
+                                    )}
                                 </div>
                             </div>
 
@@ -287,79 +493,68 @@ export default function CustomerDashboard() {
                         <div className="bg-white rounded-[40px] border border-slate-100 shadow-sm overflow-hidden">
                             {/* Mobile Card View */}
                             <div className="md:hidden">
-                                {[1, 2, 3, 4]
-                                    .map(i => ({
-                                        id: i,
-                                        status: i % 2 === 0 ? 'Delivered' : 'In Printing',
-                                        isCompleted: i % 2 === 0
-                                    }))
+                                {orders
                                     .filter(order => {
                                         if (orderFilter === 'All') return true;
-                                        if (orderFilter === 'Active') return !order.isCompleted;
-                                        if (orderFilter === 'Completed') return order.isCompleted;
+                                        if (orderFilter === 'Active') return !['delivered', 'cancelled'].includes(order.status);
+                                        if (orderFilter === 'Completed') return order.status === 'delivered';
                                         return true;
                                     })
-                                    .map((order) => {
-                                        const i = order.id;
-                                        return (
-                                            <div key={i} className="p-5 border-b border-slate-50 last:border-none">
-                                                <div className="flex gap-4 mb-4">
-                                                    <div className="relative w-20 h-24 bg-slate-50 rounded-2xl overflow-hidden flex-shrink-0 border border-slate-100">
-                                                        <Image
-                                                            src={i % 2 === 0 ? `/product-${(i % 2) + 1}.jpg` : `/product-${(i % 3) + 3}.png`}
-                                                            alt="p"
-                                                            fill
-                                                            className="object-cover"
-                                                        />
-                                                    </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="flex justify-between items-start mb-1">
-                                                            <p className="text-[10px] font-black text-slate-400 uppercase">#FLA-882{i}</p>
-                                                            <span className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${order.isCompleted ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'
-                                                                }`}>
-                                                                {order.status}
-                                                            </span>
-                                                        </div>
-                                                        <h3 className="font-bold text-slate-900 text-sm mb-1 line-clamp-2">Signature Print Shirt {i}</h3>
-                                                        <p className="text-xs text-slate-500 font-medium">FLA Bespoke</p>
-                                                        <p className="font-sans font-black text-slate-900 mt-2">GH₵ 750</p>
-                                                    </div>
+                                    .map((order) => (
+                                        <div key={order._id} className="p-5 border-b border-slate-50 last:border-none">
+                                            <div className="flex gap-4 mb-4">
+                                                <div className="relative w-20 h-24 bg-slate-50 rounded-2xl overflow-hidden flex-shrink-0 border border-slate-100">
+                                                    <Image
+                                                        src={getImageUrl(order.items[0]?.image || '/product-1.jpg')}
+                                                        alt="p"
+                                                        fill
+                                                        className="object-cover"
+                                                        unoptimized
+                                                    />
                                                 </div>
-                                                <div className="grid grid-cols-2 gap-3">
-                                                    <button
-                                                        onClick={() => setTrackingOrder({
-                                                            id: `#FLA-882${i}`,
-                                                            name: `Signature Print Shirt ${i}`,
-                                                            status: order.status,
-                                                            step: order.isCompleted ? 5 : 2,
-                                                            price: '750',
-                                                            image: i % 2 === 0 ? `/product-${(i % 2) + 1}.jpg` : `/product-${(i % 3) + 3}.png`
-                                                        })}
-                                                        className="py-3 bg-slate-900 text-white rounded-full text-[10px] font-bold uppercase tracking-widest hover:bg-slate-800 transition-all active:scale-95 text-center"
-                                                    >
-                                                        Track Order
-                                                    </button>
-                                                    <div className="flex gap-3">
-                                                        {order.isCompleted && (
-                                                            <button
-                                                                onClick={() => setRatingOrder({ id: i, name: `Signature Print Shirt ${i}` })}
-                                                                className="flex-1 py-3 bg-brand-lemon text-slate-900 rounded-full text-[10px] font-bold uppercase tracking-widest hover:shadow-lg transition-all text-center"
-                                                            >
-                                                                Rate
-                                                            </button>
-                                                        )}
-                                                        <button
-                                                            onClick={() => handleSendOrderToWhatsApp({ id: `#FLA-882${i}`, name: `Signature Print Shirt ${i}`, price: '750', status: order.status })}
-                                                            className="flex-1 py-3 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-full flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-all shadow-sm group"
-                                                            title="Send Order to WhatsApp"
-                                                        >
-                                                            <WhatsAppIcon className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                                                        </button>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex justify-between items-start mb-1">
+                                                        <p className="text-[10px] font-black text-slate-400 uppercase">#ORD-{order._id.slice(-6).toUpperCase()}</p>
+                                                        <span className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${['delivered', 'cancelled'].includes(order.status) ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'
+                                                            }`}>
+                                                            {order.status}
+                                                        </span>
                                                     </div>
+                                                    <h3 className="font-bold text-slate-900 text-sm mb-1 line-clamp-2">{order.items[0]?.name || 'Multiple Items'}</h3>
+                                                    <p className="text-xs text-slate-500 font-medium">{order.vendorName || 'FLA Vendor'}</p>
+                                                    <p className="font-sans font-black text-slate-900 mt-2">GH₵ {order.totalAmount}</p>
                                                 </div>
                                             </div>
-                                        );
-                                    })}
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <button
+                                                    onClick={() => setTrackingOrder(order)}
+                                                    className="py-3 bg-slate-900 text-white rounded-full text-[10px] font-bold uppercase tracking-widest hover:bg-slate-800 transition-all active:scale-95 text-center"
+                                                >
+                                                    Track Order
+                                                </button>
+                                                <div className="flex gap-3">
+                                                    {order.status === 'delivered' && (
+                                                        <button
+                                                            onClick={() => setRatingOrder({ id: order._id, name: order.items[0]?.name })}
+                                                            className="flex-1 py-3 bg-brand-lemon text-slate-900 rounded-full text-[10px] font-bold uppercase tracking-widest hover:shadow-lg transition-all text-center"
+                                                        >
+                                                            Rate
+                                                        </button>
+                                                    )}
+                                                    <button
+                                                        onClick={() => handleSendOrderToWhatsApp(order)}
+                                                        className="flex-1 py-3 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-full flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-all shadow-sm group"
+                                                        title="Send Order to WhatsApp"
+                                                    >
+                                                        <WhatsAppIcon className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                {orders.length === 0 && (
+                                    <div className="p-10 text-center text-slate-400 font-bold text-sm">No orders found.</div>
+                                )}
                             </div>
 
                             {/* Desktop Table View */}
@@ -375,79 +570,65 @@ export default function CustomerDashboard() {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-50">
-                                        {[1, 2, 3, 4]
-                                            .map(i => ({
-                                                id: i,
-                                                status: i % 2 === 0 ? 'Delivered' : 'In Printing',
-                                                isCompleted: i % 2 === 0
-                                            }))
+                                        {orders
                                             .filter(order => {
                                                 if (orderFilter === 'All') return true;
-                                                if (orderFilter === 'Active') return !order.isCompleted;
-                                                if (orderFilter === 'Completed') return order.isCompleted;
+                                                if (orderFilter === 'Active') return !['delivered', 'cancelled'].includes(order.status);
+                                                if (orderFilter === 'Completed') return order.status === 'delivered';
                                                 return true;
                                             })
-                                            .map((order) => {
-                                                const i = order.id;
-                                                return (
-                                                    <tr key={i} className="group hover:bg-slate-50/50 transition-colors">
-                                                        <td className="px-8 py-6">
-                                                            <div className="flex items-center gap-4">
-                                                                <div className="relative w-12 h-14 bg-slate-50 rounded-lg overflow-hidden flex-shrink-0">
-                                                                    <Image
-                                                                        src={i % 2 === 0 ? `/product-${(i % 2) + 1}.jpg` : `/product-${(i % 3) + 3}.png`}
-                                                                        alt="p"
-                                                                        fill
-                                                                        className="object-cover"
-                                                                    />
-                                                                </div>
-                                                                <div>
-                                                                    <p className="text-[9px] font-bold text-slate-400 uppercase mb-0.5">#FLA-882{i}</p>
-                                                                    <p className="font-bold text-slate-900 text-sm">Signature Print Shirt {i}</p>
-                                                                </div>
+                                            .map((order) => (
+                                                <tr key={order._id} className="group hover:bg-slate-50/50 transition-colors">
+                                                    <td className="px-8 py-6">
+                                                        <div className="flex items-center gap-4">
+                                                            <div className="relative w-12 h-14 bg-slate-50 rounded-lg overflow-hidden flex-shrink-0">
+                                                                <Image
+                                                                    src={getImageUrl(order.items[0]?.image || '/product-1.jpg')}
+                                                                    alt="p"
+                                                                    fill
+                                                                    className="object-cover"
+                                                                    unoptimized
+                                                                />
                                                             </div>
-                                                        </td>
-                                                        <td className="px-8 py-6">
-                                                            <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${order.isCompleted ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'
-                                                                }`}>
-                                                                {order.status}
-                                                            </span>
-                                                        </td>
-                                                        <td className="px-8 py-6 text-sm text-slate-600 font-bold">FLA Bespoke</td>
-                                                        <td className="px-8 py-6 font-sans font-black text-slate-900">GH₵ 750</td>
-                                                        <td className="px-8 py-6 text-right flex items-center justify-end gap-2">
-                                                            {order.isCompleted && (
-                                                                <button
-                                                                    onClick={() => setRatingOrder({ id: i, name: `Signature Print Shirt ${i}` })}
-                                                                    className="px-6 py-2 bg-brand-lemon text-slate-900 rounded-full text-[9px] font-bold uppercase tracking-widest hover:shadow-lg transition-all"
-                                                                >
-                                                                    Rate Design
-                                                                </button>
-                                                            )}
+                                                            <div>
+                                                                <p className="text-[9px] font-bold text-slate-400 uppercase mb-0.5">#ORD-{order._id.slice(-6).toUpperCase()}</p>
+                                                                <p className="font-bold text-slate-900 text-sm">{order.items[0]?.name || 'Multiple Items'}</p>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-8 py-6">
+                                                        <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${['delivered', 'cancelled'].includes(order.status) ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'
+                                                            }`}>
+                                                            {order.status}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-8 py-6 text-sm text-slate-600 font-bold">{order.vendorName || 'FLA Vendor'}</td>
+                                                    <td className="px-8 py-6 font-sans font-black text-slate-900">GH₵ {order.totalAmount}</td>
+                                                    <td className="px-8 py-6 text-right flex items-center justify-end gap-2">
+                                                        {order.status === 'delivered' && (
                                                             <button
-                                                                onClick={() => setTrackingOrder({
-                                                                    id: `#FLA-882${i}`,
-                                                                    name: `Signature Print Shirt ${i}`,
-                                                                    status: order.status,
-                                                                    step: order.isCompleted ? 5 : 2,
-                                                                    price: '750',
-                                                                    image: i % 2 === 0 ? `/product-${(i % 2) + 1}.jpg` : `/product-${(i % 3) + 3}.png`
-                                                                })}
-                                                                className="px-6 py-2 bg-slate-900 text-white rounded-full text-[9px] font-bold uppercase tracking-widest hover:bg-slate-800 transition-all hover:scale-105 active:scale-95 whitespace-nowrap"
+                                                                onClick={() => setRatingOrder({ id: order._id, name: order.items[0]?.name })}
+                                                                className="px-6 py-2 bg-brand-lemon text-slate-900 rounded-full text-[9px] font-bold uppercase tracking-widest hover:shadow-lg transition-all"
                                                             >
-                                                                Track
+                                                                Rate Design
                                                             </button>
-                                                            <button
-                                                                onClick={() => handleSendOrderToWhatsApp({ id: `#FLA-882${i}`, name: `Signature Print Shirt ${i}`, price: '750', status: order.status })}
-                                                                className="h-9 w-9 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-all shadow-md group"
-                                                                title="Send Order to WhatsApp"
-                                                            >
-                                                                <WhatsAppIcon className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                                                            </button>
-                                                        </td>
-                                                    </tr>
-                                                );
-                                            })}
+                                                        )}
+                                                        <button
+                                                            onClick={() => setTrackingOrder(order)}
+                                                            className="px-6 py-2 bg-slate-900 text-white rounded-full text-[9px] font-bold uppercase tracking-widest hover:bg-slate-800 transition-all hover:scale-105 active:scale-95 whitespace-nowrap"
+                                                        >
+                                                            Track
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleSendOrderToWhatsApp(order)}
+                                                            className="h-9 w-9 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-all shadow-md group"
+                                                            title="Send Order to WhatsApp"
+                                                        >
+                                                            <WhatsAppIcon className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
                                     </tbody>
                                 </table>
                             </div>
@@ -544,9 +725,10 @@ export default function CustomerDashboard() {
                             <div className="pt-6">
                                 <button
                                     onClick={handleUpdateProfile}
-                                    className="px-10 py-4 bg-slate-900 text-white rounded-full font-bold text-sm tracking-wide hover:shadow-2xl transition-all shadow-slate-900/20 active:scale-95"
+                                    disabled={isUpdating}
+                                    className={`px-10 py-4 bg-slate-900 text-white rounded-full font-bold text-sm tracking-wide hover:shadow-2xl transition-all shadow-slate-900/20 active:scale-95 ${isUpdating ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 >
-                                    Save Profile Changes
+                                    {isUpdating ? 'Saving Changes...' : 'Save Profile Changes'}
                                 </button>
                             </div>
                         </div>
@@ -560,26 +742,57 @@ export default function CustomerDashboard() {
                             <p className="text-slate-500 text-sm mt-1">Designs you've saved for later.</p>
                         </div>
                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6">
-                            {[1, 2].map((i) => (
-                                <div key={i} className="bg-white p-4 rounded-[32px] border border-slate-100 group">
-                                    <div className="relative aspect-[3/4] bg-slate-50 rounded-[24px] overflow-hidden mb-4">
-                                        <Image
-                                            src={i === 1 ? `/product-2.jpg` : `/product-4.png`}
-                                            alt="p"
-                                            fill
-                                            className="object-cover group-hover:scale-105 transition-transform duration-500"
-                                        />
-                                        <button className="absolute top-3 right-3 w-8 h-8 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center text-red-500 shadow-sm">
-                                            <Heart className="w-4 h-4 fill-current" />
-                                        </button>
+                            {wishlist?.items?.length > 0 ? (
+                                wishlist.items.map((item: any, i: number) => (
+                                    <div key={item._id || i} className="bg-white p-4 rounded-[32px] border border-slate-100 group transition-all hover:shadow-xl">
+                                        <div className="relative aspect-[3/4] bg-slate-50 rounded-[24px] overflow-hidden mb-4">
+                                            <Image
+                                                src={getImageUrl(item.productId?.images?.[0] || '/product-1.jpg')}
+                                                alt={item.productId?.name || 'Product'}
+                                                fill
+                                                className="object-cover group-hover:scale-105 transition-transform duration-500"
+                                                unoptimized
+                                            />
+                                            <button
+                                                onClick={async () => {
+                                                    try {
+                                                        const token = localStorage.getItem('fla_token');
+                                                        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/wishlist/${item.productId?._id}`, {
+                                                            method: 'DELETE',
+                                                            headers: { 'Authorization': `Bearer ${token}` }
+                                                        });
+                                                        if (res.ok) {
+                                                            setWishlist((prev: any) => ({
+                                                                ...prev,
+                                                                items: prev.items.filter((it: any) => it.productId?._id !== item.productId?._id)
+                                                            }));
+                                                        }
+                                                    } catch (err) {
+                                                        console.error(err);
+                                                    }
+                                                }}
+                                                className="absolute top-3 right-3 w-8 h-8 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center text-red-500 shadow-sm hover:scale-110 active:scale-95 transition-all"
+                                            >
+                                                <Heart className="w-4 h-4 fill-current" />
+                                            </button>
+                                        </div>
+                                        <h3 className="font-bold text-slate-900 text-sm truncate px-1">{item.productId?.name || 'Unnamed Design'}</h3>
+                                        <p className="text-xs font-black text-slate-900 mt-1 px-1">GH₵ {item.productId?.price || 0}</p>
+                                        <Link
+                                            href={`/products/${item.productId?._id}`}
+                                            className="w-full mt-4 py-2 bg-slate-50 text-slate-900 rounded-full text-[10px] font-bold uppercase tracking-widest hover:bg-brand-lemon transition-colors block text-center"
+                                        >
+                                            View Details
+                                        </Link>
                                     </div>
-                                    <h3 className="font-bold text-slate-900 text-sm truncate px-1">Geometric Print Set</h3>
-                                    <p className="text-xs font-black text-slate-900 mt-1 px-1">GH₵ 750</p>
-                                    <button className="w-full mt-4 py-2 bg-slate-50 text-slate-900 rounded-full text-[10px] font-bold uppercase tracking-widest hover:bg-brand-lemon transition-colors">
-                                        Add to Bag
-                                    </button>
+                                ))
+                            ) : (
+                                <div className="col-span-full py-20 text-center">
+                                    <Heart className="w-16 h-16 text-slate-100 mx-auto mb-4" />
+                                    <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Your wishlist is lonely.</p>
+                                    <Link href="/" className="text-sm font-black text-slate-900 underline mt-2 inline-block tracking-tighter uppercase">Browse Collection</Link>
                                 </div>
-                            ))}
+                            )}
                         </div>
                     </div>
                 );
@@ -590,24 +803,28 @@ export default function CustomerDashboard() {
                             <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Notifications</h1>
                         </div>
                         <div className="space-y-4">
-                            {[
-                                { title: 'Order Dispatched!', msg: 'Your Tribal Print Shirt is on its way to your location.', time: '2 mins ago', icon: Package, new: true },
-                                { title: 'Payment Confirmed', msg: 'Escrow payment for Order #FLA-8821 was successful.', time: '1 hour ago', icon: CheckCircle2, new: false },
-                                { title: 'New Message', msg: 'Vendor "Signature Print" sent you a message about your design.', time: '3 hours ago', icon: MessageSquare, new: false },
-                            ].map((n, i) => (
-                                <div key={i} className={`p-5 rounded-[24px] flex gap-4 items-start transition-all border ${n.new ? 'bg-white border-brand-lemon shadow-md' : 'bg-white border-slate-100 shadow-sm opacity-70'}`}>
-                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${n.new ? 'bg-brand-lemon text-slate-900' : 'bg-slate-50 text-slate-400'}`}>
-                                        <n.icon className="w-5 h-5" />
-                                    </div>
-                                    <div className="flex-1">
-                                        <div className="flex justify-between items-start mb-1">
-                                            <h3 className={`font-bold transition-colors ${n.new ? 'text-slate-900' : 'text-slate-500'}`}>{n.title}</h3>
-                                            <span className="text-[9px] font-black text-slate-300 uppercase shrink-0 ml-2">{n.time}</span>
+                            {notifications.length > 0 ? (
+                                notifications.map((n, i) => (
+                                    <div key={n._id || i} className={`p-5 rounded-[24px] flex gap-4 items-start transition-all border ${!n.isRead ? 'bg-white border-brand-lemon shadow-md' : 'bg-white border-slate-100 shadow-sm opacity-70'}`}>
+                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${!n.isRead ? 'bg-brand-lemon text-slate-900' : 'bg-slate-50 text-slate-400'}`}>
+                                            <Bell className="w-5 h-5" />
                                         </div>
-                                        <p className="text-xs text-slate-500 leading-relaxed">{n.msg}</p>
+                                        <div className="flex-1">
+                                            <div className="flex justify-between items-start mb-1">
+                                                <h3 className={`font-bold transition-colors ${!n.isRead ? 'text-slate-900' : 'text-slate-500'}`}>{n.title}</h3>
+                                                <span className="text-[9px] font-black text-slate-300 uppercase shrink-0 ml-2">{new Date(n.createdAt).toLocaleDateString()}</span>
+                                            </div>
+                                            <p className="text-xs text-slate-500 leading-relaxed">{n.message}</p>
+                                        </div>
                                     </div>
+                                ))
+                            ) : (
+                                <div className="py-20 text-center bg-white rounded-[32px] border border-slate-100 shadow-sm">
+                                    <MessageSquare className="w-12 h-12 text-slate-100 mx-auto mb-4" />
+                                    <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">No new notifications.</p>
+                                    <p className="text-slate-300 text-xs mt-1">We'll notify you here about your orders and messages.</p>
                                 </div>
-                            ))}
+                            )}
                         </div>
                     </div>
                 );
@@ -825,16 +1042,26 @@ export default function CustomerDashboard() {
                                 <div className="space-y-6">
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Select Order</label>
-                                        <select className="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20">
-                                            <option>Order #FLA-8821 - Tribal Print Shirt</option>
-                                            <option>Order #FLA-8794 - Abstract Circle Dress</option>
+                                        <select
+                                            value={disputeOrderId}
+                                            onChange={(e) => setDisputeOrderId(e.target.value)}
+                                            className="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20"
+                                        >
+                                            <option value="">Select an order...</option>
+                                            {orders.map(o => (
+                                                <option key={o._id} value={o._id}>Order #ORD-{o._id.slice(-6).toUpperCase()} - {o.items[0]?.name}</option>
+                                            ))}
                                         </select>
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Problem Category</label>
                                         <div className="grid grid-cols-2 gap-3">
                                             {['Wrong Sizing', 'Print Quality', 'Late Delivery', 'Fabric Issue'].map(c => (
-                                                <button key={c} className="py-3 px-4 bg-white border border-slate-100 rounded-xl text-[10px] font-bold text-slate-600 hover:border-brand-lemon hover:text-slate-900 transition-all text-left">
+                                                <button
+                                                    key={c}
+                                                    onClick={() => setDisputeCategory(c)}
+                                                    className={`py-3 px-4 rounded-xl text-[10px] font-bold transition-all text-left border ${disputeCategory === c ? 'bg-slate-900 text-brand-lemon border-slate-900' : 'bg-white border-slate-100 text-slate-600 hover:border-brand-lemon'}`}
+                                                >
                                                     {c}
                                                 </button>
                                             ))}
@@ -842,25 +1069,24 @@ export default function CustomerDashboard() {
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Evidence / Description</label>
-                                        <textarea rows={4} className="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20 resize-none" placeholder="Describe the issue in detail..." />
+                                        <textarea
+                                            rows={4}
+                                            value={disputeDescription}
+                                            onChange={(e) => setDisputeDescription(e.target.value)}
+                                            className="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20 resize-none"
+                                            placeholder="Describe the issue in detail..."
+                                        />
                                     </div>
                                 </div>
 
                                 <div className="mt-10 flex gap-4">
                                     <button onClick={() => setShowDisputeForm(false)} className="flex-1 py-4 bg-slate-50 text-slate-400 rounded-full font-bold text-xs uppercase tracking-widest">Cancel</button>
                                     <button
-                                        onClick={() => {
-                                            Swal.fire({
-                                                icon: 'success',
-                                                title: 'Case Submitted',
-                                                text: 'Your dispute has been logged. Our mediators will contact you within 24 hours.',
-                                                customClass: { popup: 'rounded-[32px]' }
-                                            });
-                                            setShowDisputeForm(false);
-                                        }}
-                                        className="flex-[2] py-4 bg-slate-900 text-white rounded-full font-bold text-xs uppercase tracking-widest shadow-xl shadow-slate-900/20 active:scale-95 transition-all"
+                                        onClick={handleSubmitDispute}
+                                        disabled={isSubmittingDispute}
+                                        className="flex-[2] py-4 bg-slate-900 text-white rounded-full font-bold text-xs uppercase tracking-widest shadow-xl shadow-slate-900/20 active:scale-95 transition-all disabled:opacity-50"
                                     >
-                                        Submit Dispute Case
+                                        {isSubmittingDispute ? 'Submitting...' : 'Submit Dispute Case'}
                                     </button>
                                 </div>
                             </div>
@@ -936,7 +1162,7 @@ export default function CustomerDashboard() {
                             <div className="flex items-center justify-between p-8 border-b border-slate-50">
                                 <div>
                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Live Tracking</p>
-                                    <h2 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Order {trackingOrder.id}</h2>
+                                    <h2 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Order #ORD-{trackingOrder._id.slice(-6).toUpperCase()}</h2>
                                 </div>
                                 <button onClick={() => setTrackingOrder(null)} className="p-3 bg-slate-50 rounded-full hover:bg-slate-100 transition-colors">
                                     <X className="w-5 h-5 text-slate-400" />
@@ -947,15 +1173,15 @@ export default function CustomerDashboard() {
                                 {/* Order Summary Mini */}
                                 <div className="flex items-center gap-5 p-4 bg-slate-50 rounded-[24px]">
                                     <div className="relative w-16 h-20 rounded-xl overflow-hidden shadow-sm">
-                                        <Image src={trackingOrder.image} alt="p" fill className="object-cover" />
+                                        <Image src={trackingOrder.items[0]?.image || '/product-1.jpg'} alt="p" fill className="object-cover" />
                                     </div>
                                     <div>
-                                        <h3 className="font-bold text-slate-900">{trackingOrder.name}</h3>
-                                        <p className="text-xs text-slate-500 font-medium">Bespoke Production • GH₵ {trackingOrder.price}</p>
+                                        <h3 className="font-bold text-slate-900">{trackingOrder.items[0]?.name || 'Multiple Items'}</h3>
+                                        <p className="text-xs text-slate-500 font-medium">Bespoke Production • GH₵ {trackingOrder.totalAmount}</p>
                                     </div>
                                     <div className="ml-auto text-right">
                                         <p className="text-[10px] font-black text-brand-lemon uppercase tracking-wider">Estimated Delivery</p>
-                                        <p className="text-sm font-black text-slate-900">Tomorrow, 4PM</p>
+                                        <p className="text-sm font-black text-slate-900">3-5 Working Days</p>
                                     </div>
                                 </div>
 
@@ -963,11 +1189,11 @@ export default function CustomerDashboard() {
                                 <div className="relative space-y-6 pl-2">
                                     <div className="absolute left-[17px] top-2 bottom-2 w-0.5 bg-slate-100" />
                                     {[
-                                        { title: 'Order Placed', time: 'Oct 24, 09:12 AM', desc: 'Your fashion request has been received.', done: trackingOrder.step >= 1 },
-                                        { title: 'In Printing', time: 'Oct 25, 02:30 PM', desc: 'Custom design is being applied to fabric.', done: trackingOrder.step >= 2 },
-                                        { title: 'Quality Assurance', time: 'Pending', desc: 'Stylists are checking tailoring excellence.', done: trackingOrder.step >= 3 },
-                                        { title: 'Shipped via FLA Logistics', time: 'Pending', desc: 'Pickup scheduled by our delivery partner.', done: trackingOrder.step >= 4 },
-                                        { title: 'Delivered', time: 'Pending', desc: 'Package handed over to recipient.', done: trackingOrder.step >= 5 },
+                                        { title: 'Order Placed', time: 'Recently', desc: 'Your fashion request has been received.', done: true },
+                                        { title: 'In Production', time: 'In Progress', desc: 'Stylists are working on your design.', done: ['processing', 'shipped', 'delivered'].includes(trackingOrder.status) },
+                                        { title: 'Quality Assurance', time: 'Pending', desc: 'Checking tailoring excellence.', done: ['shipped', 'delivered'].includes(trackingOrder.status) },
+                                        { title: 'Shipped via FLA Logistics', time: 'Pending', desc: 'On its way to your location.', done: ['shipped', 'delivered'].includes(trackingOrder.status) },
+                                        { title: 'Delivered', time: 'Pending', desc: 'Package handed over to recipient.', done: trackingOrder.status === 'delivered' },
                                     ].map((s, idx) => (
                                         <div key={idx} className={`relative flex gap-6 transition-opacity ${s.done ? 'opacity-100' : 'opacity-30'}`}>
                                             <div className={`w-3 h-3 rounded-full mt-1.5 z-10 border-2 border-white ring-4 ${s.done ? 'bg-brand-lemon ring-brand-lemon/20' : 'bg-slate-200 ring-slate-100'}`} />

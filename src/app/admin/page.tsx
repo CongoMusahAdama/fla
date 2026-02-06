@@ -2,7 +2,7 @@
 
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { LayoutDashboard, Users, ShoppingBag, Settings, LogOut, ArrowLeft } from 'lucide-react';
 
@@ -10,18 +10,50 @@ export default function AdminDashboard() {
     const { user, isAuthenticated, logout } = useAuth();
     const router = useRouter();
 
+    const [adminData, setAdminData] = useState<any>(null);
+    const [allOrders, setAllOrders] = useState<any[]>([]);
+    const [allUsers, setAllUsers] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+
     useEffect(() => {
         if (!isAuthenticated || user?.role !== 'admin') {
             router.push('/auth');
+            return;
         }
+
+        const fetchAdminData = async () => {
+            try {
+                const token = localStorage.getItem('fla_token');
+                const headers = {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                };
+
+                const [statsRes, ordersRes, usersRes] = await Promise.all([
+                    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/dashboard/admin/stats`, { headers }),
+                    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders`, { headers }),
+                    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/users`, { headers }) // Need users endpoint
+                ]);
+
+                if (statsRes.ok) setAdminData(await statsRes.json());
+                if (ordersRes.ok) setAllOrders(await ordersRes.json());
+                if (usersRes.ok) setAllUsers(await usersRes.json());
+            } catch (error) {
+                console.error('Error fetching admin data:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchAdminData();
     }, [isAuthenticated, user, router]);
 
     if (!user || user.role !== 'admin') return null;
 
     const stats = [
-        { label: 'Total Revenue', value: 'GH₵ 12,450', icon: ShoppingBag, color: 'text-green-600', bg: 'bg-green-50' },
-        { label: 'New Customers', value: '24', icon: Users, color: 'text-blue-600', bg: 'bg-blue-50' },
-        { label: 'Pending Orders', value: '8', icon: LayoutDashboard, color: 'text-slate-900', bg: 'bg-brand-lemon' },
+        { label: 'Total Revenue', value: `GH₵ ${adminData?.totalRevenue?.toLocaleString() || '0'}`, icon: ShoppingBag, color: 'text-green-600', bg: 'bg-green-50' },
+        { label: 'Total Users', value: adminData?.totalUsers?.toString() || '0', icon: Users, color: 'text-blue-600', bg: 'bg-blue-50' },
+        { label: 'Pending Orders', value: adminData?.pendingOrders?.toString() || '0', icon: LayoutDashboard, color: 'text-slate-900', bg: 'bg-brand-lemon' },
     ];
 
     return (
