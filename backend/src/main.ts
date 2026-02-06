@@ -9,7 +9,12 @@ async function bootstrap() {
 
   // Enable CORS for frontend
   app.enableCors({
-    origin: ['http://localhost:3000', 'http://localhost:3001'],
+    origin: [
+      'http://localhost:3000',
+      'http://localhost:3001',
+      'https://fadlanstore.netlify.app',
+      process.env.FRONTEND_URL,
+    ].filter(Boolean),
     credentials: true,
   });
 
