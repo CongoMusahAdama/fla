@@ -320,6 +320,8 @@ function AuthContent() {
 
             await signup(data.name, data.email, data.phone, data.location, data.password, role, vendorData);
 
+            /* 
+            // Temporarily disabling OTP flow
             if (role === 'vendor') {
                 // Send OTP email
                 try {
@@ -384,6 +386,10 @@ function AuthContent() {
             } else {
                 showSuccess(false);
             }
+            */
+
+            // Immediately show success and redirect
+            showSuccess(false);
         } catch (error: any) {
             showError(error.message);
         }

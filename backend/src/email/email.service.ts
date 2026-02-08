@@ -1,13 +1,15 @@
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import * as SibApiV3Sdk from '@sendinblue/client';
 
 @Injectable()
 export class EmailService {
     private apiInstance: SibApiV3Sdk.TransactionalEmailsApi;
 
-    constructor() {
+    constructor(private configService: ConfigService) {
         this.apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
-        const apiKey = process.env.BREVO_API_KEY || '';
+        const apiKey = this.configService.get<string>('BREVO_API_KEY') || '';
+        console.log('EmailService initialized. API Key present:', !!apiKey);
         this.apiInstance.setApiKey(
             SibApiV3Sdk.TransactionalEmailsApiApiKeys.apiKey,
             apiKey
@@ -25,7 +27,7 @@ export class EmailService {
             sendSmtpEmail.to = [{ email, name }];
             sendSmtpEmail.sender = {
                 name: 'FLA Logistics',
-                email: process.env.BREVO_SENDER_EMAIL || 'noreply@fla.com'
+                email: this.configService.get<string>('BREVO_SENDER_EMAIL') || 'noreply@fla.com'
             };
             console.log('Email configured with sender:', sendSmtpEmail.sender);
             sendSmtpEmail.htmlContent = `
@@ -216,7 +218,7 @@ export class EmailService {
         sendSmtpEmail.to = [{ email, name }];
         sendSmtpEmail.sender = {
             name: 'FLA Logistics',
-            email: process.env.BREVO_SENDER_EMAIL || 'noreply@fla.com'
+            email: this.configService.get<string>('BREVO_SENDER_EMAIL') || 'noreply@fla.com'
         };
         sendSmtpEmail.htmlContent = `
             <!DOCTYPE html>
@@ -243,7 +245,7 @@ export class EmailService {
                         <p>Hi ${name},</p>
                         <p>Congratulations! Your vendor account for <strong>${shopName}</strong> has been successfully verified and activated.</p>
                         <p>You can now start adding your products and reaching customers across our platform.</p>
-                        <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/vendor" class="cta-button">Go to Vendor Dashboard</a>
+                        <a href="${this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000'}/vendor" class="cta-button">Go to Vendor Dashboard</a>
                         <p>If you have any questions, our support team is here to help at <a href="mailto:help@fla.com">help@fla.com</a></p>
                     </div>
                     <div class="footer">
