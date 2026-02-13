@@ -52,6 +52,9 @@ export class AuthService {
         paymentMethods: user.paymentMethods,
         bio: user.bio,
         productTypes: user.productTypes,
+        momoNumber: user.momoNumber,
+        accountName: user.accountName,
+        status: user.status,
       }
     };
   }
@@ -90,5 +93,25 @@ export class AuthService {
       throw new Error('User not found');
     }
     await this.sendVendorOTP(email, user.name);
+  }
+
+  async adminCreateVendor(userData: any) {
+    const { password } = userData;
+    // Create the vendor account. Status will be 'active' because it's admin-created
+    const user = await this.usersService.create({
+      ...userData,
+      role: 'vendor',
+    }) as any;
+
+    // Set status to active
+    await this.usersService.update(user._id.toString(), { status: 'active' });
+
+    // Send the credentials email with the raw password
+    await this.emailService.sendVendorCredentialsEmail(user.email, user.name || 'Vendor', password, user.shopName || 'FLA Studio');
+
+    // Send the welcome email
+    await this.emailService.sendWelcomeEmail(user.email, user.name || 'Vendor', user.shopName || 'FLA Studio');
+
+    return user;
   }
 }

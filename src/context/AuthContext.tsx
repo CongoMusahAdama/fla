@@ -24,12 +24,13 @@ export type User = {
     bio?: string;
     idFile?: any;
     logoFile?: any;
+    status?: string;
 };
 
 type AuthContextType = {
     user: User | null;
-    login: (identifier: string, password: string) => Promise<void>;
-    signup: (name: string, email: string, phone: string, location: string, password: string, role?: UserRole, vendorData?: Partial<User>) => Promise<void>;
+    login: (identifier: string, password: string) => Promise<User>;
+    signup: (name: string, email: string, phone: string, location: string, password: string, role?: UserRole, vendorData?: Partial<User>) => Promise<User>;
     logout: () => void;
     updateUser: (updatedData: Partial<User>) => void;
     isAuthenticated: boolean;
@@ -56,7 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsLoading(false);
     }, []);
 
-    const login = async (identifier: string, password: string) => {
+    const login = async (identifier: string, password: string): Promise<User> => {
         try {
             const response = await fetch(`${API_URL}/auth/login`, {
                 method: 'POST',
@@ -87,18 +88,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 accountName: data.user.accountName,
                 bio: data.user.bio,
                 productTypes: data.user.productTypes,
+                status: data.user.status,
             };
 
             setUser(loggedInUser);
             localStorage.setItem('fla_user', JSON.stringify(loggedInUser));
             localStorage.setItem('fla_token', data.access_token);
+            return loggedInUser;
         } catch (error) {
             console.error('Login error:', error);
             throw error;
         }
     };
 
-    const signup = async (name: string, email: string, phone: string, location: string, password: string, role: UserRole = 'customer', vendorData?: Partial<User>) => {
+    const signup = async (name: string, email: string, phone: string, location: string, password: string, role: UserRole = 'customer', vendorData?: Partial<User>): Promise<User> => {
         try {
             const response = await fetch(`${API_URL}/auth/register`, {
                 method: 'POST',
@@ -122,7 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
 
             // Auto-login after successful registration
-            await login(email, password);
+            return await login(email, password);
         } catch (error) {
             console.error('Signup error:', error);
             throw error;

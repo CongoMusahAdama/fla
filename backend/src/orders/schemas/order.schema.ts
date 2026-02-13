@@ -89,6 +89,24 @@ export class Order {
 
     @Prop()
     notes?: string;
+
+    @Prop({ default: 0 })
+    adminCommission: number;
+
+    @Prop({ default: 0 })
+    vendorShare: number;
+
+    // --- Unity Purchase (Batch) Workflow Fields ---
+
+    @Prop()
+    batchId?: string; // Links this order to a specific production batch (optional for now)
+
+    @Prop({
+        type: String,
+        enum: ['gathering', 'production', 'completed', 'delivered'],
+        default: 'gathering'
+    })
+    batchStatus?: string; // Tracks the phase of the batch this order belongs to
 }
 
 export const OrderSchema = SchemaFactory.createForClass(Order);

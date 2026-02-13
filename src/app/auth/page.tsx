@@ -136,7 +136,7 @@ const RegisterForm = ({ role, onSignup }: { role: UserRole, onSignup: (data: any
 
                 {role === 'vendor' && (
                     <div className="space-y-4 pt-4 border-t border-slate-100 mt-2">
-                        <AuthInput label="Shop Name" type="text" placeholder="Eg. FLA Boutique" required value={shopName} onChange={setShopName} icon={Store} />
+                        <AuthInput label="Shop Name" type="text" placeholder="Eg. Unity Boutique" required value={shopName} onChange={setShopName} icon={Store} />
 
                         {/* Payment Methods */}
                         <div className="space-y-3">
@@ -298,8 +298,8 @@ function AuthContent() {
 
     const handleLogin = async (identifier: string, pass: string) => {
         try {
-            await login(identifier, pass);
-            showSuccess(true);
+            const loggedInUser = await login(identifier, pass);
+            showSuccess(true, loggedInUser.role);
         } catch (error: any) {
             showError(error.message);
         }
@@ -316,91 +316,23 @@ function AuthContent() {
                 shopName: data.shopName,
                 productTypes: data.productTypes,
                 paymentMethods: data.paymentMethods,
+                momoNumber: data.paymentMethods?.[0]?.accountNumber,
+                accountName: data.paymentMethods?.[0]?.accountName,
             } : {};
 
-            await signup(data.name, data.email, data.phone, data.location, data.password, role, vendorData);
-
-            /* 
-            // Temporarily disabling OTP flow
-            if (role === 'vendor') {
-                // Send OTP email
-                try {
-                    console.log('Sending OTP to:', data.email);
-                    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/auth/send-otp`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ email: data.email, name: data.name })
-                    });
-
-                    console.log('OTP response status:', response.status);
-                    const responseData = await response.json();
-                    console.log('OTP response data:', responseData);
-
-                    if (!response.ok) {
-                        throw new Error(responseData.message || 'Failed to send OTP');
-                    }
-
-                    // Store email in state for OTP verification
-                    (window as any).vendorEmail = data.email;
-
-                    setShowOTP(true);
-                    Swal.fire({
-                        icon: 'success',
-                        iconColor: '#059669',
-                        title: 'CHECK YOUR EMAIL',
-                        html: `
-                            <div class="text-center space-y-3">
-                                <p class="text-slate-600 text-sm">We've sent a 4-digit verification code to:</p>
-                                <p class="text-slate-900 font-bold text-lg">${data.email}</p>
-                                <div class="bg-blue-50 p-3 rounded-xl border border-blue-100 mt-4">
-                                    <p class="text-xs text-blue-600">📧 Check your inbox and enter the code to activate your vendor account.</p>
-                                </div>
-                            </div>
-                        `,
-                        confirmButtonText: 'Got It',
-                        buttonsStyling: false,
-                        customClass: {
-                            popup: 'rounded-[32px] border-none shadow-2xl p-10 bg-white',
-                            title: 'text-2xl font-black text-slate-900 tracking-tighter uppercase mb-4',
-                            confirmButton: 'bg-slate-900 text-white rounded-full px-10 py-4 text-[11px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all'
-                        }
-                    });
-                } catch (otpError: any) {
-                    console.error('OTP send error:', otpError);
-                    console.error('Error details:', otpError.message);
-                    Swal.fire({
-                        icon: 'warning',
-                        title: 'Account Created',
-                        html: `
-                            <div class="text-left space-y-3">
-                                <p class="text-slate-600 text-sm">Your account was created but we couldn't send the verification email.</p>
-                                <div class="bg-red-50 p-3 rounded-xl border border-red-100">
-                                    <p class="text-xs text-red-600">Error: ${otpError.message}</p>
-                                </div>
-                                <p class="text-slate-600 text-sm">Please contact support.</p>
-                            </div>
-                        `,
-                        customClass: { popup: 'rounded-[32px]' }
-                    });
-                }
-            } else {
-                showSuccess(false);
-            }
-            */
-
-            // Immediately show success and redirect
-            showSuccess(false);
+            const registeredUser = await signup(data.name, data.email, data.phone, data.location, data.password, role, vendorData);
+            showSuccess(false, registeredUser.role);
         } catch (error: any) {
             showError(error.message);
         }
     };
 
-    const showSuccess = (isLog: boolean) => {
+    const showSuccess = (isLog: boolean, userRole: UserRole) => {
         Swal.fire({
             icon: 'success',
             iconColor: '#059669',
             title: isLog ? 'WELCOME BACK!' : 'ACCOUNT CREATED',
-            text: isLog ? 'Your fashion journey continues...' : 'Welcome to the world of FLA.',
+            text: isLog ? 'Your fashion journey continues...' : 'Welcome to the world of Unity Purchase.',
             timer: 2000,
             showConfirmButton: false,
             customClass: {
@@ -410,7 +342,13 @@ function AuthContent() {
             }
         });
         setTimeout(() => {
-            router.push(role === 'vendor' ? '/vendor' : '/dashboard');
+            if (userRole === 'admin') {
+                router.push('/admin');
+            } else if (userRole === 'vendor') {
+                router.push('/vendor');
+            } else {
+                router.push('/dashboard');
+            }
         }, 2000);
     };
 
@@ -590,7 +528,7 @@ function AuthContent() {
                         <div className="w-8 h-8 bg-slate-900 rounded-full flex items-center justify-center">
                             <div className="w-4 h-4 border-2 border-white rotate-45" />
                         </div>
-                        <span className="font-heading font-black text-xl tracking-tighter text-slate-900 uppercase">FLA</span>
+                        <span className="font-heading font-black text-xl tracking-tighter text-slate-900 uppercase">UNITY</span>
                     </Link>
 
                     <div className="flex-1 max-w-sm mx-auto w-full flex flex-col justify-center">
@@ -626,11 +564,11 @@ function AuthContent() {
                                         {isLogin ? 'WELCOME BACK' : (role === 'vendor' ? 'NEW STUDIO' : 'JOIN THE TRIBE')}
                                     </h2>
                                     <p className="text-sm text-slate-500 font-medium tracking-tight">
-                                        {isLogin ? 'Sign in to access your fashion dashboard.' : 'Start your journey with FLA Logistics today.'}
+                                        {isLogin ? 'Sign in to access your fashion dashboard.' : 'Start your journey with Unity Purchase today.'}
                                     </p>
                                 </header>
 
-                                {!searchParams.get('role') && (
+                                {!isLogin && !searchParams.get('role') && (
                                     <div className="flex p-1 bg-slate-50 rounded-full mb-6 border border-slate-100">
                                         <button onClick={() => { setRole('customer'); localStorage.setItem('last_intended_role', 'customer'); }} className={`flex-1 py-2 text-[10px] font-bold rounded-full transition-all ${role === 'customer' ? 'bg-white text-slate-900 shadow-sm border border-slate-100' : 'text-slate-400 hover:text-slate-600'}`}>Customer</button>
                                         <button onClick={() => { setRole('vendor'); localStorage.setItem('last_intended_role', 'vendor'); }} className={`flex-1 py-2 text-[10px] font-bold rounded-full transition-all ${role === 'vendor' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>Vendor</button>
@@ -658,7 +596,7 @@ function AuthContent() {
 
                     <div className="mt-8 flex items-center justify-center md:justify-start gap-2 text-slate-300">
                         <Mail className="w-4 h-4" />
-                        <span className="text-[10px] font-black uppercase tracking-widest">Help@FLA.com</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest">Help@UnityPurchase.com</span>
                     </div>
                 </div>
 

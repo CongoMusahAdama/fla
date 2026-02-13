@@ -72,4 +72,12 @@ export class CreateOrderDto {
     @IsString()
     @IsOptional()
     notes?: string;
+
+    @IsString()
+    @IsOptional()
+    batchId?: string;
+
+    @IsString()
+    @IsOptional()
+    batchStatus?: string;
 }

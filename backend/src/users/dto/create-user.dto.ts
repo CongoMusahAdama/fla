@@ -56,4 +56,16 @@ export class CreateUserDto {
     @IsString()
     @IsOptional()
     bannerImage?: string;
+
+    @IsString()
+    @IsOptional()
+    momoNumber?: string;
+
+    @IsString()
+    @IsOptional()
+    accountName?: string;
+
+    @IsString()
+    @IsOptional()
+    status?: string;
 }

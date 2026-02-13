@@ -26,6 +26,11 @@ export class CreateProductDto {
     @IsOptional()
     images?: string[];
 
+    @IsArray()
+    @IsString({ each: true })
+    @IsOptional()
+    imageLabels?: string[];
+
     @IsString()
     @IsOptional()
     vendorId?: string;
@@ -51,4 +56,20 @@ export class CreateProductDto {
     @IsBoolean()
     @IsOptional()
     isFeatured?: boolean;
+
+    @IsNumber()
+    @IsOptional()
+    batchSize?: number;
+
+    @IsNumber()
+    @IsOptional()
+    currentBatchCount?: number;
+
+    @IsNumber()
+    @IsOptional()
+    wholesalePrice?: number;
+
+    @IsString()
+    @IsOptional()
+    batchStatus?: string;
 }

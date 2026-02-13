@@ -6,7 +6,7 @@ export default function Footer() {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="grid md:grid-cols-4 gap-12 mb-12">
                     <div className="col-span-1 md:col-span-1">
-                        <h3 className="font-heading text-2xl font-bold text-white mb-4">FLA.</h3>
+                        <h3 className="font-heading text-2xl font-bold text-white mb-4">UNITY.</h3>
                         <p className="text-slate-400 text-sm leading-relaxed">
                             Bespoke tailoring for the modern era. We combine traditional craftsmanship with real-time production technology.
                         </p>
@@ -46,7 +46,7 @@ export default function Footer() {
                 </div>
                 <div className="border-t border-white/10 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
                     <p className="text-slate-500 text-[10px] uppercase tracking-widest font-bold">
-                        &copy; {new Date().getFullYear()} FLA Bespoke Studio. All rights reserved.
+                        &copy; {new Date().getFullYear()} Unity Purchase Bespoke Studio. All rights reserved.
                     </p>
                     <div className="flex gap-6">
                         {/* Social Icons Placeholder */}

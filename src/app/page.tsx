@@ -116,9 +116,15 @@ export default function Home() {
                     name={product.name}
                     price={product.price}
                     images={product.images || ['/product-1.jpg']}
+                    imageLabels={product.imageLabels}
+                    sizes={product.sizes}
                     stock={product.stock}
                     vendorId={product.vendorId}
                     index={index}
+                    batchSize={product.batchSize}
+                    currentBatchCount={product.currentBatchCount}
+                    wholesalePrice={product.wholesalePrice}
+                    batchStatus={product.batchStatus}
                   />
                 ))
               ) : (

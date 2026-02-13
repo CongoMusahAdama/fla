@@ -48,6 +48,22 @@ export class User {
     @Prop()
     bannerImage?: string;
 
+    @Prop()
+    momoNumber?: string;
+
+    @Prop()
+    accountName?: string;
+
+    @Prop({ type: [Object], default: [] })
+    withdrawalHistory?: Array<{
+        amount: number;
+        status: string;
+        createdAt: Date;
+    }>;
+
+    @Prop({ default: 'active' })
+    status: string;
+
     @Prop({ default: Date.now })
     createdAt: Date;
 }

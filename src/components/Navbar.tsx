@@ -1,14 +1,13 @@
-
 "use client";
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ShoppingBag, Search, Menu, X, User, Headset, LogOut } from 'lucide-react';
-
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
 
 export default function Navbar() {
+    const pathname = usePathname();
     const [isScrolled, setIsScrolled] = useState(false);
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const { cartCount, isCartOpen, setIsCartOpen, setIsSupportOpen } = useCart();
@@ -36,6 +35,11 @@ export default function Navbar() {
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
 
+    // Hide Navbar on dashboard and admin routes - moved after hooks to avoid React error
+    if (pathname?.startsWith('/admin') || pathname?.startsWith('/vendor') || pathname?.startsWith('/dashboard')) {
+        return null;
+    }
+
     const menuItems = [
         { name: 'Home', href: '/' },
         { name: 'Shop', href: '/shop' },
@@ -62,7 +66,7 @@ export default function Navbar() {
                         {/* MOBILE VIEW (Logo Left, Icons Right) */}
                         <div className="flex md:hidden items-center justify-between w-full h-full px-1">
                             <Link href="/" className="flex-shrink-0 font-heading text-base font-black tracking-tighter text-slate-900 uppercase">
-                                FLA<span className="text-slate-400">.</span>
+                                UNITY<span className="text-slate-400">.</span>
                             </Link>
 
                             <div className="flex items-center -mr-1">
@@ -122,7 +126,7 @@ export default function Navbar() {
                                         href="/auth?role=vendor"
                                         className="font-sans text-xs font-black uppercase tracking-widest text-blue-600 hover:text-blue-800 transition-colors"
                                     >
-                                        + Sell on FLA
+                                        + Sell on Unity Purchase
                                     </Link>
                                 )}
                             </div>
@@ -130,7 +134,7 @@ export default function Navbar() {
                             {/* Centered Logo */}
                             <div className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transition-all duration-300 ${isSearchOpen ? 'opacity-20 lg:opacity-100' : 'opacity-100'}`}>
                                 <Link href="/" className="font-heading text-3xl font-black tracking-[0.2em] text-slate-900 uppercase">
-                                    FLA.
+                                    UNITY.
                                 </Link>
                             </div>
 
@@ -225,7 +229,7 @@ export default function Navbar() {
                                         onClick={() => setIsMenuOpen(false)}
                                         className="block w-full py-4 px-6 bg-blue-600 text-white text-center rounded-full font-bold text-xs mb-4"
                                     >
-                                        Sell on FLA
+                                        Sell on Unity Purchase
                                     </Link>
                                 )}
                                 <button

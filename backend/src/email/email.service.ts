@@ -263,4 +263,75 @@ export class EmailService {
             console.error('Error sending welcome email:', error);
         }
     }
+    async sendVendorCredentialsEmail(email: string, name: string, password: string, shopName: string): Promise<void> {
+        const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
+
+        sendSmtpEmail.subject = `Your FLA Studio Account is Ready: ${shopName} 🚀`;
+        sendSmtpEmail.to = [{ email, name }];
+        sendSmtpEmail.sender = {
+            name: 'FLA Logistics',
+            email: this.configService.get<string>('BREVO_SENDER_EMAIL') || 'noreply@fla.com'
+        };
+        sendSmtpEmail.htmlContent = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <style>
+                    body { font-family: -apple-system, sans-serif; background-color: #f8fafc; margin: 0; padding: 0; }
+                    .container { max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 32px; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.1); }
+                    .header { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 60px 40px; text-align: center; }
+                    .header h1 { color: #D8F800; font-size: 24px; font-weight: 900; margin: 0; text-transform: uppercase; letter-spacing: 2px; }
+                    .content { padding: 50px 40px; }
+                    .shop-badge { background: #f1f5f9; padding: 12px 24px; rounded-full; display: inline-block; font-weight: 900; color: #0f172a; margin-bottom: 30px; border-radius: 50px; text-transform: uppercase; font-size: 12px; }
+                    .hero-text { font-size: 18px; color: #1e293b; font-weight: 700; margin-bottom: 20px; }
+                    .creds-box { background: #0f172a; border-radius: 24px; padding: 30px; margin: 30px 0; border: 1px solid rgba(255,255,255,0.1); }
+                    .cred-item { margin-bottom: 15px; }
+                    .cred-label { color: #94a3b8; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; }
+                    .cred-value { color: #ffffff; font-size: 16px; font-weight: 700; font-family: monospace; }
+                    .creds-box .cred-value.pass { color: #D8F800; }
+                    .cta { display: block; background: #D8F800; color: #0f172a; text-align: center; padding: 20px; border-radius: 50px; text-decoration: none; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; margin-top: 20px; }
+                    .footer { padding: 40px; text-align: center; color: #94a3b8; font-size: 12px; border-top: 1px solid #f1f5f9; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>FLA STUDIO PARTNER</h1>
+                    </div>
+                    <div class="content">
+                        <div class="shop-badge">${shopName}</div>
+                        <p class="hero-text">Welcome to the inner circle, ${name}.</p>
+                        <p style="color: #64748b; font-size: 14px; line-height: 1.6;">Our administration has created your professional studio account. You can now log in to manage your inventory, track orders, and scale your brand with FLA Logistics.</p>
+                        
+                        <div class="creds-box">
+                            <div class="cred-item">
+                                <div class="cred-label">Access Email</div>
+                                <div class="cred-value">${email}</div>
+                            </div>
+                            <div class="cred-item" style="margin-bottom: 0;">
+                                <div class="cred-label">Temporary Password</div>
+                                <div class="cred-value pass">${password}</div>
+                            </div>
+                        </div>
+
+                        <p style="color: #64748b; font-size: 12px; margin-bottom: 30px; font-weight: 600;">⚠️ Security Notice: Please change your password immediately after your first login for security reasons.</p>
+                        
+                        <a href="${this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000'}/auth?type=login" class="cta">Log In to Studio Hub</a>
+                    </div>
+                    <div class="footer">
+                        <p>© 2026 FLA Logistics • High Performance Fashion Delivery</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+        `;
+
+        try {
+            await this.apiInstance.sendTransacEmail(sendSmtpEmail);
+            console.log(`Credentials email sent to ${email}`);
+        } catch (error) {
+            console.error('Error sending credentials email:', error);
+        }
+    }
 }

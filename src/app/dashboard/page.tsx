@@ -4,13 +4,15 @@ import {
     LayoutDashboard, ShoppingBag, Heart, Bell, User,
     HelpCircle, LogOut, Package, Clock, CheckCircle2,
     Wallet, ChevronRight, MessageSquare, ShieldAlert,
-    Search, Menu, X, ArrowRight, Star
+    Search, Menu, X, ArrowRight, Star, ArrowLeft
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { useCart } from '@/context/CartContext';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import Swal from 'sweetalert2';
+import ProductCard from '@/components/ProductCard';
 
 const WhatsAppIcon = ({ className }: { className?: string }) => (
     <svg
@@ -27,6 +29,7 @@ type DashboardSection = 'home' | 'orders' | 'wishlist' | 'notifications' | 'prof
 
 export default function CustomerDashboard() {
     const { user, logout, updateUser, isAuthenticated, isLoading } = useAuth();
+    const { addToCart } = useCart();
     const router = useRouter();
     const [activeSection, setActiveSection] = useState<DashboardSection>('home');
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -119,8 +122,17 @@ export default function CustomerDashboard() {
     const getImageUrl = (url: string) => {
         if (!url || url === '/product-1.jpg') return '/product-1.jpg';
         if (url.startsWith('http')) return url;
+
+        // Backend uploads
+        if (url.startsWith('/uploads')) {
+            const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '');
+            return `${baseUrl}${url}`;
+        }
+
+        // Frontend static assets
+        if (url.startsWith('/')) return url;
+
         const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '');
-        if (url.startsWith('/')) return `${baseUrl}${url}`;
         return `${baseUrl}/uploads/${url}`;
     };
 
@@ -207,6 +219,8 @@ export default function CustomerDashboard() {
             setIsUpdating(false);
         }
     };
+
+
 
     const handleLogout = () => {
         Swal.fire({
@@ -744,47 +758,24 @@ export default function CustomerDashboard() {
                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6">
                             {wishlist?.items?.length > 0 ? (
                                 wishlist.items.map((item: any, i: number) => (
-                                    <div key={item._id || i} className="bg-white p-4 rounded-[32px] border border-slate-100 group transition-all hover:shadow-xl">
-                                        <div className="relative aspect-[3/4] bg-slate-50 rounded-[24px] overflow-hidden mb-4">
-                                            <Image
-                                                src={getImageUrl(item.productId?.images?.[0] || '/product-1.jpg')}
-                                                alt={item.productId?.name || 'Product'}
-                                                fill
-                                                className="object-cover group-hover:scale-105 transition-transform duration-500"
-                                                unoptimized
-                                            />
-                                            <button
-                                                onClick={async () => {
-                                                    try {
-                                                        const token = localStorage.getItem('fla_token');
-                                                        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/wishlist/${item.productId?._id}`, {
-                                                            method: 'DELETE',
-                                                            headers: { 'Authorization': `Bearer ${token}` }
-                                                        });
-                                                        if (res.ok) {
-                                                            setWishlist((prev: any) => ({
-                                                                ...prev,
-                                                                items: prev.items.filter((it: any) => it.productId?._id !== item.productId?._id)
-                                                            }));
-                                                        }
-                                                    } catch (err) {
-                                                        console.error(err);
-                                                    }
-                                                }}
-                                                className="absolute top-3 right-3 w-8 h-8 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center text-red-500 shadow-sm hover:scale-110 active:scale-95 transition-all"
-                                            >
-                                                <Heart className="w-4 h-4 fill-current" />
-                                            </button>
-                                        </div>
-                                        <h3 className="font-bold text-slate-900 text-sm truncate px-1">{item.productId?.name || 'Unnamed Design'}</h3>
-                                        <p className="text-xs font-black text-slate-900 mt-1 px-1">GH₵ {item.productId?.price || 0}</p>
-                                        <Link
-                                            href={`/products/${item.productId?._id}`}
-                                            className="w-full mt-4 py-2 bg-slate-50 text-slate-900 rounded-full text-[10px] font-bold uppercase tracking-widest hover:bg-brand-lemon transition-colors block text-center"
-                                        >
-                                            View Details
-                                        </Link>
-                                    </div>
+                                    <ProductCard
+                                        key={item._id || i}
+                                        id={item.productId?._id}
+                                        name={item.productId?.name || 'Unnamed Design'}
+                                        price={item.productId?.price || 0}
+                                        images={item.productId?.images || ['/product-1.jpg']}
+                                        sizes={item.productId?.sizes}
+                                        stock={item.productId?.stock || 0}
+                                        vendorId={item.productId?.vendorId}
+                                        index={i}
+                                        batchSize={item.productId?.batchSize}
+                                        currentBatchCount={item.productId?.currentBatchCount}
+                                        wholesalePrice={item.productId?.wholesalePrice}
+                                        batchStatus={item.productId?.batchStatus}
+                                        duration={item.productId?.duration}
+                                        imageLabels={item.productId?.imageLabels}
+                                        initialWishlistState={true}
+                                    />
                                 ))
                             ) : (
                                 <div className="col-span-full py-20 text-center">
@@ -887,8 +878,13 @@ export default function CustomerDashboard() {
                                 </button>
                             ))}
                         </nav>
-                        <div className="p-8 border-t border-slate-50">
-                            <button onClick={handleLogout} className="flex items-center gap-4 text-xs font-bold text-red-500 hover:translate-x-1 transition-transform">
+                        <div className="p-8 border-t border-slate-50 space-y-4">
+                            <Link href="/">
+                                <button className="flex items-center gap-4 text-xs font-bold text-slate-400 hover:text-slate-900 w-full text-left">
+                                    <ArrowLeft className="w-4 h-4" /> Launch Store
+                                </button>
+                            </Link>
+                            <button onClick={handleLogout} className="flex items-center gap-4 text-xs font-bold text-red-500 hover:translate-x-1 transition-transform w-full text-left">
                                 <LogOut className="w-4 h-4" /> Logout Account
                             </button>
                         </div>
@@ -927,8 +923,13 @@ export default function CustomerDashboard() {
                     <button className="mt-4 text-[9px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-900 transition-colors">Upgrade Plan</button>
                 </div>
 
-                <div className="p-10 border-t border-slate-50">
-                    <button onClick={handleLogout} className="flex items-center gap-4 text-[10px] font-black uppercase tracking-[0.2em] text-red-500 hover:translate-x-1 transition-transform active:scale-95">
+                <div className="p-10 border-t border-slate-50 space-y-4">
+                    <Link href="/">
+                        <button className="flex items-center gap-4 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 hover:text-slate-900 hover:translate-x-1 transition-all group w-full text-left">
+                            <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-1 transition-transform" /> Launch Store
+                        </button>
+                    </Link>
+                    <button onClick={handleLogout} className="flex items-center gap-4 text-[10px] font-black uppercase tracking-[0.2em] text-red-500 hover:translate-x-1 transition-transform active:scale-95 w-full text-left">
                         <LogOut className="w-3.5 h-3.5" /> Logout
                     </button>
                 </div>

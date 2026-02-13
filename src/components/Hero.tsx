@@ -17,7 +17,7 @@ export default function Hero() {
                 {/* Botanical Lifestyle Image */}
                 <Image
                     src="/hero-rack.png"
-                    alt="FLA Lifestyle Collection"
+                    alt="Unity Purchase Lifestyle Collection"
                     fill
                     className="object-contain md:object-center object-bottom scale-100 md:scale-90"
                     priority
@@ -32,7 +32,7 @@ export default function Hero() {
                     }`}>
                     <h1 className="font-heading text-4xl md:text-7xl font-bold text-white md:text-slate-900 tracking-tight leading-tight mb-8">
                         The Art of Style <br />
-                        <span className="text-[#E5FF7F]">by FLA.</span>
+                        <span className="text-[#E5FF7F]">by Unity Purchase.</span>
                     </h1>
 
                     <div className="flex flex-wrap gap-4">

@@ -83,4 +83,14 @@ export class AuthController {
       throw error;
     }
   }
+
+  @Post('admin/create-vendor')
+  async adminCreateVendor(@Body() userData: any) {
+    try {
+      return await this.authService.adminCreateVendor(userData);
+    } catch (error) {
+      console.error('Error admin creating vendor:', error);
+      throw error;
+    }
+  }
 }

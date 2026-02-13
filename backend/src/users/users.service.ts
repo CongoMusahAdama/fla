@@ -16,6 +16,7 @@ export class UsersService {
       const createdUser = new this.userModel({
         ...createUserDto,
         password: hashedPassword,
+        status: createUserDto.role === 'vendor' ? 'pending' : 'active',
       });
       return await createdUser.save();
     } catch (error: any) {

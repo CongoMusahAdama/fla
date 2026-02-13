@@ -5,11 +5,13 @@ import {
     Bell, User, HelpCircle, LogOut, Plus, Search,
     Menu, X, ChevronRight, ArrowUpRight, TrendingUp,
     Clock, CheckCircle2, ShieldAlert, MessageSquare,
-    Image as ImageIcon, Edit2, Trash2, Camera, UploadCloud
+    Image as ImageIcon, Edit2, Trash2, Camera, UploadCloud,
+    Eye, EyeOff, ArrowLeft
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import Link from 'next/link';
 import Swal from 'sweetalert2';
 
 // Reuse the WhatsApp Icon from customer dashboard
@@ -33,6 +35,11 @@ interface Product {
     tailoringTime: string;
     fabrication: string;
     sizes?: string[];
+    isActive?: boolean;
+    batchSize?: number;
+    wholesalePrice?: number;
+    currentBatchCount?: number;
+    batchStatus?: string;
 }
 
 export default function VendorDashboard() {
@@ -109,12 +116,15 @@ export default function VendorDashboard() {
                         name: p.name,
                         price: p.price.toString(),
                         image: p.images?.[0] || '/product-1.jpg',
-                        images: p.images?.map((img: string) => ({ url: img, label: 'Product' })) || [],
+                        images: p.images?.map((img: string, idx: number) => ({
+                            url: img,
+                            label: p.imageLabels?.[idx] || 'Product'
+                        })) || [],
                         status: p.stock < 10 ? 'Low Stock' : 'In Stock',
                         sales: 0, // Placeholder
                         quantity: p.stock,
-                        tailoringTime: '3 Days',
-                        fabrication: 'Cotton',
+                        tailoringTime: p.tailoringTime || '3 Days',
+                        fabrication: p.fabrication || 'Cotton',
                         sizes: p.sizes || []
                     })));
                 }
@@ -152,6 +162,8 @@ export default function VendorDashboard() {
     const [formNarrative, setFormNarrative] = useState('');
     const [formImages, setFormImages] = useState<{ url: string, label: string }[]>([]);
     const [formSizes, setFormSizes] = useState<string[]>([]);
+    const [formBatchSize, setFormBatchSize] = useState('');
+    const [formWholesalePrice, setFormWholesalePrice] = useState('');
 
 
 
@@ -193,13 +205,52 @@ export default function VendorDashboard() {
     ];
 
     const stats = [
-        { label: 'Total Revenue', value: `GH₵ ${dashboardData?.totalRevenue?.toLocaleString() || '0'}`, icon: Wallet, color: 'text-slate-900', bg: 'bg-brand-lemon/20', trend: 'Lifetime' },
-        { label: 'Active Orders', value: dashboardData?.activeOrders?.toString() || '0', icon: ShoppingBag, color: 'text-blue-600', bg: 'bg-blue-50', trend: 'Active' },
-        { label: 'Total Sales', value: dashboardData?.totalSales?.toString() || '0', icon: TrendingUp, color: 'text-emerald-600', bg: 'bg-emerald-50', trend: 'Total' },
-        { label: 'Merchant Status', value: user?.role === 'vendor' ? 'Verified' : 'Pending', icon: Star, color: 'text-brand-lemon', bg: 'bg-slate-900', trend: 'Seller' },
+        { label: 'Total Revenue', value: `GH₵ ${((dashboardData?.totalRevenue || 0) + (dashboardData?.pendingRevenue || 0)).toLocaleString()}`, icon: Wallet, color: 'text-white', bg: 'bg-gradient-to-br from-emerald-500 to-emerald-700', pattern: 'opacity-10', trend: dashboardData?.pendingRevenue > 0 ? `+ GH₵ ${dashboardData.pendingRevenue.toLocaleString()} Pending` : 'Lifetime' },
+        { label: 'Active Orders', value: dashboardData?.activeOrders || '0', icon: Clock, color: 'text-white', bg: 'bg-gradient-to-br from-blue-500 to-blue-700', pattern: 'opacity-10' },
+        { label: 'Total Sales', value: dashboardData?.totalSales || '0', icon: ShoppingBag, color: 'text-white', bg: 'bg-gradient-to-br from-violet-500 to-violet-700', pattern: 'opacity-10' },
+        { label: 'Store Products', value: vendorProducts.length.toString(), icon: Package, color: 'text-white', bg: 'bg-gradient-to-br from-orange-500 to-orange-700', pattern: 'opacity-10' },
     ];
 
-    if (!user || user.role !== 'vendor') return null;
+    if (!user || (user.role !== 'vendor' && user.role !== 'admin')) return null;
+
+    // Handle Pending Approval State
+    if (user.status === 'pending' && user.role !== 'admin') {
+        return (
+            <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center p-6">
+                <div className="max-w-md w-full bg-white rounded-[40px] shadow-2xl p-10 md:p-12 text-center border border-slate-100 animate-in fade-in zoom-in duration-500">
+                    <div className="w-24 h-24 bg-brand-lemon/20 rounded-full flex items-center justify-center mx-auto mb-8 animate-pulse">
+                        <Clock className="w-12 h-12 text-slate-900" />
+                    </div>
+                    <h1 className="text-3xl font-black text-slate-900 uppercase tracking-tighter mb-4">Studio Verification</h1>
+                    <p className="text-slate-500 font-medium text-sm leading-relaxed mb-10">
+                        Welcome to the FLA family, <span className="text-slate-900 font-bold">{user.name}</span>! Our administrators are currently reviewing your studio details to ensure the highest quality of craftsmanship on our platform.
+                    </p>
+                    <div className="space-y-4">
+                        <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Current Status</p>
+                            <span className="text-xs font-black text-brand-lemon bg-slate-900 px-4 py-1.5 rounded-full uppercase tracking-tighter">Awaiting Approval</span>
+                        </div>
+                        <p className="text-[11px] text-slate-400 font-medium italic">This usually takes 12-24 hours. You'll receive an email once approved.</p>
+                    </div>
+
+                    <div className="mt-12 flex flex-col gap-3">
+                        <button
+                            onClick={handleLogout}
+                            className="w-full py-4 bg-slate-900 text-white rounded-full font-black text-xs uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/10 active:scale-95"
+                        >
+                            Sign Out
+                        </button>
+                        <button
+                            onClick={() => router.push('/')}
+                            className="w-full py-4 bg-white text-slate-500 rounded-full font-black text-xs uppercase tracking-widest hover:bg-slate-50 transition-all active:scale-95"
+                        >
+                            Back to Store
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     const resetForm = () => {
         setFormName('');
@@ -211,6 +262,8 @@ export default function VendorDashboard() {
         setFormNarrative('');
         setFormImages([]);
         setFormSizes([]);
+        setFormBatchSize('');
+        setFormWholesalePrice('');
         setEditingProduct(null);
     };
 
@@ -239,7 +292,10 @@ export default function VendorDashboard() {
                     stock: parseInt(formQuantity) || 0,
                     description: formNarrative,
                     images: formImages.map(img => img.url),
+                    imageLabels: formImages.map(img => img.label),
                     sizes: formSizes,
+                    batchSize: parseInt(formBatchSize) || 10, // Default to 10 if not set
+                    wholesalePrice: parseFloat(formWholesalePrice) || parseFloat(formPrice), // Default to regular price
                     vendorId: user?.id,
                     vendorName: user?.shopName
                 })
@@ -256,6 +312,8 @@ export default function VendorDashboard() {
                     price: savedProduct.price.toString(),
                     quantity: savedProduct.stock,
                     sizes: savedProduct.sizes,
+                    batchSize: savedProduct.batchSize,
+                    wholesalePrice: savedProduct.wholesalePrice,
                     status: savedProduct.stock < 10 ? 'Low Stock' : 'In Stock',
                 } : p));
                 Swal.fire({ icon: 'success', title: 'Updated!', text: 'Your design has been refined.' });
@@ -268,10 +326,11 @@ export default function VendorDashboard() {
                     images: savedProduct.images?.map((img: string) => ({ url: img, label: 'Product' })) || [],
                     status: savedProduct.stock < 10 ? 'Low Stock' : 'In Stock',
                     sales: 0,
-                    quantity: savedProduct.stock,
                     tailoringTime: '3 Days',
                     fabrication: 'Cotton',
-                    sizes: savedProduct.sizes
+                    sizes: savedProduct.sizes,
+                    batchSize: savedProduct.batchSize,
+                    wholesalePrice: savedProduct.wholesalePrice
                 };
                 setVendorProducts(prev => [newProd, ...prev]);
                 Swal.fire({ icon: 'success', title: 'Published!', text: 'Your new design is now live.' });
@@ -357,7 +416,72 @@ export default function VendorDashboard() {
         setFormFabric(product.fabrication || '');
         setFormImages(product.images || [{ url: product.image, label: 'Front' }]);
         setFormSizes(product.sizes || []);
+        setFormBatchSize(product.batchSize?.toString() || '');
+        setFormWholesalePrice(product.wholesalePrice?.toString() || '');
         setShowAddProduct(true);
+    };
+
+    const handleWithdrawal = async () => {
+        const availableAmount = (dashboardData?.totalRevenue || 0) * 0.95; // Assuming 5% platform fee
+
+        const { value: amount } = await Swal.fire({
+            title: 'REQUEST PAYOUT',
+            text: `Available for immediate transfer: GH₵ ${availableAmount.toLocaleString()}`,
+            input: 'number',
+            inputLabel: 'Amount (GH₵)',
+            inputPlaceholder: 'Enter withdrawal amount',
+            inputValue: availableAmount,
+            showCancelButton: true,
+            confirmButtonText: 'CONFIRM PAYOUT',
+            cancelButtonText: 'CANCEL',
+            buttonsStyling: false,
+            customClass: {
+                popup: 'rounded-[32px] p-10 bg-white border-none shadow-2xl',
+                title: 'text-2xl font-black text-slate-900 tracking-tighter uppercase mb-2',
+                confirmButton: 'bg-slate-900 text-white rounded-full px-10 py-4 text-[11px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all w-full mb-3',
+                cancelButton: 'text-slate-400 font-black text-[10px] uppercase tracking-widest hover:text-slate-600 transition-all w-full',
+                input: 'w-full px-6 py-4 bg-slate-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-slate-900/10 mb-6'
+            }
+        });
+
+        if (amount && parseFloat(amount) > 0) {
+            if (parseFloat(amount) > availableAmount) {
+                Swal.fire({ icon: 'error', title: 'Insufficient Funds', text: 'You cannot withdraw more than your available balance.' });
+                return;
+            }
+
+            try {
+                const token = localStorage.getItem('fla_token');
+                const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/dashboard/vendor/withdraw`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ amount: parseFloat(amount) })
+                });
+
+                if (!response.ok) throw new Error('Withdrawal request failed');
+                const result = await response.json();
+
+                // Update local stats
+                setDashboardData((prev: any) => ({
+                    ...prev,
+                    withdrawalHistory: [result, ...(prev.withdrawalHistory || [])]
+                }));
+
+                Swal.fire({
+                    icon: 'success',
+                    title: 'PAYOUT REQUESTED',
+                    text: 'Your funds are being processed and will be sent to your MoMo number.',
+                    timer: 2000,
+                    showConfirmButton: false,
+                    customClass: { popup: 'rounded-[32px]' }
+                });
+            } catch (error: any) {
+                Swal.fire({ icon: 'error', title: 'Error', text: error.message });
+            }
+        }
     };
 
     const handleDeleteProduct = async (id: any) => {
@@ -411,6 +535,34 @@ export default function VendorDashboard() {
         }
     };
 
+    const handleToggleVisibility = async (id: any, currentStatus: boolean) => {
+        try {
+            const token = localStorage.getItem('fla_token');
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/products/${id}`, {
+                method: 'PATCH',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ isActive: !currentStatus })
+            });
+
+            if (!response.ok) throw new Error('Failed to update visibility');
+
+            setVendorProducts(prev => prev.map(p => p.id === id ? { ...p, isActive: !currentStatus } : p));
+            Swal.fire({
+                icon: 'success',
+                title: !currentStatus ? 'Now Visible' : 'Now Hidden',
+                text: !currentStatus ? 'Product is now live in the store.' : 'Product is hidden from customers.',
+                timer: 1500,
+                showConfirmButton: false,
+                customClass: { popup: 'rounded-[32px]' }
+            });
+        } catch (error: any) {
+            Swal.fire({ icon: 'error', title: 'Error', text: error.message });
+        }
+    };
+
     const renderContent = () => {
         switch (activeSection) {
             case 'dashboard':
@@ -438,20 +590,25 @@ export default function VendorDashboard() {
                         {/* Stats Grid */}
                         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
                             {stats.map((stat, i) => (
-                                <div key={i} className={`p-4 md:p-5 rounded-[24px] border border-slate-100 bg-white shadow-sm hover:shadow-xl transition-all group overflow-hidden relative`}>
-                                    <div className="flex justify-between items-start mb-3 md:mb-4">
-                                        <div className={`w-9 h-9 md:w-10 md:h-10 ${stat.bg} ${stat.color} rounded-xl flex items-center justify-center relative z-10`}>
-                                            <stat.icon className="w-4 h-4 md:w-5 md:h-5" />
+                                <div key={i} className={`p-6 md:p-8 rounded-[32px] ${stat.bg} shadow-xl shadow-slate-200/50 hover:shadow-2xl transition-all group overflow-hidden relative`}>
+                                    {/* Decorative Pattern */}
+                                    <div className={`absolute -right-8 -bottom-8 w-32 h-32 ${stat.pattern} transform rotate-12 pointer-events-none group-hover:scale-110 transition-transform duration-700`}>
+                                        <stat.icon className="w-full h-full text-white" />
+                                    </div>
+
+                                    <div className="flex justify-between items-start mb-6">
+                                        <div className={`w-12 h-12 bg-white/20 backdrop-blur-md border border-white/30 shadow-sm text-white rounded-2xl flex items-center justify-center relative z-10 group-hover:rotate-6 transition-all`}>
+                                            <stat.icon className="w-5 h-5" />
                                         </div>
                                         {stat.trend && (
-                                            <span className="text-[9px] md:text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full uppercase tracking-tighter">
+                                            <span className="text-[9px] md:text-[10px] font-black text-white bg-white/20 backdrop-blur-sm px-3 py-1 rounded-full uppercase tracking-tighter border border-white/20">
                                                 {stat.trend}
                                             </span>
                                         )}
                                     </div>
                                     <div className="relative z-10">
-                                        <p className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest">{stat.label}</p>
-                                        <p className="text-lg md:text-xl font-black text-slate-900 mt-0.5 md:mt-1">{stat.value}</p>
+                                        <p className="text-[10px] font-black text-white/70 uppercase tracking-widest leading-none mb-2">{stat.label}</p>
+                                        <p className="text-2xl md:text-3xl font-black text-white tracking-tighter">{stat.value}</p>
                                     </div>
                                 </div>
                             ))}
@@ -495,8 +652,16 @@ export default function VendorDashboard() {
                                 <div className="p-8 bg-slate-900 rounded-[40px] text-white space-y-6 relative overflow-hidden group">
                                     <div className="absolute top-0 right-0 w-32 h-32 bg-brand-lemon/10 rounded-full blur-3xl -mr-16 -mt-16 group-hover:bg-brand-lemon/20 transition-colors" />
                                     <div>
-                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">In Escrow (Pending)</p>
-                                        <h3 className="text-3xl font-black text-brand-lemon">GH₵ {(dashboardData?.totalRevenue * 0.1 || 0).toLocaleString()}</h3>
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">In Escrow (Pending)</p>
+                                                <h3 className="text-2xl font-black text-brand-lemon">GH₵ {(dashboardData?.pendingRevenue || 0).toLocaleString()}</h3>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Fee (5%)</p>
+                                                <p className="text-xs font-bold text-slate-500">- GH₵ {((dashboardData?.totalRevenue + dashboardData?.pendingRevenue) * 0.05 || 0).toLocaleString()}</p>
+                                            </div>
+                                        </div>
                                     </div>
                                     <div className="pt-6 border-t border-white/5">
                                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Available for Withdrawal</p>
@@ -551,14 +716,21 @@ export default function VendorDashboard() {
                                                 <span className="text-[8px] font-black text-slate-900">{product.images.length} Perspectives</span>
                                             </div>
                                         )}
-                                        <div className="absolute top-3 right-3 flex gap-2">
-                                            <button onClick={(e) => { e.stopPropagation(); handleMarkSoldOut(product.id); }} className="w-10 h-10 bg-white/90 backdrop-blur-sm rounded-xl flex items-center justify-center text-slate-900 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity hover:bg-orange-500 hover:text-white" title="Mark Sold Out">
+                                        <div className="absolute top-3 right-3 flex flex-col gap-2">
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); handleToggleVisibility(product.id, product.isActive !== false); }}
+                                                className={`w-10 h-10 bg-white/90 backdrop-blur-sm rounded-xl flex items-center justify-center shadow-sm md:opacity-0 group-hover:opacity-100 transition-opacity ${product.isActive === false ? 'text-slate-400 hover:bg-slate-900 hover:text-white' : 'text-slate-900 hover:bg-slate-900 hover:text-white'}`}
+                                                title={product.isActive === false ? "Show Product" : "Hide Product"}
+                                            >
+                                                {product.isActive === false ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                            </button>
+                                            <button onClick={(e) => { e.stopPropagation(); handleMarkSoldOut(product.id); }} className="w-10 h-10 bg-white/90 backdrop-blur-sm rounded-xl flex items-center justify-center text-slate-900 shadow-sm md:opacity-0 group-hover:opacity-100 transition-opacity hover:bg-orange-500 hover:text-white" title="Mark Sold Out">
                                                 <CheckCircle2 className="w-4 h-4" />
                                             </button>
-                                            <button onClick={(e) => { e.stopPropagation(); openEditModal(product); }} className="w-10 h-10 bg-white/90 backdrop-blur-sm rounded-xl flex items-center justify-center text-slate-900 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity hover:bg-brand-lemon">
+                                            <button onClick={(e) => { e.stopPropagation(); openEditModal(product); }} className="w-10 h-10 bg-white/90 backdrop-blur-sm rounded-xl flex items-center justify-center text-slate-900 shadow-sm md:opacity-0 group-hover:opacity-100 transition-opacity hover:bg-brand-lemon">
                                                 <Edit2 className="w-4 h-4" />
                                             </button>
-                                            <button onClick={(e) => { e.stopPropagation(); handleDeleteProduct(product.id); }} className="w-10 h-10 bg-white/90 backdrop-blur-sm rounded-xl flex items-center justify-center text-red-500 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50">
+                                            <button onClick={(e) => { e.stopPropagation(); handleDeleteProduct(product.id); }} className="w-10 h-10 bg-white/90 backdrop-blur-sm rounded-xl flex items-center justify-center text-red-500 shadow-sm md:opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50">
                                                 <Trash2 className="w-4 h-4" />
                                             </button>
                                         </div>
@@ -583,13 +755,13 @@ export default function VendorDashboard() {
                             <p className="text-slate-500 text-sm mt-1">Track and update customer fashion requests.</p>
                         </div>
                         <div className="bg-white rounded-[40px] border border-slate-100 shadow-sm overflow-hidden overflow-x-auto">
-                            <table className="w-full text-left">
-                                <thead>
-                                    <tr className="border-b border-slate-50">
-                                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Order ID</th>
-                                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Customer</th>
-                                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Design</th>
-                                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
+                            <table className="w-full text-left border-collapse">
+                                <thead className="bg-slate-900">
+                                    <tr>
+                                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Order ID</th>
+                                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Customer</th>
+                                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Design</th>
+                                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Status</th>
                                         <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Actions</th>
                                     </tr>
                                 </thead>
@@ -597,8 +769,8 @@ export default function VendorDashboard() {
                                     {vendorOrders.length > 0 ? (
                                         vendorOrders.map((order, i) => (
                                             <tr key={order._id || i} className="hover:bg-slate-50/50 transition-colors">
-                                                <td className="px-8 py-6 font-black text-slate-900 text-xs">#ORD-{order._id?.slice(-6).toUpperCase() || 'N/A'}</td>
-                                                <td className="px-8 py-6">
+                                                <td className="px-8 py-6 font-black text-slate-900 text-xs border-r border-slate-50">#ORD-{order._id?.slice(-6).toUpperCase() || 'N/A'}</td>
+                                                <td className="px-8 py-6 border-r border-slate-50">
                                                     <div className="flex items-center gap-3">
                                                         <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500">
                                                             <User className="w-4 h-4" />
@@ -609,8 +781,8 @@ export default function VendorDashboard() {
                                                         </div>
                                                     </div>
                                                 </td>
-                                                <td className="px-8 py-6 font-bold text-slate-700 text-sm">{order.productName || 'Bespoke Item'}</td>
-                                                <td className="px-8 py-6">
+                                                <td className="px-8 py-6 font-bold text-slate-700 text-xs border-r border-slate-50">{order.productName || 'Bespoke Item'}</td>
+                                                <td className="px-8 py-6 border-r border-slate-50">
                                                     <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${order.status === 'Delivered' ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'}`}>
                                                         {order.status || 'Processing'}
                                                     </span>
@@ -685,8 +857,8 @@ export default function VendorDashboard() {
                                         <span className="font-black text-white">GH₵ {(dashboardData?.totalRevenue || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                                     </div>
                                     <div className="flex justify-between items-center text-sm py-3 border-t border-white/5">
-                                        <span className="text-slate-400">Processing Withdrawal</span>
-                                        <span className="font-black text-white">GH₵ 0.00</span>
+                                        <span className="text-slate-400">Pending Verification</span>
+                                        <span className="font-black text-brand-lemon">GH₵ {(dashboardData?.pendingRevenue || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                                     </div>
                                     <div className="pt-4 border-t border-white/10 mt-2">
                                         <p className="text-[10px] font-black text-brand-lemon uppercase tracking-widest mb-1">Payout Destination</p>
@@ -695,26 +867,7 @@ export default function VendorDashboard() {
                                     </div>
                                 </div>
                                 <button
-                                    onClick={() => {
-                                        Swal.fire({
-                                            title: 'Request Withdrawal',
-                                            text: `Withdraw available GH₵ ${(dashboardData?.totalRevenue || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} to ${user?.momoNumber || 'your MoMo number'}?`,
-                                            icon: 'question',
-                                            showCancelButton: true,
-                                            confirmButtonText: 'Confirm Withdrawal',
-                                            confirmButtonColor: '#0f172a',
-                                            customClass: { popup: 'rounded-[32px]' }
-                                        }).then((result) => {
-                                            if (result.isConfirmed) {
-                                                Swal.fire({
-                                                    icon: 'success',
-                                                    title: 'Request Sent',
-                                                    text: 'Your funds will be transferred within 24 hours.',
-                                                    customClass: { popup: 'rounded-[32px]' }
-                                                });
-                                            }
-                                        });
-                                    }}
+                                    onClick={handleWithdrawal}
                                     className="w-full mt-10 py-5 bg-white text-slate-900 rounded-full font-black text-xs uppercase tracking-[0.2em] hover:bg-brand-lemon transition-all active:scale-95 shadow-xl shadow-white/5"
                                 >
                                     Withdraw to Mobile Money
@@ -959,8 +1112,13 @@ export default function VendorDashboard() {
                     <button className="mt-4 text-[9px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-900 transition-colors">Seller Guide</button>
                 </div>
 
-                <div className="p-10 border-t border-slate-50">
-                    <button onClick={handleLogout} className="flex items-center gap-4 text-[10px] font-black uppercase tracking-[0.2em] text-red-500 hover:translate-x-1 transition-transform active:scale-95">
+                <div className="p-10 border-t border-slate-50 space-y-4">
+                    <Link href="/">
+                        <button className="flex items-center gap-4 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 hover:text-slate-900 hover:translate-x-1 transition-all group w-full text-left">
+                            <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-1 transition-transform" /> Launch Store
+                        </button>
+                    </Link>
+                    <button onClick={handleLogout} className="flex items-center gap-4 text-[10px] font-black uppercase tracking-[0.2em] text-red-500 hover:translate-x-1 transition-transform active:scale-95 w-full text-left">
                         <LogOut className="w-3.5 h-3.5" /> Logout
                     </button>
                 </div>
@@ -993,8 +1151,13 @@ export default function VendorDashboard() {
                                 </button>
                             ))}
                         </nav>
-                        <div className="p-8 border-t border-slate-50">
-                            <button onClick={handleLogout} className="flex items-center gap-4 text-xs font-black uppercase tracking-widest text-red-500">
+                        <div className="p-8 border-t border-slate-50 space-y-4">
+                            <Link href="/">
+                                <button className="flex items-center gap-4 text-xs font-black uppercase tracking-widest text-slate-400 hover:text-slate-900 w-full text-left">
+                                    <ArrowLeft className="w-4 h-4" /> Launch Store
+                                </button>
+                            </Link>
+                            <button onClick={handleLogout} className="flex items-center gap-4 text-xs font-black uppercase tracking-widest text-red-500 w-full text-left">
                                 <LogOut className="w-4 h-4" /> Sign Out
                             </button>
                         </div>
@@ -1046,18 +1209,18 @@ export default function VendorDashboard() {
                     <div className="fixed inset-0 z-[400] flex items-end md:items-center justify-center p-0 md:p-4">
                         <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={() => { setShowAddProduct(false); resetForm(); }} />
                         <div className="relative bg-white w-full max-w-2xl h-[95vh] md:h-auto md:max-h-[90vh] rounded-t-[40px] md:rounded-[40px] shadow-2xl flex flex-col animate-in slide-in-from-bottom md:zoom-in-95 duration-510 overflow-hidden">
-                            <div className="shrink-0 p-8 md:p-10 border-b border-slate-50 flex justify-between items-center bg-white/50 backdrop-blur-sm sticky top-0 z-10">
-                                <div>
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{editingProduct ? 'Refine Heritage' : 'Stock Management'}</p>
-                                    <h2 className="text-2xl md:text-3xl font-black text-slate-900 uppercase tracking-tighter">{editingProduct ? 'Edit Design' : 'List New Design'}</h2>
+                            <div className="shrink-0 p-6 md:p-10 border-b border-slate-50 flex justify-between items-center bg-white/50 backdrop-blur-sm sticky top-0 z-10">
+                                <div className="pr-4">
+                                    <p className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5 md:mb-1">{editingProduct ? 'Refine Heritage' : 'Stock Management'}</p>
+                                    <h2 className="text-xl md:text-3xl font-black text-slate-900 uppercase tracking-tighter line-clamp-1">{editingProduct ? 'Edit Design' : 'List New Design'}</h2>
                                 </div>
-                                <button onClick={() => { setShowAddProduct(false); resetForm(); }} className="p-3 bg-slate-50 rounded-full hover:bg-slate-100 transition-colors">
+                                <button onClick={() => { setShowAddProduct(false); resetForm(); }} className="p-2.5 bg-slate-50 rounded-full hover:bg-slate-100 transition-colors flex-shrink-0">
                                     <X className="w-5 h-5 text-slate-400" />
                                 </button>
                             </div>
 
-                            <div className="flex-1 overflow-y-auto p-8 md:p-10 space-y-10 custom-scrollbar">
-                                <div className="grid lg:grid-cols-2 gap-10">
+                            <div className="flex-1 overflow-y-auto p-5 md:p-10 space-y-6 md:space-y-10 custom-scrollbar">
+                                <div className="grid lg:grid-cols-2 gap-6 md:gap-10">
                                     {/* Multi-Image Upload Section */}
                                     <div className="space-y-6">
                                         <div className="flex items-center justify-between mb-2">
@@ -1074,7 +1237,8 @@ export default function VendorDashboard() {
                                                             <div className="w-8 h-8 border-4 border-slate-900 border-t-transparent rounded-full animate-spin"></div>
                                                         </div>
                                                     )}
-                                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center p-4">
+                                                    {/* Controls Div - Always visible on mobile, hover on desktop */}
+                                                    <div className="absolute inset-0 bg-black/40 md:bg-black/40 md:opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center p-4">
                                                         <select
                                                             value={img.label}
                                                             onChange={(e) => {
@@ -1082,7 +1246,7 @@ export default function VendorDashboard() {
                                                                 newImgs[idx].label = e.target.value;
                                                                 setFormImages(newImgs);
                                                             }}
-                                                            className="bg-white/20 backdrop-blur-md border-none text-[10px] text-white font-black uppercase tracking-widest rounded-full py-1.5 px-4 focus:ring-0 mb-2 cursor-pointer"
+                                                            className="bg-white/20 backdrop-blur-md border-none text-[10px] text-white font-black uppercase tracking-widest rounded-full py-1.5 px-4 focus:ring-0 mb-2 cursor-pointer shadow-lg"
                                                         >
                                                             <option className="text-slate-900" value="Front">Front</option>
                                                             <option className="text-slate-900" value="Back">Back</option>
@@ -1090,12 +1254,12 @@ export default function VendorDashboard() {
                                                         </select>
                                                         <button
                                                             onClick={() => setFormImages(prev => prev.filter((_, i) => i !== idx))}
-                                                            className="p-2 bg-red-500/20 backdrop-blur-md text-white rounded-full hover:bg-red-500 transition-colors"
+                                                            className="p-3 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-lg active:scale-90"
                                                         >
-                                                            <Trash2 className="w-3 h-3" />
+                                                            <Trash2 className="w-4 h-4" />
                                                         </button>
                                                     </div>
-                                                    <div className="absolute bottom-2 left-2 px-3 py-1 bg-white/90 backdrop-blur-sm rounded-full shadow-sm">
+                                                    <div className="absolute bottom-2 left-2 px-3 py-1 bg-white/90 backdrop-blur-sm rounded-full shadow-sm md:block hidden">
                                                         <span className="text-[8px] font-black text-slate-900 uppercase tracking-tighter">{img.label} View</span>
                                                     </div>
                                                 </div>
@@ -1162,6 +1326,21 @@ export default function VendorDashboard() {
                                             <div className="space-y-1.5">
                                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Price (GH₵)</label>
                                                 <input type="number" value={formPrice} onChange={(e) => setFormPrice(e.target.value)} placeholder="750" className="w-full px-5 py-3.5 bg-slate-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20" />
+
+                                                {/* Revenue Forecast */}
+                                                {(formPrice && Number(formPrice) > 0) && (
+                                                    <div className="mt-4 p-5 bg-slate-900 rounded-[24px] shadow-xl animate-in slide-in-from-top-2 duration-300">
+                                                        <div className="flex justify-between items-center mb-3">
+                                                            <span className="text-[9px] font-black text-slate-400 uppercase">Platform Fee (10%)</span>
+                                                            <span className="text-[10px] font-black text-red-400">- GH₵ {(Number(formPrice) * 0.1).toLocaleString()}</span>
+                                                        </div>
+                                                        <div className="flex justify-between items-center pt-3 border-t border-white/10">
+                                                            <span className="text-[10px] font-black text-white uppercase tracking-widest">Your Payout</span>
+                                                            <span className="text-base font-black text-brand-lemon">GH₵ {(Number(formPrice) * 0.9).toLocaleString()}</span>
+                                                        </div>
+                                                        <p className="text-[8px] font-bold text-slate-500 uppercase mt-3 tracking-tighter">Verified FLA Partner Rate</p>
+                                                    </div>
+                                                )}
                                             </div>
                                             <div className="space-y-1.5">
                                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Category</label>
@@ -1183,15 +1362,25 @@ export default function VendorDashboard() {
                                                 <input type="text" value={formTailoring} onChange={(e) => setFormTailoring(e.target.value)} placeholder="e.g. 3 Days" className="w-full px-5 py-3.5 bg-slate-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20" />
                                             </div>
                                         </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-1.5">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Batch Size (Target)</label>
+                                                <input type="number" value={formBatchSize} onChange={(e) => setFormBatchSize(e.target.value)} placeholder="10" className="w-full px-5 py-3.5 bg-slate-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20" />
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Wholesale Price (Batch Offer)</label>
+                                                <input type="number" value={formWholesalePrice} onChange={(e) => setFormWholesalePrice(e.target.value)} placeholder="650" className="w-full px-5 py-3.5 bg-slate-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20" />
+                                            </div>
+                                        </div>
                                         <div className="space-y-1.5">
                                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Fabrication</label>
                                             <input type="text" value={formFabric} onChange={(e) => setFormFabric(e.target.value)} placeholder="e.g. 100% Cotton Print" className="w-full px-5 py-3.5 bg-slate-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20" />
                                         </div>
                                         <div className="space-y-1.5">
                                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">The Narrative (Description)</label>
-                                            <textarea rows={2} value={formNarrative} onChange={(e) => setFormNarrative(e.target.value)} placeholder="Story behind this design..." className="w-full px-5 py-3 bg-slate-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20 resize-none" />
+                                            <textarea rows={4} value={formNarrative} onChange={(e) => setFormNarrative(e.target.value)} placeholder="Story behind this design..." className="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20 resize-none" />
                                         </div>
-                                        <div className="space-y-1.5">
+                                        <div className="space-y-1.5 pb-20 md:pb-0">
                                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Available Silhouettes (Sizes)</label>
                                             <div className="flex flex-wrap gap-2">
                                                 {['S', 'M', 'L', 'XL', 'XXL'].map(s => {
@@ -1207,7 +1396,7 @@ export default function VendorDashboard() {
                                                                     setFormSizes(prev => [...prev, s]);
                                                                 }
                                                             }}
-                                                            className={`w-12 h-12 rounded-xl border transition-all text-[10px] font-black uppercase ${isSelected
+                                                            className={`w-11 h-11 md:w-12 md:h-12 rounded-xl border transition-all text-[9px] md:text-[10px] font-black uppercase ${isSelected
                                                                 ? 'bg-slate-900 border-slate-900 text-brand-lemon shadow-lg shadow-slate-900/10'
                                                                 : 'border-slate-100 bg-white text-slate-400 hover:border-slate-300'
                                                                 }`}
@@ -1222,11 +1411,11 @@ export default function VendorDashboard() {
                                 </div>
 
                                 {/* Sticky Footer for Mobile Actions */}
-                                <div className="mt-12 flex gap-3 sticky bottom-0 bg-white/90 backdrop-blur-sm pt-4 border-t border-slate-50">
-                                    <button onClick={() => { setShowAddProduct(false); resetForm(); }} className="flex-1 py-4 bg-slate-50 text-slate-400 rounded-full font-black text-[10px] uppercase tracking-widest">Discard</button>
+                                <div className="mt-8 md:mt-12 flex gap-3 sticky bottom-0 bg-white/95 backdrop-blur-md py-4 md:py-6 border-t border-slate-100 z-50">
+                                    <button onClick={() => { setShowAddProduct(false); resetForm(); }} className="flex-1 py-4 md:py-5 bg-slate-50 text-slate-400 rounded-full font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all">Discard</button>
                                     <button
                                         onClick={handleAddOrEditProduct}
-                                        className="flex-[2] py-4 bg-slate-900 text-white rounded-full font-black text-[10px] uppercase tracking-widest shadow-xl shadow-slate-900/20 active:scale-95 transition-all"
+                                        className="flex-[2] py-4 md:py-5 bg-slate-900 text-white rounded-full font-black text-[10px] uppercase tracking-widest shadow-xl shadow-slate-900/20 active:scale-95 transition-all"
                                     >
                                         {editingProduct ? 'Save Changes' : 'Live in Store'}
                                     </button>
@@ -1239,7 +1428,33 @@ export default function VendorDashboard() {
                 {/* Mobile Bottom Action Bar */}
                 <div className="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] w-max">
                     <div className="bg-slate-900/95 backdrop-blur-2xl border border-white/10 p-2 rounded-full shadow-[0_20px_50px_rgba(0,0,0,0.3)] flex gap-1 items-center">
-                        {sidebarItems.slice(0, 4).map((item) => (
+                        {sidebarItems.slice(0, 2).map((item) => (
+                            <button
+                                key={item.id}
+                                onClick={() => setActiveSection(item.id as VendorSection)}
+                                className={`h-12 flex items-center justify-center transition-all duration-500 rounded-full gap-2 ${activeSection === item.id
+                                    ? 'bg-brand-lemon text-slate-900 px-6 shadow-lg shadow-brand-lemon/20'
+                                    : 'text-slate-400 px-4'
+                                    }`}
+                            >
+                                <item.icon className={`w-5 h-5 ${activeSection === item.id ? 'scale-110' : ''}`} />
+                                {activeSection === item.id && (
+                                    <span className="text-[10px] font-black uppercase tracking-widest whitespace-nowrap animate-in slide-in-from-left-2 duration-300">
+                                        {item.label}
+                                    </span>
+                                )}
+                            </button>
+                        ))}
+
+                        {/* Central Plus Button */}
+                        <button
+                            onClick={() => { resetForm(); setShowAddProduct(true); }}
+                            className="w-14 h-14 bg-brand-lemon text-slate-900 rounded-full flex items-center justify-center -translate-y-4 shadow-[0_10px_30px_rgba(234,255,102,0.3)] active:scale-95 transition-all border-4 border-slate-900"
+                        >
+                            <Plus className="w-6 h-6" />
+                        </button>
+
+                        {sidebarItems.slice(2, 4).map((item) => (
                             <button
                                 key={item.id}
                                 onClick={() => setActiveSection(item.id as VendorSection)}

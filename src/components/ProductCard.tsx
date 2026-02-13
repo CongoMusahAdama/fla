@@ -13,14 +13,23 @@ interface ProductCardProps {
     name: string;
     price: number;
     images: string[];
+    sizes?: string[];
     imageLabels?: string[];
     duration?: string;
     stock: number;
     index: number;
     vendorId?: string;
+    batchSize?: number;
+    currentBatchCount?: number;
+    wholesalePrice?: number;
+    batchStatus?: string;
+    initialWishlistState?: boolean;
 }
 
-export default function ProductCard({ id, name, price, images, imageLabels, duration = '3 working days', stock, index, vendorId }: ProductCardProps) {
+export default function ProductCard({ id, name, price, images, sizes = [], imageLabels, duration = '3 working days', stock, index, vendorId, batchSize = 0, currentBatchCount = 0, wholesalePrice, batchStatus, initialWishlistState = false }: ProductCardProps) {
+    const isBatch = batchSize > 0;
+    const currentPrice = isBatch && wholesalePrice ? wholesalePrice : price;
+
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [selectedSize, setSelectedSize] = useState<string | null>(null);
     const [isVisible, setIsVisible] = useState(false);
@@ -28,14 +37,29 @@ export default function ProductCard({ id, name, price, images, imageLabels, dura
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     const { addToCart } = useCart();
     const { isAuthenticated } = useAuth();
-    const [isWishlisted, setIsWishlisted] = useState(false);
+    const [isWishlisted, setIsWishlisted] = useState(initialWishlistState);
+    const [imgError, setImgError] = useState(false);
     const router = useRouter();
+
+    useEffect(() => {
+        setImgError(false);
+    }, [currentImageIndex, images]);
 
     const getImageUrl = (url: string) => {
         if (!url || url === '/product-1.jpg') return '/product-1.jpg';
         if (url.startsWith('http')) return url;
+
+        // Backend uploads
+        if (url.startsWith('/uploads')) {
+            const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '');
+            return `${baseUrl}${url}`;
+        }
+
+        // Frontend static assets
+        if (url.startsWith('/')) return url;
+
+        // Default to backend upload if just filename
         const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '');
-        if (url.startsWith('/')) return `${baseUrl}${url}`;
         return `${baseUrl}/uploads/${url}`;
     };
 
@@ -74,11 +98,17 @@ export default function ProductCard({ id, name, price, images, imageLabels, dura
             addToCart({
                 id,
                 name,
-                price,
+                price: currentPrice,
                 image: images[0],
                 size: selectedSize!,
                 quantity: 1,
-                vendorId: vendorId
+                vendorId: vendorId,
+                // Batch Properties
+                batchSize,
+                currentBatchCount,
+                wholesalePrice,
+                batchStatus,
+                isBatch
             });
             setIsAdding(false);
             const Toast = Swal.mixin({
@@ -149,6 +179,9 @@ export default function ProductCard({ id, name, price, images, imageLabels, dura
     };
 
     const handleBuyNow = async () => {
+        // Batch Logic
+        const actionLabel = isBatch ? 'Join Batch Group' : 'Delivery Details';
+
         if (!selectedSize) {
             Swal.fire({
                 icon: 'warning',
@@ -163,9 +196,19 @@ export default function ProductCard({ id, name, price, images, imageLabels, dura
         let guestInfo = null;
         if (!isAuthenticated) {
             const { value: formValues } = await Swal.fire({
-                title: '<span class="text-2xl font-black text-slate-900 uppercase tracking-tighter">Delivery Details</span>',
+                title: `<span class="text-2xl font-black text-slate-900 uppercase tracking-tighter">${actionLabel}</span>`,
                 html: `
                     <div class="text-left py-4">
+                        ${isBatch ? `
+                            <div class="bg-brand-lemon/20 p-4 rounded-2xl mb-6 border border-brand-lemon/30">
+                                <p class="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">Batch Savings</p>
+                                <div class="flex justify-between items-end">
+                                    <span class="text-slate-900 font-black text-lg">Batch Price: GH₵${currentPrice}</span>
+                                    <span class="text-slate-400 line-through text-xs font-bold">Standard: GH₵${price}</span>
+                                </div>
+                                <p class="text-[10px] text-slate-600 mt-2 font-medium">Join ${batchSize - currentBatchCount} more people to activate production.</p>
+                            </div>
+                        ` : ''}
                         <p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-8 text-center border-b border-slate-100 pb-4">Checkout as Guest</p>
                         <div class="space-y-6">
                             <div class="space-y-2">
@@ -351,7 +394,7 @@ export default function ProductCard({ id, name, price, images, imageLabels, dura
                     <!-- Amount Display -->
                     <div class="flex flex-col items-center justify-center py-4 bg-brand-lemon/10 rounded-xl border border-brand-lemon/20">
                         <span class="text-xs font-bold text-slate-900 uppercase tracking-widest mb-1">Total Amount</span>
-                        <span class="text-3xl font-black text-slate-900">GH₵${price}</span>
+                        <span class="text-3xl font-black text-slate-900">GH₵${currentPrice}</span>
                     </div>
 
                     <!-- Payment Details Card -->
@@ -449,21 +492,44 @@ export default function ProductCard({ id, name, price, images, imageLabels, dura
                 try {
                     const token = localStorage.getItem('fla_token');
 
+                    // Upload screenshot first
+                    Swal.fire({
+                        title: 'Confirming Payment...',
+                        text: 'Verifying your receipt with our secure ledger.',
+                        allowOutsideClick: false,
+                        didOpen: () => {
+                            Swal.showLoading();
+                        }
+                    });
+
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    const uploadResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/upload`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${token}` },
+                        body: formData
+                    });
+
+                    if (!uploadResponse.ok) throw new Error('Screenshot upload failed');
+                    const uploadData = await uploadResponse.json();
+
                     const orderData = {
                         items: [{
                             productId: id,
                             name: name,
-                            price: price,
+                            price: currentPrice,
                             quantity: 1,
                             size: selectedSize,
-                            image: images[0]
+                            image: images[0],
+                            batchId: isBatch ? 'pending_assignment' : undefined
                         }],
-                        totalAmount: price,
+                        totalAmount: currentPrice,
                         vendorId: vendorId,
                         shippingAddress: guestInfo?.address || (isAuthenticated ? 'Registered Address' : 'Pickup at Studio'),
                         shippingCity: isAuthenticated ? 'Accra' : 'Accra',
                         shippingRegion: 'Greater Accra',
                         paymentMethod: `MOMO - ${selectedProvider}`,
+                        paymentProof: uploadData.url, // Correctly linking the screenshot
                         notes: guestInfo ? `Guest: ${guestInfo.name} (${guestInfo.phone})` : 'Quick Buy'
                     };
 
@@ -479,10 +545,16 @@ export default function ProductCard({ id, name, price, images, imageLabels, dura
                     if (!response.ok) throw new Error('Failed to create order');
 
                     Swal.fire({
-                        title: 'Order Completed!',
-                        text: 'Your bespoked item is now in the tailoring queue.',
+                        title: 'HERITAGE SECURED!',
+                        text: 'Your bespoke design is now in the fulfillment queue.',
                         icon: 'success',
-                        confirmButtonColor: '#0f172a'
+                        confirmButtonText: 'EXCELLENT',
+                        buttonsStyling: false,
+                        customClass: {
+                            popup: 'rounded-[32px] p-10 bg-white border-none shadow-2xl',
+                            title: 'text-2xl font-black text-slate-900 tracking-tighter uppercase mb-2',
+                            confirmButton: 'bg-slate-900 text-white rounded-full px-10 py-4 text-[11px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all'
+                        }
                     });
 
                     if (isAuthenticated) {
@@ -552,10 +624,22 @@ export default function ProductCard({ id, name, price, images, imageLabels, dura
                         )}
                     </div>
 
-                    {/* Wishlist Button */}
+                    {/* Batch Badge */}
+                    {batchSize > 0 && (
+                        <div className="absolute top-4 right-4 z-20 flex flex-col items-end gap-1">
+                            <div className="bg-slate-900 text-brand-lemon text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-tighter shadow-sm border border-brand-lemon">
+                                Batch Open
+                            </div>
+                            <span className="text-[9px] font-black text-white bg-black/40 backdrop-blur-md px-2 py-0.5 rounded-md">
+                                {currentBatchCount}/{batchSize} Joined
+                            </span>
+                        </div>
+                    )}
+
+                    {/* Wishlist Button (Adjusted position if batch is present) */}
                     <button
                         onClick={toggleWishlist}
-                        className="absolute top-4 right-4 z-20 w-10 h-10 bg-white/90 backdrop-blur-md rounded-full flex items-center justify-center shadow-lg hover:scale-110 active:scale-90 transition-all group/heart"
+                        className={`absolute ${batchSize > 0 ? 'top-16' : 'top-4'} right-4 z-20 w-10 h-10 bg-white/90 backdrop-blur-md rounded-full flex items-center justify-center shadow-lg hover:scale-110 active:scale-90 transition-all group/heart`}
                     >
                         <Heart className={`w-5 h-5 transition-colors ${isWishlisted ? 'fill-red-500 text-red-500' : 'text-slate-400 group-hover/heart:text-red-400'}`} />
                     </button>
@@ -570,11 +654,12 @@ export default function ProductCard({ id, name, price, images, imageLabels, dura
                     {/* Carousel Image */}
                     <div className="w-full h-full relative p-4">
                         <Image
-                            src={getImageUrl(images[currentImageIndex])}
+                            src={imgError ? '/product-1.jpg' : getImageUrl(images[currentImageIndex])}
                             alt={`${name} view ${currentImageIndex + 1}`}
                             fill
                             className={`object-contain transition-all duration-700 group-hover/image:scale-105 ${isSoldOut ? 'grayscale' : ''}`}
                             unoptimized
+                            onError={() => setImgError(true)}
                         />
                     </div>
                 </div>
@@ -609,9 +694,25 @@ export default function ProductCard({ id, name, price, images, imageLabels, dura
                         </div>
                     </div>
 
+                    {/* Batch Progress Bar */}
+                    {batchSize > 0 && (
+                        <div className="mb-4">
+                            <div className="flex justify-between items-center mb-1">
+                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{currentBatchCount} Joined</span>
+                                <span className="text-[9px] font-black text-brand-lemon uppercase tracking-widest">{batchSize - currentBatchCount} Spots Left</span>
+                            </div>
+                            <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                                <div
+                                    className="h-full bg-slate-900 rounded-full transition-all duration-500"
+                                    style={{ width: `${(currentBatchCount / batchSize) * 100}%` }}
+                                />
+                            </div>
+                        </div>
+                    )}
+
                     {/* Size Selection (Quick Access) */}
                     <div className="flex gap-1.5 mb-4 overflow-x-auto pb-1 no-scrollbar" onClick={(e) => e.stopPropagation()}>
-                        {['S', 'M', 'L', 'XL'].map(size => (
+                        {(sizes && sizes.length > 0 ? sizes : ['S', 'M', 'L', 'XL']).map(size => (
                             <button
                                 key={size}
                                 onClick={() => !isSoldOut && setSelectedSize(size)}
@@ -637,11 +738,10 @@ export default function ProductCard({ id, name, price, images, imageLabels, dura
                             Learn More
                         </button>
                         <button
-                            onClick={handleAddToCart}
-                            disabled={isAdding}
-                            className="flex items-center justify-center py-3.5 px-6 rounded-full bg-slate-900 text-white text-[11px] font-bold hover:bg-slate-800 transition-all active:scale-[0.98] whitespace-nowrap touch-manipulation relative z-50 !cursor-pointer !pointer-events-auto"
+                            onClick={handleBuyNow}
+                            className={`flex items-center justify-center py-3.5 px-6 rounded-full ${batchSize > 0 ? 'bg-slate-900 text-white' : 'bg-brand-lemon text-slate-900'} text-[11px] font-bold transition-all active:scale-[0.98] whitespace-nowrap touch-manipulation relative z-50 !cursor-pointer !pointer-events-auto`}
                         >
-                            {isAdding ? '...' : 'Add to Cart'}
+                            {batchSize > 0 ? 'Join Batch' : 'Quick Checkout'}
                         </button>
                     </div>
                 </div>
@@ -654,7 +754,7 @@ export default function ProductCard({ id, name, price, images, imageLabels, dura
                         className="absolute inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity duration-500"
                         onClick={() => setIsDetailModalOpen(false)}
                     />
-                    <div className="relative bg-white w-full max-w-4xl h-[92vh] md:h-auto md:max-h-[85vh] rounded-t-[40px] md:rounded-[40px] shadow-2xl flex flex-col md:flex-row animate-in slide-in-from-bottom md:zoom-in-95 duration-500 pointer-events-auto overflow-hidden">
+                    <div className="relative bg-white w-full max-w-4xl h-[92vh] md:h-[85vh] rounded-t-[40px] md:rounded-[40px] shadow-2xl flex flex-col md:flex-row animate-in slide-in-from-bottom md:zoom-in-95 duration-500 pointer-events-auto overflow-hidden">
                         {/* Mobile Handle */}
                         <div className="md:hidden absolute top-3 left-1/2 -translate-x-1/2 w-12 h-1.5 bg-slate-200/50 rounded-full z-50 py-4" />
 
@@ -667,33 +767,55 @@ export default function ProductCard({ id, name, price, images, imageLabels, dura
                         </button>
 
                         {/* Left: Gallery */}
-                        <div className="w-full md:w-1/2 h-[45vh] md:h-auto relative bg-[#f8f8f8] group/gallery">
-                            <Image
-                                src={getImageUrl(images[currentImageIndex])}
-                                alt={name}
-                                fill
-                                className="object-cover md:object-contain p-4 transition-transform duration-700 group-hover/gallery:scale-105"
-                                unoptimized
-                            />
-                            {/* Thumbnails */}
-                            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2 md:gap-3 px-4 py-2 bg-white/60 backdrop-blur-xl rounded-2xl border border-white/40 max-w-[90%] overflow-x-auto no-scrollbar shadow-lg">
+                        <div className="w-full md:w-1/2 bg-[#f8f8f8] flex flex-col justify-between">
+                            <div className="relative w-full h-[40vh] md:h-[60vh] flex-1">
+                                <Image
+                                    src={imgError ? '/product-1.jpg' : getImageUrl(images[currentImageIndex])}
+                                    alt={name}
+                                    fill
+                                    className="object-contain p-6 transition-transform duration-700 hover:scale-105"
+                                    unoptimized
+                                    onError={() => setImgError(true)}
+                                />
+                            </div>
+
+                            {/* Thumbnails - Now properly positioned below image */}
+                            <div className="w-full px-6 py-4 flex gap-3 overflow-x-auto no-scrollbar items-center justify-center bg-white border-t border-slate-100/50">
                                 {images.map((img, idx) => (
                                     <button
                                         key={idx}
                                         onClick={() => setCurrentImageIndex(idx)}
-                                        className={`flex-shrink-0 w-10 h-10 md:w-12 md:h-16 rounded-xl overflow-hidden border-2 transition-all ${idx === currentImageIndex ? 'border-brand-lemon scale-110 shadow-md' : 'border-transparent opacity-50 hover:opacity-100'}`}
+                                        className={`relative flex-shrink-0 w-12 h-16 md:w-14 md:h-20 rounded-xl overflow-hidden border-2 transition-all duration-300 ${idx === currentImageIndex
+                                            ? 'border-brand-lemon shadow-lg shadow-brand-lemon/20 scale-105 opacity-100 ring-2 ring-brand-lemon/20'
+                                            : 'border-transparent opacity-60 hover:opacity-100 hover:scale-105 bg-slate-100'
+                                            }`}
                                     >
-                                        <div className="relative w-full h-full">
-                                            <Image src={getImageUrl(img)} alt="thumb" fill className="object-cover" unoptimized />
-                                        </div>
+                                        <Image
+                                            src={getImageUrl(img)}
+                                            alt="thumb"
+                                            fill
+                                            className="object-cover"
+                                            unoptimized
+                                            onError={(e) => {
+                                                const target = e.target as HTMLImageElement;
+                                                target.src = '/product-1.jpg';
+                                            }}
+                                        />
+                                        {imageLabels && imageLabels[idx] && (
+                                            <div className="absolute inset-0 bg-black/40 flex items-end justify-center pb-1">
+                                                <span className="text-[7px] font-black text-white uppercase tracking-tighter bg-black/50 px-1 rounded-sm backdrop-blur-sm">
+                                                    {imageLabels[idx]}
+                                                </span>
+                                            </div>
+                                        )}
                                     </button>
                                 ))}
                             </div>
                         </div>
 
                         {/* Right: Info */}
-                        <div className="flex-1 flex flex-col relative overflow-y-auto overscroll-contain">
-                            <div className="p-8 md:p-10 pb-32 md:pb-10 space-y-8">
+                        <div className="flex-1 flex flex-col relative overflow-y-auto overscroll-contain min-h-0 bg-white">
+                            <div className="p-6 md:p-10 pb-32 space-y-8">
                                 <div className="space-y-4">
                                     <div className="flex flex-wrap items-center gap-2">
                                         <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-900 bg-brand-lemon px-3 py-1 rounded-full shadow-sm">Bespoke Collection</span>
@@ -704,9 +826,9 @@ export default function ProductCard({ id, name, price, images, imageLabels, dura
                                     </div>
 
                                     <div>
-                                        <h2 className="font-heading text-3xl md:text-4xl font-black text-slate-900 mb-2 leading-tight tracking-tighter uppercase">{name}</h2>
+                                        <h2 className="font-heading text-2xl md:text-4xl font-black text-slate-900 mb-2 leading-tight tracking-tighter uppercase">{name}</h2>
                                         <div className="flex items-center gap-4">
-                                            <p className="text-2xl md:text-3xl font-black text-slate-900 tracking-tighter">GH₵{price}</p>
+                                            <p className="text-xl md:text-3xl font-black text-slate-900 tracking-tighter">GH₵{price}</p>
                                             <div className="h-6 w-[1px] bg-slate-100" />
                                             <div className="flex items-center gap-1">
                                                 <Star className="w-4 h-4 fill-brand-lemon text-brand-lemon" />
@@ -714,6 +836,33 @@ export default function ProductCard({ id, name, price, images, imageLabels, dura
                                                 <span className="text-[10px] font-bold text-slate-300 ml-1">(214 Reviews)</span>
                                             </div>
                                         </div>
+                                    </div>
+                                </div>
+
+                                {/* Size Selection - Moved Up for Visibility */}
+                                <div className="space-y-4 pt-2 border-t border-slate-50">
+                                    <div className="flex justify-between items-center px-1">
+                                        <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Select Silhouette</h4>
+                                        <button className="text-[10px] font-black text-slate-900 uppercase tracking-widest underline decoration-brand-lemon decoration-2 underline-offset-4">Size Guide</button>
+                                    </div>
+                                    <div className="flex flex-wrap gap-3">
+                                        {(() => {
+                                            const safeSizes = (Array.isArray(sizes) && sizes.length > 0) ? sizes : ['S', 'M', 'L', 'XL', '2XL', '3XL'];
+                                            return safeSizes.map(size => (
+                                                <button
+                                                    key={size}
+                                                    onClick={() => setSelectedSize(size)}
+                                                    className={`min-w-[3.5rem] h-12 md:h-14 px-4 rounded-2xl font-black border-2 transition-all text-xs md:text-sm
+                                                        ${selectedSize === size
+                                                            ? 'border-slate-900 bg-slate-900 text-white shadow-xl shadow-slate-900/20 scale-105'
+                                                            : 'border-slate-100 text-slate-400 hover:border-slate-200 bg-white hover:scale-105'
+                                                        }
+                                                    `}
+                                                >
+                                                    {size}
+                                                </button>
+                                            ));
+                                        })()}
                                     </div>
                                 </div>
 
@@ -743,30 +892,6 @@ export default function ProductCard({ id, name, price, images, imageLabels, dura
                                             </div>
                                         </div>
                                     </div>
-
-                                    {/* Size Selection */}
-                                    <div className="space-y-4">
-                                        <div className="flex justify-between items-center px-1">
-                                            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Select Silhouette</h4>
-                                            <button className="text-[10px] font-black text-slate-900 uppercase tracking-widest underline decoration-brand-lemon decoration-2 underline-offset-4">Size Guide</button>
-                                        </div>
-                                        <div className="flex flex-wrap gap-3">
-                                            {(images.length > 0 ? ['S', 'M', 'L', 'XL', '2XL', '3XL'] : ['S', 'M', 'L', 'XL']).map(size => (
-                                                <button
-                                                    key={size}
-                                                    onClick={() => setSelectedSize(size)}
-                                                    className={`min-w-[3.5rem] h-14 md:h-16 px-4 rounded-2xl font-black border-2 transition-all text-sm
-                                                        ${selectedSize === size
-                                                            ? 'border-slate-900 bg-slate-900 text-white shadow-xl shadow-slate-900/20 scale-105'
-                                                            : 'border-slate-100 text-slate-400 hover:border-slate-200 bg-white hover:scale-105'
-                                                        }
-                                                    `}
-                                                >
-                                                    {size}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
                                 </div>
                             </div>
 
@@ -782,9 +907,9 @@ export default function ProductCard({ id, name, price, images, imageLabels, dura
                                 </button>
                                 <button
                                     onClick={handleBuyNow}
-                                    className="flex-[1.5] py-5 rounded-3xl bg-brand-lemon text-slate-900 font-black text-[10px] uppercase tracking-[0.2em] shadow-[0_15px_30px_rgba(229,255,127,0.3)] hover:shadow-[0_20px_40px_rgba(229,255,127,0.4)] hover:scale-[1.02] transition-all active:scale-95"
+                                    className={`flex-[1.5] py-5 rounded-3xl ${batchSize > 0 ? 'bg-slate-900 text-white border border-slate-800' : 'bg-brand-lemon text-slate-900'} font-black text-[10px] uppercase tracking-[0.2em] shadow-xl hover:scale-[1.02] transition-all active:scale-95`}
                                 >
-                                    Quick Checkout
+                                    {batchSize > 0 ? 'Join Batch' : 'Quick Checkout'}
                                 </button>
                             </div>
                         </div>

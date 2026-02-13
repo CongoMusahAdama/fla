@@ -18,7 +18,7 @@ const outfit = Outfit({
 });
 
 export const metadata: Metadata = {
-  title: "FLA | Custom-Print & Bespoke Tailoring",
+  title: "Unity Purchase | Custom-Print & Bespoke Tailoring",
   description: "Your Style, Tailored in Real-Time.",
 };
 

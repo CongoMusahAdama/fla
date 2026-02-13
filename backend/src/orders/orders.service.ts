@@ -4,21 +4,32 @@ import { Model } from 'mongoose';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { Order, OrderDocument } from './schemas/order.schema';
+import { Product, ProductDocument } from '../products/schemas/product.schema';
 
 @Injectable()
 export class OrdersService {
-  constructor(@InjectModel(Order.name) private orderModel: Model<OrderDocument>) { }
+  constructor(
+    @InjectModel(Order.name) private orderModel: Model<OrderDocument>,
+    @InjectModel(Product.name) private productModel: Model<ProductDocument>
+  ) { }
 
   async create(createOrderDto: CreateOrderDto): Promise<Order> {
     try {
       // Convert string IDs to ObjectIds
       const { Types } = require('mongoose');
 
+      // Calculate Splits
+      const totalAmount = createOrderDto.totalAmount;
+      const adminCommission = totalAmount * 0.1; // 10% Platform Fee
+      const vendorShare = totalAmount - adminCommission;
+
       const orderData: any = {
         ...createOrderDto,
         customerId: new Types.ObjectId(createOrderDto.customerId),
         status: 'pending',
-        isPaid: false
+        isPaid: false,
+        adminCommission,
+        vendorShare
       };
 
       // Convert vendorId if provided
@@ -35,7 +46,50 @@ export class OrdersService {
       }
 
       const createdOrder = new this.orderModel(orderData);
-      return await createdOrder.save();
+      const savedOrder = await createdOrder.save();
+
+      // Unity Purchase Logic: Process Batch Updates
+      if (createOrderDto.items && createOrderDto.items.length > 0) {
+        for (const item of createOrderDto.items) {
+          const product = await this.productModel.findById(item.productId);
+
+          if (product && product.batchSize > 0) {
+            // It's a batch product
+            const quantity = item.quantity || 1;
+
+            // Atomically increment batch count
+            const updatedProduct = await this.productModel.findByIdAndUpdate(
+              item.productId,
+              { $inc: { currentBatchCount: quantity } },
+              { new: true }
+            );
+
+            // Check if batch target reached or exceeded
+            if (updatedProduct && updatedProduct.currentBatchCount >= updatedProduct.batchSize && updatedProduct.batchStatus !== 'production') {
+              // Trigger Production Phase
+              await this.productModel.findByIdAndUpdate(item.productId, {
+                batchStatus: 'production',
+                batchEndDate: new Date() // Mark simply as ended/closed for gathering
+              });
+
+              // Only update the order's batch status if it's the one that tipped it over, 
+              // or generally keep order status consistent.
+              // For now, let's update this specific order to reflect it joined a successful batch.
+              savedOrder.batchStatus = 'production';
+            } else {
+              // Still gathering
+              savedOrder.batchStatus = 'gathering';
+            }
+
+            // Assign a logical Batch ID (e.g., BATCH-{ProductID}-{Date})
+            // Ideally this would be a separate Batch model, but for now we use a string ID
+            savedOrder.batchId = `BATCH-${item.productId}-${new Date().toISOString().split('T')[0]}`;
+          }
+        }
+        await savedOrder.save();
+      }
+
+      return savedOrder;
     } catch (error) {
       console.error('Error creating order:', error);
       throw error;

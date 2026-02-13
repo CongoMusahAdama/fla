@@ -23,6 +23,9 @@ export class Product {
     @Prop({ type: [String], default: [] })
     images: string[];
 
+    @Prop({ type: [String], default: [] })
+    imageLabels: string[];
+
     @Prop({ type: Types.ObjectId, ref: 'User' })
     vendorId: Types.ObjectId;
 
@@ -49,6 +52,36 @@ export class Product {
 
     @Prop({ default: true })
     isActive: boolean;
+
+    @Prop({ default: 10 })
+    commissionPercentage: number;
+
+    @Prop({ default: 0 })
+    adminCommission: number;
+
+    // --- Unity Purchase (Batch) Workflow Fields ---
+
+    @Prop({ default: 1 })
+    batchSize: number; // The target number of orders to start production (e.g., 10)
+
+    @Prop({ default: 0 })
+    currentBatchCount: number; // How many orders are currently in the gathering phase
+
+    @Prop({ required: true })
+    wholesalePrice: number; // The price customers pay to join the batch
+
+    @Prop({
+        type: String,
+        enum: ['gathering', 'production', 'completed'],
+        default: 'gathering'
+    })
+    batchStatus: string; // gathering = taking orders, production = invisible/sewing, completed = reset
+
+    @Prop()
+    batchStartDate?: Date;
+
+    @Prop()
+    batchEndDate?: Date;
 }
 
 export const ProductSchema = SchemaFactory.createForClass(Product);

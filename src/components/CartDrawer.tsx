@@ -37,8 +37,17 @@ export default function CartDrawer() {
     const getImageUrl = (url: string) => {
         if (!url || url === '/product-1.jpg') return '/product-1.jpg';
         if (url.startsWith('http')) return url;
+
+        // Backend uploads
+        if (url.startsWith('/uploads')) {
+            const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '');
+            return `${baseUrl}${url}`;
+        }
+
+        // Frontend static assets
+        if (url.startsWith('/')) return url;
+
         const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '');
-        if (url.startsWith('/')) return `${baseUrl}${url}`;
         return `${baseUrl}/uploads/${url}`;
     };
 
@@ -121,16 +130,16 @@ export default function CartDrawer() {
             // Use default numbers based on selected network
             if (selectedProvider === 'MTN') {
                 momoNumber = '0256774847';
-                accountName = 'FLA Store';
+                accountName = 'Unity Purchase Store';
             } else if (selectedProvider === 'TELECEL') {
                 momoNumber = '0505112925';
-                accountName = 'FLA Store';
+                accountName = 'Unity Purchase Store';
             } else if (selectedProvider === 'TIGO') {
                 momoNumber = '0256774847'; // Default
-                accountName = 'FLA Store';
+                accountName = 'Unity Purchase Store';
             } else {
                 momoNumber = '0256774847';
-                accountName = 'FLA Store';
+                accountName = 'Unity Purchase Store';
             }
         }
 
@@ -461,6 +470,10 @@ export default function CartDrawer() {
                                         fill
                                         className="object-cover"
                                         unoptimized
+                                        onError={(e) => {
+                                            const target = e.target as HTMLImageElement;
+                                            target.src = '/product-1.jpg';
+                                        }}
                                     />
                                 </div>
 

@@ -44,6 +44,10 @@ export class DashboardService {
             .filter(o => o.status?.toLowerCase() !== 'cancelled' && o.isPaid)
             .reduce((sum, order) => sum + order.totalAmount, 0);
 
+        const pendingRevenue = orders
+            .filter(o => o.status?.toLowerCase() !== 'cancelled' && !o.isPaid)
+            .reduce((sum, order) => sum + order.totalAmount, 0);
+
         const activeOrders = orders.filter(o =>
             !['delivered', 'cancelled'].includes(o.status?.toLowerCase())
         ).length;
@@ -52,36 +56,73 @@ export class DashboardService {
             .filter(o => o.status?.toLowerCase() !== 'cancelled')
             .length;
 
+        const user = await this.usersService.findOneById(userId);
+
         return {
             totalRevenue,
+            pendingRevenue,
             activeOrders,
             totalSales,
-            recentOrders: orders.slice(0, 5)
+            recentOrders: orders.slice(0, 5),
+            withdrawalHistory: user?.withdrawalHistory || []
         };
     }
 
-    async getAdminStats() {
-        const [orders, users] = await Promise.all([
-            this.ordersService.findAll(), // Assuming findAll exists or findByUser(all)
-            this.usersService.findAll()
-        ]);
+    async requestWithdrawal(userId: string, amount: number) {
+        const user = await this.usersService.findOneById(userId);
+        if (!user) throw new Error('User not found');
 
-        // If ordersService.findAll() doesn't exist, we might need to add it or use another way
-        // For now I'll assume it exists or I'll add it
+        // Logic for checking available balance would go here
+        // For now we just add it to history with 'pending' status
+
+        const withdrawal = {
+            amount,
+            status: 'pending',
+            createdAt: new Date()
+        };
+
+        const currentHistory = user.withdrawalHistory || [];
+        await this.usersService.update(userId, {
+            withdrawalHistory: [withdrawal, ...currentHistory]
+        } as any);
+
+        return withdrawal;
+    }
+
+    async getAdminStats() {
+        const [orders, users, products] = await Promise.all([
+            this.ordersService.findAll(),
+            this.usersService.findAll(),
+            this.productsService.findAll({ showAll: 'true' })
+        ]);
 
         const totalRevenue = orders
             .filter(o => o.status !== 'cancelled' && o.isPaid)
             .reduce((sum, order) => sum + order.totalAmount, 0);
 
-        const totalUsers = users.length;
+        const totalCommission = totalRevenue * 0.1; // 10% Platform Commission
 
-        const pendingOrders = orders.filter(o => o.status === 'pending').length;
+        const escrowBalance = orders
+            .filter(o => o.status !== 'cancelled' && !o.isPaid)
+            .reduce((sum, order) => sum + order.totalAmount, 0);
+
+        const totalUsers = users.length;
+        const totalVendors = users.filter((u: any) => u.role === 'vendor').length;
+        const totalProducts = products.length;
+        const totalOrders = orders.length;
+        const completedTransactions = orders.filter(o => o.status === 'delivered' || o.isPaid).length;
 
         return {
             totalRevenue,
+            totalCommission,
+            escrowBalance,
             totalUsers,
-            pendingOrders,
-            recentOrders: orders.slice(0, 5)
+            totalVendors,
+            totalProducts,
+            totalOrders,
+            completedTransactions,
+            pendingOrders: orders.filter(o => o.status === 'pending').length,
+            recentOrders: orders.slice(0, 10)
         };
     }
 }

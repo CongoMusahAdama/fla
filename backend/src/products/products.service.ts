@@ -15,7 +15,12 @@ export class ProductsService {
   }
 
   async findAll(query: any = {}): Promise<Product[]> {
-    const filters: any = { isActive: true };
+    const filters: any = {};
+
+    // Default to only active products unless showAll is true (for admin)
+    if (query.showAll !== 'true') {
+      filters.isActive = true;
+    }
 
     if (query.category && query.category !== 'All') {
       filters.category = query.category;
