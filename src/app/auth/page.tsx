@@ -126,7 +126,7 @@ const RegisterForm = ({ role, onSignup }: { role: UserRole, onSignup: (data: any
 
     return (
         <form onSubmit={handleSubmit} className="space-y-4 animate-in fade-in duration-500">
-            <div className="grid grid-cols-1 gap-4 overflow-y-auto max-h-[45vh] md:max-h-none pr-1 custom-scrollbar pb-4">
+            <div className="grid grid-cols-1 gap-4">
                 <AuthInput label="Full Name" type="text" placeholder="Eg. Yasir Noori" required value={name} onChange={setName} icon={User} />
                 <AuthInput label="Email Address" type="email" placeholder="you@email.com" required value={email} onChange={setEmail} icon={Mail} />
                 <div className="grid grid-cols-2 gap-4">
