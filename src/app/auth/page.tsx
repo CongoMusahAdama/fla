@@ -58,24 +58,26 @@ const LoginForm = ({ onLogin }: { onLogin: (id: string, pass: string) => void })
 
     return (
         <form onSubmit={(e) => { e.preventDefault(); onLogin(identifier, password); }} className="space-y-4 animate-in fade-in duration-500">
-            <AuthInput
-                label="Email or Phone"
-                type="text"
-                placeholder="you@email.com"
-                required
-                value={identifier}
-                onChange={setIdentifier}
-                icon={User}
-            />
-            <AuthInput
-                label="Password"
-                type="password"
-                placeholder="••••••••"
-                required
-                value={password}
-                onChange={setPassword}
-                icon={Lock}
-            />
+            <div className="grid grid-cols-1 gap-4">
+                <AuthInput
+                    label="Email or Phone"
+                    type="text"
+                    placeholder="you@email.com"
+                    required
+                    value={identifier}
+                    onChange={setIdentifier}
+                    icon={User}
+                />
+                <AuthInput
+                    label="Password"
+                    type="password"
+                    placeholder="••••••••"
+                    required
+                    value={password}
+                    onChange={setPassword}
+                    icon={Lock}
+                />
+            </div>
             <div className="pt-4">
                 <button type="submit" className="w-full py-4 bg-emerald-950 text-white rounded-full font-bold text-sm tracking-wide hover:bg-slate-800 transition-all shadow-xl shadow-emerald-900/10 active:scale-[0.98]">
                     Sign In
@@ -84,6 +86,8 @@ const LoginForm = ({ onLogin }: { onLogin: (id: string, pass: string) => void })
         </form>
     );
 };
+
+
 
 const RegisterForm = ({ role, onSignup }: { role: UserRole, onSignup: (data: any) => void }) => {
     const [name, setName] = useState('');
@@ -585,17 +589,9 @@ function AuthContent() {
                                     <button
                                         type="button"
                                         onClick={() => setIsLogin(!isLogin)}
-                                        className="w-full py-4 text-slate-500 hover:text-slate-900 transition-colors font-bold text-xs uppercase tracking-widest"
+                                        className="w-full py-4 bg-white border-2 border-slate-100 text-slate-500 rounded-full font-bold text-xs uppercase tracking-widest hover:border-slate-300 hover:text-slate-900 transition-all shadow-sm"
                                     >
-                                        {isLogin ? (
-                                            <>
-                                                New here? <span className="underline decoration-brand-lemon decoration-2 underline-offset-4 text-slate-900">Create Account</span>
-                                            </>
-                                        ) : (
-                                            <>
-                                                Already have an account? <span className="underline decoration-brand-lemon decoration-2 underline-offset-4 text-slate-900">Sign In</span>
-                                            </>
-                                        )}
+                                        {isLogin ? 'New here? Create Account' : 'Already have an account? Sign In'}
                                     </button>
                                 </div>
                             </React.Fragment>
