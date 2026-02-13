@@ -417,8 +417,13 @@ export default function AdminDashboard() {
                                         className="w-full pl-11 pr-6 py-3.5 bg-white border border-slate-200 rounded-2xl text-xs font-bold focus:outline-none focus:ring-4 focus:ring-brand-lemon/10 md:min-w-[340px] shadow-sm"
                                     />
                                 </div>
-                                <button onClick={() => setShowAddVendorModal(true)} className="flex items-center justify-center gap-2 px-8 py-3.5 bg-slate-900 text-brand-lemon rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/10 whitespace-nowrap">
-                                    <Plus className="w-4 h-4" /> <span className="md:hidden">Add New Studio</span><span className="hidden md:inline">Onboard a Vendor</span>
+                                <button
+                                    onClick={() => setShowAddVendorModal(true)}
+                                    className="flex items-center justify-center gap-2 px-8 py-3.5 bg-slate-900 text-brand-lemon rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/10 whitespace-nowrap"
+                                >
+                                    <Plus className="w-4 h-4" />
+                                    <span className="md:hidden">Add New Studio</span>
+                                    <span className="hidden md:inline">Onboard a Vendor</span>
                                 </button>
                             </div>
                         </div>

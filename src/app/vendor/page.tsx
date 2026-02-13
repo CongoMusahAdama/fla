@@ -322,6 +322,7 @@ export default function VendorDashboard() {
                     id: savedProduct._id,
                     name: savedProduct.name,
                     price: savedProduct.price.toString(),
+                    quantity: savedProduct.stock,
                     image: savedProduct.images?.[0] || '/product-1.jpg',
                     images: savedProduct.images?.map((img: string) => ({ url: img, label: 'Product' })) || [],
                     status: savedProduct.stock < 10 ? 'Low Stock' : 'In Stock',
