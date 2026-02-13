@@ -581,13 +581,21 @@ function AuthContent() {
                                     <RegisterForm role={role} onSignup={handleSignup} />
                                 )}
 
-                                <div className="space-y-3 pt-4">
+                                <div className="mt-6">
                                     <button
                                         type="button"
                                         onClick={() => setIsLogin(!isLogin)}
-                                        className="w-full py-4 bg-[#D8F800] text-slate-900 rounded-full font-bold text-sm hover:opacity-90 transition-all active:scale-[0.98]"
+                                        className="w-full py-4 text-slate-500 hover:text-slate-900 transition-colors font-bold text-xs uppercase tracking-widest"
                                     >
-                                        {isLogin ? 'Create Account' : 'Sign In'}
+                                        {isLogin ? (
+                                            <>
+                                                New here? <span className="underline decoration-brand-lemon decoration-2 underline-offset-4 text-slate-900">Create Account</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                Already have an account? <span className="underline decoration-brand-lemon decoration-2 underline-offset-4 text-slate-900">Sign In</span>
+                                            </>
+                                        )}
                                     </button>
                                 </div>
                             </React.Fragment>
