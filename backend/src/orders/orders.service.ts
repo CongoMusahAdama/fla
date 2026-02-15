@@ -48,47 +48,6 @@ export class OrdersService {
       const createdOrder = new this.orderModel(orderData);
       const savedOrder = await createdOrder.save();
 
-      // Unity Purchase Logic: Process Batch Updates
-      if (createOrderDto.items && createOrderDto.items.length > 0) {
-        for (const item of createOrderDto.items) {
-          const product = await this.productModel.findById(item.productId);
-
-          if (product && product.batchSize > 0) {
-            // It's a batch product
-            const quantity = item.quantity || 1;
-
-            // Atomically increment batch count
-            const updatedProduct = await this.productModel.findByIdAndUpdate(
-              item.productId,
-              { $inc: { currentBatchCount: quantity } },
-              { new: true }
-            );
-
-            // Check if batch target reached or exceeded
-            if (updatedProduct && updatedProduct.currentBatchCount >= updatedProduct.batchSize && updatedProduct.batchStatus !== 'production') {
-              // Trigger Production Phase
-              await this.productModel.findByIdAndUpdate(item.productId, {
-                batchStatus: 'production',
-                batchEndDate: new Date() // Mark simply as ended/closed for gathering
-              });
-
-              // Only update the order's batch status if it's the one that tipped it over, 
-              // or generally keep order status consistent.
-              // For now, let's update this specific order to reflect it joined a successful batch.
-              savedOrder.batchStatus = 'production';
-            } else {
-              // Still gathering
-              savedOrder.batchStatus = 'gathering';
-            }
-
-            // Assign a logical Batch ID (e.g., BATCH-{ProductID}-{Date})
-            // Ideally this would be a separate Batch model, but for now we use a string ID
-            savedOrder.batchId = `BATCH-${item.productId}-${new Date().toISOString().split('T')[0]}`;
-          }
-        }
-        await savedOrder.save();
-      }
-
       return savedOrder;
     } catch (error) {
       console.error('Error creating order:', error);

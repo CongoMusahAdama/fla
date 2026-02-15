@@ -140,7 +140,7 @@ const RegisterForm = ({ role, onSignup }: { role: UserRole, onSignup: (data: any
 
                 {role === 'vendor' && (
                     <div className="space-y-4 pt-4 border-t border-slate-100 mt-2">
-                        <AuthInput label="Shop Name" type="text" placeholder="Eg. Unity Boutique" required value={shopName} onChange={setShopName} icon={Store} />
+                        <AuthInput label="Shop Name" type="text" placeholder="Eg. FLA Boutique" required value={shopName} onChange={setShopName} icon={Store} />
 
                         {/* Payment Methods */}
                         <div className="space-y-3">
@@ -336,7 +336,7 @@ function AuthContent() {
             icon: 'success',
             iconColor: '#059669',
             title: isLog ? 'WELCOME BACK!' : 'ACCOUNT CREATED',
-            text: isLog ? 'Your fashion journey continues...' : 'Welcome to the world of Unity Purchase.',
+            text: isLog ? 'Your fashion journey continues...' : 'Welcome to the world of FLA Purchase.',
             timer: 2000,
             showConfirmButton: false,
             customClass: {
@@ -532,7 +532,7 @@ function AuthContent() {
                         <div className="w-8 h-8 bg-slate-900 rounded-full flex items-center justify-center">
                             <div className="w-4 h-4 border-2 border-white rotate-45" />
                         </div>
-                        <span className="font-heading font-black text-xl tracking-tighter text-slate-900 uppercase">UNITY</span>
+                        <span className="font-heading font-black text-xl tracking-tighter text-slate-900 uppercase">FLA</span>
                     </Link>
 
                     <div className="flex-1 max-w-sm mx-auto w-full flex flex-col justify-center">
@@ -568,7 +568,7 @@ function AuthContent() {
                                         {isLogin ? 'WELCOME BACK' : (role === 'vendor' ? 'NEW STUDIO' : 'JOIN THE TRIBE')}
                                     </h2>
                                     <p className="text-sm text-slate-500 font-medium tracking-tight">
-                                        {isLogin ? 'Sign in to access your fashion dashboard.' : 'Start your journey with Unity Purchase today.'}
+                                        {isLogin ? 'Sign in to access your fashion dashboard.' : 'Start your journey with FLA Purchase today.'}
                                     </p>
                                 </header>
 
@@ -600,7 +600,7 @@ function AuthContent() {
 
                     <div className="mt-8 flex items-center justify-center md:justify-start gap-2 text-slate-300">
                         <Mail className="w-4 h-4" />
-                        <span className="text-[10px] font-black uppercase tracking-widest">Help@UnityPurchase.com</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest">Help@FlaPurchase.com</span>
                     </div>
                 </div>
 

@@ -10,13 +10,6 @@ export type CartItem = {
     size: string;
     quantity: number;
     vendorId?: string;
-
-    // Batch Fields
-    batchSize?: number;
-    currentBatchCount?: number;
-    wholesalePrice?: number;
-    batchStatus?: string;
-    isBatch?: boolean;
 };
 
 type CartContextType = {

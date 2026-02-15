@@ -745,22 +745,7 @@ export default function AdminDashboard() {
                                         <h3 className="font-black text-slate-900 text-sm uppercase tracking-tighter line-clamp-1">{p.name}</h3>
                                         <p className="text-[10px] font-bold text-slate-400 uppercase mt-1">Vendor: {p.vendorName || 'Independent Artisan'}</p>
 
-                                        {/* Batch Info */}
-                                        {p.batchSize > 0 && (
-                                            <div className="mt-4 pt-4 border-t border-slate-50">
-                                                <div className="flex justify-between text-[10px] font-black uppercase tracking-widest mb-1">
-                                                    <span className="text-slate-400">Batch Progress</span>
-                                                    <span className="text-brand-lemon bg-slate-900 px-1.5 rounded">{p.currentBatchCount || 0}/{p.batchSize}</span>
-                                                </div>
-                                                <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                                    <div className="h-full bg-slate-900 rounded-full" style={{ width: `${((p.currentBatchCount || 0) / p.batchSize) * 100}%` }} />
-                                                </div>
-                                                <div className="flex justify-between mt-2">
-                                                    <span className="text-[9px] font-bold text-slate-400 uppercase">Wholesale: GH₵ {p.wholesalePrice}</span>
-                                                    <span className={`text-[9px] font-black uppercase tracking-widest ${p.batchStatus === 'production' ? 'text-amber-500' : 'text-emerald-500'}`}>{p.batchStatus || 'Gathering'}</span>
-                                                </div>
-                                            </div>
-                                        )}
+
                                     </div>
                                 </div>
                             ))}

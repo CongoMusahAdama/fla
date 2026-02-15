@@ -130,16 +130,16 @@ export default function CartDrawer() {
             // Use default numbers based on selected network
             if (selectedProvider === 'MTN') {
                 momoNumber = '0256774847';
-                accountName = 'Unity Purchase Store';
+                accountName = 'FLA Purchase Store';
             } else if (selectedProvider === 'TELECEL') {
                 momoNumber = '0505112925';
-                accountName = 'Unity Purchase Store';
+                accountName = 'FLA Purchase Store';
             } else if (selectedProvider === 'TIGO') {
                 momoNumber = '0256774847'; // Default
-                accountName = 'Unity Purchase Store';
+                accountName = 'FLA Purchase Store';
             } else {
                 momoNumber = '0256774847';
-                accountName = 'Unity Purchase Store';
+                accountName = 'FLA Purchase Store';
             }
         }
 

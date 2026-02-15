@@ -19,16 +19,12 @@ interface ProductCardProps {
     stock: number;
     index: number;
     vendorId?: string;
-    batchSize?: number;
-    currentBatchCount?: number;
-    wholesalePrice?: number;
-    batchStatus?: string;
     initialWishlistState?: boolean;
 }
 
-export default function ProductCard({ id, name, price, images, sizes = [], imageLabels, duration = '3 working days', stock, index, vendorId, batchSize = 0, currentBatchCount = 0, wholesalePrice, batchStatus, initialWishlistState = false }: ProductCardProps) {
-    const isBatch = batchSize > 0;
-    const currentPrice = isBatch && wholesalePrice ? wholesalePrice : price;
+export default function ProductCard({ id, name, price, images, sizes = [], imageLabels, duration = '3 working days', stock, index, vendorId, initialWishlistState = false }: ProductCardProps) {
+    const isBatch = false;
+    const currentPrice = price;
 
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [selectedSize, setSelectedSize] = useState<string | null>(null);
@@ -103,12 +99,6 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                 size: selectedSize!,
                 quantity: 1,
                 vendorId: vendorId,
-                // Batch Properties
-                batchSize,
-                currentBatchCount,
-                wholesalePrice,
-                batchStatus,
-                isBatch
             });
             setIsAdding(false);
             const Toast = Swal.mixin({
@@ -199,17 +189,7 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                 title: `<span class="text-2xl font-black text-slate-900 uppercase tracking-tighter">${actionLabel}</span>`,
                 html: `
                     <div class="text-left py-4">
-                        ${isBatch ? `
-                            <div class="bg-brand-lemon/20 p-4 rounded-2xl mb-6 border border-brand-lemon/30">
-                                <p class="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">Batch Savings</p>
-                                <div class="flex justify-between items-end">
-                                    <span class="text-slate-900 font-black text-lg">Batch Price: GH₵${currentPrice}</span>
-                                    <span class="text-slate-400 line-through text-xs font-bold">Standard: GH₵${price}</span>
-                                </div>
-                                <p class="text-[10px] text-slate-600 mt-2 font-medium">Join ${batchSize - currentBatchCount} more people to activate production.</p>
-                            </div>
-                        ` : ''}
-                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-8 text-center border-b border-slate-100 pb-4">Checkout as Guest</p>
+                        <p class="text-[10px] font-black uppercase tracking-[0.3em] mb-8 text-center border-b border-slate-100 pb-4">Checkout as Guest</p>
                         <div class="space-y-6">
                             <div class="space-y-2">
                                 <label class="text-[10px] font-black uppercase text-slate-500 ml-1 flex items-center gap-2">
@@ -520,8 +500,7 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                             price: currentPrice,
                             quantity: 1,
                             size: selectedSize,
-                            image: images[0],
-                            batchId: isBatch ? 'pending_assignment' : undefined
+                            image: images[0]
                         }],
                         totalAmount: currentPrice,
                         vendorId: vendorId,
@@ -624,26 +603,6 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                         )}
                     </div>
 
-                    {/* Batch Badge */}
-                    {batchSize > 0 && (
-                        <div className="absolute top-4 right-4 z-20 flex flex-col items-end gap-1">
-                            <div className="bg-slate-900 text-brand-lemon text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-tighter shadow-sm border border-brand-lemon">
-                                Batch Open
-                            </div>
-                            <span className="text-[9px] font-black text-white bg-black/40 backdrop-blur-md px-2 py-0.5 rounded-md">
-                                {currentBatchCount}/{batchSize} Joined
-                            </span>
-                        </div>
-                    )}
-
-                    {/* Wishlist Button (Adjusted position if batch is present) */}
-                    <button
-                        onClick={toggleWishlist}
-                        className={`absolute ${batchSize > 0 ? 'top-16' : 'top-4'} right-4 z-20 w-10 h-10 bg-white/90 backdrop-blur-md rounded-full flex items-center justify-center shadow-lg hover:scale-110 active:scale-90 transition-all group/heart`}
-                    >
-                        <Heart className={`w-5 h-5 transition-colors ${isWishlisted ? 'fill-red-500 text-red-500' : 'text-slate-400 group-hover/heart:text-red-400'}`} />
-                    </button>
-
                     {/* Rating Badge */}
                     <div className="absolute bottom-4 left-4 z-20 bg-white/95 backdrop-blur-sm px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-sm border border-slate-100 group-hover:scale-105 transition-transform">
                         <span className="text-[11px] font-black text-slate-900">4.9</span>
@@ -694,22 +653,6 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                         </div>
                     </div>
 
-                    {/* Batch Progress Bar */}
-                    {batchSize > 0 && (
-                        <div className="mb-4">
-                            <div className="flex justify-between items-center mb-1">
-                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{currentBatchCount} Joined</span>
-                                <span className="text-[9px] font-black text-brand-lemon uppercase tracking-widest">{batchSize - currentBatchCount} Spots Left</span>
-                            </div>
-                            <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                                <div
-                                    className="h-full bg-slate-900 rounded-full transition-all duration-500"
-                                    style={{ width: `${(currentBatchCount / batchSize) * 100}%` }}
-                                />
-                            </div>
-                        </div>
-                    )}
-
                     {/* Size Selection (Quick Access) */}
                     <div className="flex gap-1.5 mb-4 overflow-x-auto pb-1 no-scrollbar" onClick={(e) => e.stopPropagation()}>
                         {(sizes && sizes.length > 0 ? sizes : ['S', 'M', 'L', 'XL']).map(size => (
@@ -739,9 +682,9 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                         </button>
                         <button
                             onClick={handleBuyNow}
-                            className={`flex items-center justify-center py-3.5 px-6 rounded-full ${batchSize > 0 ? 'bg-slate-900 text-white' : 'bg-brand-lemon text-slate-900'} text-[11px] font-bold transition-all active:scale-[0.98] whitespace-nowrap touch-manipulation relative z-50 !cursor-pointer !pointer-events-auto`}
+                            className="flex items-center justify-center py-3.5 px-6 rounded-full bg-brand-lemon text-slate-900 text-[11px] font-bold transition-all active:scale-[0.98] whitespace-nowrap touch-manipulation relative z-50 !cursor-pointer !pointer-events-auto"
                         >
-                            {batchSize > 0 ? 'Join Batch' : 'Quick Checkout'}
+                            Quick Checkout
                         </button>
                     </div>
                 </div>
@@ -907,9 +850,9 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                                 </button>
                                 <button
                                     onClick={handleBuyNow}
-                                    className={`flex-[1.5] py-5 rounded-3xl ${batchSize > 0 ? 'bg-slate-900 text-white border border-slate-800' : 'bg-brand-lemon text-slate-900'} font-black text-[10px] uppercase tracking-[0.2em] shadow-xl hover:scale-[1.02] transition-all active:scale-95`}
+                                    className="flex-[1.5] py-5 rounded-3xl bg-brand-lemon text-slate-900 font-black text-[10px] uppercase tracking-[0.2em] shadow-xl hover:scale-[1.02] transition-all active:scale-95"
                                 >
-                                    {batchSize > 0 ? 'Join Batch' : 'Quick Checkout'}
+                                    Quick Checkout
                                 </button>
                             </div>
                         </div>

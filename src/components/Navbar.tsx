@@ -66,7 +66,7 @@ export default function Navbar() {
                         {/* MOBILE VIEW (Logo Left, Icons Right) */}
                         <div className="flex md:hidden items-center justify-between w-full h-full px-1">
                             <Link href="/" className="flex-shrink-0 font-heading text-base font-black tracking-tighter text-slate-900 uppercase">
-                                UNITY<span className="text-slate-400">.</span>
+                                FLA<span className="text-slate-400">.</span>
                             </Link>
 
                             <div className="flex items-center -mr-1">
@@ -126,7 +126,7 @@ export default function Navbar() {
                                         href="/auth?role=vendor"
                                         className="font-sans text-xs font-black uppercase tracking-widest text-blue-600 hover:text-blue-800 transition-colors"
                                     >
-                                        + Sell on Unity Purchase
+                                        + Sell on FLA Purchase
                                     </Link>
                                 )}
                             </div>
@@ -134,7 +134,7 @@ export default function Navbar() {
                             {/* Centered Logo */}
                             <div className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transition-all duration-300 ${isSearchOpen ? 'opacity-20 lg:opacity-100' : 'opacity-100'}`}>
                                 <Link href="/" className="font-heading text-3xl font-black tracking-[0.2em] text-slate-900 uppercase">
-                                    UNITY.
+                                    FLA.
                                 </Link>
                             </div>
 
@@ -229,7 +229,7 @@ export default function Navbar() {
                                         onClick={() => setIsMenuOpen(false)}
                                         className="block w-full py-4 px-6 bg-blue-600 text-white text-center rounded-full font-bold text-xs mb-4"
                                     >
-                                        Sell on Unity Purchase
+                                        Sell on FLA Purchase
                                     </Link>
                                 )}
                                 <button

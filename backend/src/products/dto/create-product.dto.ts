@@ -57,19 +57,5 @@ export class CreateProductDto {
     @IsOptional()
     isFeatured?: boolean;
 
-    @IsNumber()
-    @IsOptional()
-    batchSize?: number;
-
-    @IsNumber()
-    @IsOptional()
-    currentBatchCount?: number;
-
-    @IsNumber()
-    @IsOptional()
-    wholesalePrice?: number;
-
-    @IsString()
-    @IsOptional()
-    batchStatus?: string;
 }
+

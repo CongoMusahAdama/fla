@@ -768,10 +768,6 @@ export default function CustomerDashboard() {
                                         stock={item.productId?.stock || 0}
                                         vendorId={item.productId?.vendorId}
                                         index={i}
-                                        batchSize={item.productId?.batchSize}
-                                        currentBatchCount={item.productId?.currentBatchCount}
-                                        wholesalePrice={item.productId?.wholesalePrice}
-                                        batchStatus={item.productId?.batchStatus}
                                         duration={item.productId?.duration}
                                         imageLabels={item.productId?.imageLabels}
                                         initialWishlistState={true}

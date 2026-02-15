@@ -121,10 +121,6 @@ export default function Home() {
                     stock={product.stock}
                     vendorId={product.vendorId}
                     index={index}
-                    batchSize={product.batchSize}
-                    currentBatchCount={product.currentBatchCount}
-                    wholesalePrice={product.wholesalePrice}
-                    batchStatus={product.batchStatus}
                   />
                 ))
               ) : (

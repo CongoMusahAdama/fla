@@ -36,10 +36,6 @@ interface Product {
     fabrication: string;
     sizes?: string[];
     isActive?: boolean;
-    batchSize?: number;
-    wholesalePrice?: number;
-    currentBatchCount?: number;
-    batchStatus?: string;
 }
 
 export default function VendorDashboard() {
@@ -162,8 +158,6 @@ export default function VendorDashboard() {
     const [formNarrative, setFormNarrative] = useState('');
     const [formImages, setFormImages] = useState<{ url: string, label: string }[]>([]);
     const [formSizes, setFormSizes] = useState<string[]>([]);
-    const [formBatchSize, setFormBatchSize] = useState('');
-    const [formWholesalePrice, setFormWholesalePrice] = useState('');
 
 
 
@@ -262,8 +256,6 @@ export default function VendorDashboard() {
         setFormNarrative('');
         setFormImages([]);
         setFormSizes([]);
-        setFormBatchSize('');
-        setFormWholesalePrice('');
         setEditingProduct(null);
     };
 
@@ -294,8 +286,6 @@ export default function VendorDashboard() {
                     images: formImages.map(img => img.url),
                     imageLabels: formImages.map(img => img.label),
                     sizes: formSizes,
-                    batchSize: parseInt(formBatchSize) || 10, // Default to 10 if not set
-                    wholesalePrice: parseFloat(formWholesalePrice) || parseFloat(formPrice), // Default to regular price
                     vendorId: user?.id,
                     vendorName: user?.shopName
                 })
@@ -312,8 +302,6 @@ export default function VendorDashboard() {
                     price: savedProduct.price.toString(),
                     quantity: savedProduct.stock,
                     sizes: savedProduct.sizes,
-                    batchSize: savedProduct.batchSize,
-                    wholesalePrice: savedProduct.wholesalePrice,
                     status: savedProduct.stock < 10 ? 'Low Stock' : 'In Stock',
                 } : p));
                 Swal.fire({ icon: 'success', title: 'Updated!', text: 'Your design has been refined.' });
@@ -329,9 +317,7 @@ export default function VendorDashboard() {
                     sales: 0,
                     tailoringTime: '3 Days',
                     fabrication: 'Cotton',
-                    sizes: savedProduct.sizes,
-                    batchSize: savedProduct.batchSize,
-                    wholesalePrice: savedProduct.wholesalePrice
+                    sizes: savedProduct.sizes
                 };
                 setVendorProducts(prev => [newProd, ...prev]);
                 Swal.fire({ icon: 'success', title: 'Published!', text: 'Your new design is now live.' });
@@ -417,8 +403,6 @@ export default function VendorDashboard() {
         setFormFabric(product.fabrication || '');
         setFormImages(product.images || [{ url: product.image, label: 'Front' }]);
         setFormSizes(product.sizes || []);
-        setFormBatchSize(product.batchSize?.toString() || '');
-        setFormWholesalePrice(product.wholesalePrice?.toString() || '');
         setShowAddProduct(true);
     };
 
@@ -1363,16 +1347,7 @@ export default function VendorDashboard() {
                                                 <input type="text" value={formTailoring} onChange={(e) => setFormTailoring(e.target.value)} placeholder="e.g. 3 Days" className="w-full px-5 py-3.5 bg-slate-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20" />
                                             </div>
                                         </div>
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div className="space-y-1.5">
-                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Batch Size (Target)</label>
-                                                <input type="number" value={formBatchSize} onChange={(e) => setFormBatchSize(e.target.value)} placeholder="10" className="w-full px-5 py-3.5 bg-slate-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20" />
-                                            </div>
-                                            <div className="space-y-1.5">
-                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Wholesale Price (Batch Offer)</label>
-                                                <input type="number" value={formWholesalePrice} onChange={(e) => setFormWholesalePrice(e.target.value)} placeholder="650" className="w-full px-5 py-3.5 bg-slate-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20" />
-                                            </div>
-                                        </div>
+
                                         <div className="space-y-1.5">
                                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Fabrication</label>
                                             <input type="text" value={formFabric} onChange={(e) => setFormFabric(e.target.value)} placeholder="e.g. 100% Cotton Print" className="w-full px-5 py-3.5 bg-slate-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20" />
