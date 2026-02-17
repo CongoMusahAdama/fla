@@ -31,4 +31,9 @@ export class UsersController {
   remove(@Param('id') id: string) {
     return this.usersService.remove(id);
   }
+
+  @Get('vendor/:id/profile')
+  getVendorProfile(@Param('id') id: string) {
+    return this.usersService.getPublicVendorProfile(id);
+  }
 }

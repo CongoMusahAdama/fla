@@ -64,7 +64,7 @@ export class User {
     @Prop({ default: 'active' })
     status: string;
 
-    @Prop({ default: Date.now })
+    @Prop({ default: Date.now, index: true })
     createdAt: Date;
 }
 

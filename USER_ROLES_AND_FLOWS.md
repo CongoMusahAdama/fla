@@ -116,3 +116,59 @@ FLA Purchase is a specialized marketplace where customers can buy high-quality f
 | **Payment Confirmed** | "Order Confirmed" | "Paid - Preparing Order" | "Revenue Locked in Escrow" |
 | **Production** | **"IN PRODUCTION"** | "Production Started" | "Monitor Cycle" |
 | **Delivery** | "Order Completed" | "Order Delivered" | "Process Final Payout" |
+
+---
+
+## 6. Payment Verification Flow
+
+### 6.1 Customer Action (The Trigger)
+1.  **Initiation**: Customer selects "Buy Now" or "Checkout".
+2.  **Authentication**: **Mandatory Sign-In/Registration**. Guest checkout is disabled to ensure order tracking.
+3.  **Payment**:
+    *   Customer selects Mobile Money provider (MTN, Vodafone, AirtelTigo).
+    *   Transfers funds to the Vendor's displayed number.
+4.  **Proof Submission**:
+    *   Customer uploads a screenshot of the payment confirmation.
+    *   System records the **`paymentSubmittedAt`** timestamp.
+5.  **Redirect**: Customer is automatically redirected to the Dashboard to track status.
+
+### 6.2 Vendor Verification (The 30-Minute Priority)
+1.  **Notification**: Vendor receives a "New Order" alert with a **Countdown Timer**.
+2.  **The 30-Minute Window**:
+    *   **Green (20-30m)**: Standard response time.
+    *   **Orange (10-20m)**: Warning phase.
+    *   **Red (0-10m)**: Urgent/Overdue status.
+3.  **Verification Steps**:
+    *   **View Proof**: Vendor clicks to see the uploaded screenshot.
+    *   **Check Balance**: Vendor confirms receipt in their own Mobile Money wallet.
+    *   **Confirm**: Vendor clicks "Confirm Payment".
+4.  **Result**:
+    *   Order status updates to **"Confirmed"** / **"In Production"**.
+    *   Customer receives a "Payment Verified" notification.
+
+### 6.3 Admin Oversight (The Safety Net)
+1.  **Monitoring**: Admin dashboard displays a live "Vendor Verification" column.
+    *   **Verified**: Green badge with timestamp.
+    *   **Awaiting**: Orange badge with submission time.
+    *   **No Proof**: Gray indicator.
+2.  **Intervention**: Admin can manually verify payments or contact vendors who consistently miss the 30-minute window.
+
+### 6.4 Visual Process Flow
+
+#### Customer Journey
+```
+Browse → Sign In → Pay (MoMo) → Upload Screenshot → Dashboard (Pending) → "Payment Verified"
+```
+
+#### Vendor Journey
+```
+Notification → Login → Check Timer → View Proof → Check Wallet → Confirm Payment
+```
+
+#### System Timeline Example
+```
+2:00 PM  Customer uploads screenshot (Timer Starts)
+2:01 PM  Vendor sees notification (29m remaining)
+2:10 PM  Vendor checks wallet & confirms (20m remaining)
+2:10 PM  Order Status: "Confirmed" / Production Begins
+```

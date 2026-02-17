@@ -69,7 +69,7 @@ export class Order {
     @Prop()
     shippingRegion: string;
 
-    @Prop({ type: String, enum: ['momo', 'card', 'cash'], default: 'momo' })
+    @Prop({ type: String, default: 'momo' })
     paymentMethod: string;
 
     @Prop({ default: false })
@@ -80,6 +80,15 @@ export class Order {
 
     @Prop()
     paymentProof?: string;
+
+    @Prop()
+    paymentSubmittedAt?: Date;
+
+    @Prop({ default: false })
+    paymentVerifiedByVendor: boolean;
+
+    @Prop()
+    paymentVerifiedAt?: Date;
 
     @Prop()
     deliveredAt?: Date;
@@ -99,3 +108,10 @@ export class Order {
 }
 
 export const OrderSchema = SchemaFactory.createForClass(Order);
+
+// Indexes
+OrderSchema.index({ customerId: 1 });
+OrderSchema.index({ vendorId: 1 });
+OrderSchema.index({ status: 1 });
+OrderSchema.index({ createdAt: -1 });
+OrderSchema.index({ paymentVerifiedByVendor: 1 });

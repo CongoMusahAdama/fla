@@ -1,14 +1,18 @@
-import { Injectable, ConflictException, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, ConflictException, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User, UserDocument } from './schemas/user.schema';
 import * as bcrypt from 'bcrypt';
+import { OrdersService } from '../orders/orders.service';
 
 @Injectable()
 export class UsersService {
-  constructor(@InjectModel(User.name) private userModel: Model<UserDocument>) { }
+  constructor(
+    @InjectModel(User.name) private userModel: Model<UserDocument>,
+    private ordersService: OrdersService
+  ) { }
 
   async create(createUserDto: CreateUserDto): Promise<User> {
     try {
@@ -45,5 +49,17 @@ export class UsersService {
 
   async remove(id: string): Promise<User | null> {
     return this.userModel.findByIdAndDelete(id).exec();
+  }
+
+  async getPublicVendorProfile(vendorId: string) {
+    const user = await this.userModel.findById(vendorId).select('-password -email -phone -paymentMethods -withdrawalHistory').exec();
+    if (!user) {
+      throw new NotFoundException('Vendor not found');
+    }
+    const stats = await this.ordersService.getVendorStats(vendorId);
+    return {
+      vendor: user,
+      stats
+    };
   }
 }

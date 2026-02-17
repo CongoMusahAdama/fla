@@ -50,4 +50,20 @@ export class OrdersController {
   remove(@Param('id') id: string) {
     return this.ordersService.remove(id);
   }
+
+  @Post(':id/verify-payment')
+  verifyPayment(@Param('id') id: string, @Request() req) {
+    // Only vendors can verify their own orders
+    if (req.user.role !== 'vendor' && req.user.role !== 'admin') {
+      throw new Error('Only vendors can verify payments');
+    }
+    return this.ordersService.verifyPayment(id, req.user.userId);
+  }
+
+  @Get('pending-verifications/list')
+  getPendingVerifications(@Request() req) {
+    // Vendors see their own, admins see all
+    const vendorId = req.user.role === 'vendor' ? req.user.userId : undefined;
+    return this.ordersService.getPendingPaymentVerifications(vendorId);
+  }
 }

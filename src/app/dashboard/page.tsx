@@ -68,6 +68,7 @@ export default function CustomerDashboard() {
     const [dashboardData, setDashboardData] = useState<any>(null);
     const [orders, setOrders] = useState<any[]>([]);
     const [notifications, setNotifications] = useState<any[]>([]);
+    const [disputes, setDisputes] = useState<any[]>([]);
     const [wishlist, setWishlist] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [isUpdating, setIsUpdating] = useState(false);
@@ -80,33 +81,37 @@ export default function CustomerDashboard() {
     const [profileAddress, setProfileAddress] = useState('');
     const [profileImage, setProfileImage] = useState<string | null>(null);
 
+    const fetchDashboardData = React.useCallback(async () => {
+        if (!user) return;
+
+        try {
+            const token = localStorage.getItem('fla_token');
+            const headers = {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            };
+
+            const [statsRes, ordersRes, wishlistRes, notificationsRes, disputeRes] = await Promise.all([
+                fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/dashboard/customer/stats`, { headers }),
+                fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders/my-orders`, { headers }),
+                fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/wishlist/my-wishlist`, { headers }),
+                fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/notifications/my-notifications`, { headers }),
+                fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/support/my-disputes`, { headers })
+            ]);
+
+            if (statsRes.ok) setDashboardData(await statsRes.json());
+            if (ordersRes.ok) setOrders(await ordersRes.json());
+            if (wishlistRes.ok) setWishlist(await wishlistRes.json());
+            if (notificationsRes.ok) setNotifications(await notificationsRes.json());
+            if (disputeRes.ok) setDisputes(await disputeRes.json());
+        } catch (error) {
+            console.error('Error fetching dashboard data:', error);
+        } finally {
+            setLoading(false);
+        }
+    }, [user]);
+
     useEffect(() => {
-        const fetchDashboardData = async () => {
-            try {
-                const token = localStorage.getItem('fla_token');
-                const headers = {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                };
-
-                const [statsRes, ordersRes, wishlistRes, notificationsRes] = await Promise.all([
-                    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/dashboard/customer/stats`, { headers }),
-                    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders/my-orders`, { headers }),
-                    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/wishlist/my-wishlist`, { headers }),
-                    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/notifications/my-notifications`, { headers })
-                ]);
-
-                if (statsRes.ok) setDashboardData(await statsRes.json());
-                if (ordersRes.ok) setOrders(await ordersRes.json());
-                if (wishlistRes.ok) setWishlist(await wishlistRes.json());
-                if (notificationsRes.ok) setNotifications(await notificationsRes.json());
-            } catch (error) {
-                console.error('Error fetching dashboard data:', error);
-            } finally {
-                setLoading(false);
-            }
-        };
-
         if (user) {
             fetchDashboardData();
             // Sync profile states
@@ -117,7 +122,16 @@ export default function CustomerDashboard() {
             setProfileAddress(user.address || '');
             setProfileImage(user.profileImage || null);
         }
-    }, [user]);
+    }, [user, fetchDashboardData]);
+
+    const filteredOrders = React.useMemo(() => {
+        return orders.filter(order => {
+            if (orderFilter === 'All') return true;
+            if (orderFilter === 'Active') return !['delivered', 'cancelled'].includes(order.status);
+            if (orderFilter === 'Completed') return order.status === 'delivered';
+            return true;
+        });
+    }, [orders, orderFilter]);
 
     const getImageUrl = (url: string) => {
         if (!url || url === '/product-1.jpg') return '/product-1.jpg';
@@ -507,65 +521,66 @@ export default function CustomerDashboard() {
                         <div className="bg-white rounded-[40px] border border-slate-100 shadow-sm overflow-hidden">
                             {/* Mobile Card View */}
                             <div className="md:hidden">
-                                {orders
-                                    .filter(order => {
-                                        if (orderFilter === 'All') return true;
-                                        if (orderFilter === 'Active') return !['delivered', 'cancelled'].includes(order.status);
-                                        if (orderFilter === 'Completed') return order.status === 'delivered';
-                                        return true;
-                                    })
-                                    .map((order) => (
-                                        <div key={order._id} className="p-5 border-b border-slate-50 last:border-none">
-                                            <div className="flex gap-4 mb-4">
-                                                <div className="relative w-20 h-24 bg-slate-50 rounded-2xl overflow-hidden flex-shrink-0 border border-slate-100">
-                                                    <Image
-                                                        src={getImageUrl(order.items[0]?.image || '/product-1.jpg')}
-                                                        alt="p"
-                                                        fill
-                                                        className="object-cover"
-                                                        unoptimized
-                                                    />
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="flex justify-between items-start mb-1">
-                                                        <p className="text-[10px] font-black text-slate-400 uppercase">#ORD-{order._id.slice(-6).toUpperCase()}</p>
-                                                        <span className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${['delivered', 'cancelled'].includes(order.status) ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'
-                                                            }`}>
-                                                            {order.status}
-                                                        </span>
-                                                    </div>
-                                                    <h3 className="font-bold text-slate-900 text-sm mb-1 line-clamp-2">{order.items[0]?.name || 'Multiple Items'}</h3>
-                                                    <p className="text-xs text-slate-500 font-medium">{order.vendorName || 'FLA Vendor'}</p>
-                                                    <p className="font-sans font-black text-slate-900 mt-2">GH₵ {order.totalAmount}</p>
-                                                </div>
+                                {filteredOrders.map((order) => (
+                                    <div key={order._id} className="p-5 border-b border-slate-50 last:border-none">
+                                        <div className="flex gap-4 mb-4">
+                                            <div className="relative w-20 h-24 bg-slate-50 rounded-2xl overflow-hidden flex-shrink-0 border border-slate-100">
+                                                <Image
+                                                    src={getImageUrl(order.items[0]?.image || '/product-1.jpg')}
+                                                    alt="p"
+                                                    fill
+                                                    className="object-cover"
+                                                />
                                             </div>
-                                            <div className="grid grid-cols-2 gap-3">
-                                                <button
-                                                    onClick={() => setTrackingOrder(order)}
-                                                    className="py-3 bg-slate-900 text-white rounded-full text-[10px] font-bold uppercase tracking-widest hover:bg-slate-800 transition-all active:scale-95 text-center"
-                                                >
-                                                    Track Order
-                                                </button>
-                                                <div className="flex gap-3">
-                                                    {order.status === 'delivered' && (
-                                                        <button
-                                                            onClick={() => setRatingOrder({ id: order._id, name: order.items[0]?.name })}
-                                                            className="flex-1 py-3 bg-brand-lemon text-slate-900 rounded-full text-[10px] font-bold uppercase tracking-widest hover:shadow-lg transition-all text-center"
-                                                        >
-                                                            Rate
-                                                        </button>
-                                                    )}
-                                                    <button
-                                                        onClick={() => handleSendOrderToWhatsApp(order)}
-                                                        className="flex-1 py-3 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-full flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-all shadow-sm group"
-                                                        title="Send Order to WhatsApp"
-                                                    >
-                                                        <WhatsAppIcon className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                                                    </button>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex justify-between items-start mb-1">
+                                                    <p className="text-[10px] font-black text-slate-400 uppercase">#ORD-{order._id.slice(-6).toUpperCase()}</p>
+                                                    <span className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${['delivered', 'cancelled'].includes(order.status) ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'
+                                                        }`}>
+                                                        {order.status}
+                                                    </span>
                                                 </div>
+                                                <h3 className="font-bold text-slate-900 text-sm mb-1 line-clamp-2">{order.items[0]?.name || 'Multiple Items'}</h3>
+                                                <p className="text-xs text-slate-500 font-medium">{order.vendorName || 'FLA Vendor'}</p>
+                                                <p className="font-sans font-black text-slate-900 mt-2">GH₵ {order.totalAmount}</p>
                                             </div>
                                         </div>
-                                    ))}
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <button
+                                                onClick={() => setTrackingOrder(order)}
+                                                className="py-3 bg-slate-900 text-white rounded-full text-[10px] font-bold uppercase tracking-widest hover:bg-slate-800 transition-all active:scale-95 text-center"
+                                            >
+                                                Track Order
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    setDisputeOrderId(order._id);
+                                                    setShowDisputeForm(true);
+                                                }}
+                                                className="py-3 bg-red-50 text-red-500 border border-red-100 rounded-full text-[10px] font-bold uppercase tracking-widest hover:bg-red-100 transition-all active:scale-95 text-center"
+                                            >
+                                                Report
+                                            </button>
+                                            <div className="flex gap-3">
+                                                {order.status === 'delivered' && (
+                                                    <button
+                                                        onClick={() => setRatingOrder({ id: order._id, name: order.items[0]?.name })}
+                                                        className="flex-1 py-3 bg-brand-lemon text-slate-900 rounded-full text-[10px] font-bold uppercase tracking-widest hover:shadow-lg transition-all text-center"
+                                                    >
+                                                        Rate
+                                                    </button>
+                                                )}
+                                                <button
+                                                    onClick={() => handleSendOrderToWhatsApp(order)}
+                                                    className="flex-1 py-3 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-full flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-all shadow-sm group"
+                                                    title="Send Order to WhatsApp"
+                                                >
+                                                    <WhatsAppIcon className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
                                 {orders.length === 0 && (
                                     <div className="p-10 text-center text-slate-400 font-bold text-sm">No orders found.</div>
                                 )}
@@ -584,65 +599,67 @@ export default function CustomerDashboard() {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-50">
-                                        {orders
-                                            .filter(order => {
-                                                if (orderFilter === 'All') return true;
-                                                if (orderFilter === 'Active') return !['delivered', 'cancelled'].includes(order.status);
-                                                if (orderFilter === 'Completed') return order.status === 'delivered';
-                                                return true;
-                                            })
-                                            .map((order) => (
-                                                <tr key={order._id} className="group hover:bg-slate-50/50 transition-colors">
-                                                    <td className="px-8 py-6">
-                                                        <div className="flex items-center gap-4">
-                                                            <div className="relative w-12 h-14 bg-slate-50 rounded-lg overflow-hidden flex-shrink-0">
-                                                                <Image
-                                                                    src={getImageUrl(order.items[0]?.image || '/product-1.jpg')}
-                                                                    alt="p"
-                                                                    fill
-                                                                    className="object-cover"
-                                                                    unoptimized
-                                                                />
-                                                            </div>
-                                                            <div>
-                                                                <p className="text-[9px] font-bold text-slate-400 uppercase mb-0.5">#ORD-{order._id.slice(-6).toUpperCase()}</p>
-                                                                <p className="font-bold text-slate-900 text-sm">{order.items[0]?.name || 'Multiple Items'}</p>
-                                                            </div>
+                                        {filteredOrders.map((order) => (
+                                            <tr key={order._id} className="group hover:bg-slate-50/50 transition-colors">
+                                                <td className="px-8 py-6">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="relative w-12 h-14 bg-slate-50 rounded-lg overflow-hidden flex-shrink-0">
+                                                            <Image
+                                                                src={getImageUrl(order.items[0]?.image || '/product-1.jpg')}
+                                                                alt="p"
+                                                                fill
+                                                                className="object-cover"
+                                                                unoptimized
+                                                            />
                                                         </div>
-                                                    </td>
-                                                    <td className="px-8 py-6">
-                                                        <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${['delivered', 'cancelled'].includes(order.status) ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'
-                                                            }`}>
-                                                            {order.status}
-                                                        </span>
-                                                    </td>
-                                                    <td className="px-8 py-6 text-sm text-slate-600 font-bold">{order.vendorName || 'FLA Vendor'}</td>
-                                                    <td className="px-8 py-6 font-sans font-black text-slate-900">GH₵ {order.totalAmount}</td>
-                                                    <td className="px-8 py-6 text-right flex items-center justify-end gap-2">
-                                                        {order.status === 'delivered' && (
-                                                            <button
-                                                                onClick={() => setRatingOrder({ id: order._id, name: order.items[0]?.name })}
-                                                                className="px-6 py-2 bg-brand-lemon text-slate-900 rounded-full text-[9px] font-bold uppercase tracking-widest hover:shadow-lg transition-all"
-                                                            >
-                                                                Rate Design
-                                                            </button>
-                                                        )}
+                                                        <div>
+                                                            <p className="text-[9px] font-bold text-slate-400 uppercase mb-0.5">#ORD-{order._id.slice(-6).toUpperCase()}</p>
+                                                            <p className="font-bold text-slate-900 text-sm">{order.items[0]?.name || 'Multiple Items'}</p>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="px-8 py-6">
+                                                    <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${['delivered', 'cancelled'].includes(order.status) ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'
+                                                        }`}>
+                                                        {order.status}
+                                                    </span>
+                                                </td>
+                                                <td className="px-8 py-6 text-sm text-slate-600 font-bold">{order.vendorName || 'FLA Vendor'}</td>
+                                                <td className="px-8 py-6 font-sans font-black text-slate-900">GH₵ {order.totalAmount}</td>
+                                                <td className="px-8 py-6 text-right flex items-center justify-end gap-2">
+                                                    {order.status === 'delivered' && (
                                                         <button
-                                                            onClick={() => setTrackingOrder(order)}
-                                                            className="px-6 py-2 bg-slate-900 text-white rounded-full text-[9px] font-bold uppercase tracking-widest hover:bg-slate-800 transition-all hover:scale-105 active:scale-95 whitespace-nowrap"
+                                                            onClick={() => setRatingOrder({ id: order._id, name: order.items[0]?.name })}
+                                                            className="px-6 py-2 bg-brand-lemon text-slate-900 rounded-full text-[9px] font-bold uppercase tracking-widest hover:shadow-lg transition-all"
                                                         >
-                                                            Track
+                                                            Rate Design
                                                         </button>
-                                                        <button
-                                                            onClick={() => handleSendOrderToWhatsApp(order)}
-                                                            className="h-9 w-9 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-all shadow-md group"
-                                                            title="Send Order to WhatsApp"
-                                                        >
-                                                            <WhatsAppIcon className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                                                        </button>
-                                                    </td>
-                                                </tr>
-                                            ))}
+                                                    )}
+                                                    <button
+                                                        onClick={() => setTrackingOrder(order)}
+                                                        className="px-6 py-2 bg-slate-900 text-white rounded-full text-[9px] font-bold uppercase tracking-widest hover:bg-slate-800 transition-all hover:scale-105 active:scale-95 whitespace-nowrap"
+                                                    >
+                                                        Track
+                                                    </button>
+                                                    <button
+                                                        onClick={() => {
+                                                            setDisputeOrderId(order._id);
+                                                            setShowDisputeForm(true);
+                                                        }}
+                                                        className="px-6 py-2 bg-slate-50 text-red-500 border border-slate-100 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-red-50 hover:border-red-100 transition-all hover:scale-105 active:scale-95 whitespace-nowrap"
+                                                    >
+                                                        Report Issue
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleSendOrderToWhatsApp(order)}
+                                                        className="h-9 w-9 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-all shadow-md group"
+                                                        title="Send Order to WhatsApp"
+                                                    >
+                                                        <WhatsAppIcon className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))}
                                     </tbody>
                                 </table>
                             </div>
@@ -771,6 +788,10 @@ export default function CustomerDashboard() {
                                         duration={item.productId?.duration}
                                         imageLabels={item.productId?.imageLabels}
                                         initialWishlistState={true}
+                                        description={item.productId?.description}
+                                        rating={item.productId?.rating}
+                                        reviewCount={item.productId?.reviewCount}
+                                        vendorName={item.productId?.vendorName}
                                     />
                                 ))
                             ) : (
@@ -838,6 +859,45 @@ export default function CustomerDashboard() {
                                     <ChevronRight className="w-5 h-5 text-slate-200 ml-auto" />
                                 </button>
                             ))}
+                        </div>
+
+                        {/* Recent Disputes List */}
+                        <div className="mt-8">
+                            <h2 className="text-xl font-black text-slate-900 uppercase tracking-tighter mb-6">Recent Disputes</h2>
+                            {disputes.length > 0 ? (
+                                <div className="bg-white rounded-[32px] border border-slate-100 shadow-sm overflow-hidden">
+                                    {disputes.map((dispute) => (
+                                        <div key={dispute._id} className="p-6 border-b border-slate-50 last:border-none flex flex-col md:flex-row gap-4 justify-between items-start md:items-center hover:bg-slate-50/50 transition-colors">
+                                            <div>
+                                                <div className="flex items-center gap-3 mb-2">
+                                                    <span className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${dispute.status === 'resolved' ? 'bg-emerald-50 text-emerald-600' :
+                                                        dispute.status === 'closed' ? 'bg-slate-100 text-slate-500' :
+                                                            'bg-yellow-50 text-yellow-600'
+                                                        }`}>
+                                                        {dispute.status}
+                                                    </span>
+                                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                                        Opened {new Date(dispute.createdAt).toLocaleDateString()}
+                                                    </span>
+                                                </div>
+                                                <h3 className="font-bold text-slate-900 text-sm">{dispute.category}</h3>
+                                                <p className="text-xs text-slate-500 mt-1 line-clamp-1">
+                                                    <span className="font-bold text-slate-400">Order #{dispute.orderId.slice(-6).toUpperCase()}</span> — {dispute.description}
+                                                </p>
+                                            </div>
+                                            <button className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-900 transition-colors bg-white border border-slate-100 px-4 py-2 rounded-full hover:border-slate-300">
+                                                View Details
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="text-center py-12 px-6 bg-white rounded-[32px] border border-slate-100 border-dashed">
+                                    <ShieldAlert className="w-10 h-10 text-slate-200 mx-auto mb-4" />
+                                    <p className="text-xs font-black text-slate-400 uppercase tracking-widest">No Active Disputes</p>
+                                    <p className="text-xs text-slate-300 mt-1">If you have issues with an order, report it above.</p>
+                                </div>
+                            )}
                         </div>
                     </div>
                 );

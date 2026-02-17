@@ -243,6 +243,10 @@ function ShopContent() {
                                     stock={product.stock}
                                     vendorId={product.vendorId}
                                     index={index}
+                                    description={product.description}
+                                    rating={product.rating}
+                                    reviewCount={product.reviewCount}
+                                    vendorName={product.vendorName}
                                 />
                             ))}
                         </div>

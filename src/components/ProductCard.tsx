@@ -20,9 +20,13 @@ interface ProductCardProps {
     index: number;
     vendorId?: string;
     initialWishlistState?: boolean;
+    description?: string;
+    rating?: number;
+    reviewCount?: number;
+    vendorName?: string;
 }
 
-export default function ProductCard({ id, name, price, images, sizes = [], imageLabels, duration = '3 working days', stock, index, vendorId, initialWishlistState = false }: ProductCardProps) {
+export default function ProductCard({ id, name, price, images, sizes = [], imageLabels, duration = '3 working days', stock, index, vendorId, initialWishlistState = false, description, rating = 0, reviewCount = 0, vendorName }: ProductCardProps) {
     const isBatch = false;
     const currentPrice = price;
 
@@ -36,6 +40,62 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
     const [isWishlisted, setIsWishlisted] = useState(initialWishlistState);
     const [imgError, setImgError] = useState(false);
     const router = useRouter();
+
+    const handleVendorProfile = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!vendorId) return;
+
+        try {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/users/vendor/${vendorId}/profile`);
+            if (!response.ok) throw new Error('Failed to fetch vendor profile');
+            const data = await response.json();
+            const { vendor, stats } = data;
+
+            Swal.fire({
+                title: `<span class="text-2xl font-black text-slate-900 uppercase tracking-tighter">${vendor.name}</span>`,
+                html: `
+                    <div class="flex flex-col items-center gap-4 py-4">
+                        <div class="w-24 h-24 rounded-full bg-slate-100 overflow-hidden border-4 border-slate-50 shadow-lg">
+                            ${vendor.profileImage ? `<img src="${vendor.profileImage}" class="w-full h-full object-cover">` : `<div class="w-full h-full flex items-center justify-center text-slate-300"><svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></div>`}
+                        </div>
+                        <div class="text-center">
+                            <p class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">${vendor.location || 'Location Hidden'}</p>
+                            <p class="text-sm text-slate-600 italic px-4">"${vendor.bio || 'No bio available yet.'}"</p>
+                        </div>
+                        <div class="grid grid-cols-3 gap-2 w-full mt-4">
+                            <div class="bg-slate-50 p-2 rounded-xl text-center">
+                                <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Orders</p>
+                                <p class="text-lg font-black text-slate-900">${stats.total}</p>
+                            </div>
+                            <div class="bg-emerald-50 p-2 rounded-xl text-center">
+                                <p class="text-[9px] font-black text-emerald-400 uppercase tracking-widest">Success</p>
+                                <p class="text-lg font-black text-emerald-600">${stats.completed}</p>
+                            </div>
+                            <div class="bg-red-50 p-2 rounded-xl text-center">
+                                <p class="text-[9px] font-black text-red-400 uppercase tracking-widest">Failed</p>
+                                <p class="text-lg font-black text-red-600">${stats.cancelled}</p>
+                            </div>
+                        </div>
+                    </div>
+                `,
+                showCloseButton: true,
+                showConfirmButton: false,
+                customClass: {
+                    popup: 'rounded-[40px] px-4 py-6 w-full max-w-sm',
+                }
+            });
+        } catch (error) {
+            console.error(error);
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'error',
+                title: 'Could not load vendor profile',
+                showConfirmButton: false,
+                timer: 3000
+            });
+        }
+    };
 
     useEffect(() => {
         setImgError(false);
@@ -117,7 +177,7 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                 icon: 'success',
                 title: 'Added to cart'
             })
-        }, 500);
+        }, 100);
     };
 
     const toggleWishlist = async (e: React.MouseEvent) => {
@@ -182,62 +242,28 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
             return;
         }
 
-        // Guest check
-        let guestInfo = null;
+        // Enforce Authentication - No Guest Checkout
         if (!isAuthenticated) {
-            const { value: formValues } = await Swal.fire({
-                title: `<span class="text-2xl font-black text-slate-900 uppercase tracking-tighter">${actionLabel}</span>`,
-                html: `
-                    <div class="text-left py-4">
-                        <p class="text-[10px] font-black uppercase tracking-[0.3em] mb-8 text-center border-b border-slate-100 pb-4">Checkout as Guest</p>
-                        <div class="space-y-6">
-                            <div class="space-y-2">
-                                <label class="text-[10px] font-black uppercase text-slate-500 ml-1 flex items-center gap-2">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-                                    Full Name
-                                </label>
-                                <input id="guest-name" class="swal2-input !m-0 w-full !rounded-2xl !border-slate-100 !bg-slate-50 !px-4 !h-14 !text-sm focus:!ring-slate-900 focus:!border-slate-900" placeholder="Musah Adama">
-                            </div>
-                            <div class="space-y-2">
-                                <label class="text-[10px] font-black uppercase text-slate-500 ml-1 flex items-center gap-2">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l2.19-1.28a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
-                                    Phone Number
-                                </label>
-                                <input id="guest-phone" class="swal2-input !m-0 w-full !rounded-2xl !border-slate-100 !bg-slate-50 !px-4 !h-14 !text-sm focus:!ring-slate-900 focus:!border-slate-900" placeholder="024 000 0000">
-                            </div>
-                            <div class="space-y-2">
-                                <label class="text-[10px] font-black uppercase text-slate-500 ml-1 flex items-center gap-2">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
-                                    Delivery Address
-                                </label>
-                                <textarea id="guest-address" class="swal2-textarea !m-0 w-full !rounded-2xl !border-slate-100 !bg-slate-50 !px-4 !h-32 !text-sm focus:!ring-slate-900 focus:!border-slate-900" placeholder="e.g. Near Post Office, First floor..."></textarea>
-                            </div>
-                        </div>
-                    </div>
-                `,
-                focusConfirm: false,
-                confirmButtonText: 'Continue to Payment',
-                confirmButtonColor: '#E5FF7F',
-                customClass: {
-                    popup: 'rounded-[40px] px-4 md:px-8',
-                    confirmButton: 'rounded-2xl px-8 py-4 font-black uppercase tracking-widest text-[10px] !text-slate-900',
-                    cancelButton: 'rounded-2xl px-8 py-4 font-black uppercase tracking-widest text-[10px] !text-slate-400'
-                },
-                preConfirm: () => {
-                    const name = (document.getElementById('guest-name') as HTMLInputElement).value;
-                    const phone = (document.getElementById('guest-phone') as HTMLInputElement).value;
-                    const address = (document.getElementById('guest-address') as HTMLTextAreaElement).value;
-                    if (!name || !phone || !address) {
-                        Swal.showValidationMessage('Please fill in all fields');
-                        return false;
-                    }
-                    return { name, phone, address };
+            Swal.fire({
+                title: 'Sign In Required',
+                text: 'Please sign in or create an account to track your order.',
+                icon: 'info',
+                showCancelButton: true,
+                confirmButtonText: 'Sign In / Register',
+                cancelButtonText: 'Cancel',
+                confirmButtonColor: '#0f172a',
+                cancelButtonColor: '#cbd5e1'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    router.push('/auth?role=customer');
                 }
             });
-
-            if (!formValues) return;
-            guestInfo = formValues;
+            return;
         }
+
+        // Proceed directly to payment since we know they are authenticated
+        // No guestInfo needed as user is authenticated
+        const guestInfo = null;
 
         // Check if item is Made to Order (e.g. takes time) and warn about Escrow
         // We assume simple check: if stock > 0 but needs time, or just based on duration text
@@ -504,41 +530,35 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                         }],
                         totalAmount: currentPrice,
                         vendorId: vendorId,
-                        shippingAddress: guestInfo?.address || (isAuthenticated ? 'Registered Address' : 'Pickup at Studio'),
-                        shippingCity: isAuthenticated ? 'Accra' : 'Accra',
+                        shippingAddress: isAuthenticated ? 'Registered Address' : 'Pickup at Studio',
+                        shippingCity: 'Accra',
                         shippingRegion: 'Greater Accra',
                         paymentMethod: `MOMO - ${selectedProvider}`,
                         paymentProof: uploadData.url, // Correctly linking the screenshot
-                        notes: guestInfo ? `Guest: ${guestInfo.name} (${guestInfo.phone})` : 'Quick Buy'
+                        notes: 'Quick Buy'
                     };
 
                     const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders`, {
                         method: 'POST',
                         headers: {
-                            'Authorization': `Bearer ${token}`,
-                            'Content-Type': 'application/json'
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}` // Ensure token is present
                         },
                         body: JSON.stringify(orderData)
                     });
 
-                    if (!response.ok) throw new Error('Failed to create order');
+                    if (!response.ok) throw new Error('Order creation failed');
 
                     Swal.fire({
-                        title: 'HERITAGE SECURED!',
-                        text: 'Your bespoke design is now in the fulfillment queue.',
                         icon: 'success',
-                        confirmButtonText: 'EXCELLENT',
-                        buttonsStyling: false,
-                        customClass: {
-                            popup: 'rounded-[32px] p-10 bg-white border-none shadow-2xl',
-                            title: 'text-2xl font-black text-slate-900 tracking-tighter uppercase mb-2',
-                            confirmButton: 'bg-slate-900 text-white rounded-full px-10 py-4 text-[11px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all'
-                        }
-                    });
-
-                    if (isAuthenticated) {
+                        title: 'Order Secured',
+                        text: 'Your bespoke piece is now in production.',
+                        confirmButtonText: 'Track Order',
+                        confirmButtonColor: '#0f172a'
+                    }).then(() => {
+                        // Always redirect to dashboard since we enforce auth
                         router.push('/dashboard');
-                    }
+                    });
                 } catch (error: any) {
                     Swal.fire({
                         title: 'Submission Failed',
@@ -605,9 +625,9 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
 
                     {/* Rating Badge */}
                     <div className="absolute bottom-4 left-4 z-20 bg-white/95 backdrop-blur-sm px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-sm border border-slate-100 group-hover:scale-105 transition-transform">
-                        <span className="text-[11px] font-black text-slate-900">4.9</span>
+                        <span className="text-[11px] font-black text-slate-900">{rating || 4.9}</span>
                         <Star className="w-3 h-3 fill-brand-lemon text-brand-lemon" />
-                        <span className="text-[9px] font-black text-slate-400/40">(214)</span>
+                        <span className="text-[9px] font-black text-slate-400/40">({reviewCount || 214})</span>
                     </div>
 
                     {/* Carousel Image */}
@@ -617,7 +637,6 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                             alt={`${name} view ${currentImageIndex + 1}`}
                             fill
                             className={`object-contain transition-all duration-700 group-hover/image:scale-105 ${isSoldOut ? 'grayscale' : ''}`}
-                            unoptimized
                             onError={() => setImgError(true)}
                         />
                     </div>
@@ -649,7 +668,7 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                         </div>
                         <div className="flex items-center gap-1 bg-slate-50 px-2 py-1 rounded-lg">
                             <Star className="w-2.5 h-2.5 fill-brand-lemon text-brand-lemon" />
-                            <span className="text-[10px] font-black text-slate-900">4.9</span>
+                            <span className="text-[10px] font-black text-slate-900">{rating || 4.9}</span>
                         </div>
                     </div>
 
@@ -717,7 +736,6 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                                     alt={name}
                                     fill
                                     className="object-contain p-6 transition-transform duration-700 hover:scale-105"
-                                    unoptimized
                                     onError={() => setImgError(true)}
                                 />
                             </div>
@@ -775,8 +793,8 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                                             <div className="h-6 w-[1px] bg-slate-100" />
                                             <div className="flex items-center gap-1">
                                                 <Star className="w-4 h-4 fill-brand-lemon text-brand-lemon" />
-                                                <span className="text-xs font-black text-slate-900">4.9</span>
-                                                <span className="text-[10px] font-bold text-slate-300 ml-1">(214 Reviews)</span>
+                                                <span className="text-xs font-black text-slate-900">{rating || 4.9}</span>
+                                                <span className="text-[10px] font-bold text-slate-300 ml-1">({reviewCount || 214} Reviews)</span>
                                             </div>
                                         </div>
                                     </div>
@@ -810,12 +828,31 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                                 </div>
 
                                 <div className="space-y-8">
-                                    {/* Description */}
-                                    <div className="p-5 bg-slate-50 rounded-[24px] border border-slate-100/50">
-                                        <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-3">The Narrative</h4>
+                                    {/* Description with Dynamic Data */}
+                                    <div className="space-y-4">
+                                        <h3 className="font-heading font-black text-xl text-slate-900 uppercase tracking-tighter">The Narrative</h3>
                                         <p className="text-slate-600 text-xs md:text-sm leading-relaxed text-left font-medium">
-                                            Crafted with precision using premium bespoke tailoring techniques. This piece features our signature {name.toLowerCase()} design, combining traditional aesthetics with modern comfort. Every stitch is a testament to our commitment to excellence.
+                                            {description || `Crafted with precision using premium bespoke tailoring techniques. This piece features our signature ${name.toLowerCase()} design, combining traditional aesthetics with modern comfort. Every stitch is a testament to our commitment to excellence.`}
                                         </p>
+
+                                        {/* Vendor Info Section */}
+                                        {vendorName && (
+                                            <div
+                                                onClick={handleVendorProfile}
+                                                className="mt-6 flex items-center gap-3 p-4 bg-slate-50 rounded-2xl cursor-pointer hover:bg-slate-100 transition-colors border border-slate-100 group/vendor"
+                                            >
+                                                <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center text-slate-500 font-bold group-hover/vendor:bg-slate-900 group-hover/vendor:text-white transition-colors">
+                                                    {vendorName.charAt(0)}
+                                                </div>
+                                                <div>
+                                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Designed By</p>
+                                                    <p className="text-sm font-bold text-slate-900 group-hover/vendor:underline decoration-brand-lemon decoration-2 underline-offset-2">{vendorName}</p>
+                                                </div>
+                                                <div className="ml-auto">
+                                                    <div className="bg-brand-lemon text-[9px] font-black px-2 py-1 rounded text-slate-900 uppercase">View Profile</div>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
 
                                     {/* Details Grid */}

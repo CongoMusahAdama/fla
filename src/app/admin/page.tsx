@@ -807,11 +807,29 @@ export default function AdminDashboard() {
                                     {isEscrow && !o.isPaid && (
                                         <div className="flex gap-2 mt-2">
                                             {o.paymentProof && (
-                                                <button onClick={() => window.open(getImageUrl(o.paymentProof), '_blank')} className="flex-1 py-3 bg-blue-50 text-blue-600 rounded-xl text-[10px] font-black uppercase tracking-widest">
-                                                    Proof
+                                                <button
+                                                    onClick={() => {
+                                                        Swal.fire({
+                                                            title: 'Payment Verification',
+                                                            imageUrl: getImageUrl(o.paymentProof),
+                                                            imageAlt: 'Payment Screenshot',
+                                                            confirmButtonText: 'CLOSE',
+                                                            buttonsStyling: false,
+                                                            customClass: {
+                                                                popup: 'rounded-[32px] p-8',
+                                                                confirmButton: 'bg-slate-900 text-white px-8 py-3 rounded-full text-[10px] font-black uppercase tracking-widest'
+                                                            }
+                                                        });
+                                                    }}
+                                                    className="flex-1 py-3 bg-blue-50 text-blue-600 rounded-xl text-[10px] font-black uppercase tracking-widest"
+                                                >
+                                                    View Proof
                                                 </button>
                                             )}
-                                            <button onClick={() => handleConfirmPayment(o._id)} className="flex-[2] py-3 bg-slate-900 text-brand-lemon rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-slate-900/10">
+                                            <button
+                                                onClick={() => handleConfirmPayment(o._id)}
+                                                className="flex-[2] py-3 bg-slate-900 text-brand-lemon rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-slate-900/10"
+                                            >
                                                 Release Funds
                                             </button>
                                         </div>
@@ -828,6 +846,7 @@ export default function AdminDashboard() {
                                         <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Order / Date</th>
                                         <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Customer</th>
                                         <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Payment Breakdown</th>
+                                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Vendor Verification</th>
                                         <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Status</th>
                                         <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Action</th>
                                     </tr>
@@ -860,6 +879,33 @@ export default function AdminDashboard() {
                                                 </div>
                                             </td>
                                             <td className="px-8 py-6 border-r border-slate-50">
+                                                {o.paymentProof ? (
+                                                    <div className="space-y-2">
+                                                        {o.paymentVerifiedByVendor ? (
+                                                            <div>
+                                                                <span className="text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-tighter bg-emerald-50 text-emerald-600 flex items-center gap-1 w-fit">
+                                                                    <CheckCircle2 className="w-3 h-3" /> Verified
+                                                                </span>
+                                                                <p className="text-[9px] font-bold text-slate-400 mt-1">
+                                                                    {o.paymentVerifiedAt ? new Date(o.paymentVerifiedAt).toLocaleString() : 'Recently'}
+                                                                </p>
+                                                            </div>
+                                                        ) : (
+                                                            <div>
+                                                                <span className="text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-tighter bg-orange-50 text-orange-600 flex items-center gap-1 w-fit">
+                                                                    <Clock className="w-3 h-3" /> Awaiting Vendor
+                                                                </span>
+                                                                <p className="text-[9px] font-bold text-slate-400 mt-1">
+                                                                    {o.paymentSubmittedAt ? `Submitted ${new Date(o.paymentSubmittedAt).toLocaleTimeString()}` : 'Pending'}
+                                                                </p>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-[9px] font-bold text-slate-300 uppercase">No Proof</span>
+                                                )}
+                                            </td>
+                                            <td className="px-8 py-6 border-r border-slate-50">
                                                 <div className="space-y-2">
                                                     <span className={`text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-tighter ${o.isPaid ? 'bg-emerald-50 text-emerald-600' : 'bg-orange-50 text-orange-600'}`}>
                                                         {o.isPaid ? 'PAID / RELEASED' : 'ESCROW HOLD'}
@@ -871,7 +917,24 @@ export default function AdminDashboard() {
                                                 {isEscrow && !o.isPaid ? (
                                                     <div className="flex justify-end items-center gap-3">
                                                         {o.paymentProof && (
-                                                            <button onClick={() => window.open(getImageUrl(o.paymentProof), '_blank')} className="text-[10px] font-black text-blue-500 uppercase tracking-widest hover:underline">View Proof</button>
+                                                            <button
+                                                                onClick={() => {
+                                                                    Swal.fire({
+                                                                        title: 'Payment Verification',
+                                                                        imageUrl: getImageUrl(o.paymentProof),
+                                                                        imageAlt: 'Payment Screenshot',
+                                                                        confirmButtonText: 'CLOSE',
+                                                                        buttonsStyling: false,
+                                                                        customClass: {
+                                                                            popup: 'rounded-[32px] p-8',
+                                                                            confirmButton: 'bg-slate-900 text-white px-8 py-3 rounded-full text-[10px] font-black uppercase tracking-widest'
+                                                                        }
+                                                                    });
+                                                                }}
+                                                                className="text-[10px] font-black text-blue-500 uppercase tracking-widest hover:underline"
+                                                            >
+                                                                View Proof
+                                                            </button>
                                                         )}
                                                         <button onClick={() => handleConfirmPayment(o._id)} className="bg-slate-900 text-brand-lemon px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/10">Release Funds</button>
                                                     </div>

@@ -146,6 +146,7 @@ export default function VendorDashboard() {
     }, [isAuthenticated, user, router]);
 
     const [vendorProducts, setVendorProducts] = useState<Product[]>([]);
+    const [selectedOrder, setSelectedOrder] = useState<any>(null);
 
     // Form States for Add/Edit
     const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -768,45 +769,131 @@ export default function VendorDashboard() {
                                                 </td>
                                                 <td className="px-8 py-6 font-bold text-slate-700 text-xs border-r border-slate-50">{order.productName || 'Bespoke Item'}</td>
                                                 <td className="px-8 py-6 border-r border-slate-50">
-                                                    <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${order.status === 'Delivered' ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'}`}>
-                                                        {order.status || 'Processing'}
-                                                    </span>
+                                                    <div className="flex flex-col gap-1">
+                                                        <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest w-fit ${order.status === 'Delivered' ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'}`}>
+                                                            {order.status || 'Processing'}
+                                                        </span>
+                                                        {order.isPaid && (
+                                                            <span className="text-[8px] font-black text-emerald-500 uppercase tracking-tighter ml-1">Verified Paid</span>
+                                                        )}
+                                                    </div>
                                                 </td>
                                                 <td className="px-8 py-6 text-right">
-                                                    <button
-                                                        onClick={() => {
-                                                            Swal.fire({
-                                                                title: 'Update Progress',
-                                                                text: 'Move this order to the next stage of fulfillment.',
-                                                                icon: 'info',
-                                                                showCancelButton: true,
-                                                                confirmButtonText: 'MARK AS DELIVERED',
-                                                                confirmButtonColor: '#0F172A',
-                                                                customClass: { popup: 'rounded-[32px]' }
-                                                            }).then(async r => {
-                                                                if (r.isConfirmed) {
-                                                                    try {
-                                                                        const token = localStorage.getItem('fla_token');
-                                                                        await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders/${order._id}`, {
-                                                                            method: 'PATCH',
-                                                                            headers: {
-                                                                                'Authorization': `Bearer ${token}`,
-                                                                                'Content-Type': 'application/json'
-                                                                            },
-                                                                            body: JSON.stringify({ status: 'Delivered' })
-                                                                        });
-                                                                        setVendorOrders(prev => prev.map(o => o._id === order._id ? { ...o, status: 'Delivered' } : o));
-                                                                        Swal.fire({ icon: 'success', title: 'Status Updated', customClass: { popup: 'rounded-[32px]' } });
-                                                                    } catch (err) {
-                                                                        Swal.fire({ icon: 'error', title: 'Error', text: 'Failed to update order status.' });
+                                                    <div className="flex justify-end gap-2">
+                                                        {order.paymentProof && (
+                                                            <button
+                                                                onClick={() => {
+                                                                    Swal.fire({
+                                                                        title: 'Payment Proof',
+                                                                        imageUrl: getImageUrl(order.paymentProof),
+                                                                        imageAlt: 'Payment Screenshot',
+                                                                        confirmButtonText: 'CLOSE',
+                                                                        buttonsStyling: false,
+                                                                        customClass: {
+                                                                            popup: 'rounded-[32px] p-8',
+                                                                            confirmButton: 'bg-slate-900 text-white px-8 py-3 rounded-full text-[10px] font-black uppercase tracking-widest'
+                                                                        }
+                                                                    });
+                                                                }}
+                                                                className="p-2 bg-brand-lemon text-slate-900 rounded-xl hover:shadow-md transition-all"
+                                                                title="View Proof"
+                                                            >
+                                                                <Eye className="w-4 h-4" />
+                                                            </button>
+                                                        )}
+                                                        {order.status === 'pending' && order.paymentProof && (
+                                                            <button
+                                                                onClick={() => {
+                                                                    Swal.fire({
+                                                                        title: 'Confirm Payment?',
+                                                                        text: 'Have you verified the funds in your account?',
+                                                                        icon: 'question',
+                                                                        showCancelButton: true,
+                                                                        confirmButtonText: 'YES, CONFIRM',
+                                                                        cancelButtonText: 'NOT YET',
+                                                                        buttonsStyling: false,
+                                                                        customClass: {
+                                                                            popup: 'rounded-[32px] p-10',
+                                                                            title: 'text-xl font-black text-slate-900 uppercase',
+                                                                            confirmButton: 'bg-emerald-500 text-white px-8 py-4 rounded-full text-[10px] font-black uppercase tracking-widest mr-3',
+                                                                            cancelButton: 'bg-slate-100 text-slate-400 px-8 py-4 rounded-full text-[10px] font-black uppercase tracking-widest'
+                                                                        }
+                                                                    }).then(async r => {
+                                                                        if (r.isConfirmed) {
+                                                                            try {
+                                                                                const token = localStorage.getItem('fla_token');
+                                                                                await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders/${order._id}`, {
+                                                                                    method: 'PATCH',
+                                                                                    headers: {
+                                                                                        'Authorization': `Bearer ${token}`,
+                                                                                        'Content-Type': 'application/json'
+                                                                                    },
+                                                                                    body: JSON.stringify({ status: 'confirmed' })
+                                                                                });
+                                                                                setVendorOrders(prev => prev.map(o => o._id === order._id ? { ...o, status: 'confirmed' } : o));
+                                                                                Swal.fire({ icon: 'success', title: 'Payment Confirmed', customClass: { popup: 'rounded-[32px]' } });
+                                                                            } catch (err) {
+                                                                                Swal.fire({ icon: 'error', title: 'Error', text: 'Failed to confirm payment.' });
+                                                                            }
+                                                                        }
+                                                                    });
+                                                                }}
+                                                                className="px-5 py-2 bg-emerald-500 text-white rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20"
+                                                            >
+                                                                Confirm Payment
+                                                            </button>
+                                                        )}
+                                                        <button
+                                                            onClick={() => {
+                                                                Swal.fire({
+                                                                    title: 'Update Progress',
+                                                                    text: 'Move this order to the next stage of fulfillment.',
+                                                                    icon: 'info',
+                                                                    input: 'select',
+                                                                    inputOptions: {
+                                                                        'processing': 'Processing',
+                                                                        'in_printing': 'In Printing',
+                                                                        'shipped': 'Shipped',
+                                                                        'delivered': 'Delivered',
+                                                                        'cancelled': 'Cancelled'
+                                                                    },
+                                                                    inputPlaceholder: 'Select Status',
+                                                                    showCancelButton: true,
+                                                                    confirmButtonText: 'UPDATE',
+                                                                    confirmButtonColor: '#0F172A',
+                                                                    customClass: { popup: 'rounded-[32px]' }
+                                                                }).then(async r => {
+                                                                    if (r.isConfirmed && r.value) {
+                                                                        try {
+                                                                            const token = localStorage.getItem('fla_token');
+                                                                            await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders/${order._id}`, {
+                                                                                method: 'PATCH',
+                                                                                headers: {
+                                                                                    'Authorization': `Bearer ${token}`,
+                                                                                    'Content-Type': 'application/json'
+                                                                                },
+                                                                                body: JSON.stringify({ status: r.value })
+                                                                            });
+                                                                            setVendorOrders(prev => prev.map(o => o._id === order._id ? { ...o, status: r.value } : o));
+                                                                            Swal.fire({ icon: 'success', title: 'Status Updated', customClass: { popup: 'rounded-[32px]' } });
+                                                                        } catch (err) {
+                                                                            Swal.fire({ icon: 'error', title: 'Error', text: 'Failed to update order status.' });
+                                                                        }
                                                                     }
-                                                                }
-                                                            });
-                                                        }}
-                                                        className="px-5 py-2 bg-slate-900 text-white rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all"
-                                                    >
-                                                        Update Status
-                                                    </button>
+                                                                });
+                                                            }}
+                                                            className="px-5 py-2 bg-slate-900 text-white rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all"
+                                                        >
+                                                            Update Status
+                                                        </button>
+                                                        <button
+                                                            onClick={() => setSelectedOrder(order)}
+                                                            className="p-2 bg-slate-50 text-slate-400 hover:bg-slate-900 hover:text-white rounded-xl transition-all"
+                                                            title="View Details"
+                                                        >
+                                                            <Search className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         ))
@@ -1449,7 +1536,127 @@ export default function VendorDashboard() {
                         ))}
                     </div>
                 </div>
+
+                {selectedOrder && (
+                    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-[600] flex items-center justify-center p-4 md:p-8">
+                        <div className="bg-white w-full max-w-2xl rounded-[40px] shadow-2xl overflow-hidden animate-in zoom-in duration-300 max-h-[90vh] flex flex-col">
+                            <div className="px-8 py-6 bg-slate-900 text-white flex justify-between items-center sticky top-0 z-10">
+                                <div>
+                                    <h3 className="text-xl font-black uppercase tracking-tighter">Order #ORD-{selectedOrder._id?.slice(-6).toUpperCase()}</h3>
+                                    <p className="text-brand-lemon text-[10px] font-black uppercase tracking-widest mt-1">Placed on {new Date(selectedOrder.createdAt).toLocaleDateString()}</p>
+                                </div>
+                                <button onClick={() => setSelectedOrder(null)} className="w-10 h-10 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center transition-colors">
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
+
+                            <div className="flex-1 overflow-y-auto p-8 space-y-8 no-scrollbar">
+                                {/* Status Overview */}
+                                <div className="flex items-center justify-between p-6 bg-slate-50 rounded-3xl border border-slate-100">
+                                    <div>
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Current Status</p>
+                                        <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${selectedOrder.status === 'delivered' ? 'bg-emerald-100 text-emerald-600' : 'bg-blue-100 text-blue-600'}`}>
+                                            {selectedOrder.status}
+                                        </span>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Payment</p>
+                                        <p className={`text-xs font-black uppercase tracking-widest ${selectedOrder.isPaid ? 'text-emerald-500' : 'text-orange-500'}`}>
+                                            {selectedOrder.isPaid ? 'Verification Complete' : 'Awaiting Proof'}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Items Section */}
+                                <div className="space-y-4">
+                                    <h4 className="text-xs font-black text-slate-900 uppercase tracking-[0.2em] flex items-center gap-3">
+                                        <Package className="w-4 h-4 text-brand-lemon" />
+                                        Design Anthology
+                                    </h4>
+                                    <div className="space-y-3">
+                                        {selectedOrder.items?.map((item: any, idx: number) => (
+                                            <div key={idx} className="flex items-center gap-4 p-4 bg-white border border-slate-100 rounded-2xl">
+                                                <div className="w-14 h-14 bg-slate-50 rounded-xl flex-shrink-0 relative overflow-hidden">
+                                                    <Image src={getImageUrl(item.image)} alt={item.name} fill className="object-cover" unoptimized />
+                                                </div>
+                                                <div className="flex-1">
+                                                    <p className="text-sm font-black text-slate-900 uppercase tracking-tight">{item.name}</p>
+                                                    <div className="flex gap-3 mt-1">
+                                                        <span className="text-[10px] font-bold text-slate-400 uppercase">Size: {item.size || 'N/A'}</span>
+                                                        <span className="text-[10px] font-bold text-slate-400 uppercase">Qty: {item.quantity}</span>
+                                                    </div>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="text-sm font-black text-slate-900">GH₵ {(item.price * item.quantity).toLocaleString()}</p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div className="pt-4 border-t border-dashed border-slate-200 flex justify-between items-center">
+                                        <p className="text-xs font-black text-slate-900 uppercase tracking-widest">Grand Total</p>
+                                        <p className="text-lg font-black text-slate-900 tracking-tighter">GH₵ {selectedOrder.totalAmount.toLocaleString()}</p>
+                                    </div>
+                                </div>
+
+                                {/* Logistics & Contact */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    <div className="space-y-4">
+                                        <h4 className="text-xs font-black text-slate-900 uppercase tracking-[0.2em] flex items-center gap-3">
+                                            <User className="w-4 h-4 text-brand-lemon" />
+                                            Patron Details
+                                        </h4>
+                                        <div className="space-y-2">
+                                            <p className="text-sm font-bold text-slate-900">{selectedOrder.customerName}</p>
+                                            <p className="text-xs font-medium text-slate-500">{selectedOrder.customerPhone}</p>
+                                            <p className="text-xs font-medium text-slate-500">{selectedOrder.customerEmail}</p>
+                                        </div>
+                                    </div>
+                                    <div className="space-y-4">
+                                        <h4 className="text-xs font-black text-slate-900 uppercase tracking-[0.2em] flex items-center gap-3">
+                                            <LogOut className="w-4 h-4 text-brand-lemon rotate-90" />
+                                            Dispatch Port
+                                        </h4>
+                                        <div className="space-y-2">
+                                            <p className="text-sm font-bold text-slate-900">{selectedOrder.shippingAddress || 'Digital Product / Studio Pickup'}</p>
+                                            <p className="text-xs font-medium text-slate-500">{selectedOrder.shippingCity}, {selectedOrder.shippingRegion}</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Notes Section */}
+                                {selectedOrder.notes && (
+                                    <div className="space-y-4">
+                                        <h4 className="text-xs font-black text-slate-900 uppercase tracking-[0.2em] flex items-center gap-3">
+                                            <MessageSquare className="w-4 h-4 text-brand-lemon" />
+                                            Special Requests
+                                        </h4>
+                                        <div className="p-5 bg-slate-50 border border-slate-100 rounded-3xl italic text-xs font-medium text-slate-600 leading-relaxed">
+                                            "{selectedOrder.notes}"
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="p-8 bg-slate-50 border-t border-slate-100 flex gap-4">
+                                <button
+                                    onClick={() => setSelectedOrder(null)}
+                                    className="flex-1 py-4 bg-white border border-slate-200 text-slate-400 rounded-full font-black text-[10px] uppercase tracking-widest hover:border-slate-300 transition-all"
+                                >
+                                    Return to Archive
+                                </button>
+                                <a
+                                    href={`https://wa.me/${selectedOrder.customerPhone?.replace(/\D/g, '') || ''}`}
+                                    target="_blank"
+                                    className="flex-[2] py-4 bg-[#25D366] text-white rounded-full font-black text-[10px] uppercase tracking-widest shadow-xl shadow-emerald-500/20 flex items-center justify-center gap-3 hover:scale-[1.02] transition-all"
+                                >
+                                    <WhatsAppIcon className="w-4 h-4" />
+                                    Contact on WhatsApp
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
-        </main >
+        </main>
     );
 }

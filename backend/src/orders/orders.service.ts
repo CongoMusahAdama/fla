@@ -29,7 +29,9 @@ export class OrdersService {
         status: 'pending',
         isPaid: false,
         adminCommission,
-        vendorShare
+        vendorShare,
+        // Set payment submission timestamp if proof is provided
+        ...(createOrderDto.paymentProof && { paymentSubmittedAt: new Date() })
       };
 
       // Convert vendorId if provided
@@ -92,5 +94,52 @@ export class OrdersService {
       throw new NotFoundException(`Order with ID ${id} not found`);
     }
     return deletedOrder;
+  }
+
+  async getVendorStats(vendorId: string) {
+    const orders = await this.orderModel.find({ vendorId }).exec();
+    const total = orders.length;
+    const completed = orders.filter(o => o.status === 'delivered').length;
+    const cancelled = orders.filter(o => o.status === 'cancelled').length;
+    return { total, completed, cancelled };
+  }
+
+  async verifyPayment(orderId: string, vendorId: string): Promise<Order> {
+    const order = await this.orderModel.findById(orderId).exec();
+
+    if (!order) {
+      throw new NotFoundException(`Order with ID ${orderId} not found`);
+    }
+
+    // Verify the vendor owns this order
+    if (order.vendorId.toString() !== vendorId) {
+      throw new NotFoundException('You are not authorized to verify this order');
+    }
+
+    // Update payment verification
+    order.paymentVerifiedByVendor = true;
+    order.paymentVerifiedAt = new Date();
+    order.isPaid = true;
+    order.paidAt = new Date();
+    order.status = 'confirmed'; // Move to confirmed status
+
+    return order.save();
+  }
+
+  async getPendingPaymentVerifications(vendorId?: string): Promise<Order[]> {
+    const query: any = {
+      paymentProof: { $exists: true, $ne: null },
+      paymentVerifiedByVendor: false
+    };
+
+    // If vendorId provided, filter by vendor
+    if (vendorId) {
+      query.vendorId = vendorId;
+    }
+
+    return this.orderModel
+      .find(query)
+      .sort({ paymentSubmittedAt: 1 }) // Oldest first (FIFO)
+      .exec();
   }
 }

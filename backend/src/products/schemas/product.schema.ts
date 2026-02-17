@@ -62,3 +62,10 @@ export class Product {
 }
 
 export const ProductSchema = SchemaFactory.createForClass(Product);
+
+// Indexes for performance
+ProductSchema.index({ vendorId: 1 });
+ProductSchema.index({ category: 1 });
+ProductSchema.index({ isActive: 1 });
+ProductSchema.index({ createdAt: -1 }); // For sorting by newest
+ProductSchema.index({ name: 'text', description: 'text' }); // Text search
