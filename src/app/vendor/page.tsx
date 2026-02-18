@@ -549,6 +549,61 @@ export default function VendorDashboard() {
         }
     };
 
+    const handleVerifyPayment = async (orderId: string) => {
+        try {
+            const token = localStorage.getItem('fla_token');
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders/${orderId}/verify-payment`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (!response.ok) throw new Error('Payment verification failed');
+
+            setVendorOrders(prev => prev.map(o => o._id === orderId ? { ...o, isPaid: true, status: 'payment_verified', paymentVerifiedByVendor: true } : o));
+            Swal.fire({ icon: 'success', title: 'Payment Verified', text: 'Order is now confirmed and funds held in escrow.' });
+        } catch (error: any) {
+            Swal.fire({ icon: 'error', title: 'Error', text: error.message });
+        }
+    };
+
+    const handleMarkShipped = async (orderId: string) => {
+        const { value: formValues } = await Swal.fire({
+            title: 'Shipment Details',
+            html:
+                '<input id="swal-input1" class="swal2-input" placeholder="Tracking Number">' +
+                '<input id="swal-input2" class="swal2-input" placeholder="Carrier Name">',
+            focusConfirm: false,
+            preConfirm: () => {
+                return [
+                    (document.getElementById('swal-input1') as HTMLInputElement).value,
+                    (document.getElementById('swal-input2') as HTMLInputElement).value
+                ]
+            }
+        });
+
+        if (formValues) {
+            const [trackingNumber, carrier] = formValues;
+            try {
+                const token = localStorage.getItem('fla_token');
+                const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders/${orderId}/shipped`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ trackingNumber, carrier })
+                });
+
+                if (!response.ok) throw new Error('Failed to update shipment');
+
+                setVendorOrders(prev => prev.map(o => o._id === orderId ? { ...o, status: 'shipped', trackingNumber, carrier } : o));
+                Swal.fire({ icon: 'success', title: 'Shipped!', text: 'Customer has been notified.' });
+            } catch (error: any) {
+                Swal.fire({ icon: 'error', title: 'Error', text: error.message });
+            }
+        }
+    };
+
     const renderContent = () => {
         switch (activeSection) {
             case 'dashboard':
@@ -799,6 +854,22 @@ export default function VendorDashboard() {
                                                                 title="View Proof"
                                                             >
                                                                 <Eye className="w-4 h-4" />
+                                                            </button>
+                                                        )}
+                                                        {!order.paymentVerifiedByVendor && order.paymentProof && (
+                                                            <button
+                                                                onClick={() => handleVerifyPayment(order._id)}
+                                                                className="px-4 py-2 bg-emerald-500 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-md"
+                                                            >
+                                                                Verify Payment
+                                                            </button>
+                                                        )}
+                                                        {order.paymentVerifiedByVendor && order.status !== 'shipped' && order.status !== 'delivered' && (
+                                                            <button
+                                                                onClick={() => handleMarkShipped(order._id)}
+                                                                className="px-4 py-2 bg-blue-500 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-blue-600 transition-all shadow-md"
+                                                            >
+                                                                Mark Shipped
                                                             </button>
                                                         )}
                                                         {order.status === 'pending' && order.paymentProof && (

@@ -55,10 +55,42 @@ export class Order {
 
     @Prop({
         type: String,
-        enum: ['pending', 'confirmed', 'processing', 'in_printing', 'shipped', 'delivered', 'cancelled'],
+        enum: [
+            'pending',
+            'funds_captured',
+            'payment_verified',
+            'confirmed',
+            'processing',
+            'in_printing',
+            'shipped',
+            'delivered',
+            'completed',
+            'disputed',
+            'refunded',
+            'cancelled'
+        ],
         default: 'pending'
     })
     status: string;
+
+    @Prop({
+        type: String,
+        enum: ['held', 'released', 'refunded', 'frozen'],
+        default: 'held'
+    })
+    escrowStatus: string;
+
+    @Prop()
+    deliveryConfirmationDate?: Date;
+
+    @Prop()
+    autoReleaseDate?: Date;
+
+    @Prop()
+    disputeReason?: string;
+
+    @Prop()
+    carrier?: string;
 
     @Prop()
     shippingAddress: string;
@@ -105,6 +137,11 @@ export class Order {
     @Prop({ default: 0 })
     vendorShare: number;
 
+    @Prop()
+    paymentId?: string;
+
+    @Prop()
+    paymentRef?: string;
 }
 
 export const OrderSchema = SchemaFactory.createForClass(Order);

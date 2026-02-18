@@ -12,6 +12,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
 import { SupportModule } from './support/support.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { UploadModule } from './uploads/upload.module';
+import { PaymentsModule } from './payments/payments.module';
 
 @Module({
   imports: [
@@ -25,7 +26,8 @@ import { UploadModule } from './uploads/upload.module';
     DashboardModule,
     SupportModule,
     NotificationsModule,
-    UploadModule
+    UploadModule,
+    PaymentsModule
   ],
   controllers: [AppController],
   providers: [AppService],

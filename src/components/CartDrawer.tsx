@@ -53,289 +53,6 @@ export default function CartDrawer() {
 
     const subtotal = cartItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
 
-    const handleMomoFlow = async () => {
-        // Fetch vendor details for the first item (assuming all items from same vendor)
-        let vendorPaymentMethods: Array<{ network: string; accountNumber: string; accountName: string }> = [];
-
-        if (cartItems.length > 0 && cartItems[0].vendorId) {
-            try {
-                const token = localStorage.getItem('fla_token');
-                const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/users/${cartItems[0].vendorId}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (response.ok) {
-                    const vendorData = await response.json();
-                    vendorPaymentMethods = vendorData.paymentMethods || [];
-                }
-            } catch (error) {
-                console.error('Error fetching vendor details:', error);
-            }
-        }
-
-        let selectedProvider = '';
-        await Swal.fire({
-            title: 'SELECT PAYMENT NETWORK',
-            html: `
-                <div class="grid grid-cols-3 gap-4 mb-2 mt-6">
-                    <button id="cart-mtn" class="network-card flex flex-col items-center p-5 rounded-2xl border-2 border-slate-100 hover:border-yellow-400 hover:shadow-lg transition-all cursor-pointer group">
-                        <div class="w-14 h-14 mb-3 rounded-xl overflow-hidden flex items-center justify-center bg-yellow-400 p-2 shadow-md group-hover:scale-110 transition-transform">
-                            <img src="/payment-logos/mtn.png" alt="MTN" class="w-full h-full object-contain" />
-                        </div>
-                        <span class="text-[10px] font-black text-slate-700 uppercase tracking-wider">MTN MoMo</span>
-                    </button>
-                    <button id="cart-telecel" class="network-card flex flex-col items-center p-5 rounded-2xl border-2 border-slate-100 hover:border-red-500 hover:shadow-lg transition-all cursor-pointer group">
-                        <div class="w-14 h-14 mb-3 rounded-xl overflow-hidden flex items-center justify-center bg-white p-2 shadow-md group-hover:scale-110 transition-transform border border-slate-100">
-                            <img src="/payment-logos/telecel.png" alt="Telecel" class="w-full h-full object-contain" />
-                        </div>
-                        <span class="text-[10px] font-black text-slate-700 uppercase tracking-wider">Telecel Cash</span>
-                    </button>
-                    <button id="cart-tigo" class="network-card flex flex-col items-center p-5 rounded-2xl border-2 border-slate-100 hover:border-blue-500 hover:shadow-lg transition-all cursor-pointer group">
-                        <div class="w-14 h-14 mb-3 rounded-xl overflow-hidden flex items-center justify-center bg-blue-500 p-2 shadow-md group-hover:scale-110 transition-transform">
-                            <img src="/payment-logos/tigo.png" alt="Tigo" class="w-full h-full object-contain" />
-                        </div>
-                        <span class="text-[10px] font-black text-slate-700 uppercase tracking-wider">Tigo Cash</span>
-                    </button>
-                </div>
-            `,
-            width: '90%',
-            showConfirmButton: false,
-            customClass: {
-                popup: 'rounded-[40px] shadow-2xl p-10 bg-white border-none',
-                title: 'text-2xl font-black text-slate-900 tracking-tighter uppercase mb-4'
-            },
-            backdrop: 'rgba(15, 23, 42, 0.7)',
-            didOpen: () => {
-                ['mtn', 'telecel', 'tigo'].forEach(c => {
-                    document.getElementById(`cart-${c}`)?.addEventListener('click', () => {
-                        selectedProvider = c.toUpperCase();
-                        Swal.close();
-                    });
-                });
-            }
-        });
-
-        if (!selectedProvider) return;
-
-        // Find matching payment method from vendor or use defaults
-        let momoNumber = '';
-        let accountName = '';
-
-        const vendorMethod = vendorPaymentMethods.find(m => m.network === selectedProvider);
-
-        if (vendorMethod) {
-            // Vendor has this payment method set up
-            momoNumber = vendorMethod.accountNumber;
-            accountName = vendorMethod.accountName;
-        } else {
-            // Use default numbers based on selected network
-            if (selectedProvider === 'MTN') {
-                momoNumber = '0256774847';
-                accountName = 'FLA Purchase Store';
-            } else if (selectedProvider === 'TELECEL') {
-                momoNumber = '0505112925';
-                accountName = 'FLA Purchase Store';
-            } else if (selectedProvider === 'TIGO') {
-                momoNumber = '0256774847'; // Default
-                accountName = 'FLA Purchase Store';
-            } else {
-                momoNumber = '0256774847';
-                accountName = 'FLA Purchase Store';
-            }
-        }
-
-        const { isConfirmed } = await Swal.fire({
-            title: 'PAYMENT DETAILS',
-            html: `
-                <div class="text-left space-y-6">
-                    <div class="bg-gradient-to-br from-brand-lemon to-yellow-300 p-6 rounded-2xl text-center border-2 border-yellow-400 shadow-lg">
-                        <p class="text-[10px] font-black text-slate-700 uppercase tracking-widest mb-2">Amount to Pay</p>
-                        <p class="text-4xl font-black text-slate-900">GH₵${subtotal}</p>
-                    </div>
-                    
-                    <div class="bg-slate-900 p-5 rounded-2xl text-white">
-                        <p class="text-[10px] font-black uppercase tracking-widest mb-3 text-brand-lemon">📱 Send ${selectedProvider} Money To:</p>
-                        <div class="flex justify-between items-center p-4 bg-white/10 backdrop-blur rounded-xl mb-3">
-                            <div>
-                                <p class="font-mono font-black text-2xl text-white">${momoNumber}</p>
-                                <p class="text-xs text-slate-300 mt-1">${accountName}</p>
-                            </div>
-                            <span class="text-[10px] bg-brand-lemon text-slate-900 px-3 py-1.5 rounded-full font-black uppercase tracking-wider">${selectedProvider}</span>
-                        </div>
-                    </div>
-
-                    <div class="bg-blue-50 border-2 border-blue-200 p-4 rounded-2xl">
-                        <p class="text-xs font-black text-blue-900 uppercase tracking-wide mb-2">⚠️ Important Instructions:</p>
-                        <ol class="text-xs text-blue-800 space-y-1 list-decimal list-inside">
-                            <li>Send <strong>GH₵${subtotal}</strong> to the number above</li>
-                            <li>Take a <strong>screenshot</strong> of the payment confirmation</li>
-                            <li>Click "I Have Paid" and upload your screenshot</li>
-                            <li>Your order will be processed once verified</li>
-                        </ol>
-                    </div>
-                </div>
-            `,
-            confirmButtonText: 'I Have Paid',
-            showCancelButton: true,
-            cancelButtonText: 'Cancel',
-            buttonsStyling: false,
-            customClass: {
-                popup: 'rounded-[40px] shadow-2xl p-10 bg-slate-50 border-none',
-                title: 'text-2xl font-black text-slate-900 tracking-tighter uppercase mb-6',
-                confirmButton: 'bg-slate-900 text-white rounded-full px-10 py-4 text-[11px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all mx-2 shadow-lg',
-                cancelButton: 'bg-slate-200 text-slate-600 rounded-full px-10 py-4 text-[11px] font-black uppercase tracking-widest hover:bg-slate-300 transition-all mx-2'
-            },
-            width: '90%',
-            backdrop: 'rgba(15, 23, 42, 0.7)'
-        });
-
-        if (isConfirmed) {
-            const { value: file } = await Swal.fire({
-                title: 'CONFIRM PAYMENT',
-                text: 'Upload your payment screenshot to finalize your order',
-                input: 'file',
-                inputAttributes: {
-                    accept: 'image/*',
-                    'aria-label': 'Upload payment screenshot'
-                },
-                confirmButtonText: 'Finish Order',
-                showCancelButton: true,
-                cancelButtonText: 'Go Back',
-                buttonsStyling: false,
-                customClass: {
-                    popup: 'rounded-[40px] shadow-2xl p-10 bg-white border-none',
-                    title: 'text-2xl font-black text-slate-900 tracking-tighter uppercase mb-4',
-                    htmlContainer: 'text-slate-600 text-sm mb-6',
-                    confirmButton: 'bg-brand-lemon text-slate-900 rounded-full px-10 py-4 text-[11px] font-black uppercase tracking-widest hover:shadow-lg transition-all mx-2',
-                    cancelButton: 'bg-slate-200 text-slate-600 rounded-full px-10 py-4 text-[11px] font-black uppercase tracking-widest hover:bg-slate-300 transition-all mx-2'
-                },
-                backdrop: 'rgba(15, 23, 42, 0.7)'
-            });
-
-            if (file) {
-                try {
-                    const token = localStorage.getItem('fla_token');
-
-                    // Show uploading message
-                    Swal.fire({
-                        title: 'UPLOADING PROOF...',
-                        text: 'Please wait while we process your payment screenshot',
-                        allowOutsideClick: false,
-                        didOpen: () => Swal.showLoading(),
-                        customClass: {
-                            popup: 'rounded-[40px] shadow-2xl p-10 bg-white border-none',
-                            title: 'text-2xl font-black text-slate-900 tracking-tighter uppercase mb-4'
-                        }
-                    });
-
-                    // Upload screenshot first
-                    const formData = new FormData();
-                    formData.append('file', file);
-
-                    const uploadResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/upload`, {
-                        method: 'POST',
-                        headers: {
-                            'Authorization': `Bearer ${token}`
-                        },
-                        body: formData
-                    });
-
-                    if (!uploadResponse.ok) {
-                        throw new Error('Failed to upload payment screenshot');
-                    }
-
-                    const uploadData = await uploadResponse.json();
-                    const paymentProofUrl = uploadData.url || uploadData.path || uploadData.filename;
-
-                    // Create order with payment proof
-                    const orderData = {
-                        items: cartItems.map(item => ({
-                            productId: item.id,
-                            name: item.name,
-                            price: item.price,
-                            quantity: item.quantity,
-                            size: item.size,
-                            image: item.image
-                        })),
-                        totalAmount: subtotal,
-                        vendorId: cartItems[0]?.vendorId,
-                        shippingAddress: user?.address || 'Pickup at Studio',
-                        shippingCity: user?.location || 'Accra',
-                        shippingRegion: 'Greater Accra',
-                        paymentMethod: `MOMO - ${selectedProvider}`,
-                        paymentProof: paymentProofUrl,
-                        notes: 'Order from main bag'
-                    };
-
-                    console.log('Creating order with data:', orderData);
-                    console.log('Payment proof URL:', paymentProofUrl);
-
-                    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders`, {
-                        method: 'POST',
-                        headers: {
-                            'Authorization': `Bearer ${token}`,
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(orderData)
-                    });
-
-                    if (!response.ok) {
-                        const errorData = await response.json().catch(() => ({}));
-                        const errorMessage = errorData.message || errorData.error || `Server error: ${response.status}`;
-                        throw new Error(errorMessage);
-                    }
-
-                    Swal.fire({
-                        title: 'ORDER COMPLETED! 🎉',
-                        html: `
-                            <div class="text-center space-y-4">
-                                <p class="text-slate-600 text-sm">Your bespoke items are now in the tailoring queue.</p>
-                                <div class="bg-brand-lemon/10 p-4 rounded-2xl border border-brand-lemon/20">
-                                    <p class="text-xs font-bold text-slate-700">We'll notify you once your order is ready for delivery!</p>
-                                </div>
-                            </div>
-                        `,
-                        icon: 'success',
-                        iconColor: '#E5FF7F',
-                        confirmButtonText: 'View My Orders',
-                        buttonsStyling: false,
-                        customClass: {
-                            popup: 'rounded-[40px] shadow-2xl p-10 bg-white border-none',
-                            title: 'text-2xl font-black text-slate-900 tracking-tighter uppercase mb-4',
-                            confirmButton: 'bg-slate-900 text-white rounded-full px-10 py-4 text-[11px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-lg'
-                        }
-                    });
-
-                    // Clear cart
-                    cartItems.forEach(item => removeFromCart(item.id, item.size));
-                    setIsCartOpen(false);
-                    router.push('/dashboard');
-                } catch (error: any) {
-                    console.error('Order creation error:', error);
-                    Swal.fire({
-                        title: 'SUBMISSION FAILED',
-                        html: `
-                            <div class="text-left space-y-3">
-                                <p class="text-slate-600 text-sm">${error.message || 'An error occurred while processing your order.'}</p>
-                                <div class="bg-red-50 p-3 rounded-xl border border-red-100">
-                                    <p class="text-xs text-red-600">Please try again or contact support if the issue persists.</p>
-                                </div>
-                            </div>
-                        `,
-                        icon: 'error',
-                        iconColor: '#EF4444',
-                        confirmButtonText: 'Try Again',
-                        buttonsStyling: false,
-                        customClass: {
-                            popup: 'rounded-[40px] shadow-2xl p-10 bg-white border-none',
-                            title: 'text-2xl font-black text-slate-900 tracking-tighter uppercase mb-4',
-                            confirmButton: 'bg-slate-900 text-white rounded-full px-10 py-4 text-[11px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-lg'
-                        }
-                    });
-                }
-            }
-        }
-    };
-
     const handleCheckout = async () => {
         if (cartItems.length === 0) return;
 
@@ -389,7 +106,7 @@ export default function CartDrawer() {
                 </div>
             `,
             showCancelButton: true,
-            confirmButtonText: 'Proceed to Payment',
+            confirmButtonText: 'Pay with MoMo (MTN, Telecel, AT) / Card',
             cancelButtonText: 'Continue Shopping',
             buttonsStyling: false,
             customClass: {
@@ -404,7 +121,77 @@ export default function CartDrawer() {
         });
 
         if (isConfirmed) {
-            await handleMomoFlow();
+            try {
+                const token = localStorage.getItem('fla_token');
+
+                Swal.fire({
+                    title: 'PREPARING PAYMENT...',
+                    text: 'Connecting to secure MoMo gateway...',
+                    allowOutsideClick: false,
+                    didOpen: () => Swal.showLoading(),
+                    customClass: {
+                        popup: 'rounded-[40px] shadow-2xl p-10 bg-white border-none',
+                        title: 'text-2xl font-black text-slate-900 tracking-tighter uppercase mb-4'
+                    }
+                });
+
+                const orderData = {
+                    items: cartItems.map(item => ({
+                        productId: item.id,
+                        name: item.name,
+                        price: item.price,
+                        quantity: item.quantity,
+                        size: item.size,
+                        image: item.image
+                    })),
+                    totalAmount: subtotal,
+                    vendorId: cartItems[0]?.vendorId,
+                    shippingAddress: user?.address || 'Pickup at Studio',
+                    shippingCity: user?.location || 'Accra',
+                    shippingRegion: 'Greater Accra',
+                    customerName: user?.name,
+                    customerEmail: user?.email,
+                    customerPhone: user?.phone,
+                    paymentMethod: 'paystack',
+                    notes: 'Order via Paystack'
+                };
+
+                const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(orderData)
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message || 'Failed to initialize payment');
+                }
+
+                const { paymentLink } = await response.json();
+
+                // Clear cart locally before redirect
+                cartItems.forEach(item => removeFromCart(item.id, item.size));
+                setIsCartOpen(false);
+
+                // Redirect to Flutterwave
+                window.location.href = paymentLink;
+
+            } catch (error: any) {
+                console.error('Checkout error:', error);
+                Swal.fire({
+                    title: 'CHECKOUT FAILED',
+                    text: error.message || 'An error occurred during checkout. Please try again.',
+                    icon: 'error',
+                    confirmButtonText: 'OK',
+                    buttonsStyling: false,
+                    customClass: {
+                        confirmButton: 'bg-slate-900 text-white rounded-full px-10 py-4 text-[11px] font-black uppercase tracking-widest shadow-lg'
+                    }
+                });
+            }
         }
     };
 

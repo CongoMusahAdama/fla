@@ -40,6 +40,18 @@ export class CreateOrderDto {
     @IsOptional()
     vendorId?: string;
 
+    @IsString()
+    @IsOptional()
+    customerName?: string;
+
+    @IsString()
+    @IsOptional()
+    customerEmail?: string;
+
+    @IsString()
+    @IsOptional()
+    customerPhone?: string;
+
     @IsArray()
     @ValidateNested({ each: true })
     @Type(() => OrderItemDto)

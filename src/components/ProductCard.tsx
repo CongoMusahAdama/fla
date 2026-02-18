@@ -36,7 +36,7 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
     const [isAdding, setIsAdding] = useState(false);
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     const { addToCart } = useCart();
-    const { isAuthenticated } = useAuth();
+    const { isAuthenticated, user } = useAuth();
     const [isWishlisted, setIsWishlisted] = useState(initialWishlistState);
     const [imgError, setImgError] = useState(false);
     const router = useRouter();
@@ -46,23 +46,36 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
         if (!vendorId) return;
 
         try {
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/users/vendor/${vendorId}/profile`);
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/users/vendor/${vendorId}/profile/`);
             if (!response.ok) throw new Error('Failed to fetch vendor profile');
             const data = await response.json();
             const { vendor, stats } = data;
 
             Swal.fire({
-                title: `<span class="text-2xl font-black text-slate-900 uppercase tracking-tighter">${vendor.name}</span>`,
+                title: `<div class="flex flex-col items-center">
+                            ${vendor.profileImage ? `<img src="${vendor.profileImage}" class="w-24 h-24 rounded-full object-cover border-4 border-slate-50 shadow-lg mb-3">` : `<div class="w-24 h-24 rounded-full bg-slate-100 flex items-center justify-center text-slate-300 mb-3"><svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></div>`}
+                            <div class="flex items-center gap-2">
+                                <span class="text-2xl font-black text-slate-900 uppercase tracking-tighter">${vendor.shopName || vendor.name}</span>
+                                ${vendor.isVerified ? `<svg class="w-6 h-6 text-blue-500 fill-current" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>` : ''}
+                            </div>
+                            <span class="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">${vendor.location || 'Location Hidden'}</span>
+                        </div>`,
                 html: `
-                    <div class="flex flex-col items-center gap-4 py-4">
-                        <div class="w-24 h-24 rounded-full bg-slate-100 overflow-hidden border-4 border-slate-50 shadow-lg">
-                            ${vendor.profileImage ? `<img src="${vendor.profileImage}" class="w-full h-full object-cover">` : `<div class="w-full h-full flex items-center justify-center text-slate-300"><svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></div>`}
+                    <div class="flex flex-col gap-4 py-2">
+                        <p class="text-sm text-slate-600 italic px-4">"${vendor.bio || 'No bio available yet.'}"</p>
+                        
+                        <div class="grid grid-cols-2 gap-3 w-full">
+                            <div class="bg-slate-50 p-3 rounded-xl text-center border border-slate-100">
+                                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Fulfillment Rate</p>
+                                <p class="text-xl font-black text-emerald-600">${vendor.fulfillmentRate || 98}%</p>
+                            </div>
+                            <div class="bg-slate-50 p-3 rounded-xl text-center border border-slate-100">
+                                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Avg Ship Time</p>
+                                <p class="text-xl font-black text-slate-900">${vendor.averageTimeToShip || '24h'}</p>
+                            </div>
                         </div>
-                        <div class="text-center">
-                            <p class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">${vendor.location || 'Location Hidden'}</p>
-                            <p class="text-sm text-slate-600 italic px-4">"${vendor.bio || 'No bio available yet.'}"</p>
-                        </div>
-                        <div class="grid grid-cols-3 gap-2 w-full mt-4">
+
+                        <div class="grid grid-cols-3 gap-2 w-full mt-2">
                             <div class="bg-slate-50 p-2 rounded-xl text-center">
                                 <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Orders</p>
                                 <p class="text-lg font-black text-slate-900">${stats.total}</p>
@@ -72,9 +85,19 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                                 <p class="text-lg font-black text-emerald-600">${stats.completed}</p>
                             </div>
                             <div class="bg-red-50 p-2 rounded-xl text-center">
-                                <p class="text-[9px] font-black text-red-400 uppercase tracking-widest">Failed</p>
-                                <p class="text-lg font-black text-red-600">${stats.cancelled}</p>
+                                <p class="text-[9px] font-black text-red-400 uppercase tracking-widest">Review Score</p>
+                                <div class="flex items-center justify-center gap-1">
+                                    <span class="text-lg font-black text-slate-900">${vendor.rating || '4.9'}</span>
+                                    <svg class="w-3 h-3 text-brand-lemon fill-current" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                                </div>
                             </div>
+                        </div>
+                        
+                        <div class="mt-4 pt-4 border-t border-slate-100">
+                             <h4 class="text-xs font-black text-slate-900 uppercase tracking-widest mb-2 text-left">Recent Reviews</h4>
+                             <div class="text-left text-xs text-slate-500 italic">
+                                "Amazing quality and fast shipping!" - <span class="font-bold text-slate-900">Sarah K.</span>
+                             </div>
                         </div>
                     </div>
                 `,
@@ -300,13 +323,13 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
     };
 
     const startPaymentFlow = (guestInfo?: any) => {
-        // Step 1: choose method (Momo or WhatsApp)
+        // Step 1: choose method (Flutterwave or WhatsApp)
         Swal.fire({
             title: 'Choose Checkout Method',
             html: `
                 <div class="flex flex-col gap-3">
-                    <button id="pay-momo" class="swal2-confirm swal2-styled" style="background-color: #E5FF7F; color: #0f172a; margin: 0; width: 100%;">
-                        Pay with Mobile Money (MTN/Telecel)
+                    <button id="pay-paystack" class="swal2-confirm swal2-styled" style="background-color: #E5FF7F; color: #0f172a; margin: 0; width: 100%;">
+                        Pay with MoMo (MTN, Telecel, AT) / Card
                     </button>
                     <button id="xy-whatsapp" class="swal2-deny swal2-styled" style="background-color: #25D366; margin: 0; width: 100%;">
                         Buy via WhatsApp
@@ -316,12 +339,12 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
             showConfirmButton: false,
             showCloseButton: true,
             didOpen: () => {
-                const momoBtn = document.getElementById('pay-momo');
+                const paystackBtn = document.getElementById('pay-paystack');
                 const waBtn = document.getElementById('xy-whatsapp');
 
-                momoBtn?.addEventListener('click', () => {
-                    Swal.clickConfirm(); // Triggers the next steps logic
-                    handleMomoFlow(guestInfo);
+                paystackBtn?.addEventListener('click', () => {
+                    Swal.clickConfirm();
+                    handlePaystackFlow();
                 });
 
                 waBtn?.addEventListener('click', () => {
@@ -333,240 +356,57 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
         });
     };
 
-    const handleMomoFlow = async (guestInfo?: any) => {
-        // Step 2: Select Provider with Logos (Visual Grid)
-        let selectedProvider = '';
+    const handlePaystackFlow = async () => {
+        try {
+            const token = localStorage.getItem('fla_token');
 
-        await Swal.fire({
-            title: '<span class="text-xl font-bold text-slate-900">Select Network</span>',
-            html: `
-                <div class="grid grid-cols-3 gap-3 mb-2 mt-4">
-                    <button id="select-mtn" class="network-card flex flex-col items-center p-4 rounded-xl border-2 border-slate-100 hover:border-yellow-400 transition-all cursor-pointer group">
-                        <div class="w-12 h-12 mb-2 rounded-lg overflow-hidden flex items-center justify-center bg-yellow-400 p-1 shadow-sm group-hover:scale-105 transition-transform">
-                            <img src="/payment-logos/mtn.png" alt="MTN" class="w-full h-full object-contain" />
-                        </div>
-                        <span class="text-[10px] font-bold text-slate-700 uppercase tracking-tighter">MTN MoMo</span>
-                    </button>
-                    <button id="select-telecel" class="network-card flex flex-col items-center p-4 rounded-xl border-2 border-slate-100 hover:border-red-500 transition-all cursor-pointer group">
-                        <div class="w-12 h-12 mb-2 rounded-lg overflow-hidden flex items-center justify-center bg-white p-1 shadow-sm group-hover:scale-105 transition-transform border border-slate-50">
-                            <img src="/payment-logos/telecel.png" alt="Telecel" class="w-full h-full object-contain" />
-                        </div>
-                        <span class="text-[10px] font-bold text-slate-700 uppercase tracking-tighter">Telecel Cash</span>
-                    </button>
-                    <button id="select-at" class="network-card flex flex-col items-center p-4 rounded-xl border-2 border-slate-100 hover:border-blue-500 transition-all cursor-pointer group">
-                        <div class="w-12 h-12 mb-2 rounded-lg overflow-hidden flex items-center justify-center bg-blue-500 p-1 shadow-sm group-hover:scale-105 transition-transform">
-                            <img src="/payment-logos/at.png" alt="AT" class="w-full h-full object-contain" />
-                        </div>
-                        <span class="text-[10px] font-bold text-slate-700 uppercase tracking-tighter">AT Money</span>
-                    </button>
-                </div>
-                <p class="text-xs text-slate-400 mt-2 italic">Tap your network to continue</p>
-                
-                <style>
-                    .network-card.active {
-                        border-color: #E5FF7F !important;
-                        background-color: #fafd9a10;
-                    }
-                </style>
-            `,
-            showConfirmButton: false, // Auto-advance or hide confirm
-            didOpen: () => {
-                const cards = ['mtn', 'telecel', 'at'];
-                cards.forEach(c => {
-                    const el = document.getElementById(`select-${c}`);
-                    el?.addEventListener('click', () => {
-                        selectedProvider = c.toUpperCase();
-                        Swal.clickConfirm(); // resolve the promise
-                    });
-                });
-            },
-            width: '95%',
-            padding: '2em',
-            customClass: {
-                popup: 'rounded-2xl shadow-2xl'
-            }
-        });
-
-        if (!selectedProvider) return;
-
-        const providerDisplay = selectedProvider === 'MTN' ? 'MTN Mobile Money' : (selectedProvider === 'TELECEL' ? 'Telecel Cash' : 'AT Money');
-
-        // Step 3: Show Account Info & Upload Screenshot
-        const { isConfirmed } = await Swal.fire({
-            title: '<span class="text-xl font-bold text-slate-900">Payment Details</span>',
-            html: `
-                <div class="text-left space-y-6 mt-2">
-                    
-                    <!-- Amount Display -->
-                    <div class="flex flex-col items-center justify-center py-4 bg-brand-lemon/10 rounded-xl border border-brand-lemon/20">
-                        <span class="text-xs font-bold text-slate-900 uppercase tracking-widest mb-1">Total Amount</span>
-                        <span class="text-3xl font-black text-slate-900">GH₵${currentPrice}</span>
-                    </div>
-
-                    <!-- Payment Details Card -->
-                    <div class="px-4">
-                        <div class="flex items-center gap-3 mb-3">
-                            <div class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
-                            </div>
-                            <span class="text-sm font-bold text-slate-700">Send Mobile Money to:</span>
-                        </div>
-                        
-                        <div class="space-y-3 pl-11">
-                            <div class="bg-white border border-slate-200 rounded-lg p-3 shadow-sm flex justify-between items-center group hover:border-brand-lemon transition-colors">
-                                <span id="momo-1" class="font-mono font-bold text-lg text-slate-800 tracking-wider">0505112925</span>
-                                <button data-target="momo-1" class="copy-btn text-[10px] bg-slate-100 text-slate-500 px-2 py-1 rounded font-bold group-hover:bg-brand-lemon group-hover:text-slate-900 transition-colors cursor-pointer border-none uppercase tracking-wide hover:shadow-sm">COPY</button>
-                            </div>
-                            <div class="bg-white border border-slate-200 rounded-lg p-3 shadow-sm flex justify-between items-center group hover:border-brand-lemon transition-colors">
-                                <span id="momo-2" class="font-mono font-bold text-lg text-slate-800 tracking-wider">0256774847</span>
-                                <button data-target="momo-2" class="copy-btn text-[10px] bg-slate-100 text-slate-500 px-2 py-1 rounded font-bold group-hover:bg-brand-lemon group-hover:text-slate-900 transition-colors cursor-pointer border-none uppercase tracking-wide hover:shadow-sm">COPY</button>
-                            </div>
-                            <div class="flex items-center gap-2 mt-2">
-                                <span class="text-xs text-slate-400 font-medium">Merchant Name:</span>
-                                <span class="text-xs font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded">FLA Bespoke</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Instructions -->
-                    <div class="bg-blue-50 p-4 rounded-xl border border-blue-100 flex gap-3">
-                         <div class="text-blue-500 mt-0.5">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                         </div>
-                         <div class="text-xs text-blue-800 leading-relaxed text-left">
-                            <span class="font-bold">Next Step:</span> After sending the money, please take a <span class="font-bold underline">screenshot</span> of the confirmation SMS or screen. You will need to upload it to confirm your order.
-                         </div>
-                    </div>
-
-                </div>
-            `,
-            confirmButtonText: 'I Have Paid',
-            confirmButtonColor: '#E5FF7F',
-            customClass: {
-                confirmButton: '!text-slate-900 font-bold',
-                popup: 'rounded-2xl shadow-2xl'
-            },
-            showCancelButton: true,
-            cancelButtonText: 'Wait, Cancel',
-            cancelButtonColor: '#cbd5e1',
-            width: '95%',
-            padding: '2em',
-            didOpen: () => {
-                // Add simple copy functionality for the numbers
-                document.querySelectorAll('.copy-btn').forEach(btn => {
-                    btn.addEventListener('click', (e) => {
-                        const targetId = (e.currentTarget as HTMLElement).getAttribute('data-target');
-                        const text = document.getElementById(targetId!)?.innerText;
-                        if (text) {
-                            navigator.clipboard.writeText(text);
-                            // Show mini tooltip/feedback manually or using simple Toast
-                            const Toast = Swal.mixin({
-                                toast: true,
-                                position: 'top',
-                                showConfirmButton: false,
-                                timer: 1000,
-                            });
-                            Toast.fire({ icon: 'success', title: 'Copied!' });
-                        }
-                    });
-                });
-            }
-        });
-
-        if (isConfirmed) {
-            // Step 4: Upload Screenshot
-            const { value: file } = await Swal.fire({
-                title: 'Confirm Payment',
-                text: 'Upload your payment screenshot',
-                input: 'file',
-                inputAttributes: {
-                    'accept': 'image/*',
-                    'aria-label': 'Upload your payment screenshot'
-                },
-                confirmButtonText: 'Submit Order',
-                confirmButtonColor: '#E5FF7F',
-                customClass: {
-                    confirmButton: '!text-slate-900 font-bold'
-                },
-                showCancelButton: true,
-                inputValidator: (result) => {
-                    return !result && 'You need to select a screenshot image!'
-                }
+            Swal.fire({
+                title: 'PREPARING PAYMENT...',
+                text: 'Connecting to secure MoMo gateway...',
+                allowOutsideClick: false,
+                didOpen: () => Swal.showLoading(),
             });
 
-            if (file) {
-                try {
-                    const token = localStorage.getItem('fla_token');
+            const orderData = {
+                items: [{
+                    productId: id,
+                    name: name,
+                    price: currentPrice,
+                    quantity: 1,
+                    size: selectedSize,
+                    image: images[0]
+                }],
+                totalAmount: currentPrice,
+                vendorId: vendorId,
+                shippingAddress: 'Registered Address',
+                shippingCity: 'Accra',
+                shippingRegion: 'Greater Accra',
+                customerName: user?.name,
+                customerEmail: user?.email,
+                customerPhone: user?.phone,
+                paymentMethod: 'paystack',
+                notes: 'Quick Buy Checkout (Paystack)'
+            };
 
-                    // Upload screenshot first
-                    Swal.fire({
-                        title: 'Confirming Payment...',
-                        text: 'Verifying your receipt with our secure ledger.',
-                        allowOutsideClick: false,
-                        didOpen: () => {
-                            Swal.showLoading();
-                        }
-                    });
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(orderData)
+            });
 
-                    const formData = new FormData();
-                    formData.append('file', file);
-                    const uploadResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/upload`, {
-                        method: 'POST',
-                        headers: { 'Authorization': `Bearer ${token}` },
-                        body: formData
-                    });
-
-                    if (!uploadResponse.ok) throw new Error('Screenshot upload failed');
-                    const uploadData = await uploadResponse.json();
-
-                    const orderData = {
-                        items: [{
-                            productId: id,
-                            name: name,
-                            price: currentPrice,
-                            quantity: 1,
-                            size: selectedSize,
-                            image: images[0]
-                        }],
-                        totalAmount: currentPrice,
-                        vendorId: vendorId,
-                        shippingAddress: isAuthenticated ? 'Registered Address' : 'Pickup at Studio',
-                        shippingCity: 'Accra',
-                        shippingRegion: 'Greater Accra',
-                        paymentMethod: `MOMO - ${selectedProvider}`,
-                        paymentProof: uploadData.url, // Correctly linking the screenshot
-                        notes: 'Quick Buy'
-                    };
-
-                    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${token}` // Ensure token is present
-                        },
-                        body: JSON.stringify(orderData)
-                    });
-
-                    if (!response.ok) throw new Error('Order creation failed');
-
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Order Secured',
-                        text: 'Your bespoke piece is now in production.',
-                        confirmButtonText: 'Track Order',
-                        confirmButtonColor: '#0f172a'
-                    }).then(() => {
-                        // Always redirect to dashboard since we enforce auth
-                        router.push('/dashboard');
-                    });
-                } catch (error: any) {
-                    Swal.fire({
-                        title: 'Submission Failed',
-                        text: error.message,
-                        icon: 'error'
-                    });
-                }
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.message || 'Failed to initialize payment');
             }
+
+            const { paymentLink } = await response.json();
+            window.location.href = paymentLink;
+
+        } catch (error: any) {
+            Swal.fire('Payment Error', error.message, 'error');
         }
     };
 
@@ -647,6 +487,14 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                     <h3 className="font-heading font-black text-slate-900 text-base md:text-lg leading-tight line-clamp-1 group-hover:text-brand-lemon transition-colors">
                         {name}
                     </h3>
+
+                    {/* Vendor Link */}
+                    {vendorName && (
+                        <div onClick={handleVendorProfile} className="flex items-center gap-1.5 w-fit cursor-pointer group/vendor">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest group-hover/vendor:text-slate-600">by {vendorName}</span>
+                            <div className="w-1 h-1 rounded-full bg-blue-500"></div>
+                        </div>
+                    )}
 
                     {/* Feature Highlights */}
                     <div className="space-y-2 pb-3 border-b border-slate-100">

@@ -97,20 +97,22 @@ export class DashboardService {
         ]);
 
         const totalRevenue = orders
-            .filter(o => o.status !== 'cancelled' && o.isPaid)
+            .filter(o => o.isPaid && o.status !== 'cancelled' && o.status !== 'refunded')
             .reduce((sum, order) => sum + order.totalAmount, 0);
 
-        const totalCommission = totalRevenue * 0.1; // 10% Platform Commission
+        const totalCommission = orders
+            .filter(o => o.isPaid && o.status !== 'cancelled' && o.status !== 'refunded')
+            .reduce((sum, order) => sum + (order.adminCommission || order.totalAmount * 0.1), 0);
 
         const escrowBalance = orders
-            .filter(o => o.status !== 'cancelled' && !o.isPaid)
+            .filter(o => ['held', 'frozen'].includes(o.escrowStatus))
             .reduce((sum, order) => sum + order.totalAmount, 0);
 
         const totalUsers = users.length;
         const totalVendors = users.filter((u: any) => u.role === 'vendor').length;
         const totalProducts = products.length;
         const totalOrders = orders.length;
-        const completedTransactions = orders.filter(o => o.status === 'delivered' || o.isPaid).length;
+        const completedTransactions = orders.filter(o => o.status === 'completed' || o.status === 'delivered').length;
 
         return {
             totalRevenue,

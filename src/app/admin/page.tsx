@@ -251,6 +251,44 @@ export default function AdminDashboard() {
         }
     };
 
+    const handleResolveDispute = async (orderId: string, resolution: 'refund' | 'release') => {
+        const result = await Swal.fire({
+            title: resolution === 'refund' ? 'REFUND CUSTOMER?' : 'RELEASE TO VENDOR?',
+            text: resolution === 'refund'
+                ? "This will return funds to the customer and void the transaction."
+                : "This will override the dispute and release funds to the vendor.",
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'CONFIRM RESOLUTION',
+            buttonsStyling: false,
+            customClass: {
+                confirmButton: `px-8 py-3 rounded-full text-[10px] font-black uppercase tracking-widest mr-4 ${resolution === 'refund' ? 'bg-red-500 text-white' : 'bg-emerald-500 text-white'}`,
+                cancelButton: 'bg-slate-100 text-slate-400 px-8 py-3 rounded-full text-[10px] font-black uppercase tracking-widest'
+            }
+        });
+
+        if (result.isConfirmed) {
+            try {
+                const token = localStorage.getItem('fla_token');
+                const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders/${orderId}/resolve-dispute`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ resolution })
+                });
+
+                if (!response.ok) throw new Error('Failed to resolve dispute');
+
+                await refreshData();
+                Swal.fire('Resolved!', `Dispute has been settled via ${resolution}.`, 'success');
+            } catch (error: any) {
+                Swal.fire('Error', error.message, 'error');
+            }
+        }
+    };
+
     const handleAdminCreateVendor = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
@@ -950,13 +988,77 @@ export default function AdminDashboard() {
                     </div>
                 );
             case 'disputes':
+                const disputedOrders = allOrders.filter(o => o.status === 'disputed');
                 return (
-                    <div className="py-20 animate-in fade-in duration-700">
-                        <div className="w-20 h-20 bg-slate-50 rounded-[28px] flex items-center justify-center mb-8">
-                            <MessageSquare className="w-10 h-10 text-slate-200 animate-pulse" />
+                    <div className="space-y-8 animate-in fade-in duration-500">
+                        <div className="flex justify-between items-end gap-6 flex-wrap">
+                            <div>
+                                <h1 className="text-3xl font-black text-slate-900 uppercase tracking-tighter">Dispute Resolution Center</h1>
+                                <p className="text-slate-500 text-sm">Human-in-the-loop mediation for transaction conflicts.</p>
+                            </div>
                         </div>
-                        <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tighter">Dispute Resolution Center</h2>
-                        <p className="text-slate-400 text-sm mt-2 max-w-sm">Manage and resolve customer and vendor disputes efficiently.</p>
+
+                        {disputedOrders.length > 0 ? (
+                            <div className="bg-white rounded-[40px] border border-slate-100 shadow-sm overflow-hidden overflow-x-auto">
+                                <table className="w-full text-left">
+                                    <thead className="bg-slate-900">
+                                        <tr>
+                                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Order / Date</th>
+                                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Parties</th>
+                                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Dispute Reason</th>
+                                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Amount</th>
+                                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Mediation</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-50">
+                                        {disputedOrders.map((o) => (
+                                            <tr key={o._id} className="hover:bg-slate-50/50 transition-colors">
+                                                <td className="px-8 py-6">
+                                                    <p className="font-black text-slate-900 text-sm">#ORD-{o._id.slice(-6).toUpperCase()}</p>
+                                                    <p className="text-[10px] font-bold text-slate-400">{new Date(o.createdAt).toLocaleDateString()}</p>
+                                                </td>
+                                                <td className="px-8 py-6">
+                                                    <div className="space-y-1">
+                                                        <p className="text-[10px] font-black text-slate-400 uppercase">Customer: <span className="text-slate-900">{o.customerName || 'Guest'}</span></p>
+                                                        <p className="text-[10px] font-black text-slate-400 uppercase">Vendor: <span className="text-slate-900">{o.vendorName || 'Artisan'}</span></p>
+                                                    </div>
+                                                </td>
+                                                <td className="px-8 py-6">
+                                                    <div className="max-w-xs">
+                                                        <p className="text-xs text-slate-600 italic leading-relaxed">"{o.disputeReason || 'No reason provided'}"</p>
+                                                    </div>
+                                                </td>
+                                                <td className="px-8 py-6">
+                                                    <p className="font-black text-slate-900">GH₵ {o.totalAmount.toLocaleString()}</p>
+                                                </td>
+                                                <td className="px-8 py-6 text-right">
+                                                    <div className="flex justify-end gap-2">
+                                                        <button
+                                                            onClick={() => handleResolveDispute(o._id, 'refund')}
+                                                            className="px-4 py-2 bg-red-50 text-red-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-sm"
+                                                        >
+                                                            Refund Customer
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleResolveDispute(o._id, 'release')}
+                                                            className="px-4 py-2 bg-emerald-50 text-emerald-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-600 hover:text-white transition-all shadow-sm"
+                                                        >
+                                                            Release to Vendor
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        ) : (
+                            <div className="py-20 text-center bg-white rounded-[40px] border border-dashed border-slate-200">
+                                <ShieldCheck className="w-16 h-16 text-slate-100 mx-auto mb-4" />
+                                <p className="text-slate-400 font-bold text-sm uppercase tracking-widest">No Active Disputes</p>
+                                <p className="text-[10px] text-slate-300 mt-1">Platform transactions are currently healthy.</p>
+                            </div>
+                        )}
                     </div>
                 );
             case 'reports':

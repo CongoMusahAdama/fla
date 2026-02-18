@@ -61,6 +61,41 @@ export class User {
         createdAt: Date;
     }>;
 
+    @Prop({ default: 0 })
+    walletBalance: number;
+
+    @Prop({ default: 0 })
+    pendingBalance: number;
+
+    // Trust & Verification Fields
+    @Prop({ default: false })
+    isVerified: boolean;
+
+    @Prop({ type: [String], default: [] })
+    verificationBadges: string[];
+
+    @Prop()
+    businessName?: string;
+
+    @Prop()
+    businessAddress?: string;
+
+    // Vendor Performance Metrics
+    @Prop({ default: 0 })
+    fulfillmentRate: number; // percentage (0-100)
+
+    @Prop({ default: 0 }) // in hours
+    averageTimeToShip: number;
+
+    @Prop({ default: 0 })
+    rating: number; // 0-5 stars
+
+    @Prop({ default: 0 })
+    reviewCount: number;
+
+    @Prop({ default: 0 })
+    reputationScore: number; // calculated score based on multiple factors
+
     @Prop({ default: 'active' })
     status: string;
 

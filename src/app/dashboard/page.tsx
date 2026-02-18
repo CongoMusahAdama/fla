@@ -283,16 +283,14 @@ export default function CustomerDashboard() {
         setIsSubmittingDispute(true);
         try {
             const token = localStorage.getItem('fla_token');
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/support/dispute`, {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders/${disputeOrderId}/dispute`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    orderId: disputeOrderId,
-                    category: disputeCategory,
-                    description: disputeDescription
+                    reason: `${disputeCategory}: ${disputeDescription}`
                 })
             });
 
@@ -524,13 +522,21 @@ export default function CustomerDashboard() {
                                 {filteredOrders.map((order) => (
                                     <div key={order._id} className="p-5 border-b border-slate-50 last:border-none">
                                         <div className="flex gap-4 mb-4">
-                                            <div className="relative w-20 h-24 bg-slate-50 rounded-2xl overflow-hidden flex-shrink-0 border border-slate-100">
+                                            <div className="relative w-24 h-28 bg-slate-50 rounded-2xl overflow-hidden flex-shrink-0 border border-slate-100">
                                                 <Image
                                                     src={getImageUrl(order.items[0]?.image || '/product-1.jpg')}
                                                     alt="p"
                                                     fill
                                                     className="object-cover"
                                                 />
+                                                <div className="absolute bottom-2 left-2 right-2">
+                                                    <span className={`block text-center px-1 py-0.5 rounded-md text-[7px] font-black uppercase tracking-tighter shadow-sm ${order.escrowStatus === 'released' ? 'bg-emerald-500 text-white' :
+                                                            order.escrowStatus === 'frozen' ? 'bg-red-500 text-white' :
+                                                                'bg-orange-500 text-white'
+                                                        }`}>
+                                                        {order.escrowStatus || 'HELD'}
+                                                    </span>
+                                                </div>
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex justify-between items-start mb-1">
@@ -593,6 +599,7 @@ export default function CustomerDashboard() {
                                         <tr className="border-b border-slate-50">
                                             <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Product</th>
                                             <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
+                                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Escrow</th>
                                             <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Vendor</th>
                                             <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Price</th>
                                             <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Action</th>
@@ -624,6 +631,14 @@ export default function CustomerDashboard() {
                                                         {order.status}
                                                     </span>
                                                 </td>
+                                                <td className="px-8 py-6">
+                                                    <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${order.escrowStatus === 'released' ? 'bg-emerald-100 text-emerald-700' :
+                                                            order.escrowStatus === 'frozen' ? 'bg-red-100 text-red-700' :
+                                                                'bg-orange-100 text-orange-700'
+                                                        }`}>
+                                                        {order.escrowStatus || 'held'}
+                                                    </span>
+                                                </td>
                                                 <td className="px-8 py-6 text-sm text-slate-600 font-bold">{order.vendorName || 'FLA Vendor'}</td>
                                                 <td className="px-8 py-6 font-sans font-black text-slate-900">GH₵ {order.totalAmount}</td>
                                                 <td className="px-8 py-6 text-right flex items-center justify-end gap-2">
@@ -641,6 +656,42 @@ export default function CustomerDashboard() {
                                                     >
                                                         Track
                                                     </button>
+                                                    {order.status === 'shipped' && (
+                                                        <button
+                                                            onClick={async () => {
+                                                                const result = await Swal.fire({
+                                                                    title: 'Confirm Receipt?',
+                                                                    text: "Only confirm if you have received the item and are satisfied with the quality. This will release funds to the vendor.",
+                                                                    icon: 'question',
+                                                                    showCancelButton: true,
+                                                                    confirmButtonColor: '#10B981',
+                                                                    confirmButtonText: 'Yes, I Received It'
+                                                                });
+
+                                                                if (result.isConfirmed) {
+                                                                    try {
+                                                                        const token = localStorage.getItem('fla_token');
+                                                                        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders/${order._id}/confirm-receipt`, {
+                                                                            method: 'POST',
+                                                                            headers: { 'Authorization': `Bearer ${token}` }
+                                                                        });
+
+                                                                        if (!response.ok) throw new Error('Failed to confirm receipt');
+
+                                                                        // Update local state
+                                                                        setOrders(prev => prev.map(o => o._id === order._id ? { ...o, status: 'delivered', escrowStatus: 'released' } : o));
+
+                                                                        Swal.fire('Confirmed!', 'Funds have been released to the vendor.', 'success');
+                                                                    } catch (error: any) {
+                                                                        Swal.fire('Error', error.message, 'error');
+                                                                    }
+                                                                }
+                                                            }}
+                                                            className="px-6 py-2 bg-emerald-600 text-white rounded-full text-[9px] font-bold uppercase tracking-widest hover:bg-emerald-700 transition-all hover:scale-105 active:scale-95 whitespace-nowrap shadow-md shadow-emerald-200"
+                                                        >
+                                                            Confirm Receipt
+                                                        </button>
+                                                    )}
                                                     <button
                                                         onClick={() => {
                                                             setDisputeOrderId(order._id);
