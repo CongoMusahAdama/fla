@@ -94,4 +94,10 @@ export class OrdersController {
     const releasedCount = await this.ordersService.processAutoReleases();
     return { message: `Processed ${releasedCount} auto-releases` };
   }
+
+  @Post(':id/approve-escrow')
+  async approveEscrow(@Param('id') id: string, @Request() req) {
+    if (req.user.role !== 'admin') throw new Error('Unauthorized - Admin only');
+    return this.ordersService.approveEscrow(id);
+  }
 }

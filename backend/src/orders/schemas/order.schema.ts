@@ -75,7 +75,7 @@ export class Order {
 
     @Prop({
         type: String,
-        enum: ['held', 'released', 'refunded', 'frozen'],
+        enum: ['held', 'waiting_approval', 'released', 'refunded', 'frozen'],
         default: 'held'
     })
     escrowStatus: string;

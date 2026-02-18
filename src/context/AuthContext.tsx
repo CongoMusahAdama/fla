@@ -25,6 +25,9 @@ export type User = {
     idFile?: any;
     logoFile?: any;
     status?: string;
+    uniqueVendorId?: string;
+    walletBalance?: number;
+    pendingBalance?: number;
 };
 
 type AuthContextType = {
@@ -89,6 +92,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 bio: data.user.bio,
                 productTypes: data.user.productTypes,
                 status: data.user.status,
+                uniqueVendorId: data.user.uniqueVendorId,
+                walletBalance: data.user.walletBalance,
+                pendingBalance: data.user.pendingBalance,
             };
 
             setUser(loggedInUser);

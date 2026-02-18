@@ -1,4 +1,4 @@
-import { Injectable, ConflictException, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import { Injectable, ConflictException, InternalServerErrorException, NotFoundException, Inject, forwardRef } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -11,15 +11,20 @@ import { OrdersService } from '../orders/orders.service';
 export class UsersService {
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
-    private ordersService: OrdersService
+    @Inject(forwardRef(() => OrdersService)) private ordersService: OrdersService
   ) { }
 
   async create(createUserDto: CreateUserDto): Promise<User> {
     try {
       const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
+      const uniqueVendorId = createUserDto.role === 'vendor'
+        ? `FLA-V-${Math.random().toString(36).substr(2, 6).toUpperCase()}`
+        : undefined;
+
       const createdUser = new this.userModel({
         ...createUserDto,
         password: hashedPassword,
+        uniqueVendorId,
         status: createUserDto.role === 'vendor' ? 'pending' : 'active',
       });
       return await createdUser.save();
@@ -47,15 +52,27 @@ export class UsersService {
     return this.userModel.findByIdAndUpdate(id, { $set: updateUserDto }, { new: true }).exec();
   }
 
+  async findByUniqueVendorId(vendorId: string): Promise<User | null> {
+    return this.userModel.findOne({ uniqueVendorId: vendorId }).exec();
+  }
+
   async remove(id: string): Promise<User | null> {
     return this.userModel.findByIdAndDelete(id).exec();
   }
 
   async getPublicVendorProfile(vendorId: string) {
-    const user = await this.userModel.findById(vendorId).select('-password -email -phone -paymentMethods -withdrawalHistory').exec();
+    let user = await this.userModel.findById(vendorId).select('-password -paymentMethods -withdrawalHistory').exec();
     if (!user) {
       throw new NotFoundException('Vendor not found');
     }
+
+    // Ensure they have a unique ID if it was created before this feature
+    if (user.role === 'vendor' && !user.uniqueVendorId) {
+      const uniqueId = `FLA-V-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+      user.uniqueVendorId = uniqueId;
+      await this.userModel.findByIdAndUpdate(vendorId, { uniqueVendorId: uniqueId });
+    }
+
     const stats = await this.ordersService.getVendorStats(vendorId);
     return {
       vendor: user,

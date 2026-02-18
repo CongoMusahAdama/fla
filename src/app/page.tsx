@@ -120,6 +120,8 @@ export default function Home() {
                     sizes={product.sizes}
                     stock={product.stock}
                     vendorId={product.vendorId}
+                    vendorName={product.vendorName}
+                    uniqueVendorId={product.uniqueVendorId}
                     index={index}
                   />
                 ))

@@ -59,6 +59,15 @@ export class Product {
     @Prop({ default: 0 })
     adminCommission: number;
 
+    @Prop()
+    tailoringTime: string;
+
+    @Prop()
+    fabrication: string;
+
+    @Prop()
+    uniqueVendorId: string;
+
 }
 
 export const ProductSchema = SchemaFactory.createForClass(Product);

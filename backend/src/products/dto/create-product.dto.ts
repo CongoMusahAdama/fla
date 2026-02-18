@@ -57,5 +57,17 @@ export class CreateProductDto {
     @IsOptional()
     isFeatured?: boolean;
 
+    @IsString()
+    @IsOptional()
+    tailoringTime?: string;
+
+    @IsString()
+    @IsOptional()
+    fabrication?: string;
+
+    @IsString()
+    @IsOptional()
+    uniqueVendorId?: string;
+
 }
 

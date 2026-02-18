@@ -68,4 +68,10 @@ export class CreateUserDto {
     @IsString()
     @IsOptional()
     status?: string;
+
+    @IsOptional()
+    walletBalance?: number;
+
+    @IsOptional()
+    pendingBalance?: number;
 }

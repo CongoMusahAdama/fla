@@ -346,7 +346,12 @@ function AuthContent() {
             }
         });
         setTimeout(() => {
-            if (userRole === 'admin') {
+            const redirectTo = searchParams.get('redirect');
+            if (redirectTo) {
+                // If the redirect starts with 'checkout', we might want to trigger something specifically, 
+                // but usually just going back to the page works if the state is preserved (like the cart).
+                router.push(redirectTo);
+            } else if (userRole === 'admin') {
                 router.push('/admin');
             } else if (userRole === 'vendor') {
                 router.push('/vendor');

@@ -247,6 +247,7 @@ function ShopContent() {
                                     rating={product.rating}
                                     reviewCount={product.reviewCount}
                                     vendorName={product.vendorName}
+                                    uniqueVendorId={product.uniqueVendorId}
                                 />
                             ))}
                         </div>

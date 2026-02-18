@@ -38,7 +38,7 @@ export class ProductsService {
       filters.vendorId = query.vendorId;
     }
 
-    let q = this.productModel.find(filters);
+    let q = this.productModel.find(filters).populate('vendorId', 'uniqueVendorId');
 
     if (query.sort === 'latest') {
       q = q.sort({ createdAt: -1 });
@@ -48,19 +48,39 @@ export class ProductsService {
       q = q.limit(parseInt(query.limit));
     }
 
-    return q.exec();
+    const products = await q.exec();
+
+    // Map to ensure uniqueVendorId is top-level for frontend convenience
+    return products.map(p => {
+      const productObj = p.toObject();
+      if (!productObj.uniqueVendorId && productObj.vendorId && (productObj.vendorId as any).uniqueVendorId) {
+        productObj.uniqueVendorId = (productObj.vendorId as any).uniqueVendorId;
+      }
+      return productObj;
+    });
   }
 
   async findByVendor(vendorId: string): Promise<Product[]> {
-    return this.productModel.find({ vendorId: vendorId }).exec();
+    const products = await this.productModel.find({ vendorId: vendorId }).populate('vendorId', 'uniqueVendorId').exec();
+    return products.map(p => {
+      const productObj = p.toObject();
+      if (!productObj.uniqueVendorId && productObj.vendorId && (productObj.vendorId as any).uniqueVendorId) {
+        productObj.uniqueVendorId = (productObj.vendorId as any).uniqueVendorId;
+      }
+      return productObj;
+    });
   }
 
   async findOne(id: string): Promise<Product> {
-    const product = await this.productModel.findById(id).exec();
+    const product = await this.productModel.findById(id).populate('vendorId', 'uniqueVendorId').exec();
     if (!product) {
       throw new NotFoundException(`Product with ID ${id} not found`);
     }
-    return product;
+    const productObj = product.toObject();
+    if (!productObj.uniqueVendorId && productObj.vendorId && (productObj.vendorId as any).uniqueVendorId) {
+      productObj.uniqueVendorId = (productObj.vendorId as any).uniqueVendorId;
+    }
+    return productObj as any;
   }
 
   async update(id: string, updateProductDto: UpdateProductDto): Promise<Product> {

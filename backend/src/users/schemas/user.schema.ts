@@ -101,6 +101,9 @@ export class User {
 
     @Prop({ default: Date.now, index: true })
     createdAt: Date;
+
+    @Prop({ unique: true, sparse: true })
+    uniqueVendorId?: string;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

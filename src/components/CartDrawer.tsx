@@ -25,6 +25,15 @@ export default function CartDrawer() {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [isCartOpen, setIsCartOpen]);
 
+    // Handle #cart hash to open cart automatically (useful for redirects after login)
+    useEffect(() => {
+        if (window.location.hash === '#cart') {
+            setIsCartOpen(true);
+            // Clear the hash after opening
+            window.history.replaceState(null, '', window.location.pathname + window.location.search);
+        }
+    }, [setIsCartOpen]);
+
     // Prevent body scroll when open
     useEffect(() => {
         if (isCartOpen) {
@@ -76,7 +85,7 @@ export default function CartDrawer() {
                 }
             }).then((result) => {
                 if (result.isConfirmed) {
-                    router.push('/auth?role=customer');
+                    router.push('/auth?role=customer&redirect=/#cart');
                 }
             });
             return;

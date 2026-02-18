@@ -14,7 +14,6 @@ export class OrdersService {
     @InjectModel(Order.name) private orderModel: Model<OrderDocument>,
     @InjectModel(Product.name) private productModel: Model<ProductDocument>,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
-    @Inject(forwardRef(() => PaystackService))
     private readonly paystackService: PaystackService,
   ) { }
 
@@ -22,10 +21,11 @@ export class OrdersService {
     try {
       const orderId = new Types.ObjectId();
 
-      // Calculate Splits
+      // Commission Logic: User wants it deducted at WITHDRAWAL.
+      // So here we store the FULL amount as vendor share initially.
       const totalAmount = createOrderDto.totalAmount;
-      const adminCommission = totalAmount * 0.1; // 10% Platform Fee
-      const vendorShare = totalAmount - adminCommission;
+      const adminCommission = 0; // Will be calculated and deducted at withdrawal
+      const vendorShare = totalAmount;
 
       const orderData: any = {
         ...createOrderDto,
@@ -89,6 +89,15 @@ export class OrdersService {
       $inc: { pendingBalance: order.vendorShare }
     });
 
+    // Decrement stock for each item
+    if (order.items && order.items.length > 0) {
+      for (const item of order.items) {
+        await this.productModel.findByIdAndUpdate(item.productId, {
+          $inc: { stock: -item.quantity }
+        });
+      }
+    }
+
     await order.save();
   }
 
@@ -140,6 +149,15 @@ export class OrdersService {
       $inc: { pendingBalance: order.vendorShare }
     });
 
+    // Decrement stock for each item
+    if (order.items && order.items.length > 0) {
+      for (const item of order.items) {
+        await this.productModel.findByIdAndUpdate(item.productId, {
+          $inc: { stock: -item.quantity }
+        });
+      }
+    }
+
     return order.save();
   }
 
@@ -158,12 +176,11 @@ export class OrdersService {
   async releaseEscrow(orderId: string): Promise<Order> {
     const order = await this.orderModel.findById(orderId).exec();
     if (!order) throw new NotFoundException(`Order not found`);
-    if (order.status === 'completed') return order;
+    if (order.escrowStatus === 'released') return order;
 
-    order.status = 'completed';
     order.escrowStatus = 'released';
-    order.deliveryConfirmationDate = new Date();
-    order.deliveredAt = new Date();
+    order.status = 'completed';
+    order.deliveryConfirmationDate = order.deliveryConfirmationDate || new Date();
 
     await this.userModel.findByIdAndUpdate(order.vendorId, {
       $inc: {
@@ -176,12 +193,27 @@ export class OrdersService {
     return order.save();
   }
 
+  async approveEscrow(orderId: string): Promise<Order> {
+    const order = await this.orderModel.findById(orderId).exec();
+    if (!order) throw new NotFoundException(`Order not found`);
+    if (order.escrowStatus !== 'waiting_approval') {
+      throw new Error(`Order escrow status is ${order.escrowStatus}, not waiting_approval`);
+    }
+
+    return this.releaseEscrow(orderId);
+  }
+
   async confirmReceipt(orderId: string, customerId: string): Promise<Order> {
     const order = await this.orderModel.findById(orderId).exec();
     if (!order) throw new NotFoundException(`Order not found`);
     if (order.customerId.toString() !== customerId) throw new NotFoundException('Unauthorized');
 
-    return this.releaseEscrow(orderId);
+    order.status = 'delivered';
+    order.escrowStatus = 'waiting_approval';
+    order.deliveryConfirmationDate = new Date();
+    order.deliveredAt = new Date();
+
+    return order.save();
   }
 
   async processAutoReleases(): Promise<number> {

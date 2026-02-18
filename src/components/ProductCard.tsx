@@ -18,15 +18,16 @@ interface ProductCardProps {
     duration?: string;
     stock: number;
     index: number;
-    vendorId?: string;
+    vendorId?: string | any;
     initialWishlistState?: boolean;
     description?: string;
     rating?: number;
     reviewCount?: number;
     vendorName?: string;
+    uniqueVendorId?: string;
 }
 
-export default function ProductCard({ id, name, price, images, sizes = [], imageLabels, duration = '3 working days', stock, index, vendorId, initialWishlistState = false, description, rating = 0, reviewCount = 0, vendorName }: ProductCardProps) {
+export default function ProductCard({ id, name, price, images, sizes = [], imageLabels, duration = '3 working days', stock, index, vendorId, initialWishlistState = false, description, rating = 0, reviewCount = 0, vendorName, uniqueVendorId }: ProductCardProps) {
     const isBatch = false;
     const currentPrice = price;
 
@@ -41,70 +42,155 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
     const [imgError, setImgError] = useState(false);
     const router = useRouter();
 
+    const getImageUrl = (url: string) => {
+        if (!url || url === '/product-1.jpg') return '/product-1.jpg';
+        if (url.startsWith('http')) return url;
+
+        // Backend uploads
+        if (url.startsWith('/uploads')) {
+            const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '');
+            return `${baseUrl}${url}`;
+        }
+
+        // Frontend static assets
+        if (url.startsWith('/')) return url;
+
+        // Default to backend upload if just filename
+        const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '');
+        return `${baseUrl}/uploads/${url}`;
+    };
+
     const handleVendorProfile = async (e: React.MouseEvent) => {
         e.stopPropagation();
-        if (!vendorId) return;
+
+        let validVendorId = vendorId;
+        if (typeof vendorId === 'object' && vendorId !== null) {
+            validVendorId = vendorId._id || vendorId.id;
+        }
+
+        if (!validVendorId) return;
 
         try {
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/users/vendor/${vendorId}/profile/`);
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/users/vendor/${validVendorId}/profile`);
             if (!response.ok) throw new Error('Failed to fetch vendor profile');
             const data = await response.json();
             const { vendor, stats } = data;
 
+            const resolvedProfileImage = getImageUrl(vendor.profileImage);
+
             Swal.fire({
-                title: `<div class="flex flex-col items-center">
-                            ${vendor.profileImage ? `<img src="${vendor.profileImage}" class="w-24 h-24 rounded-full object-cover border-4 border-slate-50 shadow-lg mb-3">` : `<div class="w-24 h-24 rounded-full bg-slate-100 flex items-center justify-center text-slate-300 mb-3"><svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></div>`}
-                            <div class="flex items-center gap-2">
-                                <span class="text-2xl font-black text-slate-900 uppercase tracking-tighter">${vendor.shopName || vendor.name}</span>
-                                ${vendor.isVerified ? `<svg class="w-6 h-6 text-blue-500 fill-current" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>` : ''}
-                            </div>
-                            <span class="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">${vendor.location || 'Location Hidden'}</span>
-                        </div>`,
                 html: `
-                    <div class="flex flex-col gap-4 py-2">
-                        <p class="text-sm text-slate-600 italic px-4">"${vendor.bio || 'No bio available yet.'}"</p>
-                        
-                        <div class="grid grid-cols-2 gap-3 w-full">
-                            <div class="bg-slate-50 p-3 rounded-xl text-center border border-slate-100">
-                                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Fulfillment Rate</p>
-                                <p class="text-xl font-black text-emerald-600">${vendor.fulfillmentRate || 98}%</p>
+                    <div class="flex flex-col -m-6 overflow-hidden">
+                        <!-- Luxury Header -->
+                        <div class="bg-slate-900 pt-16 pb-12 px-6 text-center relative overflow-hidden">
+                            <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+                                <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M 20 0 L 0 0 0 20" fill="none" stroke="white" stroke-width="0.5"/></pattern></defs><rect width="100%" height="100%" fill="url(#grid)" /></svg>
                             </div>
-                            <div class="bg-slate-50 p-3 rounded-xl text-center border border-slate-100">
-                                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Avg Ship Time</p>
-                                <p class="text-xl font-black text-slate-900">${vendor.averageTimeToShip || '24h'}</p>
+                            
+                            <div class="relative inline-block mb-4">
+                                ${vendor.profileImage
+                        ? `<img src="${resolvedProfileImage}" class="w-28 h-28 rounded-[2rem] object-cover border-4 border-[#E5FF7F] shadow-2xl">`
+                        : `<div class="w-28 h-28 rounded-[2rem] bg-slate-800 flex items-center justify-center text-[#E5FF7F] border-4 border-slate-700 shadow-2xl">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                                       </div>`
+                    }
+                                <div class="absolute -bottom-2 -right-2 bg-[#E5FF7F] p-1.5 rounded-xl shadow-lg border-2 border-slate-900">
+                                    <svg class="w-5 h-5 text-slate-900" viewBox="0 0 24 24" fill="currentColor"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                </div>
+                            </div>
+                            
+                            <div class="flex flex-col items-center gap-1.5">
+                                <h2 class="text-3xl font-black text-white uppercase tracking-tighter">${vendor.shopName || vendor.name}</h2>
+                                <span class="bg-[#E5FF7F]/10 text-[#E5FF7F] text-[9px] font-black uppercase tracking-[0.2em] px-3 py-1 rounded-full border border-[#E5FF7F]/20">
+                                    ID: ${vendor.uniqueVendorId || 'VND-PENDING'}
+                                </span>
+                            </div>
+
+                            <div class="flex items-center justify-center gap-1.5 text-[#E5FF7F] text-[10px] font-black uppercase tracking-[0.2em] opacity-80 mt-4">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                                ${vendor.location || 'Accra, Ghana'}
                             </div>
                         </div>
 
-                        <div class="grid grid-cols-3 gap-2 w-full mt-2">
-                            <div class="bg-slate-50 p-2 rounded-xl text-center">
-                                <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Orders</p>
-                                <p class="text-lg font-black text-slate-900">${stats.total}</p>
+                        <!-- Content Area -->
+                        <div class="bg-white px-6 py-8 -mt-6 rounded-t-[3.5rem] relative z-10 flex flex-col gap-8">
+                            <div class="text-center">
+                                <p class="text-slate-500 text-sm font-medium leading-relaxed italic px-4">
+                                    "${vendor.bio || "Your studio's narrative is shared here with patrons in the marketplace."}"
+                                </p>
                             </div>
-                            <div class="bg-emerald-50 p-2 rounded-xl text-center">
-                                <p class="text-[9px] font-black text-emerald-400 uppercase tracking-widest">Success</p>
-                                <p class="text-lg font-black text-emerald-600">${stats.completed}</p>
-                            </div>
-                            <div class="bg-red-50 p-2 rounded-xl text-center">
-                                <p class="text-[9px] font-black text-red-400 uppercase tracking-widest">Review Score</p>
-                                <div class="flex items-center justify-center gap-1">
-                                    <span class="text-lg font-black text-slate-900">${vendor.rating || '4.9'}</span>
-                                    <svg class="w-3 h-3 text-brand-lemon fill-current" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+
+                            <!-- Contact Channels -->
+                            <div class="flex flex-col gap-4">
+                                <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Patron Contact Channels</h4>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <a href="https://wa.me/${vendor.phone}" target="_blank" class="flex items-center justify-center gap-2 bg-emerald-500 text-white p-4 rounded-3xl shadow-xl shadow-emerald-500/10 hover:shadow-emerald-500/20 active:scale-95 transition-all text-xs font-black uppercase tracking-widest">
+                                        <svg viewBox="0 0 24 24" class="w-5 h-5 fill-current"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.412c-1.935 0-3.83-.502-5.485-1.454l-.394-.227-4.078 1.07 1.089-3.975-.249-.396A9.816 9.816 0 011.942 12.07C1.942 6.656 6.355 2.24 11.77 2.24s9.829 4.417 9.829 9.831c0 5.414-4.417 9.831-9.83 9.831m11.834-11.83c0-6.521-5.303-11.825-11.825-11.825C5.461 0 0 5.461 0 11.825c0 2.083.54 4.117 1.571 5.905L0 24l6.446-1.691c1.71 1.017 3.65 1.554 5.62 1.554 6.523 0 11.825-5.303 11.825-11.825" /></svg>
+                                        WhatsApp
+                                    </a>
+                                    <a href="tel:${vendor.phone}" class="flex items-center justify-center gap-2 bg-slate-900 text-white p-4 rounded-3xl shadow-xl shadow-slate-900/10 hover:shadow-slate-900/20 active:scale-95 transition-all text-xs font-black uppercase tracking-widest">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 18.92z"/></svg>
+                                        Call
+                                    </a>
+                                </div>
+                                <div class="bg-slate-50 p-4 rounded-[2rem] border border-slate-100 flex items-center justify-between">
+                                    <div class="flex items-center gap-3 overflow-hidden text-left">
+                                        <div class="w-10 h-10 rounded-2xl bg-white flex items-center justify-center text-slate-400 shadow-sm flex-shrink-0">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                                        </div>
+                                        <div class="flex flex-col overflow-hidden">
+                                            <span class="text-[8px] font-black text-slate-400 uppercase tracking-widest">Email</span>
+                                            <span class="text-[11px] font-black text-slate-900 truncate">${vendor.email || 'contact@fla.com'}</span>
+                                        </div>
+                                    </div>
+                                    <button onclick="navigator.clipboard.writeText('${vendor.email}')" class="p-2 hover:bg-slate-200 rounded-lg transition-colors text-slate-400">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                                    </button>
                                 </div>
                             </div>
-                        </div>
-                        
-                        <div class="mt-4 pt-4 border-t border-slate-100">
-                             <h4 class="text-xs font-black text-slate-900 uppercase tracking-widest mb-2 text-left">Recent Reviews</h4>
-                             <div class="text-left text-xs text-slate-500 italic">
-                                "Amazing quality and fast shipping!" - <span class="font-bold text-slate-900">Sarah K.</span>
-                             </div>
+
+                            <!-- Performance Grid -->
+                            <div class="grid grid-cols-2 gap-3">
+                                <div class="bg-slate-50 p-5 rounded-[2.5rem] border border-slate-100 flex flex-col items-center text-center">
+                                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Reliability</span>
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-xl font-black text-slate-900">${vendor.fulfillmentRate || 99}%</span>
+                                        <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
+                                    </div>
+                                </div>
+                                <div class="bg-slate-50 p-5 rounded-[2.5rem] border border-slate-100 flex flex-col items-center text-center">
+                                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Shipping</span>
+                                    <span class="text-xl font-black text-slate-900">${vendor.averageTimeToShip || '2-4 Days'}</span>
+                                </div>
+                            </div>
+
+                            <!-- Stats Row -->
+                            <div class="flex items-center justify-between p-2 bg-slate-900 rounded-[2.5rem] text-white">
+                                <div class="flex-1 text-center py-4 border-r border-slate-800">
+                                    <span class="block text-[8px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Orders</span>
+                                    <span class="text-lg font-black">${stats.total || 0}</span>
+                                </div>
+                                <div class="flex-1 text-center py-4 border-r border-slate-800">
+                                    <span class="block text-[8px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Rating</span>
+                                    <div class="flex items-center justify-center gap-1">
+                                        <span class="text-lg font-black">${vendor.rating || '5.0'}</span>
+                                        <svg class="w-3.5 h-3.5 text-[#E5FF7F] fill-current" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                                    </div>
+                                </div>
+                                <div class="flex-1 text-center py-4">
+                                    <span class="block text-[8px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Experience</span>
+                                    <span class="text-lg font-black">PRO</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 `,
                 showCloseButton: true,
                 showConfirmButton: false,
+                width: '480px',
+                background: 'transparent',
                 customClass: {
-                    popup: 'rounded-[40px] px-4 py-6 w-full max-w-sm',
+                    popup: 'p-0 rounded-[3.5rem] overflow-hidden border-none mx-4',
                 }
             });
         } catch (error) {
@@ -124,23 +210,6 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
         setImgError(false);
     }, [currentImageIndex, images]);
 
-    const getImageUrl = (url: string) => {
-        if (!url || url === '/product-1.jpg') return '/product-1.jpg';
-        if (url.startsWith('http')) return url;
-
-        // Backend uploads
-        if (url.startsWith('/uploads')) {
-            const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '');
-            return `${baseUrl}${url}`;
-        }
-
-        // Frontend static assets
-        if (url.startsWith('/')) return url;
-
-        // Default to backend upload if just filename
-        const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '');
-        return `${baseUrl}/uploads/${url}`;
-    };
 
     const isSoldOut = stock === 0;
 
@@ -451,24 +520,34 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                     }`}>
                 {/* Image Container */}
                 <div className="relative w-full aspect-[4/5] bg-[#F7F7F7] rounded-3xl overflow-hidden mb-5 group/image transition-all duration-500 hover:shadow-inner">
-                    {/* New Arrival Badge */}
+                    {/* New Arrival Badge & Sold Out Overlay */}
                     <div className="absolute top-4 left-4 z-20 flex flex-col gap-2">
-                        <div className="bg-[#DFEA73] text-[#2C3E02] text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-tighter shadow-sm w-fit">
-                            New Arrival
-                        </div>
+                        {!isSoldOut && (
+                            <div className="bg-[#DFEA73] text-[#2C3E02] text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-tighter shadow-sm w-fit">
+                                New Arrival
+                            </div>
+                        )}
                         {isSoldOut && (
-                            <div className="bg-slate-900/90 backdrop-blur-md text-red-500 text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest border border-red-500/30 w-fit animate-pulse">
+                            <div className="bg-slate-900/90 backdrop-blur-md text-white text-[10px] font-black px-4 py-2 rounded-full uppercase tracking-[0.2em] border border-white/20 w-fit shadow-xl">
                                 Sold Out
                             </div>
                         )}
                     </div>
 
+                    {isSoldOut && (
+                        <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
+                            <span className="text-[120px] font-black text-slate-900/5 select-none tracking-tighter uppercase rotate-[-25deg]">SOLD</span>
+                        </div>
+                    )}
+
                     {/* Rating Badge */}
-                    <div className="absolute bottom-4 left-4 z-20 bg-white/95 backdrop-blur-sm px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-sm border border-slate-100 group-hover:scale-105 transition-transform">
-                        <span className="text-[11px] font-black text-slate-900">{rating || 4.9}</span>
-                        <Star className="w-3 h-3 fill-brand-lemon text-brand-lemon" />
-                        <span className="text-[9px] font-black text-slate-400/40">({reviewCount || 214})</span>
-                    </div>
+                    {!isSoldOut && (
+                        <div className="absolute bottom-4 left-4 z-20 bg-white/95 backdrop-blur-sm px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-sm border border-slate-100 group-hover:scale-105 transition-transform">
+                            <span className="text-[11px] font-black text-slate-900">{rating || 4.9}</span>
+                            <Star className="w-3 h-3 fill-brand-lemon text-brand-lemon" />
+                            <span className="text-[9px] font-black text-slate-400/40">({reviewCount || 214})</span>
+                        </div>
+                    )}
 
                     {/* Carousel Image */}
                     <div className="w-full h-full relative p-4">
@@ -476,7 +555,8 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                             src={imgError ? '/product-1.jpg' : getImageUrl(images[currentImageIndex])}
                             alt={`${name} view ${currentImageIndex + 1}`}
                             fill
-                            className={`object-contain transition-all duration-700 group-hover/image:scale-105 ${isSoldOut ? 'grayscale' : ''}`}
+                            unoptimized
+                            className={`object-contain transition-all duration-700 group-hover/image:scale-105 ${isSoldOut ? 'grayscale contrast-[0.8] opacity-60' : ''}`}
                             onError={() => setImgError(true)}
                         />
                     </div>
@@ -491,7 +571,10 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                     {/* Vendor Link */}
                     {vendorName && (
                         <div onClick={handleVendorProfile} className="flex items-center gap-1.5 w-fit cursor-pointer group/vendor">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest group-hover/vendor:text-slate-600">by {vendorName}</span>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest group-hover/vendor:text-slate-600">
+                                by {vendorName}
+                                {uniqueVendorId && <span className="text-[#E5FF7F] ml-1 bg-slate-900/10 px-1.5 py-0.5 rounded text-[8px] font-black">${uniqueVendorId}</span>}
+                            </span>
                             <div className="w-1 h-1 rounded-full bg-blue-500"></div>
                         </div>
                     )}
@@ -583,6 +666,7 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                                     src={imgError ? '/product-1.jpg' : getImageUrl(images[currentImageIndex])}
                                     alt={name}
                                     fill
+                                    unoptimized
                                     className="object-contain p-6 transition-transform duration-700 hover:scale-105"
                                     onError={() => setImgError(true)}
                                 />
@@ -694,7 +778,10 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                                                 </div>
                                                 <div>
                                                     <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Designed By</p>
-                                                    <p className="text-sm font-bold text-slate-900 group-hover/vendor:underline decoration-brand-lemon decoration-2 underline-offset-2">{vendorName}</p>
+                                                    <p className="text-sm font-bold text-slate-900 group-hover/vendor:underline decoration-brand-lemon decoration-2 underline-offset-2">
+                                                        {vendorName}
+                                                        {uniqueVendorId && <span className="text-[10px] text-slate-400 ml-2 font-black">({uniqueVendorId})</span>}
+                                                    </p>
                                                 </div>
                                                 <div className="ml-auto">
                                                     <div className="bg-brand-lemon text-[9px] font-black px-2 py-1 rounded text-slate-900 uppercase">View Profile</div>

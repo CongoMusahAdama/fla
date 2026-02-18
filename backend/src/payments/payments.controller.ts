@@ -1,8 +1,10 @@
-import { Controller, Post, Body, Headers, Logger } from '@nestjs/common';
+import { Controller, Post, Body, Headers, Logger, Get, UseGuards, Request, Param } from '@nestjs/common';
 import { PaystackService } from './paystack.service';
 import { OrdersService } from '../orders/orders.service';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
+import { AuthGuard } from '@nestjs/passport';
+import { WithdrawalService } from './withdrawal.service';
 
 @Controller('payments')
 export class PaymentsController {
@@ -12,6 +14,7 @@ export class PaymentsController {
         private readonly paystackService: PaystackService,
         private readonly ordersService: OrdersService,
         private readonly configService: ConfigService,
+        private readonly withdrawalService: WithdrawalService,
     ) { }
 
     @Post('webhook')
@@ -44,5 +47,41 @@ export class PaymentsController {
         }
 
         return { status: 'success' };
+    }
+
+    // Withdrawal Endpoints
+    @UseGuards(AuthGuard('jwt'))
+    @Post('withdrawals/request')
+    async requestWithdrawal(@Request() req, @Body() body: { amount: number, paymentMethod?: string, momoNumber?: string, accountName?: string, notes?: string }) {
+        if (req.user.role !== 'vendor') throw new Error('Only vendors can request withdrawals');
+        return this.withdrawalService.requestWithdrawal(req.user.userId, body.amount, body);
+    }
+
+    @UseGuards(AuthGuard('jwt'))
+    @Get('withdrawals/my-history')
+    async getMyWithdrawals(@Request() req) {
+        if (req.user.role !== 'vendor') throw new Error('Only vendors can view withdrawal history');
+        return this.withdrawalService.getVendorWithdrawals(req.user.userId);
+    }
+
+    @UseGuards(AuthGuard('jwt'))
+    @Get('withdrawals/admin/all')
+    async getAllWithdrawals(@Request() req) {
+        if (req.user.role !== 'admin') throw new Error('Unauthorized - Admin only');
+        return this.withdrawalService.getAllWithdrawals();
+    }
+
+    @UseGuards(AuthGuard('jwt'))
+    @Post('withdrawals/:id/approve')
+    async approveWithdrawal(@Param('id') id: string, @Request() req, @Body() body: { adminNotes?: string }) {
+        if (req.user.role !== 'admin') throw new Error('Unauthorized - Admin only');
+        return this.withdrawalService.approveWithdrawal(id, body.adminNotes);
+    }
+
+    @UseGuards(AuthGuard('jwt'))
+    @Post('withdrawals/:id/decline')
+    async declineWithdrawal(@Param('id') id: string, @Request() req, @Body() body: { adminNotes?: string }) {
+        if (req.user.role !== 'admin') throw new Error('Unauthorized - Admin only');
+        return this.withdrawalService.declineWithdrawal(id, body.adminNotes);
     }
 }

@@ -91,21 +91,32 @@ export default function CustomerDashboard() {
                 'Content-Type': 'application/json'
             };
 
-            const [statsRes, ordersRes, wishlistRes, notificationsRes, disputeRes] = await Promise.all([
-                fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/dashboard/customer/stats`, { headers }),
-                fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders/my-orders`, { headers }),
-                fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/wishlist/my-wishlist`, { headers }),
-                fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/notifications/my-notifications`, { headers }),
-                fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/support/my-disputes`, { headers })
+            const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+
+            const fetchData = async (endpoint: string, setter: (data: any) => void) => {
+                try {
+                    const res = await fetch(`${apiBase}${endpoint}`, { headers });
+                    if (res.ok) {
+                        const data = await res.json();
+                        setter(data);
+                    } else {
+                        console.warn(`Non-OK response from ${endpoint}:`, res.status);
+                    }
+                } catch (err) {
+                    console.error(`Fetch error for ${endpoint}:`, err);
+                }
+            };
+
+            await Promise.all([
+                fetchData('/dashboard/customer/stats', setDashboardData),
+                fetchData('/orders/my-orders', setOrders),
+                fetchData('/wishlist/my-wishlist', setWishlist),
+                fetchData('/notifications/my-notifications', setNotifications),
+                fetchData('/support/my-disputes', setDisputes)
             ]);
 
-            if (statsRes.ok) setDashboardData(await statsRes.json());
-            if (ordersRes.ok) setOrders(await ordersRes.json());
-            if (wishlistRes.ok) setWishlist(await wishlistRes.json());
-            if (notificationsRes.ok) setNotifications(await notificationsRes.json());
-            if (disputeRes.ok) setDisputes(await disputeRes.json());
         } catch (error) {
-            console.error('Error fetching dashboard data:', error);
+            console.error('Error in fetchDashboardData:', error);
         } finally {
             setLoading(false);
         }
@@ -135,7 +146,7 @@ export default function CustomerDashboard() {
 
     const getImageUrl = (url: string) => {
         if (!url || url === '/product-1.jpg') return '/product-1.jpg';
-        if (url.startsWith('http')) return url;
+        if (url.startsWith('http') || url.startsWith('data:')) return url;
 
         // Backend uploads
         if (url.startsWith('/uploads')) {
@@ -531,8 +542,8 @@ export default function CustomerDashboard() {
                                                 />
                                                 <div className="absolute bottom-2 left-2 right-2">
                                                     <span className={`block text-center px-1 py-0.5 rounded-md text-[7px] font-black uppercase tracking-tighter shadow-sm ${order.escrowStatus === 'released' ? 'bg-emerald-500 text-white' :
-                                                            order.escrowStatus === 'frozen' ? 'bg-red-500 text-white' :
-                                                                'bg-orange-500 text-white'
+                                                        order.escrowStatus === 'frozen' ? 'bg-red-500 text-white' :
+                                                            'bg-orange-500 text-white'
                                                         }`}>
                                                         {order.escrowStatus || 'HELD'}
                                                     </span>
@@ -633,7 +644,8 @@ export default function CustomerDashboard() {
                                                 </td>
                                                 <td className="px-8 py-6">
                                                     <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${order.escrowStatus === 'released' ? 'bg-emerald-100 text-emerald-700' :
-                                                            order.escrowStatus === 'frozen' ? 'bg-red-100 text-red-700' :
+                                                        order.escrowStatus === 'frozen' ? 'bg-red-100 text-red-700' :
+                                                            order.escrowStatus === 'waiting_approval' ? 'bg-purple-100 text-purple-700' :
                                                                 'bg-orange-100 text-orange-700'
                                                         }`}>
                                                         {order.escrowStatus || 'held'}
@@ -679,9 +691,9 @@ export default function CustomerDashboard() {
                                                                         if (!response.ok) throw new Error('Failed to confirm receipt');
 
                                                                         // Update local state
-                                                                        setOrders(prev => prev.map(o => o._id === order._id ? { ...o, status: 'delivered', escrowStatus: 'released' } : o));
+                                                                        setOrders(prev => prev.map(o => o._id === order._id ? { ...o, status: 'delivered', escrowStatus: 'waiting_approval' } : o));
 
-                                                                        Swal.fire('Confirmed!', 'Funds have been released to the vendor.', 'success');
+                                                                        Swal.fire('Confirmed!', 'Thank you! Funds are now pending final admin approval for release.', 'success');
                                                                     } catch (error: any) {
                                                                         Swal.fire('Error', error.message, 'error');
                                                                     }
@@ -1068,7 +1080,7 @@ export default function CustomerDashboard() {
                         </div>
                         <div className="w-10 h-10 rounded-full bg-slate-900 flex items-center justify-center text-white border-2 border-brand-lemon shadow-lg overflow-hidden relative">
                             {profileImage ? (
-                                <Image src={profileImage} alt="User" fill className="object-cover" />
+                                <Image src={getImageUrl(profileImage)} alt="User" fill className="object-cover" unoptimized />
                             ) : (
                                 <User className="w-5 h-5" />
                             )}

@@ -4,10 +4,12 @@ import { ConfigService } from '@nestjs/config';
 @Injectable()
 export class PaystackService {
     private readonly logger = new Logger(PaystackService.name);
-    private readonly secretKey: string;
+    private secretKey: string;
     private readonly baseUrl = 'https://api.paystack.co';
 
-    constructor(private configService: ConfigService) {
+    constructor(private configService: ConfigService) { }
+
+    onModuleInit() {
         this.secretKey = this.configService.get<string>('PAYSTACK_SECRET_KEY') || '';
     }
 

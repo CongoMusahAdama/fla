@@ -34,6 +34,9 @@ interface Product {
     quantity: number;
     tailoringTime: string;
     fabrication: string;
+    description: string;
+    category: string;
+    imageLabels?: string[];
     sizes?: string[];
     isActive?: boolean;
 }
@@ -95,11 +98,12 @@ export default function VendorDashboard() {
                     'Content-Type': 'application/json'
                 };
 
-                const [statsRes, productsRes, ordersRes, notificationsRes] = await Promise.all([
+                const [statsRes, productsRes, ordersRes, notificationsRes, withdrawalRes] = await Promise.all([
                     fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/dashboard/vendor/stats`, { headers }),
                     fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/products?vendorId=${user.id}`, { headers }),
                     fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders/vendor-orders`, { headers }), // Need to implement this endpoint or use query
-                    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/notifications/my-notifications`, { headers })
+                    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/notifications/my-notifications`, { headers }),
+                    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/payments/withdrawals/my-history`, { headers })
                 ]);
 
 
@@ -121,11 +125,18 @@ export default function VendorDashboard() {
                         quantity: p.stock,
                         tailoringTime: p.tailoringTime || '3 Days',
                         fabrication: p.fabrication || 'Cotton',
+                        description: p.description || '',
+                        category: p.category || 'T-Shirt',
+                        imageLabels: p.imageLabels || [],
                         sizes: p.sizes || []
                     })));
                 }
                 if (ordersRes.ok) setVendorOrders(await ordersRes.json());
                 if (notificationsRes.ok) setNotifications(await notificationsRes.json());
+                if (withdrawalRes.ok) {
+                    const withdrawals = await withdrawalRes.json();
+                    setDashboardData(prev => ({ ...prev, withdrawalHistory: withdrawals }));
+                }
             } catch (error) {
                 console.error('Error fetching vendor data:', error);
             } finally {
@@ -287,8 +298,11 @@ export default function VendorDashboard() {
                     images: formImages.map(img => img.url),
                     imageLabels: formImages.map(img => img.label),
                     sizes: formSizes,
+                    tailoringTime: formTailoring,
+                    fabrication: formFabric,
                     vendorId: user?.id,
-                    vendorName: user?.shopName
+                    vendorName: user?.shopName,
+                    uniqueVendorId: user?.uniqueVendorId
                 })
             });
 
@@ -302,6 +316,14 @@ export default function VendorDashboard() {
                     name: savedProduct.name,
                     price: savedProduct.price.toString(),
                     quantity: savedProduct.stock,
+                    category: savedProduct.category,
+                    description: savedProduct.description,
+                    tailoringTime: savedProduct.tailoringTime,
+                    fabrication: savedProduct.fabrication,
+                    images: savedProduct.images?.map((img: string, idx: number) => ({
+                        url: img,
+                        label: savedProduct.imageLabels?.[idx] || 'Product'
+                    })) || [],
                     sizes: savedProduct.sizes,
                     status: savedProduct.stock < 10 ? 'Low Stock' : 'In Stock',
                 } : p));
@@ -312,12 +334,17 @@ export default function VendorDashboard() {
                     name: savedProduct.name,
                     price: savedProduct.price.toString(),
                     quantity: savedProduct.stock,
+                    category: savedProduct.category,
+                    description: savedProduct.description,
                     image: savedProduct.images?.[0] || '/product-1.jpg',
-                    images: savedProduct.images?.map((img: string) => ({ url: img, label: 'Product' })) || [],
+                    images: savedProduct.images?.map((img: string, idx: number) => ({
+                        url: img,
+                        label: savedProduct.imageLabels?.[idx] || 'Product'
+                    })) || [],
                     status: savedProduct.stock < 10 ? 'Low Stock' : 'In Stock',
                     sales: 0,
-                    tailoringTime: '3 Days',
-                    fabrication: 'Cotton',
+                    tailoringTime: savedProduct.tailoringTime || '3 Days',
+                    fabrication: savedProduct.fabrication || 'Cotton',
                     sizes: savedProduct.sizes
                 };
                 setVendorProducts(prev => [newProd, ...prev]);
@@ -399,73 +426,109 @@ export default function VendorDashboard() {
         setEditingProduct(product);
         setFormName(product.name);
         setFormPrice(product.price);
+        setFormCategory(product.category || 'T-Shirt');
         setFormQuantity(product.quantity?.toString() || '');
         setFormTailoring(product.tailoringTime || '');
         setFormFabric(product.fabrication || '');
+        setFormNarrative(product.description || '');
         setFormImages(product.images || [{ url: product.image, label: 'Front' }]);
         setFormSizes(product.sizes || []);
         setShowAddProduct(true);
     };
 
     const handleWithdrawal = async () => {
-        const availableAmount = (dashboardData?.totalRevenue || 0) * 0.95; // Assuming 5% platform fee
+        const availableAmount = user?.walletBalance || 0;
+
+        if (availableAmount <= 0) {
+            Swal.fire({
+                icon: 'info',
+                title: 'NO FUNDS AVAILABLE',
+                text: 'Your wallet balance is currently zero. Funds appear here once admin approves your completed orders.',
+                customClass: { popup: 'rounded-[32px]' }
+            });
+            return;
+        }
 
         const { value: amount } = await Swal.fire({
             title: 'REQUEST PAYOUT',
-            text: `Available for immediate transfer: GH₵ ${availableAmount.toLocaleString()}`,
+            html: `
+                <div class="text-left space-y-4">
+                    <p class="text-sm text-slate-500 font-medium">Available for immediate transfer: <span class="text-slate-900 font-black font-sans text-lg">GH₵ ${availableAmount.toLocaleString()}</span></p>
+                    <div class="p-4 bg-blue-50 rounded-2xl border border-blue-100">
+                        <p class="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-1">Fee Disclosure</p>
+                        <p class="text-xs text-blue-700 font-medium leading-relaxed">A 10% service commission will be deducted from your withdrawal amount at processing.</p>
+                    </div>
+                </div>
+            `,
             input: 'number',
-            inputLabel: 'Amount (GH₵)',
-            inputPlaceholder: 'Enter withdrawal amount',
+            inputLabel: 'Amount to Withdraw (GH₵)',
+            inputPlaceholder: 'Enter amount...',
             inputValue: availableAmount,
             showCancelButton: true,
-            confirmButtonText: 'CONFIRM PAYOUT',
+            confirmButtonText: 'INITIATE PAYOUT',
             cancelButtonText: 'CANCEL',
             buttonsStyling: false,
             customClass: {
-                popup: 'rounded-[32px] p-10 bg-white border-none shadow-2xl',
-                title: 'text-2xl font-black text-slate-900 tracking-tighter uppercase mb-2',
-                confirmButton: 'bg-slate-900 text-white rounded-full px-10 py-4 text-[11px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all w-full mb-3',
+                popup: 'rounded-[40px] p-10 bg-white border-none shadow-2xl',
+                title: 'text-2xl font-black text-slate-900 tracking-tighter uppercase mb-6',
+                confirmButton: 'bg-slate-900 text-white rounded-full px-10 py-5 text-[11px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all w-full mb-3',
                 cancelButton: 'text-slate-400 font-black text-[10px] uppercase tracking-widest hover:text-slate-600 transition-all w-full',
-                input: 'w-full px-6 py-4 bg-slate-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-slate-900/10 mb-6'
+                input: 'w-full px-6 py-4 bg-slate-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-slate-900/10 mt-4 h-14'
             }
         });
 
         if (amount && parseFloat(amount) > 0) {
-            if (parseFloat(amount) > availableAmount) {
-                Swal.fire({ icon: 'error', title: 'Insufficient Funds', text: 'You cannot withdraw more than your available balance.' });
+            const requestedAmount = parseFloat(amount);
+            if (requestedAmount > availableAmount) {
+                Swal.fire({ icon: 'error', title: 'INSUFFICIENT FUNDS', text: 'Requested amount exceeds your available balance.' });
                 return;
             }
 
             try {
                 const token = localStorage.getItem('fla_token');
-                const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/dashboard/vendor/withdraw`, {
+                const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/payments/withdrawals/request`, {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ amount: parseFloat(amount) })
+                    body: JSON.stringify({
+                        amount: requestedAmount,
+                        paymentMethod: 'momo',
+                        momoNumber: user?.momoNumber,
+                        accountName: user?.accountName
+                    })
                 });
 
-                if (!response.ok) throw new Error('Withdrawal request failed');
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message || 'Withdrawal request failed');
+                }
+
                 const result = await response.json();
 
-                // Update local stats
-                setDashboardData((prev: any) => ({
-                    ...prev,
-                    withdrawalHistory: [result, ...(prev.withdrawalHistory || [])]
-                }));
+                // Update local user state (deduct from wallet)
+                if (user) {
+                    updateUser({
+                        walletBalance: user.walletBalance ? user.walletBalance - requestedAmount : 0
+                    });
+                }
 
                 Swal.fire({
                     icon: 'success',
-                    title: 'PAYOUT REQUESTED',
-                    text: 'Your funds are being processed and will be sent to your MoMo number.',
-                    timer: 2000,
-                    showConfirmButton: false,
+                    title: 'PAYOUT INITIATED',
+                    html: `
+                        <div class="space-y-4">
+                            <p class="text-sm text-slate-500 font-medium">Your request of GH₵ ${requestedAmount.toLocaleString()} has been received.</p>
+                            <div class="py-3 px-4 bg-emerald-50 rounded-xl">
+                                <p class="text-[10px] font-black text-emerald-600 uppercase">Est. Payout after fees: GH₵ ${(requestedAmount * 0.9).toLocaleString()}</p>
+                            </div>
+                        </div>
+                    `,
                     customClass: { popup: 'rounded-[32px]' }
                 });
             } catch (error: any) {
-                Swal.fire({ icon: 'error', title: 'Error', text: error.message });
+                Swal.fire({ icon: 'error', title: 'REQUEST FAILED', text: error.message });
             }
         }
     };
@@ -563,6 +626,137 @@ export default function VendorDashboard() {
             Swal.fire({ icon: 'success', title: 'Payment Verified', text: 'Order is now confirmed and funds held in escrow.' });
         } catch (error: any) {
             Swal.fire({ icon: 'error', title: 'Error', text: error.message });
+        }
+    };
+
+    const handleViewPublicProfile = async () => {
+        if (!user?.id) return;
+
+        try {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/users/vendor/${user.id}/profile`);
+            if (!response.ok) throw new Error('Failed to fetch vendor profile');
+            const data = await response.json();
+            const { vendor, stats } = data;
+
+            const resolvedProfileImage = getImageUrl(vendor.profileImage);
+
+            Swal.fire({
+                html: `
+                    <div class="flex flex-col -m-6 overflow-hidden">
+                        <!-- Luxury Header -->
+                        <div class="bg-slate-900 pt-16 pb-12 px-6 text-center relative overflow-hidden">
+                            <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+                                <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M 20 0 L 0 0 0 20" fill="none" stroke="white" stroke-width="0.5"/></pattern></defs><rect width="100%" height="100%" fill="url(#grid)" /></svg>
+                            </div>
+                            
+                            <div class="relative inline-block mb-4">
+                                ${vendor.profileImage
+                        ? `<img src="${resolvedProfileImage}" class="w-28 h-28 rounded-[2rem] object-cover border-4 border-[#E5FF7F] shadow-2xl">`
+                        : `<div class="w-28 h-28 rounded-[2rem] bg-slate-800 flex items-center justify-center text-[#E5FF7F] border-4 border-slate-700 shadow-2xl">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                                       </div>`
+                    }
+                                <div class="absolute -bottom-2 -right-2 bg-[#E5FF7F] p-1.5 rounded-xl shadow-lg border-2 border-slate-900">
+                                    <svg class="w-5 h-5 text-slate-900" viewBox="0 0 24 24" fill="currentColor"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                </div>
+                            </div>
+                            
+                            <div class="flex flex-col items-center gap-1.5">
+                                <h2 class="text-3xl font-black text-white uppercase tracking-tighter">${vendor.shopName || vendor.name}</h2>
+                                <span class="bg-brand-lemon/10 text-brand-lemon text-[9px] font-black uppercase tracking-[0.2em] px-3 py-1 rounded-full border border-brand-lemon/20">
+                                    ID: ${vendor.uniqueVendorId || 'VND-PENDING'}
+                                </span>
+                            </div>
+
+                            <div class="flex items-center justify-center gap-1.5 text-[#E5FF7F] text-[10px] font-black uppercase tracking-[0.2em] opacity-80 mt-4">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                                ${vendor.location || 'Accra, Ghana'}
+                            </div>
+                        </div>
+
+                        <!-- Content Area -->
+                        <div class="bg-white px-6 py-8 -mt-6 rounded-t-[3.5rem] relative z-10 flex flex-col gap-8">
+                            <div class="text-center">
+                                <p class="text-slate-500 text-sm font-medium leading-relaxed italic px-4">
+                                    "${vendor.bio || "Your studio's narrative is shared here with patrons in the marketplace."}"
+                                </p>
+                            </div>
+
+                            <!-- Contact Channels -->
+                            <div class="flex flex-col gap-4">
+                                <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Patron Contact Channels</h4>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <a href="https://wa.me/${vendor.phone}" target="_blank" class="flex items-center justify-center gap-2 bg-emerald-500 text-white p-4 rounded-3xl shadow-xl shadow-emerald-500/10 hover:shadow-emerald-500/20 active:scale-95 transition-all text-xs font-black uppercase tracking-widest">
+                                        <svg viewBox="0 0 24 24" class="w-5 h-5 fill-current"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.412c-1.935 0-3.83-.502-5.485-1.454l-.394-.227-4.078 1.07 1.089-3.975-.249-.396A9.816 9.816 0 011.942 12.07C1.942 6.656 6.355 2.24 11.77 2.24s9.829 4.417 9.829 9.831c0 5.414-4.417 9.831-9.83 9.831m11.834-11.83c0-6.521-5.303-11.825-11.825-11.825C5.461 0 0 5.461 0 11.825c0 2.083.54 4.117 1.571 5.905L0 24l6.446-1.691c1.71 1.017 3.65 1.554 5.62 1.554 6.523 0 11.825-5.303 11.825-11.825" /></svg>
+                                        WhatsApp
+                                    </a>
+                                    <a href="tel:${vendor.phone}" class="flex items-center justify-center gap-2 bg-slate-900 text-white p-4 rounded-3xl shadow-xl shadow-slate-900/10 hover:shadow-slate-900/20 active:scale-95 transition-all text-xs font-black uppercase tracking-widest">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 18.92z"/></svg>
+                                        Call
+                                    </a>
+                                </div>
+                                <div class="bg-slate-50 p-4 rounded-[2rem] border border-slate-100 flex items-center justify-between">
+                                    <div class="flex items-center gap-3 overflow-hidden text-left">
+                                        <div class="w-10 h-10 rounded-2xl bg-white flex items-center justify-center text-slate-400 shadow-sm flex-shrink-0">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                                        </div>
+                                        <div class="flex flex-col overflow-hidden">
+                                            <span class="text-[8px] font-black text-slate-400 uppercase tracking-widest">Email</span>
+                                            <span class="text-[11px] font-black text-slate-900 truncate">${vendor.email || 'contact@fla.com'}</span>
+                                        </div>
+                                    </div>
+                                    <button onclick="navigator.clipboard.writeText('${vendor.email}')" class="p-2 hover:bg-slate-200 rounded-lg transition-colors text-slate-400">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Performance Grid -->
+                            <div class="grid grid-cols-2 gap-3">
+                                <div class="bg-slate-50 p-5 rounded-[2.5rem] border border-slate-100 flex flex-col items-center text-center">
+                                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Reliability</span>
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-xl font-black text-slate-900">${vendor.fulfillmentRate || 99}%</span>
+                                        <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
+                                    </div>
+                                </div>
+                                <div class="bg-slate-50 p-5 rounded-[2.5rem] border border-slate-100 flex flex-col items-center text-center">
+                                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Shipping</span>
+                                    <span class="text-xl font-black text-slate-900">${vendor.averageTimeToShip || '2-4 Days'}</span>
+                                </div>
+                            </div>
+
+                            <!-- Stats Row -->
+                            <div class="flex items-center justify-between p-2 bg-slate-900 rounded-[2.5rem] text-white">
+                                <div class="flex-1 text-center py-4 border-r border-slate-800">
+                                    <span class="block text-[8px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Orders</span>
+                                    <span class="text-lg font-black">${stats.total || 0}</span>
+                                </div>
+                                <div class="flex-1 text-center py-4 border-r border-slate-800">
+                                    <span class="block text-[8px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Rating</span>
+                                    <div class="flex items-center justify-center gap-1">
+                                        <span class="text-lg font-black">${vendor.rating || '5.0'}</span>
+                                        <svg class="w-3.5 h-3.5 text-[#E5FF7F] fill-current" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                                    </div>
+                                </div>
+                                <div class="flex-1 text-center py-4">
+                                    <span class="block text-[8px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Experience</span>
+                                    <span class="text-lg font-black">PRO</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+        `,
+                showCloseButton: true,
+                showConfirmButton: false,
+                width: '480px',
+                background: 'transparent',
+                customClass: {
+                    popup: 'p-0 rounded-[3.5rem] overflow-hidden border-none mx-4',
+                }
+            });
+        } catch (error) {
+            console.error('Error fetching profile:', error);
         }
     };
 
@@ -991,17 +1185,17 @@ export default function VendorDashboard() {
                         <div className="grid md:grid-cols-2 gap-8">
                             <div className="p-10 bg-slate-900 rounded-[40px] text-white shadow-2xl relative overflow-hidden group">
                                 <div className="absolute -right-10 -top-10 w-40 h-40 bg-brand-lemon/10 rounded-full blur-3xl" />
-                                <ShieldAlert className="w-12 h-12 text-brand-lemon mb-8" />
-                                <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Total Locked in Escrow</p>
-                                <h3 className="text-4xl font-black text-brand-lemon mb-10">GH₵ {(dashboardData?.totalRevenue * 0.1 || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</h3>
+                                <Wallet className="w-12 h-12 text-brand-lemon mb-8" />
+                                <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Available for Withdrawal</p>
+                                <h3 className="text-4xl font-black text-brand-lemon mb-10">GH₵ {(user?.walletBalance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</h3>
                                 <div className="space-y-4">
                                     <div className="flex justify-between items-center text-sm py-3 border-t border-white/5">
-                                        <span className="text-slate-400">Available to Withdraw</span>
+                                        <span className="text-slate-400">Total Revenue (Net)</span>
                                         <span className="font-black text-white">GH₵ {(dashboardData?.totalRevenue || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                                     </div>
                                     <div className="flex justify-between items-center text-sm py-3 border-t border-white/5">
-                                        <span className="text-slate-400">Pending Verification</span>
-                                        <span className="font-black text-brand-lemon">GH₵ {(dashboardData?.pendingRevenue || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                        <span className="text-slate-400">Locked in Escrow</span>
+                                        <span className="font-black text-brand-lemon">GH₵ {(user?.pendingBalance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                                     </div>
                                     <div className="pt-4 border-t border-white/10 mt-2">
                                         <p className="text-[10px] font-black text-brand-lemon uppercase tracking-widest mb-1">Payout Destination</p>
@@ -1021,12 +1215,25 @@ export default function VendorDashboard() {
                                 <div className="bg-white rounded-[32px] border border-slate-100 overflow-hidden divide-y divide-slate-50">
                                     {(dashboardData?.withdrawalHistory || []).length > 0 ? (
                                         dashboardData.withdrawalHistory.map((w: any, i: number) => (
-                                            <div key={i} className="p-6 flex justify-between items-center">
+                                            <div key={i} className="p-6 flex justify-between items-center hover:bg-slate-50 transition-colors">
                                                 <div>
-                                                    <p className="font-black text-slate-900 text-sm">GH₵ {w.amount.toLocaleString()}</p>
-                                                    <p className="text-[10px] text-slate-400 uppercase font-black">{w.status} • {new Date(w.createdAt).toLocaleDateString()}</p>
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <p className="font-black text-slate-900 text-sm">GH₵ {w.netAmount?.toLocaleString() || w.amount.toLocaleString()}</p>
+                                                        <span className={`text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest ${w.status === 'processed' ? 'bg-emerald-100 text-emerald-600' :
+                                                            w.status === 'pending' ? 'bg-orange-100 text-orange-600' :
+                                                                'bg-red-100 text-red-600'
+                                                            }`}>
+                                                            {w.status}
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-[9px] text-slate-400 uppercase font-black">
+                                                        {new Date(w.createdAt).toLocaleDateString()} • {w.paymentMethod?.toUpperCase() || 'MOMO'}
+                                                        {w.adminCommission > 0 && ` • FEE: GH₵ ${w.adminCommission}`}
+                                                    </p>
                                                 </div>
-                                                <ArrowUpRight className="w-5 h-5 text-emerald-500" />
+                                                <div className={`p-2 rounded-xl ${w.status === 'processed' ? 'bg-emerald-50 text-emerald-500' : 'bg-slate-50 text-slate-300'}`}>
+                                                    <ArrowUpRight className="w-4 h-4" />
+                                                </div>
                                             </div>
                                         ))
                                     ) : (
@@ -1319,9 +1526,16 @@ export default function VendorDashboard() {
                     </div>
 
                     <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-full bg-slate-900 flex items-center justify-center text-white border-2 border-brand-lemon shadow-lg">
-                            <User className="w-4 h-4" />
-                        </div>
+                        <button
+                            onClick={handleViewPublicProfile}
+                            className="w-8 h-8 rounded-full bg-slate-900 flex items-center justify-center text-white border-2 border-brand-lemon shadow-lg overflow-hidden relative active:scale-95 transition-transform"
+                        >
+                            {profileImage ? (
+                                <Image src={getImageUrl(profileImage)} alt="Avatar" fill className="object-cover" unoptimized={true} />
+                            ) : (
+                                <User className="w-4 h-4" />
+                            )}
+                        </button>
                     </div>
                 </header>
 
@@ -1332,14 +1546,26 @@ export default function VendorDashboard() {
                         <Search className="w-4 h-4 text-slate-300 absolute left-5 top-1/2 -translate-y-1/2" />
                     </div>
                     <div className="flex items-center gap-4 text-right">
-                        <div>
-                            <p className="text-xs font-black text-slate-900 uppercase tracking-tighter">{user?.name || 'Signature Print'}</p>
-                            <p className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">Master Vendor</p>
-                        </div>
-                        <div className="w-11 h-11 rounded-2xl bg-slate-900 flex items-center justify-center text-white border-2 border-brand-lemon shadow-xl overflow-hidden relative group">
-                            <ImageIcon className="w-5 h-5 opacity-40" />
-                            <div className="absolute inset-0 bg-brand-lemon/10 group-hover:bg-transparent transition-colors" />
-                        </div>
+                        <button onClick={handleViewPublicProfile} className="text-right group active:scale-95 transition-all">
+                            <p className="text-xs font-black text-slate-900 uppercase tracking-tighter group-hover:text-brand-lemon transition-colors">{user?.shopName || user?.name || 'Signature Print'}</p>
+                            <div className="flex items-center justify-end gap-1">
+                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{user?.location || 'Accra, Ghana'}</p>
+                            </div>
+                        </button>
+                        <button
+                            onClick={handleViewPublicProfile}
+                            className="w-11 h-11 rounded-2xl bg-slate-900 flex items-center justify-center text-white border-2 border-brand-lemon shadow-xl overflow-hidden relative group active:scale-90 transition-all"
+                        >
+                            {profileImage ? (
+                                <Image src={getImageUrl(profileImage)} alt="Avatar" fill className="object-cover" unoptimized={true} />
+                            ) : (
+                                <>
+                                    <ImageIcon className="w-5 h-5 opacity-40" />
+                                    <div className="absolute inset-0 bg-brand-lemon/10 group-hover:bg-transparent transition-colors" />
+                                </>
+                            )}
+                        </button>
                     </div>
                 </header>
 
