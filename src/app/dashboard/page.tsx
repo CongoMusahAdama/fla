@@ -340,6 +340,81 @@ export default function CustomerDashboard() {
         }
     };
 
+    const handleSubmitProof = async (orderId: string) => {
+        const { value: file } = await Swal.fire({
+            title: 'UPLOAD PAYMENT PROOF',
+            text: 'Please upload a screenshot of your transaction confirmation.',
+            input: 'file',
+            inputAttributes: {
+                'accept': 'image/*',
+                'aria-label': 'Upload your payment receipt'
+            },
+            confirmButtonText: 'SUBMIT PROOF',
+            showCancelButton: true,
+            buttonsStyling: false,
+            customClass: {
+                popup: 'rounded-[32px] border-none shadow-2xl p-10 bg-white',
+                title: 'text-2xl font-black text-slate-900 tracking-tighter uppercase mb-2',
+                confirmButton: 'bg-slate-900 text-white rounded-full px-10 py-4 text-[11px] font-black uppercase tracking-widest mx-2',
+                cancelButton: 'bg-slate-100 text-slate-500 rounded-full px-10 py-4 text-[11px] font-black uppercase tracking-widest mx-2'
+            }
+        });
+
+        if (file) {
+            try {
+                Swal.fire({
+                    title: 'PROCCESSING...',
+                    didOpen: () => { Swal.showLoading(); }
+                });
+
+                const formData = new FormData();
+                formData.append('file', file);
+
+                const token = localStorage.getItem('fla_token');
+                const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+
+                // 1. Upload the file
+                const uploadRes = await fetch(`${apiBase}/upload`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    body: formData
+                });
+
+                if (!uploadRes.ok) throw new Error('Upload failed');
+                const { url } = await uploadRes.json();
+
+                // 2. Submit proof URL to order
+                const submitRes = await fetch(`${apiBase}/orders/${orderId}/submit-proof`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ proofUrl: url })
+                });
+
+                if (!submitRes.ok) throw new Error('Failed to submit proof');
+
+                setOrders(prev => prev.map(o => o._id === orderId ? { ...o, paymentProof: url } : o));
+
+                Swal.fire({
+                    icon: 'success',
+                    title: 'PROOF SUBMITTED!',
+                    text: 'The vendor will verify your payment shortly.',
+                    confirmButtonText: 'GREAT',
+                    buttonsStyling: false,
+                    customClass: {
+                        popup: 'rounded-[32px] border-none shadow-2xl p-10 bg-white',
+                        title: 'text-2xl font-black text-slate-900 tracking-tighter uppercase mb-2',
+                        confirmButton: 'bg-slate-900 text-white rounded-full px-10 py-4 text-[11px] font-black uppercase tracking-widest'
+                    }
+                });
+            } catch (error: any) {
+                Swal.fire('ERROR', error.message, 'error');
+            }
+        }
+    };
+
     const sidebarItems = [
         { id: 'home', label: 'Dashboard', icon: LayoutDashboard },
         { id: 'orders', label: 'My Orders', icon: ShoppingBag },
@@ -563,6 +638,19 @@ export default function CustomerDashboard() {
                                             </div>
                                         </div>
                                         <div className="grid grid-cols-2 gap-3">
+                                            {!order.isPaid && !order.paymentProof && (
+                                                <button
+                                                    onClick={() => handleSubmitProof(order._id)}
+                                                    className="col-span-2 py-3 bg-brand-lemon text-slate-900 rounded-full text-[10px] font-black uppercase tracking-widest hover:shadow-lg transition-all active:scale-95 text-center mb-1"
+                                                >
+                                                    Submit Payment Proof
+                                                </button>
+                                            )}
+                                            {order.paymentProof && !order.isPaid && (
+                                                <div className="col-span-2 py-2 bg-slate-50 border border-slate-100 rounded-xl text-center mb-1">
+                                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest italic">Verification Pending</span>
+                                                </div>
+                                            )}
                                             <button
                                                 onClick={() => setTrackingOrder(order)}
                                                 className="py-3 bg-slate-900 text-white rounded-full text-[10px] font-bold uppercase tracking-widest hover:bg-slate-800 transition-all active:scale-95 text-center"
@@ -654,6 +742,17 @@ export default function CustomerDashboard() {
                                                 <td className="px-8 py-6 text-sm text-slate-600 font-bold">{order.vendorName || 'FLA Vendor'}</td>
                                                 <td className="px-8 py-6 font-sans font-black text-slate-900">GH₵ {order.totalAmount}</td>
                                                 <td className="px-8 py-6 text-right flex items-center justify-end gap-2">
+                                                    {!order.isPaid && !order.paymentProof && (
+                                                        <button
+                                                            onClick={() => handleSubmitProof(order._id)}
+                                                            className="px-6 py-2 bg-brand-lemon text-slate-900 rounded-full text-[9px] font-black uppercase tracking-widest hover:shadow-lg transition-all whitespace-nowrap"
+                                                        >
+                                                            Submit Proof
+                                                        </button>
+                                                    )}
+                                                    {order.paymentProof && !order.isPaid && (
+                                                        <span className="px-3 py-1 rounded-lg text-[8px] font-black text-slate-400 uppercase tracking-widest border border-slate-100">Verifying...</span>
+                                                    )}
                                                     {order.status === 'delivered' && (
                                                         <button
                                                             onClick={() => setRatingOrder({ id: order._id, name: order.items[0]?.name })}

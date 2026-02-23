@@ -23,6 +23,7 @@ export default function AdminDashboard() {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [adminData, setAdminData] = useState<any>(null);
     const [allOrders, setAllOrders] = useState<any[]>([]);
+    const [selectedOrder, setSelectedOrder] = useState<any>(null);
     const [allUsers, setAllUsers] = useState<any[]>([]);
     const [allProducts, setAllProducts] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -404,7 +405,11 @@ export default function AdminDashboard() {
                                 </div>
                                 <div className="divide-y divide-slate-50">
                                     {allOrders.slice(0, 5).map((order) => (
-                                        <div key={order._id} className="p-6 flex items-center justify-between hover:bg-slate-50 transition-colors">
+                                        <div
+                                            key={order._id}
+                                            onClick={() => setSelectedOrder(order)}
+                                            className="p-6 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer group"
+                                        >
                                             <div className="flex items-center gap-4">
                                                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${order.isPaid ? 'bg-emerald-50 text-emerald-500' : 'bg-orange-50 text-orange-500'}`}>
                                                     <Wallet className="w-5 h-5" />
@@ -872,6 +877,12 @@ export default function AdminDashboard() {
                                             </button>
                                         </div>
                                     )}
+                                    <button
+                                        onClick={() => setSelectedOrder(o)}
+                                        className="w-full py-3 bg-slate-50 text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest border border-slate-100 mt-2 hover:bg-slate-900 hover:text-white transition-all"
+                                    >
+                                        Order Itemization & Details
+                                    </button>
                                 </div>
                             ))}
                         </div>
@@ -977,7 +988,12 @@ export default function AdminDashboard() {
                                                         <button onClick={() => handleConfirmPayment(o._id)} className="bg-slate-900 text-brand-lemon px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/10">Release Funds</button>
                                                     </div>
                                                 ) : (
-                                                    <button className="px-5 py-2 bg-slate-50 text-slate-400 text-[10px] font-black rounded-full uppercase tracking-widest hover:bg-slate-900 hover:text-white transition-all border border-slate-100">Details</button>
+                                                    <button
+                                                        onClick={() => setSelectedOrder(o)}
+                                                        className="px-5 py-2 bg-slate-50 text-slate-400 text-[10px] font-black rounded-full uppercase tracking-widest hover:bg-slate-900 hover:text-white transition-all border border-slate-100"
+                                                    >
+                                                        Details
+                                                    </button>
                                                 )}
                                             </td>
                                         </tr>
@@ -1571,6 +1587,159 @@ export default function AdminDashboard() {
                 </div>
             )
             }
+            {/* Order Detail Modal */}
+            {selectedOrder && (
+                <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 md:p-8">
+                    <div
+                        className="absolute inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity duration-500"
+                        onClick={() => setSelectedOrder(null)}
+                    />
+                    <div className="relative bg-white w-full max-w-4xl h-[90vh] rounded-[40px] shadow-2xl flex flex-col md:flex-row animate-in zoom-in-95 duration-500 overflow-hidden">
+                        <button
+                            onClick={() => setSelectedOrder(null)}
+                            className="absolute top-6 right-6 z-50 bg-slate-100 text-slate-900 rounded-full p-2.5 shadow-sm hover:bg-slate-900 hover:text-white transition-all"
+                        >
+                            <X className="w-5 h-5" />
+                        </button>
+
+                        <div className="flex-1 overflow-y-auto p-10 space-y-10">
+                            {/* Modal Header */}
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <div className="flex items-center gap-3 mb-2">
+                                        <span className="bg-brand-lemon text-slate-900 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] shadow-sm">Order Log</span>
+                                        <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.1em] ${selectedOrder.isPaid ? 'bg-emerald-50 text-emerald-600' : 'bg-orange-50 text-orange-600'}`}>
+                                            {selectedOrder.isPaid ? 'Payment Verified' : 'Awaiting Settlement'}
+                                        </span>
+                                    </div>
+                                    <h2 className="text-3xl font-black text-slate-900 tracking-tighter uppercase">#ORD-{selectedOrder._id.slice(-8).toUpperCase()}</h2>
+                                    <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-1">Recorded on {new Date(selectedOrder.createdAt).toLocaleString()}</p>
+                                </div>
+                            </div>
+
+                            <div className="grid md:grid-cols-2 gap-8">
+                                {/* Customer & Shipping */}
+                                <div className="space-y-6">
+                                    <div className="bg-slate-50 p-6 rounded-[32px] border border-slate-100">
+                                        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                            <User className="w-3 h-3" /> Patron Contact
+                                        </h3>
+                                        <div className="space-y-1">
+                                            <p className="font-black text-slate-900 text-base">{selectedOrder.customerName || 'Anonymous Guest'}</p>
+                                            <p className="text-sm font-medium text-slate-600">{selectedOrder.customerEmail}</p>
+                                            <p className="text-sm font-medium text-slate-600">{selectedOrder.customerPhone || 'Phone hidden'}</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-slate-50 p-6 rounded-[32px] border border-slate-100">
+                                        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                            <Truck className="w-3 h-3" /> Delivery Destination
+                                        </h3>
+                                        <div className="space-y-1">
+                                            <p className="font-black text-slate-900 text-sm">{selectedOrder.shippingAddress}</p>
+                                            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">{selectedOrder.shippingCity}, {selectedOrder.shippingRegion}</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Financial Summary */}
+                                <div className="bg-slate-900 text-white p-8 rounded-[40px] shadow-2xl relative overflow-hidden">
+                                    <div className="absolute top-0 right-0 p-8 opacity-10">
+                                        <Wallet className="w-32 h-32" />
+                                    </div>
+                                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-8 relative z-10">Financial Audit</h3>
+                                    <div className="space-y-6 relative z-10">
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-slate-400 text-xs font-bold uppercase">Base Amount</span>
+                                            <span className="text-xl font-black">GH₵ {selectedOrder.totalAmount.toLocaleString()}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center text-emerald-400 pb-4 border-b border-white/10">
+                                            <span className="text-[10px] font-black uppercase">App Commission ({((selectedOrder.adminCommission || selectedOrder.totalAmount * 0.1) / selectedOrder.totalAmount * 100).toFixed(0)}%)</span>
+                                            <span className="font-black">+ GH₵ {(selectedOrder.adminCommission || selectedOrder.totalAmount * 0.1)?.toLocaleString()}</span>
+                                        </div>
+                                        <div className="pt-4 flex justify-between items-center">
+                                            <span className="text-brand-lemon text-xs font-black uppercase">To Be Paid to Vendor</span>
+                                            <span className="text-2xl font-black text-brand-lemon">GH₵ {(selectedOrder.vendorShare || selectedOrder.totalAmount * 0.9)?.toLocaleString()}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Itemized List */}
+                            <div className="space-y-4">
+                                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Purchased Designs</h3>
+                                <div className="bg-slate-50 rounded-[32px] border border-slate-100 overflow-hidden">
+                                    <table className="w-full text-left">
+                                        <thead className="bg-slate-100">
+                                            <tr>
+                                                <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">Product</th>
+                                                <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">Variation</th>
+                                                <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest text-center">Qty</th>
+                                                <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest text-right">Price</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100">
+                                            {selectedOrder.items?.map((item: any, idx: number) => (
+                                                <tr key={idx} className="bg-white">
+                                                    <td className="px-6 py-4">
+                                                        <div className="flex items-center gap-4">
+                                                            <div className="w-12 h-12 bg-slate-50 rounded-xl overflow-hidden relative border border-slate-100">
+                                                                <Image src={getImageUrl(item.image)} alt={item.name} fill className="object-cover" unoptimized />
+                                                            </div>
+                                                            <span className="font-black text-slate-900 text-sm uppercase tracking-tighter">{item.name}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <span className="text-xs font-bold text-slate-600 uppercase">Size: {item.size}</span>
+                                                    </td>
+                                                    <td className="px-6 py-4 text-center">
+                                                        <span className="bg-slate-900 text-white w-6 h-6 rounded-full inline-flex items-center justify-center text-[10px] font-black">{item.quantity}</span>
+                                                    </td>
+                                                    <td className="px-6 py-4 text-right">
+                                                        <span className="font-black text-slate-900">GH₵ {item.price.toLocaleString()}</span>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            {/* Payment Proof Preview if available */}
+                            {selectedOrder.paymentProof && (
+                                <div className="space-y-4">
+                                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Payment Verification Artifact</h3>
+                                    <div className="relative aspect-video max-w-md bg-slate-100 rounded-[32px] overflow-hidden border-4 border-white shadow-lg">
+                                        <Image src={getImageUrl(selectedOrder.paymentProof)} alt="Payment Proof" fill className="object-cover" unoptimized />
+                                        <div className="absolute inset-0 bg-black/20 hover:bg-transparent transition-colors cursor-zoom-in" onClick={() => window.open(getImageUrl(selectedOrder.paymentProof), '_blank')} />
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Footer / Actions */}
+                            <div className="flex flex-col md:flex-row gap-4 pt-6">
+                                {!selectedOrder.isPaid && (
+                                    <button
+                                        onClick={() => {
+                                            handleConfirmPayment(selectedOrder._id);
+                                            setSelectedOrder(null);
+                                        }}
+                                        className="flex-1 py-5 bg-brand-lemon text-slate-900 font-black text-xs uppercase tracking-[0.2em] rounded-full shadow-xl shadow-brand-lemon/20 active:scale-95 transition-all"
+                                    >
+                                        Verify & Release Escrow
+                                    </button>
+                                )}
+                                <button
+                                    onClick={() => setSelectedOrder(null)}
+                                    className="flex-1 py-5 bg-slate-900 text-white font-black text-xs uppercase tracking-[0.2em] rounded-full active:scale-95 transition-all"
+                                >
+                                    Close Archive
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div >
     );
 }

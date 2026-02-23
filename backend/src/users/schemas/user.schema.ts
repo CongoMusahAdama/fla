@@ -54,11 +54,15 @@ export class User {
     @Prop()
     accountName?: string;
 
+    @Prop()
+    paystackRecipientCode?: string;
+
     @Prop({ type: [Object], default: [] })
     withdrawalHistory?: Array<{
         amount: number;
         status: string;
         createdAt: Date;
+        paystackTransferCode?: string;
     }>;
 
     @Prop({ default: 0 })

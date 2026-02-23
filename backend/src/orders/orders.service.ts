@@ -8,6 +8,8 @@ import { Product, ProductDocument } from '../products/schemas/product.schema';
 import { User, UserDocument } from '../users/schemas/user.schema';
 import { PaystackService } from '../payments/paystack.service';
 
+import { NotificationsService } from '../notifications/notifications.service';
+
 @Injectable()
 export class OrdersService {
   constructor(
@@ -15,6 +17,7 @@ export class OrdersService {
     @InjectModel(Product.name) private productModel: Model<ProductDocument>,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     private readonly paystackService: PaystackService,
+    private readonly notificationsService: NotificationsService,
   ) { }
 
   async create(createOrderDto: CreateOrderDto): Promise<any> {
@@ -161,6 +164,27 @@ export class OrdersService {
     return order.save();
   }
 
+  async submitPaymentProof(orderId: string, customerId: string, proofUrl: string): Promise<Order> {
+    const order = await this.orderModel.findById(orderId).exec();
+    if (!order) throw new NotFoundException(`Order not found`);
+    if (order.customerId.toString() !== customerId) throw new NotFoundException('Unauthorized');
+
+    order.paymentProof = proofUrl;
+    order.paymentSubmittedAt = new Date();
+
+    await order.save();
+
+    // Notify the vendor
+    await this.notificationsService.create(order.vendorId.toString(), {
+      title: 'Payment Proof Submitted',
+      message: `A customer has submitted payment proof for Order #ORD-${order._id.toString().slice(-6).toUpperCase()}. Please verify it.`,
+      type: 'payment',
+      orderId: order._id
+    });
+
+    return order;
+  }
+
   async markAsShipped(orderId: string, vendorId: string, trackingNumber?: string, carrier?: string): Promise<Order> {
     const order = await this.orderModel.findById(orderId).exec();
     if (!order) throw new NotFoundException(`Order not found`);
@@ -169,6 +193,13 @@ export class OrdersService {
     order.status = 'shipped';
     if (trackingNumber) order.trackingNumber = trackingNumber;
     if (carrier) order.carrier = carrier;
+
+    // Set auto-release date to 7 days from now by default
+    // If the customer doesn't confirm receipt by then, funds will be auto-released
+    const autoReleaseDays = parseInt(process.env.AUTO_RELEASE_DAYS || '7');
+    const autoReleaseDate = new Date();
+    autoReleaseDate.setDate(autoReleaseDate.getDate() + autoReleaseDays);
+    order.autoReleaseDate = autoReleaseDate;
 
     return order.save();
   }

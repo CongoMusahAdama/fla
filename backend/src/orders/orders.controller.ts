@@ -50,7 +50,6 @@ export class OrdersController {
   remove(@Param('id') id: string) {
     return this.ordersService.remove(id);
   }
-
   @Post(':id/verify-payment')
   verifyPayment(@Param('id') id: string, @Request() req) {
     // Only vendors can verify their own orders
@@ -58,6 +57,11 @@ export class OrdersController {
       throw new Error('Only vendors can verify payments');
     }
     return this.ordersService.verifyPayment(id, req.user.userId);
+  }
+
+  @Post(':id/submit-proof')
+  submitProof(@Param('id') id: string, @Body() body: { proofUrl: string }, @Request() req) {
+    return this.ordersService.submitPaymentProof(id, req.user.userId, body.proofUrl);
   }
 
   @Post(':id/shipped')

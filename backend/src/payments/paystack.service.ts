@@ -73,6 +73,31 @@ export class PaystackService {
         }
     }
 
+    async createTransferRecipient(data: {
+        type: 'nuban' | 'mobile_money';
+        name: string;
+        account_number: string;
+        bank_code: string;
+        currency: string;
+    }) {
+        try {
+            const response = await fetch(`${this.baseUrl}/transferrecipient`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${this.secretKey}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data),
+            });
+
+            const result = await response.json();
+            return result;
+        } catch (error) {
+            this.logger.error(`Error creating Paystack transfer recipient: ${error.message}`);
+            throw error;
+        }
+    }
+
     // Paystack uses subaccounts for splitting, but we can also do manual transfers (payouts)
     async initiateTransfer(data: {
         source: string;
