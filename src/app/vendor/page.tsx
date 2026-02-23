@@ -52,13 +52,30 @@ export default function VendorDashboard() {
     const [notifications, setNotifications] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
+    // Hydration check
+    const [isHydrated, setIsHydrated] = useState(false);
+    useEffect(() => {
+        setIsHydrated(true);
+    }, []);
+
     const getImageUrl = (url: string) => {
         if (!url || url === '/product-1.jpg') return '/product-1.jpg';
-        if (url.startsWith('http')) return url;
-        const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '');
-        if (url.startsWith('/')) return `${baseUrl}${url}`;
+        if (url.startsWith('http') || url.startsWith('data:')) return url;
+
+        const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+        const baseUrl = apiBase.replace('/api', '');
+
+        // Backend uploads
+        if (url.startsWith('/uploads')) {
+            return `${baseUrl}${url}`;
+        }
+
+        // Frontend static assets
+        if (url.startsWith('/')) return url;
+
         return `${baseUrl}/uploads/${url}`;
     };
+
 
     // Profile States
     const [shopName, setShopName] = useState(user?.shopName || '');
@@ -135,8 +152,9 @@ export default function VendorDashboard() {
                 if (notificationsRes.ok) setNotifications(await notificationsRes.json());
                 if (withdrawalRes.ok) {
                     const withdrawals = await withdrawalRes.json();
-                    setDashboardData(prev => ({ ...prev, withdrawalHistory: withdrawals }));
+                    setDashboardData((prev: any) => ({ ...prev, withdrawalHistory: withdrawals }));
                 }
+
             } catch (error) {
                 console.error('Error fetching vendor data:', error);
             } finally {
@@ -217,7 +235,20 @@ export default function VendorDashboard() {
         { label: 'Store Products', value: vendorProducts.length.toString(), icon: Package, color: 'text-white', bg: 'bg-gradient-to-br from-orange-500 to-orange-700', pattern: 'opacity-10' },
     ];
 
-    if (!user || (user.role !== 'vendor' && user.role !== 'admin')) return null;
+    if (!isHydrated || isLoading || loading) {
+        return (
+            <div className="min-h-screen bg-[#FDFDFF] flex items-center justify-center">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-12 h-12 border-4 border-slate-100 border-t-brand-lemon rounded-full animate-spin" />
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Synchronizing Studio...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (!isAuthenticated || !user || (user.role !== 'vendor' && user.role !== 'admin')) {
+        return null;
+    }
 
     // Handle Pending Approval State
     if (user.status === 'pending' && user.role !== 'admin') {
@@ -861,7 +892,17 @@ export default function VendorDashboard() {
                                         vendorOrders.slice(0, 3).map((order, i) => (
                                             <div key={order._id || i} className={`p-6 flex items-center gap-5 ${i !== 2 ? 'border-b border-slate-50' : ''}`}>
                                                 <div className="w-12 h-14 bg-slate-50 rounded-xl overflow-hidden relative border border-slate-100">
-                                                    <Image src={getImageUrl(order.productImage)} alt={order.productName || 'Product'} fill className="object-cover" unoptimized />
+                                                    <Image
+                                                        src={getImageUrl(order.productImage)}
+                                                        alt={order.productName || 'Product'}
+                                                        fill
+                                                        className="object-cover"
+                                                        unoptimized
+                                                        onError={(e) => {
+                                                            const target = e.target as HTMLImageElement;
+                                                            target.src = '/product-1.jpg';
+                                                        }}
+                                                    />
                                                 </div>
                                                 <div className="flex-1">
                                                     <h4 className="font-bold text-slate-900 text-sm">{order.productName || 'Bespoke Order'}</h4>
@@ -944,7 +985,17 @@ export default function VendorDashboard() {
                             {vendorProducts.map((product) => (
                                 <div key={product.id} className="bg-white rounded-[32px] border border-slate-100 p-4 group hover:shadow-xl transition-all">
                                     <div className="relative aspect-[3/4] bg-slate-50 rounded-[24px] overflow-hidden mb-4">
-                                        <Image src={getImageUrl(product.image)} alt={product.name} fill className="object-cover group-hover:scale-110 transition-transform duration-500" unoptimized={true} />
+                                        <Image
+                                            src={getImageUrl(product.image)}
+                                            alt={product.name}
+                                            fill
+                                            className="object-cover group-hover:scale-110 transition-transform duration-500"
+                                            unoptimized={true}
+                                            onError={(e) => {
+                                                const target = e.target as HTMLImageElement;
+                                                target.src = '/product-1.jpg';
+                                            }}
+                                        />
                                         {product.images && product.images.length > 1 && (
                                             <div className="absolute bottom-3 left-3 px-2 py-1 bg-white/90 backdrop-blur-sm rounded-lg flex items-center gap-1 shadow-sm">
                                                 <ImageIcon className="w-2.5 h-2.5 text-slate-400" />
@@ -1295,7 +1346,17 @@ export default function VendorDashboard() {
                             {/* Banner Upload */}
                             <div className="relative h-48 bg-slate-100 rounded-[32px] overflow-hidden group border border-slate-100">
                                 {bannerImage ? (
-                                    <Image src={getImageUrl(bannerImage)} alt="Banner" fill className="object-cover" unoptimized={true} />
+                                    <Image
+                                        src={getImageUrl(bannerImage)}
+                                        alt="Banner"
+                                        fill
+                                        className="object-cover"
+                                        unoptimized={true}
+                                        onError={(e) => {
+                                            const target = e.target as HTMLImageElement;
+                                            target.src = '/product-1.jpg';
+                                        }}
+                                    />
                                 ) : (
                                     <UploadCloud className="w-12 h-12 text-slate-300 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 group-hover:scale-110 transition-transform" />
                                 )}
@@ -1309,7 +1370,17 @@ export default function VendorDashboard() {
                                 <div className="w-32 h-32 rounded-[32px] bg-white p-2 shadow-2xl">
                                     <div className="w-full h-full bg-slate-900 rounded-[24px] flex items-center justify-center text-white relative group overflow-hidden">
                                         {profileImage ? (
-                                            <Image src={getImageUrl(profileImage)} alt="Avatar" fill className="object-cover" unoptimized={true} />
+                                            <Image
+                                                src={getImageUrl(profileImage)}
+                                                alt="Avatar"
+                                                fill
+                                                className="object-cover"
+                                                unoptimized={true}
+                                                onError={(e) => {
+                                                    const target = e.target as HTMLImageElement;
+                                                    target.src = '/product-1.jpg';
+                                                }}
+                                            />
                                         ) : (
                                             <ImageIcon className="w-8 h-8 text-white/20 group-hover:scale-110 transition-transform" />
                                         )}
