@@ -44,11 +44,13 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
 
     const getImageUrl = (url: string) => {
         if (!url || url === '/product-1.jpg') return '/product-1.jpg';
-        if (url.startsWith('http')) return url;
+        if (url.startsWith('http') || url.startsWith('data:')) return url;
+
+        const apiBase = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api');
+        const baseUrl = apiBase.replace('/api', '');
 
         // Backend uploads
         if (url.startsWith('/uploads')) {
-            const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '');
             return `${baseUrl}${url}`;
         }
 
@@ -56,9 +58,9 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
         if (url.startsWith('/')) return url;
 
         // Default to backend upload if just filename
-        const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '');
         return `${baseUrl}/uploads/${url}`;
     };
+
 
     const handleVendorProfile = async (e: React.MouseEvent | React.TouchEvent) => {
         if (e) {
@@ -630,7 +632,7 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                         className="absolute inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity duration-500"
                         onClick={() => setIsDetailModalOpen(false)}
                     />
-                    <div className="relative bg-white w-full max-w-4xl h-[92vh] md:h-[85vh] rounded-t-[40px] md:rounded-[40px] shadow-2xl flex flex-col md:flex-row animate-in slide-in-from-bottom md:zoom-in-95 duration-500 pointer-events-auto overflow-y-auto md:overflow-hidden">
+                    <div className="relative bg-white w-full max-w-4xl h-[92vh] md:h-[85vh] rounded-t-[40px] md:rounded-[40px] shadow-2xl flex flex-col md:flex-row animate-in slide-in-from-bottom md:zoom-in-95 duration-500 pointer-events-auto overflow-hidden">
                         {/* Mobile Handle */}
                         <div className="md:hidden absolute top-3 left-1/2 -translate-x-1/2 w-12 h-1 bg-slate-200 rounded-full z-50" />
 
@@ -652,7 +654,7 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
 
                         {/* Left: Gallery */}
                         <div className="w-full md:w-1/2 bg-[#f8f8f8] flex flex-col flex-shrink-0">
-                            <div className="relative w-full h-[50vh] md:h-full group/gallery">
+                            <div className="relative w-full h-[40vh] md:h-full group/gallery">
                                 <Image
                                     src={imgError ? '/product-1.jpg' : getImageUrl(images[currentImageIndex])}
                                     alt={name}
@@ -724,7 +726,7 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                         </div>
 
                         {/* Right: Info */}
-                        <div className="flex-1 flex flex-col relative overflow-visible md:overflow-y-auto overscroll-contain min-h-0 bg-white">
+                        <div className="flex-1 flex flex-col relative overflow-y-auto overscroll-contain bg-white">
                             <div className="p-6 md:p-10 pb-32 space-y-8">
                                 <div className="space-y-4">
                                     <div className="flex flex-wrap items-center gap-2">

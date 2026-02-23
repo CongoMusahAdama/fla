@@ -81,11 +81,19 @@ export default function CustomerDashboard() {
     const [profileAddress, setProfileAddress] = useState('');
     const [profileImage, setProfileImage] = useState<string | null>(null);
 
+    // Hydration check
+    const [isHydrated, setIsHydrated] = useState(false);
+    useEffect(() => {
+        setIsHydrated(true);
+    }, []);
+
     const fetchDashboardData = React.useCallback(async () => {
         if (!user) return;
 
         try {
             const token = localStorage.getItem('fla_token');
+            if (!token) return;
+
             const headers = {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
@@ -99,8 +107,9 @@ export default function CustomerDashboard() {
                     if (res.ok) {
                         const data = await res.json();
                         setter(data);
-                    } else {
-                        console.warn(`Non-OK response from ${endpoint}:`, res.status);
+                    } else if (res.status === 401) {
+                        // Handle potential expired token
+                        console.warn(`Unauthorized access to ${endpoint}`);
                     }
                 } catch (err) {
                     console.error(`Fetch error for ${endpoint}:`, err);
@@ -135,10 +144,18 @@ export default function CustomerDashboard() {
         }
     }, [user, fetchDashboardData]);
 
+    // Redirect if not authenticated once loading is done
+    useEffect(() => {
+        if (!isLoading && !isAuthenticated && isHydrated) {
+            router.push('/auth?role=customer&redirect=' + encodeURIComponent(window.location.pathname));
+        }
+    }, [isAuthenticated, isLoading, router, isHydrated]);
+
     const filteredOrders = React.useMemo(() => {
         return orders.filter(order => {
             if (orderFilter === 'All') return true;
             if (orderFilter === 'Active') return !['delivered', 'cancelled'].includes(order.status);
+
             if (orderFilter === 'Completed') return order.status === 'delivered';
             return true;
         });
@@ -148,18 +165,20 @@ export default function CustomerDashboard() {
         if (!url || url === '/product-1.jpg') return '/product-1.jpg';
         if (url.startsWith('http') || url.startsWith('data:')) return url;
 
+        const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+        const baseUrl = apiBase.replace('/api', '');
+
         // Backend uploads
         if (url.startsWith('/uploads')) {
-            const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '');
             return `${baseUrl}${url}`;
         }
 
         // Frontend static assets
         if (url.startsWith('/')) return url;
 
-        const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '');
         return `${baseUrl}/uploads/${url}`;
     };
+
 
     const fileInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -504,7 +523,17 @@ export default function CustomerDashboard() {
                                             <div key={i} className={`p-4 md:p-5 flex flex-col sm:flex-row sm:items-center gap-4 ${i !== Math.min(orders.length, 5) - 1 ? 'border-b border-slate-50' : ''}`}>
                                                 <div className="flex items-start gap-4 flex-1">
                                                     <div className="relative w-16 h-20 bg-slate-50 rounded-xl overflow-hidden flex-shrink-0 border border-slate-100">
-                                                        <Image src={getImageUrl(order.items[0]?.image || '/product-1.jpg')} alt={order.items[0]?.name || 'Product'} fill className="object-cover" unoptimized />
+                                                        <Image
+                                                            src={getImageUrl(order.items[0]?.image || '/product-1.jpg')}
+                                                            alt={order.items[0]?.name || 'Product'}
+                                                            fill
+                                                            className="object-cover"
+                                                            unoptimized
+                                                            onError={(e) => {
+                                                                const target = e.target as HTMLImageElement;
+                                                                target.src = '/product-1.jpg';
+                                                            }}
+                                                        />
                                                     </div>
                                                     <div className="min-w-0 flex-1">
                                                         <div className="flex justify-between items-start">
@@ -614,6 +643,11 @@ export default function CustomerDashboard() {
                                                     alt="p"
                                                     fill
                                                     className="object-cover"
+                                                    unoptimized
+                                                    onError={(e) => {
+                                                        const target = e.target as HTMLImageElement;
+                                                        target.src = '/product-1.jpg';
+                                                    }}
                                                 />
                                                 <div className="absolute bottom-2 left-2 right-2">
                                                     <span className={`block text-center px-1 py-0.5 rounded-md text-[7px] font-black uppercase tracking-tighter shadow-sm ${order.escrowStatus === 'released' ? 'bg-emerald-500 text-white' :
@@ -716,6 +750,10 @@ export default function CustomerDashboard() {
                                                                 fill
                                                                 className="object-cover"
                                                                 unoptimized
+                                                                onError={(e) => {
+                                                                    const target = e.target as HTMLImageElement;
+                                                                    target.src = '/product-1.jpg';
+                                                                }}
                                                             />
                                                         </div>
                                                         <div>
@@ -840,7 +878,17 @@ export default function CustomerDashboard() {
                             <div className="flex items-center gap-6 pb-8 border-b border-slate-50">
                                 <div className="relative w-24 h-24 rounded-full border-4 border-slate-50 overflow-hidden bg-slate-100 flex items-center justify-center group">
                                     {profileImage ? (
-                                        <Image src={profileImage} alt="Profile" fill className="object-cover" />
+                                        <Image
+                                            src={getImageUrl(profileImage)}
+                                            alt="Profile"
+                                            fill
+                                            className="object-cover"
+                                            unoptimized
+                                            onError={(e) => {
+                                                const target = e.target as HTMLImageElement;
+                                                target.src = '/product-1.jpg';
+                                            }}
+                                        />
                                     ) : (
                                         <User className="w-10 h-10 text-slate-300" />
                                     )}
@@ -909,7 +957,7 @@ export default function CustomerDashboard() {
                                         rows={3}
                                         value={profileAddress}
                                         onChange={(e) => setProfileAddress(e.target.value)}
-                                        className="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20 transition-all resize-none"
+                                        className="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20 resize-none"
                                         placeholder="Enter your full house/office address details..."
                                     />
                                 </div>
@@ -1067,6 +1115,19 @@ export default function CustomerDashboard() {
                 return null;
         }
     };
+
+    if (!isHydrated || isLoading) {
+        return (
+            <div className="min-h-screen bg-[#FDFDFF] flex items-center justify-center">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-12 h-12 border-4 border-slate-100 border-t-brand-lemon rounded-full animate-spin" />
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Synchronizing Lifestyle...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (!isAuthenticated) return null;
 
     return (
         <main className="min-h-screen bg-[#FDFDFF] flex flex-col md:flex-row">
@@ -1392,7 +1453,17 @@ export default function CustomerDashboard() {
                                 {/* Order Summary Mini */}
                                 <div className="flex items-center gap-5 p-4 bg-slate-50 rounded-[24px]">
                                     <div className="relative w-16 h-20 rounded-xl overflow-hidden shadow-sm">
-                                        <Image src={trackingOrder.items[0]?.image || '/product-1.jpg'} alt="p" fill className="object-cover" />
+                                        <Image
+                                            src={getImageUrl(trackingOrder.items[0]?.image || '/product-1.jpg')}
+                                            alt="p"
+                                            fill
+                                            className="object-cover"
+                                            unoptimized
+                                            onError={(e) => {
+                                                const target = e.target as HTMLImageElement;
+                                                target.src = '/product-1.jpg';
+                                            }}
+                                        />
                                     </div>
                                     <div>
                                         <h3 className="font-bold text-slate-900">{trackingOrder.items[0]?.name || 'Multiple Items'}</h3>

@@ -45,20 +45,22 @@ export default function CartDrawer() {
 
     const getImageUrl = (url: string) => {
         if (!url || url === '/product-1.jpg') return '/product-1.jpg';
-        if (url.startsWith('http')) return url;
+        if (url.startsWith('http') || url.startsWith('data:')) return url;
+
+        const apiBase = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api');
+        const baseUrl = apiBase.replace('/api', '');
 
         // Backend uploads
         if (url.startsWith('/uploads')) {
-            const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '');
             return `${baseUrl}${url}`;
         }
 
         // Frontend static assets
         if (url.startsWith('/')) return url;
 
-        const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '');
         return `${baseUrl}/uploads/${url}`;
     };
+
 
     const subtotal = cartItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
 
