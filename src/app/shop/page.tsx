@@ -56,6 +56,13 @@ function ShopContent() {
     const searchParams = useSearchParams();
     const searchQuery = searchParams.get('search');
 
+    // Sync localSearch with URL search param
+    useEffect(() => {
+        if (searchQuery) {
+            setLocalSearch(searchQuery);
+        }
+    }, [searchQuery]);
+
     const filterData: Record<string, string[]> = {
         Color: ['Black', 'White', 'Blue', 'Purple', 'Green'],
         Size: ['Small', 'Medium', 'Large', 'XL', 'XXL'],

@@ -334,4 +334,58 @@ export class EmailService {
             console.error('Error sending credentials email:', error);
         }
     }
+
+    async sendPasswordResetEmail(email: string, name: string, token: string): Promise<void> {
+        const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
+        const resetUrl = `${this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000'}/auth/reset-password?token=${token}`;
+
+        sendSmtpEmail.subject = 'Reset Your FLA Password 🔒';
+        sendSmtpEmail.to = [{ email, name }];
+        sendSmtpEmail.sender = {
+            name: 'FLA Security',
+            email: this.configService.get<string>('BREVO_SENDER_EMAIL') || 'noreply@fla.com'
+        };
+        sendSmtpEmail.htmlContent = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <style>
+                    body { font-family: -apple-system, sans-serif; background-color: #f8fafc; margin: 0; padding: 0; }
+                    .container { max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 32px; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.1); }
+                    .header { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 40px; text-align: center; }
+                    .header h1 { color: #D8F800; font-size: 20px; font-weight: 900; margin: 0; text-transform: uppercase; letter-spacing: 2px; }
+                    .content { padding: 40px; }
+                    .message { font-size: 16px; color: #1e293b; line-height: 1.6; margin-bottom: 30px; }
+                    .cta { display: block; background: #D8F800; color: #0f172a; text-align: center; padding: 18px; border-radius: 50px; text-decoration: none; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; }
+                    .footer { padding: 30px; text-align: center; color: #94a3b8; font-size: 12px; border-top: 1px solid #f1f5f9; }
+                    .expiry { font-size: 12px; color: #64748b; margin-top: 20px; text-align: center; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>Password Reset</h1>
+                    </div>
+                    <div class="content">
+                        <p class="message">Hello ${name},<br><br>We received a request to reset the password for your FLA account. Click the button below to set a new password:</p>
+                        <a href="${resetUrl}" class="cta">Reset Password</a>
+                        <p class="expiry">This link will expire in 1 hour. If you didn't request a password reset, you can safely ignore this email.</p>
+                    </div>
+                    <div class="footer">
+                        <p>© 2026 FLA Logistics • Security Department</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+        `;
+
+        try {
+            await this.apiInstance.sendTransacEmail(sendSmtpEmail);
+            console.log(`Password reset email sent to ${email}`);
+        } catch (error) {
+            console.error('Error sending reset email:', error);
+            throw new Error('Failed to send reset email');
+        }
+    }
 }

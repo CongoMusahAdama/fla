@@ -1640,6 +1640,7 @@ export default function AdminDashboard() {
                                             <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">{selectedOrder.shippingCity}, {selectedOrder.shippingRegion}</p>
                                         </div>
                                     </div>
+
                                 </div>
 
                                 {/* Financial Summary */}

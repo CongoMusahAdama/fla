@@ -108,6 +108,12 @@ export class User {
 
     @Prop({ unique: true, sparse: true })
     uniqueVendorId?: string;
+
+    @Prop()
+    resetPasswordToken?: string;
+
+    @Prop()
+    resetPasswordExpires?: Date;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

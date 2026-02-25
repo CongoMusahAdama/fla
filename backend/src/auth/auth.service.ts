@@ -4,6 +4,7 @@ import { JwtService } from '@nestjs/jwt';
 import { EmailService } from '../email/email.service';
 import { OtpService } from '../otp/otp.service';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class AuthService {
@@ -113,5 +114,35 @@ export class AuthService {
     await this.emailService.sendWelcomeEmail(user.email, user.name || 'Vendor', user.shopName || 'FLA Studio');
 
     return user;
+  }
+
+  async forgotPassword(email: string): Promise<void> {
+    const user = await this.usersService.findOne(email);
+    if (!user) {
+      // We don't want to leak if a user exists or not for security reasons, 
+      // but in some contexts it's better to be explicit. 
+      // Usually, we return success even if not found to prevent user enumeration.
+      return;
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const expires = new Date();
+    expires.setHours(expires.getHours() + 1); // Token valid for 1 hour
+
+    await this.usersService.update((user as any)._id.toString(), {
+      resetPasswordToken: token,
+      resetPasswordExpires: expires
+    } as any);
+
+    await this.emailService.sendPasswordResetEmail(user.email, user.name || 'User', token);
+  }
+
+  async resetPassword(token: string, newPassword: string): Promise<void> {
+    const user = await this.usersService.findByResetToken(token);
+    if (!user) {
+      throw new Error('Invalid or expired reset token');
+    }
+
+    await this.usersService.updatePassword(user._id.toString(), newPassword);
   }
 }

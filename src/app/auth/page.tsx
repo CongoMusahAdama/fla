@@ -52,7 +52,7 @@ const AuthInput = React.memo(({ label, type, placeholder, value, onChange, requi
 
 AuthInput.displayName = 'AuthInput';
 
-const LoginForm = ({ onLogin }: { onLogin: (id: string, pass: string) => void }) => {
+const LoginForm = ({ onLogin, onForgotPassword }: { onLogin: (id: string, pass: string) => void, onForgotPassword: () => void }) => {
     const [identifier, setIdentifier] = useState('');
     const [password, setPassword] = useState('');
 
@@ -68,19 +68,66 @@ const LoginForm = ({ onLogin }: { onLogin: (id: string, pass: string) => void })
                     onChange={setIdentifier}
                     icon={User}
                 />
-                <AuthInput
-                    label="Password"
-                    type="password"
-                    placeholder="••••••••"
-                    required
-                    value={password}
-                    onChange={setPassword}
-                    icon={Lock}
-                />
+                <div className="space-y-1">
+                    <AuthInput
+                        label="Password"
+                        type="password"
+                        placeholder="••••••••"
+                        required
+                        value={password}
+                        onChange={setPassword}
+                        icon={Lock}
+                    />
+                    <div className="flex justify-end px-1">
+                        <button
+                            type="button"
+                            onClick={onForgotPassword}
+                            className="text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-900 transition-colors"
+                        >
+                            Forgot Password?
+                        </button>
+                    </div>
+                </div>
             </div>
-            <div className="pt-4">
+            <div className="pt-2">
                 <button type="submit" className="w-full py-4 bg-emerald-950 text-white rounded-full font-bold text-sm tracking-wide hover:bg-slate-800 transition-all shadow-xl shadow-emerald-900/10 active:scale-[0.98]">
                     Sign In
+                </button>
+            </div>
+        </form>
+    );
+};
+
+const ForgotPasswordForm = ({ onBack, onSubmit }: { onBack: () => void, onSubmit: (email: string) => void }) => {
+    const [email, setEmail] = useState('');
+
+    return (
+        <form onSubmit={(e) => { e.preventDefault(); onSubmit(email); }} className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
+            <div className="space-y-2">
+                <h3 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Reset Password</h3>
+                <p className="text-xs text-slate-500 font-medium leading-relaxed">Enter your email address and we'll send you a link to reset your password.</p>
+            </div>
+
+            <AuthInput
+                label="Email Address"
+                type="email"
+                placeholder="you@email.com"
+                required
+                value={email}
+                onChange={setEmail}
+                icon={Mail}
+            />
+
+            <div className="space-y-3">
+                <button type="submit" className="w-full py-4 bg-slate-900 text-white rounded-full font-bold text-sm tracking-wide hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/10 active:scale-[0.98]">
+                    Send Reset Link
+                </button>
+                <button
+                    type="button"
+                    onClick={onBack}
+                    className="w-full py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-900 transition-all flex items-center justify-center gap-2"
+                >
+                    <ArrowLeft className="w-3 h-3" /> Back to Login
                 </button>
             </div>
         </form>
@@ -267,6 +314,7 @@ const RegisterForm = ({ role, onSignup }: { role: UserRole, onSignup: (data: any
 function AuthContent() {
     const [isLogin, setIsLogin] = useState(true);
     const [role, setRole] = useState<UserRole>('customer');
+    const [showForgotPassword, setShowForgotPassword] = useState(false);
 
     const [showOTP, setShowOTP] = useState(false);
     const [otp, setOtp] = useState(['', '', '', '']);
@@ -275,6 +323,45 @@ function AuthContent() {
     const { login, signup } = useAuth();
     const router = useRouter();
     const searchParams = useSearchParams();
+
+    const handleForgotPassword = async (email: string) => {
+        try {
+            Swal.fire({
+                title: 'SENDING...',
+                html: '<div class="text-slate-600 text-sm">Processing your request</div>',
+                didOpen: () => Swal.showLoading(),
+                allowOutsideClick: false,
+                customClass: { popup: 'rounded-[32px] border-none shadow-2xl p-10 bg-white', title: 'text-xl font-black text-slate-900 tracking-tighter uppercase' }
+            });
+
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/auth/forgot-password`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'LINK SENT',
+                    text: 'If an account exists, you will receive a reset link shortly.',
+                    customClass: { popup: 'rounded-[32px]' }
+                });
+                setShowForgotPassword(false);
+            } else {
+                throw new Error(result.message);
+            }
+        } catch (error: any) {
+            Swal.fire({
+                icon: 'error',
+                title: 'REQUEST FAILED',
+                text: error.message || 'Something went wrong. Please try again later.',
+                customClass: { popup: 'rounded-[32px]' }
+            });
+        }
+    };
 
     useEffect(() => {
         const urlRole = searchParams.get('role');
@@ -584,21 +671,31 @@ function AuthContent() {
                                     </div>
                                 )}
 
-                                {isLogin ? (
-                                    <LoginForm onLogin={handleLogin} />
+                                {showForgotPassword ? (
+                                    <ForgotPasswordForm
+                                        onBack={() => setShowForgotPassword(false)}
+                                        onSubmit={handleForgotPassword}
+                                    />
+                                ) : isLogin ? (
+                                    <LoginForm
+                                        onLogin={handleLogin}
+                                        onForgotPassword={() => setShowForgotPassword(true)}
+                                    />
                                 ) : (
                                     <RegisterForm role={role} onSignup={handleSignup} />
                                 )}
 
-                                <div className="mt-6">
-                                    <button
-                                        type="button"
-                                        onClick={() => setIsLogin(!isLogin)}
-                                        className="w-full py-4 bg-white border-2 border-slate-100 text-slate-500 rounded-full font-bold text-xs uppercase tracking-widest hover:border-slate-300 hover:text-slate-900 transition-all shadow-sm"
-                                    >
-                                        {isLogin ? 'New here? Create Account' : 'Already have an account? Sign In'}
-                                    </button>
-                                </div>
+                                {!showForgotPassword && (
+                                    <div className="mt-6">
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsLogin(!isLogin)}
+                                            className="w-full py-4 bg-white border-2 border-slate-100 text-slate-500 rounded-full font-bold text-xs uppercase tracking-widest hover:border-slate-300 hover:text-slate-900 transition-all shadow-sm"
+                                        >
+                                            {isLogin ? 'New here? Create Account' : 'Already have an account? Sign In'}
+                                        </button>
+                                    </div>
+                                )}
                             </React.Fragment>
                         )}
                     </div>

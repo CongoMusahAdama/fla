@@ -31,7 +31,11 @@ export class ProductsService {
     }
 
     if (query.search) {
-      filters.name = { $regex: query.search, $options: 'i' };
+      filters.$or = [
+        { name: { $regex: query.search, $options: 'i' } },
+        { vendorName: { $regex: query.search, $options: 'i' } },
+        { description: { $regex: query.search, $options: 'i' } }
+      ];
     }
 
     if (query.vendorId) {

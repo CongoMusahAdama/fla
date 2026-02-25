@@ -70,12 +70,21 @@ export default function Navbar() {
                             </Link>
 
                             <div className="flex items-center -mr-1">
+                                <div className={`relative transition-all duration-300 ${isSearchOpen ? 'w-32 opacity-100 mr-2' : 'w-0 opacity-0 overflow-hidden'}`}>
+                                    <input
+                                        type="text"
+                                        placeholder="Search..."
+                                        className="w-full px-3 py-1.5 text-[10px] bg-slate-50 border border-slate-200 rounded-full focus:outline-none focus:border-slate-900"
+                                        onKeyDown={handleSearch}
+                                        autoFocus={isSearchOpen}
+                                    />
+                                </div>
                                 <button
                                     onClick={() => setIsSearchOpen(!isSearchOpen)}
                                     className="text-slate-700 p-1.5"
                                     aria-label="Search"
                                 >
-                                    <Search className="h-4 w-4" />
+                                    {isSearchOpen ? <X className="h-4 w-4" /> : <Search className="h-4 w-4" />}
                                 </button>
 
                                 {isAuthenticated ? (
@@ -153,6 +162,7 @@ export default function Navbar() {
                                                 placeholder="Search..."
                                                 className="w-full px-4 py-2 text-xs bg-slate-50 border border-slate-200 rounded-full focus:outline-none focus:border-slate-900"
                                                 onKeyDown={handleSearch}
+                                                autoFocus={isSearchOpen}
                                             />
                                         </div>
                                         <button onClick={() => setIsSearchOpen(!isSearchOpen)} className="text-slate-700 p-2">

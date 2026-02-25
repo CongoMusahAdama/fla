@@ -60,6 +60,21 @@ export class UsersService {
     return this.userModel.findByIdAndDelete(id).exec();
   }
 
+  async findByResetToken(token: string): Promise<UserDocument | null> {
+    return this.userModel.findOne({
+      resetPasswordToken: token,
+      resetPasswordExpires: { $gt: new Date() }
+    }).exec();
+  }
+
+  async updatePassword(userId: string, newPassword: string): Promise<void> {
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await this.userModel.findByIdAndUpdate(userId, {
+      $set: { password: hashedPassword },
+      $unset: { resetPasswordToken: 1, resetPasswordExpires: 1 }
+    }).exec();
+  }
+
   async getPublicVendorProfile(vendorId: string) {
     let user = await this.userModel.findById(vendorId).select('-password -paymentMethods -withdrawalHistory').exec();
     if (!user) {

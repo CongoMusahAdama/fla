@@ -93,4 +93,26 @@ export class AuthController {
       throw error;
     }
   }
+
+  @Post('forgot-password')
+  async forgotPassword(@Body() body: { email: string }) {
+    try {
+      await this.authService.forgotPassword(body.email);
+      return { message: 'If an account exists with that email, a reset link has been sent.', success: true };
+    } catch (error) {
+      console.error('Forgot password error:', error);
+      return { message: 'Failed to process request', success: false };
+    }
+  }
+
+  @Post('reset-password')
+  async resetPassword(@Body() body: { token: string; password: string }) {
+    try {
+      await this.authService.resetPassword(body.token, body.password);
+      return { message: 'Password has been reset successfully', success: true };
+    } catch (error) {
+      console.error('Reset password error:', error);
+      return { message: error.message || 'Failed to reset password', success: false };
+    }
+  }
 }
