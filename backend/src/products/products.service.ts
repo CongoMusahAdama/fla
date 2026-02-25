@@ -4,10 +4,14 @@ import { Model } from 'mongoose';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { Product, ProductDocument } from './schemas/product.schema';
+import { User, UserDocument } from '../users/schemas/user.schema';
 
 @Injectable()
 export class ProductsService {
-  constructor(@InjectModel(Product.name) private productModel: Model<ProductDocument>) { }
+  constructor(
+    @InjectModel(Product.name) private productModel: Model<ProductDocument>,
+    @InjectModel(User.name) private userModel: Model<UserDocument>
+  ) { }
 
   async create(createProductDto: CreateProductDto): Promise<Product> {
     const createdProduct = new this.productModel(createProductDto);
@@ -31,10 +35,23 @@ export class ProductsService {
     }
 
     if (query.search) {
+      // Find vendors that match the search term
+      const matchingVendors = await this.userModel.find({
+        role: 'vendor',
+        $or: [
+          { name: { $regex: query.search, $options: 'i' } },
+          { shopName: { $regex: query.search, $options: 'i' } },
+          { businessName: { $regex: query.search, $options: 'i' } }
+        ]
+      }).select('_id').exec();
+
+      const matchingVendorIds = matchingVendors.map(v => v._id);
+
       filters.$or = [
         { name: { $regex: query.search, $options: 'i' } },
         { vendorName: { $regex: query.search, $options: 'i' } },
-        { description: { $regex: query.search, $options: 'i' } }
+        { description: { $regex: query.search, $options: 'i' } },
+        { vendorId: { $in: matchingVendorIds } }
       ];
     }
 
