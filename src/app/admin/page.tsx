@@ -528,7 +528,7 @@ export default function AdminDashboard() {
                                     <div className="flex items-start justify-between">
                                         <div className="flex items-center gap-4">
                                             <div className="w-14 h-14 bg-slate-900 rounded-2xl flex items-center justify-center text-white overflow-hidden relative shadow-md">
-                                                {u.profileImage ? <Image src={getImageUrl(u.profileImage)} alt={u.name} fill className="object-cover" unoptimized /> : u.name?.[0] || 'U'}
+                                                {u.profileImage ? <Image src={getImageUrl(u.profileImage)} alt={u.name} fill className="object-cover" /> : u.name?.[0] || 'U'}
                                             </div>
                                             <div>
                                                 <p className="font-black text-slate-900 text-sm">{u.shopName || u.name}</p>
@@ -600,7 +600,7 @@ export default function AdminDashboard() {
                                             <td className="px-8 py-6 border-r border-slate-50">
                                                 <div className="flex items-center gap-6">
                                                     <div className="w-20 h-20 bg-slate-900 rounded-3xl flex items-center justify-center text-white overflow-hidden relative shadow-2xl border-4 border-white">
-                                                        {u.profileImage ? <Image src={getImageUrl(u.profileImage)} alt={u.name} fill className="object-cover" unoptimized /> : u.name?.[0] || 'U'}
+                                                        {u.profileImage ? <Image src={getImageUrl(u.profileImage)} alt={u.name} fill className="object-cover" /> : u.name?.[0] || 'U'}
                                                     </div>
                                                     <div>
                                                         <p className="font-black text-slate-900 text-base mb-1">{u.shopName || u.name}</p>
@@ -707,7 +707,7 @@ export default function AdminDashboard() {
                                 <div key={u._id} className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm space-y-4">
                                     <div className="flex items-center gap-4">
                                         <div className="w-14 h-14 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 overflow-hidden relative border-2 border-white shadow-md">
-                                            {u.profileImage ? <Image src={getImageUrl(u.profileImage)} alt={u.name} fill className="object-cover" unoptimized /> : u.name?.[0] || 'U'}
+                                            {u.profileImage ? <Image src={getImageUrl(u.profileImage)} alt={u.name} fill className="object-cover" /> : u.name?.[0] || 'U'}
                                         </div>
                                         <div>
                                             <p className="font-black text-slate-900 text-sm">{u.name}</p>
@@ -755,7 +755,7 @@ export default function AdminDashboard() {
                                             <td className="px-8 py-6 border-r border-slate-50">
                                                 <div className="flex items-center gap-4">
                                                     <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 overflow-hidden relative border-4 border-white shadow-lg">
-                                                        {u.profileImage ? <Image src={getImageUrl(u.profileImage)} alt={u.name} fill className="object-cover" unoptimized /> : u.name?.[0] || 'U'}
+                                                        {u.profileImage ? <Image src={getImageUrl(u.profileImage)} alt={u.name} fill className="object-cover" /> : u.name?.[0] || 'U'}
                                                     </div>
                                                     <div>
                                                         <p className="font-black text-slate-900 text-sm">{u.name}</p>
@@ -815,7 +815,7 @@ export default function AdminDashboard() {
                             {allProducts.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase())).map((p) => (
                                 <div key={p._id} className={`bg-white rounded-[32px] border ${p.isActive ? 'border-slate-100' : 'border-red-100 grayscale-[0.5]'} shadow-sm overflow-hidden group hover:shadow-xl transition-all duration-500`}>
                                     <div className="aspect-[4/5] relative bg-slate-50">
-                                        <Image src={getImageUrl(p.images?.[0])} alt={p.name} fill className="object-cover group-hover:scale-110 transition-transform duration-700" unoptimized />
+                                        <Image src={getImageUrl(p.images?.[0])} alt={p.name} fill className="object-cover group-hover:scale-110 transition-transform duration-700" />
                                         <div className="absolute top-4 right-4 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                             <button onClick={() => handleToggleProductStatus(p._id, p.isActive)} className={`p-3 rounded-2xl shadow-xl transition-all ${p.isActive ? 'bg-white text-slate-900 hover:bg-slate-900 hover:text-white' : 'bg-emerald-500 text-white'}`}>
                                                 {p.isActive ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -1796,7 +1796,7 @@ export default function AdminDashboard() {
                                                     <td className="px-6 py-4">
                                                         <div className="flex items-center gap-4">
                                                             <div className="w-12 h-12 bg-slate-50 rounded-xl overflow-hidden relative border border-slate-100">
-                                                                <Image src={getImageUrl(item.image)} alt={item.name} fill className="object-cover" unoptimized />
+                                                                <Image src={getImageUrl(item.image)} alt={item.name} fill className="object-cover" />
                                                             </div>
                                                             <span className="font-black text-slate-900 text-sm uppercase tracking-tighter">{item.name}</span>
                                                         </div>
@@ -1822,7 +1822,7 @@ export default function AdminDashboard() {
                                 <div className="space-y-4">
                                     <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Payment Verification Artifact</h3>
                                     <div className="relative aspect-video max-w-md bg-slate-100 rounded-[32px] overflow-hidden border-4 border-white shadow-lg">
-                                        <Image src={getImageUrl(selectedOrder.paymentProof)} alt="Payment Proof" fill className="object-cover" unoptimized />
+                                        <Image src={getImageUrl(selectedOrder.paymentProof)} alt="Payment Proof" fill className="object-cover" />
                                         <div className="absolute inset-0 bg-black/20 hover:bg-transparent transition-colors cursor-zoom-in" onClick={() => window.open(getImageUrl(selectedOrder.paymentProof), '_blank')} />
                                     </div>
                                 </div>

@@ -151,6 +151,58 @@ export class OrdersService {
     return deletedOrder;
   }
 
+  async getAdminDashboardStats() {
+    // Escrow balance: sum of totalAmount for orders that are held, frozen, or waiting_approval
+    const escrowAgg = await this.orderModel.aggregate([
+      { $match: { escrowStatus: { $in: ['held', 'frozen', 'waiting_approval'] } } },
+      { $group: { _id: null, escrowBalance: { $sum: '$totalAmount' } } }
+    ]);
+
+    // Revenue and Commission: count only paid orders that are not cancelled or refunded
+    const revenueAgg = await this.orderModel.aggregate([
+      { $match: { isPaid: true, status: { $nin: ['cancelled', 'refunded'] } } },
+      {
+        $group: {
+          _id: null,
+          totalRevenue: { $sum: '$totalAmount' },
+          totalCommission: { $sum: { $ifNull: ['$adminCommission', { $multiply: ['$totalAmount', 0.1] }] } }
+        }
+      }
+    ]);
+
+    // Order Counts
+    const countsAgg = await this.orderModel.aggregate([
+      {
+        $group: {
+          _id: null,
+          totalOrders: { $sum: 1 },
+          completedTransactions: { $sum: { $cond: [{ $in: ['$status', ['completed', 'delivered']] }, 1, 0] } },
+          pendingOrders: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] } }
+        }
+      }
+    ]);
+
+    const escrowBalance = escrowAgg[0]?.escrowBalance || 0;
+    const totalRevenue = revenueAgg[0]?.totalRevenue || 0;
+    const totalCommission = revenueAgg[0]?.totalCommission || 0;
+    const totalOrders = countsAgg[0]?.totalOrders || 0;
+    const completedTransactions = countsAgg[0]?.completedTransactions || 0;
+    const pendingOrders = countsAgg[0]?.pendingOrders || 0;
+
+    return {
+      escrowBalance,
+      totalRevenue,
+      totalCommission,
+      totalOrders,
+      completedTransactions,
+      pendingOrders
+    };
+  }
+
+  async getRecentOrders(limit: number): Promise<Order[]> {
+    return this.orderModel.find().sort({ createdAt: -1 }).limit(limit).exec();
+  }
+
   async verifyPayment(orderId: string, vendorId: string): Promise<Order> {
     const order = await this.orderModel.findById(orderId).exec();
     if (!order) throw new NotFoundException(`Order not found`);

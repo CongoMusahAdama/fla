@@ -517,7 +517,7 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                             src={imgError ? '/product-1.jpg' : getImageUrl(images[currentImageIndex])}
                             alt={`${name} view ${currentImageIndex + 1}`}
                             fill
-                            unoptimized
+                           
                             className={`object-contain transition-all duration-700 group-hover/image:scale-105 ${isSoldOut ? 'grayscale contrast-[0.8] opacity-60' : ''}`}
                             onError={() => setImgError(true)}
                         />
@@ -639,7 +639,7 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                                     src={imgError ? '/product-1.jpg' : getImageUrl(images[currentImageIndex])}
                                     alt={name}
                                     fill
-                                    unoptimized
+                                   
                                     className="object-contain p-8 transition-all duration-700 group-hover/gallery:scale-105"
                                     onError={() => setImgError(true)}
                                 />
@@ -687,7 +687,7 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                                             alt="thumb"
                                             fill
                                             className="object-cover"
-                                            unoptimized
+                                           
                                             onError={(e) => {
                                                 const target = e.target as HTMLImageElement;
                                                 target.src = '/product-1.jpg';

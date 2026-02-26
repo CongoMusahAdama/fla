@@ -90,41 +90,32 @@ export class DashboardService {
     }
 
     async getAdminStats() {
-        const [orders, users, products] = await Promise.all([
-            this.ordersService.findAll(),
-            this.usersService.findAll(),
-            this.productsService.findAll({ showAll: 'true' })
-        ]);
+        // Fetch aggregation stats from services instead of loading all data into memory
+        const stats = await this.ordersService.getAdminDashboardStats();
 
-        const totalRevenue = orders
-            .filter(o => o.isPaid && o.status !== 'cancelled' && o.status !== 'refunded')
-            .reduce((sum, order) => sum + order.totalAmount, 0);
-
-        const totalCommission = orders
-            .filter(o => o.isPaid && o.status !== 'cancelled' && o.status !== 'refunded')
-            .reduce((sum, order) => sum + (order.adminCommission || order.totalAmount * 0.1), 0);
-
-        const escrowBalance = orders
-            .filter(o => ['held', 'frozen', 'waiting_approval'].includes(o.escrowStatus))
-            .reduce((sum, order) => sum + order.totalAmount, 0);
-
+        // Users stats
+        const users = await this.usersService.findAll(); // Optimization: Could replace with countDocuments
         const totalUsers = users.length;
         const totalVendors = users.filter((u: any) => u.role === 'vendor').length;
-        const totalProducts = products.length;
-        const totalOrders = orders.length;
-        const completedTransactions = orders.filter(o => o.status === 'completed' || o.status === 'delivered').length;
+
+        // Products stats
+        const productsCount = await this.productsService.findAll({ showAll: 'true' }); // Optimization: Could replace with countDocuments
+        const totalProducts = productsCount.length;
+
+        // Recent limit
+        const recentOrders = await this.ordersService.getRecentOrders(10);
 
         return {
-            totalRevenue,
-            totalCommission,
-            escrowBalance,
+            totalRevenue: stats.totalRevenue,
+            totalCommission: stats.totalCommission,
+            escrowBalance: stats.escrowBalance,
             totalUsers,
             totalVendors,
             totalProducts,
-            totalOrders,
-            completedTransactions,
-            pendingOrders: orders.filter(o => o.status === 'pending').length,
-            recentOrders: orders.slice(0, 10)
+            totalOrders: stats.totalOrders,
+            completedTransactions: stats.completedTransactions,
+            pendingOrders: stats.pendingOrders,
+            recentOrders
         };
     }
 }

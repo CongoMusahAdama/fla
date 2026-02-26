@@ -149,9 +149,8 @@ export class Order {
 
 export const OrderSchema = SchemaFactory.createForClass(Order);
 
-// Indexes
-OrderSchema.index({ customerId: 1 });
-OrderSchema.index({ vendorId: 1 });
-OrderSchema.index({ status: 1 });
-OrderSchema.index({ createdAt: -1 });
-OrderSchema.index({ paymentVerifiedByVendor: 1 });
+// Indexes for fast lookups and aggregations
+OrderSchema.index({ vendorId: 1, createdAt: -1 });
+OrderSchema.index({ customerId: 1, createdAt: -1 });
+OrderSchema.index({ status: 1, isPaid: 1 });
+OrderSchema.index({ escrowStatus: 1 });

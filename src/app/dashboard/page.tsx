@@ -541,7 +541,7 @@ export default function CustomerDashboard() {
                                                             alt={order.items[0]?.name || 'Product'}
                                                             fill
                                                             className="object-cover"
-                                                            unoptimized
+                                                           
                                                             onError={(e) => {
                                                                 const target = e.target as HTMLImageElement;
                                                                 target.src = '/product-1.jpg';
@@ -662,7 +662,7 @@ export default function CustomerDashboard() {
                                                     alt="p"
                                                     fill
                                                     className="object-cover"
-                                                    unoptimized
+                                                   
                                                     onError={(e) => {
                                                         const target = e.target as HTMLImageElement;
                                                         target.src = '/product-1.jpg';
@@ -774,7 +774,7 @@ export default function CustomerDashboard() {
                                                                 alt="p"
                                                                 fill
                                                                 className="object-cover"
-                                                                unoptimized
+                                                               
                                                                 onError={(e) => {
                                                                     const target = e.target as HTMLImageElement;
                                                                     target.src = '/product-1.jpg';
@@ -921,7 +921,7 @@ export default function CustomerDashboard() {
                                             alt="Profile"
                                             fill
                                             className="object-cover"
-                                            unoptimized
+                                           
                                             onError={(e) => {
                                                 const target = e.target as HTMLImageElement;
                                                 target.src = '/product-1.jpg';
@@ -1278,7 +1278,7 @@ export default function CustomerDashboard() {
                         </div>
                         <div className="w-10 h-10 rounded-full bg-slate-900 flex items-center justify-center text-white border-2 border-brand-lemon shadow-lg overflow-hidden relative">
                             {profileImage ? (
-                                <Image src={getImageUrl(profileImage)} alt="User" fill className="object-cover" unoptimized />
+                                <Image src={getImageUrl(profileImage)} alt="User" fill className="object-cover" />
                             ) : (
                                 <User className="w-5 h-5" />
                             )}
@@ -1496,7 +1496,7 @@ export default function CustomerDashboard() {
                                             alt="p"
                                             fill
                                             className="object-cover"
-                                            unoptimized
+                                           
                                             onError={(e) => {
                                                 const target = e.target as HTMLImageElement;
                                                 target.src = '/product-1.jpg';

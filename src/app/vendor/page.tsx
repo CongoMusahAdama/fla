@@ -910,7 +910,7 @@ export default function VendorDashboard() {
                                                         alt={order.productName || 'Product'}
                                                         fill
                                                         className="object-cover"
-                                                        unoptimized
+                                                       
                                                         onError={(e) => {
                                                             const target = e.target as HTMLImageElement;
                                                             target.src = '/product-1.jpg';
@@ -1003,7 +1003,7 @@ export default function VendorDashboard() {
                                             alt={product.name}
                                             fill
                                             className="object-cover group-hover:scale-110 transition-transform duration-500"
-                                            unoptimized={true}
+                                           
                                             onError={(e) => {
                                                 const target = e.target as HTMLImageElement;
                                                 target.src = '/product-1.jpg';
@@ -1374,7 +1374,7 @@ export default function VendorDashboard() {
                                         alt="Banner"
                                         fill
                                         className="object-cover"
-                                        unoptimized={true}
+                                       
                                         onError={(e) => {
                                             const target = e.target as HTMLImageElement;
                                             target.src = '/product-1.jpg';
@@ -1398,7 +1398,7 @@ export default function VendorDashboard() {
                                                 alt="Avatar"
                                                 fill
                                                 className="object-cover"
-                                                unoptimized={true}
+                                               
                                                 onError={(e) => {
                                                     const target = e.target as HTMLImageElement;
                                                     target.src = '/product-1.jpg';
@@ -1854,7 +1854,7 @@ export default function VendorDashboard() {
                             className="w-8 h-8 rounded-full bg-slate-900 flex items-center justify-center text-white border-2 border-brand-lemon shadow-lg overflow-hidden relative active:scale-95 transition-transform"
                         >
                             {profileImage ? (
-                                <Image src={getImageUrl(profileImage)} alt="Avatar" fill className="object-cover" unoptimized={true} />
+                                <Image src={getImageUrl(profileImage)} alt="Avatar" fill className="object-cover" />
                             ) : (
                                 <User className="w-4 h-4" />
                             )}
@@ -1881,7 +1881,7 @@ export default function VendorDashboard() {
                             className="w-11 h-11 rounded-2xl bg-slate-900 flex items-center justify-center text-white border-2 border-brand-lemon shadow-xl overflow-hidden relative group active:scale-90 transition-all"
                         >
                             {profileImage ? (
-                                <Image src={getImageUrl(profileImage)} alt="Avatar" fill className="object-cover" unoptimized={true} />
+                                <Image src={getImageUrl(profileImage)} alt="Avatar" fill className="object-cover" />
                             ) : (
                                 <>
                                     <ImageIcon className="w-5 h-5 opacity-40" />
@@ -1923,7 +1923,7 @@ export default function VendorDashboard() {
                                         <div className="grid grid-cols-2 gap-4">
                                             {formImages.map((img: any, idx) => (
                                                 <div key={idx} className="relative aspect-[3/4] rounded-3xl bg-slate-50 border border-slate-100 overflow-hidden group">
-                                                    <Image src={getImageUrl(img.url)} alt={`Preview ${idx}`} fill className="object-cover" unoptimized={true} />
+                                                    <Image src={getImageUrl(img.url)} alt={`Preview ${idx}`} fill className="object-cover" />
                                                     {img.isUploading && (
                                                         <div className="absolute inset-0 bg-white/60 flex items-center justify-center backdrop-blur-sm">
                                                             <div className="w-8 h-8 border-4 border-slate-900 border-t-transparent rounded-full animate-spin"></div>
@@ -2199,7 +2199,7 @@ export default function VendorDashboard() {
                                         {selectedOrder.items?.map((item: any, idx: number) => (
                                             <div key={idx} className="flex items-center gap-4 p-4 bg-white border border-slate-100 rounded-2xl">
                                                 <div className="w-14 h-14 bg-slate-50 rounded-xl flex-shrink-0 relative overflow-hidden">
-                                                    <Image src={getImageUrl(item.image)} alt={item.name} fill className="object-cover" unoptimized />
+                                                    <Image src={getImageUrl(item.image)} alt={item.name} fill className="object-cover" />
                                                 </div>
                                                 <div className="flex-1">
                                                     <p className="text-sm font-black text-slate-900 uppercase tracking-tight">{item.name}</p>

@@ -294,7 +294,7 @@ export default function CartDrawer() {
                                         alt={item.name}
                                         fill
                                         className="object-cover"
-                                        unoptimized
+                                       
                                         onError={(e) => {
                                             const target = e.target as HTMLImageElement;
                                             target.src = '/product-1.jpg';
