@@ -1,10 +1,11 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     LayoutDashboard, ShoppingBag, Heart, Bell, User,
     HelpCircle, LogOut, Package, Clock, CheckCircle2,
     Wallet, ChevronRight, MessageSquare, ShieldAlert,
-    Search, Menu, X, ArrowRight, Star, ArrowLeft
+    Search, Menu, X, ArrowRight, Star, ArrowLeft,
+    Printer, FileText, Download, Check
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
@@ -37,6 +38,7 @@ export default function CustomerDashboard() {
     const [orderFilter, setOrderFilter] = useState('All');
     const [ratingOrder, setRatingOrder] = useState<any>(null);
     const [ratingValue, setRatingValue] = useState(0);
+    const [selectedReceipt, setSelectedReceipt] = useState<any>(null);
 
     // Help Center States
     const [showDisputeForm, setShowDisputeForm] = useState(false);
@@ -146,10 +148,21 @@ export default function CustomerDashboard() {
 
     // Redirect if not authenticated once loading is done
     useEffect(() => {
+        if (!isLoading && isAuthenticated) {
+            if (user?.role === 'vendor') {
+                router.push('/vendor');
+                return;
+            }
+            if (user?.role === 'admin') {
+                router.push('/admin');
+                return;
+            }
+        }
+
         if (!isLoading && !isAuthenticated && isHydrated) {
             router.push('/auth?role=customer&redirect=' + encodeURIComponent(window.location.pathname));
         }
-    }, [isAuthenticated, isLoading, router, isHydrated]);
+    }, [isAuthenticated, isLoading, router, isHydrated, user]);
 
     const filteredOrders = React.useMemo(() => {
         return orders.filter(order => {
@@ -546,7 +559,13 @@ export default function CustomerDashboard() {
                                                                 {order.status}
                                                             </span>
                                                         </div>
-                                                        <p className="text-xs text-slate-500 mt-0.5">{order.vendorName || 'FLA Vendor'}</p>
+                                                        <p className="text-xs text-slate-500 mt-0.5">{order.vendorName || 'FLA Studio'}</p>
+                                                        {order.pickupPoint && (
+                                                            <div className="mt-1">
+                                                                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block mb-0.5">Collect At:</span>
+                                                                <span className="text-[9px] font-black text-brand-black bg-brand-lemon px-2 py-0.5 rounded-md border border-brand-lemon/20 inline-block uppercase">{order.pickupPoint}</span>
+                                                            </div>
+                                                        )}
                                                         <p className="font-sans font-black text-slate-900 mt-2 sm:hidden">GH₵ {order.totalAmount}</p>
                                                     </div>
                                                 </div>
@@ -689,7 +708,13 @@ export default function CustomerDashboard() {
                                                 onClick={() => setTrackingOrder(order)}
                                                 className="py-3 bg-slate-900 text-white rounded-full text-[10px] font-bold uppercase tracking-widest hover:bg-slate-800 transition-all active:scale-95 text-center"
                                             >
-                                                Track Order
+                                                Track
+                                            </button>
+                                            <button
+                                                onClick={() => setSelectedReceipt(order)}
+                                                className="py-3 bg-slate-100 text-slate-900 rounded-full text-[10px] font-bold uppercase tracking-widest hover:bg-slate-200 transition-all active:scale-95 text-center flex items-center justify-center gap-1.5"
+                                            >
+                                                <FileText className="w-3 h-3" /> Receipt
                                             </button>
                                             <button
                                                 onClick={() => {
@@ -777,7 +802,14 @@ export default function CustomerDashboard() {
                                                         {order.escrowStatus || 'held'}
                                                     </span>
                                                 </td>
-                                                <td className="px-8 py-6 text-sm text-slate-600 font-bold">{order.vendorName || 'FLA Vendor'}</td>
+                                                <td className="px-8 py-6 text-sm text-slate-600 font-bold">
+                                                    {order.vendorName || 'FLA Vendor'}
+                                                    {order.pickupPoint && (
+                                                        <div className="mt-1">
+                                                            <span className="text-[9px] font-black text-brand-black bg-brand-lemon px-2 py-0.5 rounded-md border border-brand-lemon/20 inline-block uppercase">POINT: {order.pickupPoint}</span>
+                                                        </div>
+                                                    )}
+                                                </td>
                                                 <td className="px-8 py-6 font-sans font-black text-slate-900">GH₵ {order.totalAmount}</td>
                                                 <td className="px-8 py-6 text-right flex items-center justify-end gap-2">
                                                     {!order.isPaid && !order.paymentProof && (
@@ -804,6 +836,12 @@ export default function CustomerDashboard() {
                                                         className="px-6 py-2 bg-slate-900 text-white rounded-full text-[9px] font-bold uppercase tracking-widest hover:bg-slate-800 transition-all hover:scale-105 active:scale-95 whitespace-nowrap"
                                                     >
                                                         Track
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setSelectedReceipt(order)}
+                                                        className="px-6 py-2 bg-slate-100 text-slate-900 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all hover:scale-105 active:scale-95 whitespace-nowrap flex items-center gap-1.5"
+                                                    >
+                                                        <FileText className="w-3 h-3 text-slate-400 group-hover:text-slate-900" /> Receipt
                                                     </button>
                                                     {order.status === 'shipped' && (
                                                         <button
@@ -1509,14 +1547,167 @@ export default function CustomerDashboard() {
                                             <p className="text-xs font-bold">Kojo Mensah (FLA-992)</p>
                                         </div>
                                     </div>
-                                    <button className="px-5 py-2.5 bg-white/10 backdrop-blur-md rounded-full text-xs font-bold hover:bg-white/20 transition-all">
-                                        Call Driver
-                                    </button>
+                                    <div className="relative w-12 h-12 bg-white p-1 rounded-lg border border-white/20">
+                                        {/* @ts-ignore */}
+                                        <img
+                                            src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(typeof window !== 'undefined' ? window.location.origin + '/track/' + trackingOrder._id : '')}`}
+                                            alt="tracking qr"
+                                            className="w-full h-full"
+                                        />
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 )}
+
+                {/* Receipt Modal */}
+                {selectedReceipt && (
+                    <div className="fixed inset-0 z-[500] flex items-center justify-center p-4">
+                        <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm" onClick={() => setSelectedReceipt(null)} />
+                        <div className="relative bg-white w-full max-w-2xl rounded-[32px] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col max-h-[90vh]">
+                            {/* Receipt Content */}
+                            <div id="printable-receipt" className="flex-1 overflow-y-auto p-8 md:p-12 bg-white">
+                                <div className="flex justify-between items-start mb-10 pb-10 border-b-2 border-slate-50">
+                                    <div>
+                                        <div className="flex items-center gap-2 mb-4">
+                                            <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center">
+                                                <div className="w-4 h-4 border-2 border-white rotate-45" />
+                                            </div>
+                                            <span className="font-heading font-black text-xl tracking-tighter text-slate-900 uppercase">FLA</span>
+                                        </div>
+                                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">Official Transaction Receipt</p>
+                                    </div>
+                                    <div className="text-right">
+                                        <h2 className="text-2xl font-black text-slate-900 tracking-tighter uppercase mb-1 flex items-center justify-end gap-2">
+                                            <span className="text-xs text-slate-400 font-medium">TOTAL:</span> GH₵ {selectedReceipt.totalAmount}
+                                        </h2>
+                                        <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${selectedReceipt.isPaid ? 'bg-emerald-50 text-emerald-600' : 'bg-orange-50 text-orange-600'}`}>
+                                            {selectedReceipt.isPaid ? (
+                                                <React.Fragment>
+                                                    <CheckCircle2 className="w-3 h-3" /> Payment Verified
+                                                </React.Fragment>
+                                            ) : (
+                                                <React.Fragment>
+                                                    <Clock className="w-3 h-3" /> Payment Pending
+                                                </React.Fragment>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-10 mb-12">
+                                    <div>
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Customer Details</p>
+                                        <p className="font-bold text-slate-900 text-sm md:text-base">{user?.name}</p>
+                                        <p className="text-xs text-slate-500 mt-1">{user?.email}</p>
+                                        <p className="text-xs text-slate-500">{user?.phone || user?.location}</p>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Order Information</p>
+                                        <p className="text-sm text-slate-900 font-bold">#ORD-{selectedReceipt._id.slice(-6).toUpperCase()}</p>
+                                        <p className="text-xs text-slate-500 mt-1">{new Date(selectedReceipt.createdAt).toLocaleDateString()}</p>
+                                        <p className="text-xs text-slate-500">{selectedReceipt.paymentStatus === 'paid' ? 'Paystack Transaction' : 'Platform Escrow'}</p>
+                                    </div>
+                                </div>
+
+                                <table className="w-full mb-12">
+                                    <thead>
+                                        <tr className="border-b border-slate-100">
+                                            <th className="py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left">Item Description</th>
+                                            <th className="py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center w-20">Qty</th>
+                                            <th className="py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right w-32">Amount</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-50">
+                                        {selectedReceipt.items.map((item: any, i: number) => (
+                                            <tr key={i}>
+                                                <td className="py-6">
+                                                    <p className="font-bold text-slate-900 text-sm">{item.name}</p>
+                                                    <p className="text-[10px] text-slate-400 font-medium mt-1 uppercase tracking-wider">
+                                                        Size: {item.size} • Studio: {selectedReceipt.vendorName || 'FLA Studio'}
+                                                    </p>
+                                                </td>
+                                                <td className="py-6 text-center text-sm font-bold text-slate-900">{item.quantity}</td>
+                                                <td className="py-6 text-right font-sans font-black text-slate-900">GH₵ {item.price * (item.quantity || 1)}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+
+                                <div className="space-y-3 pt-6 border-t-2 border-slate-50 mb-12">
+                                    <div className="flex justify-between items-center text-slate-500">
+                                        <span className="text-[10px] font-black uppercase tracking-widest">Subtotal</span>
+                                        <span className="font-sans font-bold">GH₵ {selectedReceipt.totalAmount}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center text-slate-500">
+                                        <span className="text-[10px] font-black uppercase tracking-widest">Processing Fee</span>
+                                        <span className="font-sans font-bold">GH₵ 0.00</span>
+                                    </div>
+                                    <div className="flex justify-between items-center pt-4 border-t border-slate-100">
+                                        <span className="font-black text-slate-900 uppercase tracking-widest text-xs">Total Amount</span>
+                                        <span className="text-2xl font-black text-slate-900 tracking-tighter">GH₵ {selectedReceipt.totalAmount}</span>
+                                    </div>
+                                </div>
+
+                                <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 flex items-center justify-between">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-12 h-12 bg-white rounded-xl shadow-sm border border-slate-100 flex items-center justify-center">
+                                            <CheckCircle2 className="w-6 h-6 text-emerald-500" />
+                                        </div>
+                                        <div>
+                                            <p className="text-xs font-black text-slate-900 uppercase tracking-tight">Verified Purchase</p>
+                                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-0.5 opacity-60">Digitally Certified by FLA Purchase</p>
+                                        </div>
+                                    </div>
+                                    <div className="relative w-16 h-16 bg-white p-1 rounded-lg border border-slate-100 hidden sm:block">
+                                        {/* @ts-ignore */}
+                                        <img
+                                            src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(typeof window !== 'undefined' ? window.location.origin + '/track/' + selectedReceipt._id : '')}`}
+                                            alt="receipt qr"
+                                            className="w-full h-full"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="mt-10 text-center">
+                                    <p className="text-[9px] font-black text-slate-300 uppercase tracking-[0.3em]">Thank you for supporting authentic fashion</p>
+                                </div>
+                            </div>
+
+                            {/* Modal Footer (No Print) */}
+                            <div className="p-8 bg-slate-50 border-t border-slate-100 flex gap-4 no-print">
+                                <button onClick={() => setSelectedReceipt(null)} className="flex-1 py-4 bg-white text-slate-500 border border-slate-200 rounded-full font-bold text-xs uppercase tracking-widest hover:bg-white hover:border-slate-300 transition-all active:scale-95">
+                                    Close
+                                </button>
+                                <button
+                                    onClick={() => window.print()}
+                                    className="flex-1 py-4 bg-slate-900 text-white rounded-full font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/20 active:scale-95"
+                                >
+                                    <Printer className="w-4 h-4" /> Print Receipt
+                                </button>
+                            </div>
+                        </div>
+
+                        <style jsx global>{`
+                            @media print {
+                                body > *:not(.fixed) { display: none !important; }
+                                .fixed:not(:has(#printable-receipt)) { display: none !important; }
+                                .fixed:has(#printable-receipt) { position: absolute !important; inset: 0 !important; background: white !important; }
+                                .no-print { display: none !important; }
+                                #printable-receipt { 
+                                    visibility: visible !important;
+                                    position: absolute !important;
+                                    left: 0 !important;
+                                    top: 0 !important;
+                                    width: 100% !important;
+                                    padding: 40px !important;
+                                }
+                            }
+                        `}</style>
+                    </div>
+                )
+                }
 
                 {/* Mobile Bottom Float Action */}
                 <div className="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] w-max">

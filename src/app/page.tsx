@@ -11,24 +11,42 @@ import React, { useState, useEffect } from 'react';
 export default function Home() {
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeCategory, setActiveCategory] = useState('All Product');
+  const [activeFilter, setActiveFilter] = useState('');
+  const [totalCount, setTotalCount] = useState(0);
+
+  const fetchLatestProducts = async (cat: string, filt: string) => {
+    setLoading(true);
+    try {
+      let url = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/products?limit=12`;
+      if (cat !== 'All Product') url += `&category=${encodeURIComponent(cat)}`;
+      if (filt) url += `&filter=${encodeURIComponent(filt)}`;
+      else url += '&sort=latest';
+
+      const response = await fetch(url);
+      if (response.ok) {
+        const data = await response.json();
+        setProducts(data);
+      }
+
+      // Fetch total count for "All Product" if not already set or whenever we need it
+      if (cat === 'All Product' && !filt) {
+        const countRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/products`);
+        if (countRes.ok) {
+          const allData = await countRes.json();
+          setTotalCount(allData.length);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching products:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchLatestProducts = async () => {
-      try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/products?limit=9&sort=latest`);
-        if (response.ok) {
-          const data = await response.json();
-          setProducts(data);
-        }
-      } catch (error) {
-        console.error('Error fetching latest products:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchLatestProducts();
-  }, []);
+    fetchLatestProducts(activeCategory, activeFilter);
+  }, [activeCategory, activeFilter]);
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -43,13 +61,19 @@ export default function Home() {
             <div>
               <h3 className="font-heading font-bold text-slate-900 mb-4 text-lg">Category</h3>
               <div className="space-y-2">
-                {['All Product', 'For Men', 'For Women'].map((cat, i) => (
-                  <button key={cat} className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl text-sm font-medium transition-colors cursor-pointer ${i === 0 ? 'bg-slate-900 text-white' : 'bg-white text-slate-500 hover:bg-white hover:text-slate-900 hover:shadow-sm'}`}>
-                    <span className={i === 0 ? 'opacity-100' : 'opacity-50'}>
-                      {i === 0 ? <LayoutGrid className="w-4 h-4" /> : <List className="w-4 h-4" />}
+                {['All Product', 'For Men', 'For Women'].map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => {
+                      setActiveCategory(cat);
+                      setActiveFilter('');
+                    }}
+                    className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl text-sm font-medium transition-colors cursor-pointer ${activeCategory === cat ? 'bg-slate-900 text-white' : 'bg-white text-slate-500 hover:bg-white hover:text-slate-900 hover:shadow-sm'}`}>
+                    <span className={activeCategory === cat ? 'opacity-100' : 'opacity-50'}>
+                      {cat === 'All Product' ? <LayoutGrid className="w-4 h-4" /> : <List className="w-4 h-4" />}
                     </span>
                     {cat}
-                    {i === 0 && <span className="ml-auto bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">12</span>}
+                    {cat === 'All Product' && <span className="ml-auto bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{totalCount || 0}</span>}
                   </button>
                 ))}
               </div>
@@ -59,12 +83,23 @@ export default function Home() {
             <div>
               <h3 className="font-heading font-bold text-slate-900 mb-4 text-lg">Filters</h3>
               <div className="space-y-1">
-                {['New Arrival', 'Best Seller', 'On Discount'].map((filter) => (
-                  <button key={filter} className="w-full text-left px-4 py-2 text-sm text-slate-500 hover:text-slate-900 flex justify-between items-center group cursor-pointer">
-                    {filter}
-                    <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity text-brand-blue" />
+                {['New Arrival', 'Best Seller', 'On Discount'].map((filt) => (
+                  <button
+                    key={filt}
+                    onClick={() => setActiveFilter(filt)}
+                    className={`w-full text-left px-4 py-2 text-sm flex justify-between items-center group cursor-pointer transition-colors ${activeFilter === filt ? 'text-slate-900 font-bold' : 'text-slate-500 hover:text-slate-900'}`}>
+                    {filt}
+                    <ChevronRight className={`w-4 h-4 transition-all ${activeFilter === filt ? 'opacity-100 translate-x-1 text-slate-900' : 'opacity-0 group-hover:opacity-100 text-brand-blue'}`} />
                   </button>
                 ))}
+                {activeFilter && (
+                  <button
+                    onClick={() => setActiveFilter('')}
+                    className="w-full text-left px-4 py-2 text-[10px] font-black text-red-500 uppercase tracking-widest mt-2 hover:bg-red-50 transition-colors rounded-lg"
+                  >
+                    Clear Filter
+                  </button>
+                )}
               </div>
             </div>
           </aside>
@@ -81,10 +116,14 @@ export default function Home() {
                 </div>
               </div>
               <div className="flex gap-2.5 overflow-x-auto no-scrollbar pb-4 -mx-4 px-4">
-                {['All Product', 'For Men', 'For Women', 'Accessories', 'Limited'].map((cat, i) => (
+                {['All Product', 'For Men', 'For Women', 'Accessories'].map((cat) => (
                   <button
                     key={cat}
-                    className={`flex-none px-7 py-3.5 rounded-full text-[10px] font-black uppercase tracking-[0.15em] transition-all duration-500 whitespace-nowrap active:scale-95 ${i === 0
+                    onClick={() => {
+                      setActiveCategory(cat);
+                      setActiveFilter('');
+                    }}
+                    className={`flex-none px-7 py-3.5 rounded-full text-[10px] font-black uppercase tracking-[0.15em] transition-all duration-500 whitespace-nowrap active:scale-95 ${activeCategory === cat
                       ? 'bg-slate-900 text-brand-lemon shadow-[0_15px_30px_rgba(0,0,0,0.15)] ring-1 ring-slate-800'
                       : 'bg-white text-slate-400 border border-slate-100'
                       }`}
@@ -96,7 +135,9 @@ export default function Home() {
             </div>
 
             <div className="flex flex-wrap justify-between items-center mb-6 gap-4">
-              <h2 className="font-heading text-xl md:text-2xl font-black text-slate-900 uppercase">New Arrivals</h2>
+              <h2 className="font-heading text-xl md:text-2xl font-black text-slate-900 uppercase">
+                {activeFilter || activeCategory}
+              </h2>
               <div className="flex gap-2">
                 <button className="p-2.5 bg-white rounded-xl shadow-sm border border-slate-100 text-slate-900 active:bg-slate-50 transition-colors"><LayoutGrid className="w-4 h-4" /></button>
                 <button className="p-2.5 text-slate-400 hover:text-slate-900 transition-colors"><List className="w-4 h-4" /></button>
@@ -123,6 +164,7 @@ export default function Home() {
                     vendorName={product.vendorName}
                     uniqueVendorId={product.uniqueVendorId}
                     index={index}
+                    description={product.description}
                   />
                 ))
               ) : (

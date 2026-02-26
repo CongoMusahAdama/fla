@@ -46,6 +46,7 @@ export default function AdminDashboard() {
     // System Settings State
     const [settings, setSettings] = useState({
         platformCommission: 10,
+        withdrawalMinimum: 50,
         automatedPayouts: true,
         vendorAutoApproval: false,
         maintenanceMode: false
@@ -57,20 +58,41 @@ export default function AdminDashboard() {
 
         try {
             const token = localStorage.getItem('fla_token');
-            // In a real app, you'd send this to the backend
-            // await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/settings`, {
-            //     method: 'PATCH',
-            //     headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-            //     body: JSON.stringify(updates)
-            // });
 
-            // Simulating API success
-            console.log('Settings updated:', updates);
+            // Map frontend key to backend key
+            const backendUpdates: any = {};
+            if (updates.platformCommission !== undefined) backendUpdates.platform_commission = updates.platformCommission;
+            if (updates.withdrawalMinimum !== undefined) backendUpdates.withdrawal_minimum = updates.withdrawalMinimum;
+            if (updates.maintenanceMode !== undefined) backendUpdates.maintenance_mode = updates.maintenanceMode;
+            if (updates.automatedPayouts !== undefined) backendUpdates.automated_payouts = updates.automatedPayouts;
+            // Add other mappings if they exist on backend
+
+            if (Object.keys(backendUpdates).length > 0) {
+                await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/settings`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(backendUpdates)
+                });
+
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    icon: 'success',
+                    title: 'Settings Saved',
+                    showConfirmButton: false,
+                    timer: 2000
+                });
+            }
+
+            console.log('Settings updated on backend:', backendUpdates);
         } catch (error) {
             console.error('Failed to update settings', error);
             // Revert on failure
             setSettings(settings);
-            Swal.fire({ icon: 'error', title: 'Update Failed', text: 'Could not save settings.' });
+            Swal.fire({ icon: 'error', title: 'Update Failed', text: 'Could not save settings to server.' });
         }
     };
 
@@ -85,17 +107,28 @@ export default function AdminDashboard() {
                 'Content-Type': 'application/json'
             };
 
-            const [statsRes, ordersRes, usersRes, productsRes] = await Promise.all([
+            const [statsRes, ordersRes, usersRes, productsRes, settingsRes] = await Promise.all([
                 fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/dashboard/admin/stats`, { headers }),
                 fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders`, { headers }),
                 fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/users`, { headers }),
-                fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/products`, { headers })
+                fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/products`, { headers }),
+                fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/settings`, { headers })
             ]);
 
             if (statsRes.ok) setAdminData(await statsRes.json());
             if (ordersRes.ok) setAllOrders(await ordersRes.json());
             if (usersRes.ok) setAllUsers(await usersRes.json());
             if (productsRes.ok) setAllProducts(await productsRes.json());
+            if (settingsRes.ok) {
+                const fetchedSettings = await settingsRes.json();
+                setSettings(prev => ({
+                    ...prev,
+                    platformCommission: fetchedSettings.platform_commission ?? prev.platformCommission,
+                    withdrawalMinimum: fetchedSettings.withdrawal_minimum ?? prev.withdrawalMinimum,
+                    maintenanceMode: fetchedSettings.maintenance_mode ?? prev.maintenanceMode,
+                    automatedPayouts: fetchedSettings.automated_payouts ?? prev.automatedPayouts
+                }));
+            }
         } catch (error) {
             console.error('Error fetching admin data:', error);
         } finally {
@@ -104,9 +137,22 @@ export default function AdminDashboard() {
     };
 
     useEffect(() => {
-        if (typeof window !== 'undefined' && (!isAuthenticated || user?.role !== 'admin')) {
-            router.push('/auth');
-            return;
+        if (typeof window !== 'undefined') {
+            if (isAuthenticated) {
+                if (user?.role === 'customer') {
+                    router.push('/dashboard');
+                    return;
+                }
+                if (user?.role === 'vendor') {
+                    router.push('/vendor');
+                    return;
+                }
+            }
+
+            if (!isAuthenticated || user?.role !== 'admin') {
+                router.push('/auth');
+                return;
+            }
         }
         refreshData();
     }, [isAuthenticated, user, router]);
@@ -786,7 +832,7 @@ export default function AdminDashboard() {
                                             <p className="text-sm font-black text-slate-900">GH₵ {p.price.toLocaleString()}</p>
                                         </div>
                                         <h3 className="font-black text-slate-900 text-sm uppercase tracking-tighter line-clamp-1">{p.name}</h3>
-                                        <p className="text-[10px] font-bold text-slate-400 uppercase mt-1">Vendor: {p.vendorName || 'Independent Artisan'}</p>
+                                        <p className="text-[10px] font-bold text-slate-400 uppercase mt-1">Vendor: {p.vendorName || 'FLA Studio'}</p>
 
 
                                     </div>
@@ -800,7 +846,8 @@ export default function AdminDashboard() {
             case 'escrow':
                 const isEscrow = activeSection === 'escrow';
                 const isDelivery = activeSection === 'delivery';
-                const displayOrders = isEscrow ? allOrders.filter(o => !o.isPaid) : isDelivery ? allOrders.filter(o => o.isPaid) : allOrders;
+                // Escrow should show orders that are pending payment verification, OR have funds currently held in escrow
+                const displayOrders = isEscrow ? allOrders.filter(o => !o.isPaid || ['held', 'frozen', 'waiting_approval'].includes(o.escrowStatus)) : isDelivery ? allOrders.filter(o => ['processing', 'shipped', 'delivered'].includes(o.status)) : allOrders;
 
                 return (
                     <div className="space-y-8 animate-in fade-in duration-500">
@@ -847,9 +894,9 @@ export default function AdminDashboard() {
                                             <span className="text-emerald-600">GH₵ {(o.adminCommission || o.totalAmount * 0.1).toLocaleString()}</span>
                                         </div>
                                     </div>
-                                    {isEscrow && !o.isPaid && (
+                                    {isEscrow && (
                                         <div className="flex gap-2 mt-2">
-                                            {o.paymentProof && (
+                                            {o.paymentProof && !o.isPaid && (
                                                 <button
                                                     onClick={() => {
                                                         Swal.fire({
@@ -869,12 +916,35 @@ export default function AdminDashboard() {
                                                     View Proof
                                                 </button>
                                             )}
-                                            <button
-                                                onClick={() => handleConfirmPayment(o._id)}
-                                                className="flex-[2] py-3 bg-slate-900 text-brand-lemon rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-slate-900/10"
-                                            >
-                                                Release Funds
-                                            </button>
+                                            {!o.isPaid && (
+                                                <button
+                                                    onClick={() => handleConfirmPayment(o._id)}
+                                                    className="flex-[2] py-3 bg-slate-900 text-brand-lemon rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-slate-900/10"
+                                                >
+                                                    Verify Payment
+                                                </button>
+                                            )}
+                                            {o.isPaid && o.escrowStatus === 'waiting_approval' && (
+                                                <button
+                                                    onClick={async () => {
+                                                        try {
+                                                            const token = localStorage.getItem('fla_token');
+                                                            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders/${o._id}/approve-escrow`, {
+                                                                method: 'POST',
+                                                                headers: { 'Authorization': `Bearer ${token}` }
+                                                            });
+                                                            if (!res.ok) throw new Error('Failed to approve');
+                                                            Swal.fire({ icon: 'success', title: 'Funds Released', timer: 1500, showConfirmButton: false });
+                                                            refreshData();
+                                                        } catch (err: any) {
+                                                            Swal.fire('Error', err.message, 'error');
+                                                        }
+                                                    }}
+                                                    className="flex-1 py-3 bg-emerald-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-500/20"
+                                                >
+                                                    Approve Release
+                                                </button>
+                                            )}
                                         </div>
                                     )}
                                     <button
@@ -957,15 +1027,17 @@ export default function AdminDashboard() {
                                             <td className="px-8 py-6 border-r border-slate-50">
                                                 <div className="space-y-2">
                                                     <span className={`text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-tighter ${o.isPaid ? 'bg-emerald-50 text-emerald-600' : 'bg-orange-50 text-orange-600'}`}>
-                                                        {o.isPaid ? 'PAID / RELEASED' : 'ESCROW HOLD'}
+                                                        {o.isPaid ? (o.escrowStatus === 'released' ? 'FUNDS RELEASED' : 'FUNDS HELD') : 'PENDING PAYMENT'}
                                                     </span>
-                                                    <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest pl-1">{o.status}</p>
+                                                    <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest pl-1">
+                                                        {o.escrowStatus === 'waiting_approval' ? 'Pending Admin Approval' : o.status}
+                                                    </p>
                                                 </div>
                                             </td>
                                             <td className="px-8 py-6 text-right">
-                                                {isEscrow && !o.isPaid ? (
+                                                {isEscrow ? (
                                                     <div className="flex justify-end items-center gap-3">
-                                                        {o.paymentProof && (
+                                                        {o.paymentProof && !o.isPaid && (
                                                             <button
                                                                 onClick={() => {
                                                                     Swal.fire({
@@ -985,7 +1057,31 @@ export default function AdminDashboard() {
                                                                 View Proof
                                                             </button>
                                                         )}
-                                                        <button onClick={() => handleConfirmPayment(o._id)} className="bg-slate-900 text-brand-lemon px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/10">Release Funds</button>
+                                                        {!o.isPaid && (
+                                                            <button onClick={() => handleConfirmPayment(o._id)} className="bg-slate-900 text-brand-lemon px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/10 whitespace-nowrap">Verify Payment</button>
+                                                        )}
+                                                        {o.isPaid && o.escrowStatus === 'waiting_approval' && (
+                                                            <button onClick={async () => {
+                                                                try {
+                                                                    const token = localStorage.getItem('fla_token');
+                                                                    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders/${o._id}/approve-escrow`, {
+                                                                        method: 'POST',
+                                                                        headers: { 'Authorization': `Bearer ${token}` }
+                                                                    });
+                                                                    if (!res.ok) throw new Error('Failed to approve');
+                                                                    Swal.fire({ icon: 'success', title: 'Funds Released', timer: 1500, showConfirmButton: false });
+                                                                    refreshData();
+                                                                } catch (err: any) {
+                                                                    Swal.fire('Error', err.message, 'error');
+                                                                }
+                                                            }} className="bg-emerald-500 text-white px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20 whitespace-nowrap">Approve Release</button>
+                                                        )}
+                                                        <button
+                                                            onClick={() => setSelectedOrder(o)}
+                                                            className="px-5 py-2 bg-slate-50 text-slate-400 text-[10px] font-black rounded-full uppercase tracking-widest hover:bg-slate-900 hover:text-white transition-all border border-slate-100"
+                                                        >
+                                                            Details
+                                                        </button>
                                                     </div>
                                                 ) : (
                                                     <button
@@ -1036,7 +1132,7 @@ export default function AdminDashboard() {
                                                 <td className="px-8 py-6">
                                                     <div className="space-y-1">
                                                         <p className="text-[10px] font-black text-slate-400 uppercase">Customer: <span className="text-slate-900">{o.customerName || 'Guest'}</span></p>
-                                                        <p className="text-[10px] font-black text-slate-400 uppercase">Vendor: <span className="text-slate-900">{o.vendorName || 'Artisan'}</span></p>
+                                                        <p className="text-[10px] font-black text-slate-400 uppercase">Vendor: <span className="text-slate-900">{o.vendorName || 'Unknown Studio'}</span></p>
                                                     </div>
                                                 </td>
                                                 <td className="px-8 py-6">
@@ -1189,6 +1285,21 @@ export default function AdminDashboard() {
                                                 className="w-16 px-3 py-2 text-center font-black bg-white rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-lemon/20 outline-none"
                                             />
                                             <span className="text-xs font-black text-slate-400">%</span>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                                        <div>
+                                            <p className="text-xs font-black text-slate-900 uppercase">Withdrawal Minimum</p>
+                                            <p className="text-[10px] text-slate-400 font-bold mt-1">Min amount allowed for payouts.</p>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[10px] font-black text-slate-400">GH₵</span>
+                                            <input
+                                                type="number"
+                                                value={settings.withdrawalMinimum}
+                                                onChange={(e) => updateSettings({ withdrawalMinimum: Number(e.target.value) })}
+                                                className="w-20 px-3 py-2 text-center font-black bg-white rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-lemon/20 outline-none"
+                                            />
                                         </div>
                                     </div>
                                     <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">

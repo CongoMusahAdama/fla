@@ -26,8 +26,12 @@ export class ProductsService {
       filters.isActive = true;
     }
 
-    if (query.category && query.category !== 'All') {
+    if (query.category && query.category !== 'All Product' && query.category !== 'All') {
       filters.category = query.category;
+    }
+
+    if (query.filter === 'On Discount') {
+      filters.originalPrice = { $exists: true, $gt: 0 };
     }
 
     if (query.isFeatured) {
@@ -61,8 +65,10 @@ export class ProductsService {
 
     let q = this.productModel.find(filters).populate('vendorId', 'uniqueVendorId');
 
-    if (query.sort === 'latest') {
+    if (query.sort === 'latest' || query.filter === 'New Arrival') {
       q = q.sort({ createdAt: -1 });
+    } else if (query.sort === 'best' || query.filter === 'Best Seller') {
+      q = q.sort({ rating: -1, reviewCount: -1 });
     }
 
     if (query.limit) {

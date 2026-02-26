@@ -131,6 +131,9 @@ export class Order {
     @Prop()
     notes?: string;
 
+    @Prop()
+    pickupPoint?: string;
+
     @Prop({ default: 0 })
     adminCommission: number;
 

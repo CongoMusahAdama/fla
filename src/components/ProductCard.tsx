@@ -207,7 +207,8 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                 cancelButtonText: 'Later'
             }).then((result) => {
                 if (result.isConfirmed) {
-                    router.push('/auth?role=customer');
+                    localStorage.setItem('pending_wishlist_item', JSON.stringify({ id, name }));
+                    router.push(`/auth?role=customer&redirect=${encodeURIComponent(window.location.pathname)}`);
                 }
             });
             return;
@@ -223,6 +224,11 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
             return;
         }
         setIsAdding(true);
+        // Ensure vendorId is a string if it's an object
+        const finalVendorId = (typeof vendorId === 'object' && vendorId !== null)
+            ? (vendorId._id || vendorId.id)
+            : vendorId;
+
         // Simulate network delay
         setTimeout(() => {
             addToCart({
@@ -232,7 +238,8 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                 image: images[0],
                 size: selectedSize!,
                 quantity: 1,
-                vendorId: vendorId,
+                vendorId: finalVendorId,
+                vendorName: vendorName,
             });
             setIsAdding(false);
             const Toast = Swal.mixin({
@@ -263,6 +270,11 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                 icon: 'info',
                 confirmButtonText: 'Join Now',
                 confirmButtonColor: '#0f172a'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    localStorage.setItem('pending_wishlist_item', JSON.stringify({ id, name }));
+                    router.push(`/auth?role=customer&redirect=${encodeURIComponent(window.location.pathname)}`);
+                }
             });
             return;
         }
@@ -365,47 +377,14 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                 reverseButtons: true
             }).then((result) => {
                 if (result.isConfirmed) {
-                    startPaymentFlow(guestInfo);
+                    handlePaystackFlow();
                 }
             });
         } else {
-            startPaymentFlow(guestInfo);
+            handlePaystackFlow();
         }
     };
 
-    const startPaymentFlow = (guestInfo?: any) => {
-        // Step 1: choose method (Flutterwave or WhatsApp)
-        Swal.fire({
-            title: 'Choose Checkout Method',
-            html: `
-                <div class="flex flex-col gap-3">
-                    <button id="pay-paystack" class="swal2-confirm swal2-styled" style="background-color: #E5FF7F; color: #0f172a; margin: 0; width: 100%;">
-                        Pay with MoMo (MTN, Telecel, AT) / Card
-                    </button>
-                    <button id="xy-whatsapp" class="swal2-deny swal2-styled" style="background-color: #25D366; margin: 0; width: 100%;">
-                        Buy via WhatsApp
-                    </button>
-                </div>
-            `,
-            showConfirmButton: false,
-            showCloseButton: true,
-            didOpen: () => {
-                const paystackBtn = document.getElementById('pay-paystack');
-                const waBtn = document.getElementById('xy-whatsapp');
-
-                paystackBtn?.addEventListener('click', () => {
-                    Swal.clickConfirm();
-                    handlePaystackFlow();
-                });
-
-                waBtn?.addEventListener('click', () => {
-                    const message = `Hi, I want to buy ${name} (Size: ${selectedSize}) - GH₵${price}`;
-                    window.open(`https://wa.me/233505112925?text=${encodeURIComponent(message)}`, '_blank');
-                    Swal.close();
-                });
-            }
-        });
-    };
 
     const handlePaystackFlow = async () => {
         try {
@@ -428,7 +407,8 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                     image: images[0]
                 }],
                 totalAmount: currentPrice,
-                vendorId: vendorId,
+                vendorId: (typeof vendorId === 'object' && vendorId !== null) ? (vendorId._id || vendorId.id) : vendorId,
+                vendorName: vendorName,
                 shippingAddress: 'Registered Address',
                 shippingCity: 'Accra',
                 shippingRegion: 'Greater Accra',

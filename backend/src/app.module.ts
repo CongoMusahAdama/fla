@@ -13,6 +13,7 @@ import { SupportModule } from './support/support.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { UploadModule } from './uploads/upload.module';
 import { PaymentsModule } from './payments/payments.module';
+import { SettingsModule } from './settings/settings.module';
 
 @Module({
   imports: [
@@ -27,7 +28,8 @@ import { PaymentsModule } from './payments/payments.module';
     SupportModule,
     NotificationsModule,
     UploadModule,
-    PaymentsModule
+    PaymentsModule,
+    SettingsModule
   ],
   controllers: [AppController],
   providers: [AppService],

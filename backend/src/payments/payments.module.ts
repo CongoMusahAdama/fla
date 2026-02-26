@@ -6,12 +6,14 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { Withdrawal, WithdrawalSchema } from './schemas/withdrawal.schema';
 import { UsersModule } from '../users/users.module';
 import { WithdrawalService } from './withdrawal.service';
+import { SettingsModule } from '../settings/settings.module';
 
 @Module({
     imports: [
         MongooseModule.forFeature([{ name: Withdrawal.name, schema: WithdrawalSchema }]),
         forwardRef(() => OrdersModule),
-        forwardRef(() => UsersModule)
+        forwardRef(() => UsersModule),
+        SettingsModule
     ],
     controllers: [PaymentsController],
     providers: [PaystackService, WithdrawalService],

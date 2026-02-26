@@ -52,6 +52,10 @@ export class CreateOrderDto {
     @IsOptional()
     customerPhone?: string;
 
+    @IsString()
+    @IsOptional()
+    vendorName?: string;
+
     @IsArray()
     @ValidateNested({ each: true })
     @Type(() => OrderItemDto)
@@ -84,4 +88,8 @@ export class CreateOrderDto {
     @IsString()
     @IsOptional()
     notes?: string;
+
+    @IsString()
+    @IsOptional()
+    pickupPoint?: string;
 }

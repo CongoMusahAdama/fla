@@ -105,7 +105,7 @@ export class DashboardService {
             .reduce((sum, order) => sum + (order.adminCommission || order.totalAmount * 0.1), 0);
 
         const escrowBalance = orders
-            .filter(o => ['held', 'frozen'].includes(o.escrowStatus))
+            .filter(o => ['held', 'frozen', 'waiting_approval'].includes(o.escrowStatus))
             .reduce((sum, order) => sum + order.totalAmount, 0);
 
         const totalUsers = users.length;

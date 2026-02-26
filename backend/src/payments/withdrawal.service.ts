@@ -3,12 +3,14 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Withdrawal, WithdrawalDocument } from './schemas/withdrawal.schema';
 import { UsersService } from '../users/users.service';
+import { SettingsService } from '../settings/settings.service';
 
 @Injectable()
 export class WithdrawalService {
     constructor(
         @InjectModel(Withdrawal.name) private withdrawalModel: Model<WithdrawalDocument>,
         private readonly usersService: UsersService,
+        private readonly settingsService: SettingsService,
     ) { }
 
     async requestWithdrawal(vendorId: string, amount: number, paymentDetails: any) {
@@ -19,8 +21,14 @@ export class WithdrawalService {
             throw new BadRequestException('Insufficient balance');
         }
 
-        // Commission Logic: Deduct 10% from the requested amount
-        const adminCommission = amount * 0.1;
+        const minWithdrawal = (await this.settingsService.getSetting('withdrawal_minimum')) || 50;
+        if (amount < minWithdrawal) {
+            throw new BadRequestException(`Minimum withdrawal amount is GH₵ ${minWithdrawal}`);
+        }
+
+        // Commission Logic: Use dynamic commission setting (default 10%)
+        const commissionRate = (await this.settingsService.getSetting('platform_commission')) || 10;
+        const adminCommission = amount * (commissionRate / 100);
         const netAmount = amount - adminCommission;
 
         const withdrawal = new this.withdrawalModel({

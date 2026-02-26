@@ -95,7 +95,7 @@ export default function CartDrawer() {
 
         setIsCartOpen(false); // Close cart before showing modal
 
-        const { isConfirmed } = await Swal.fire({
+        const { value: formValues, isConfirmed } = await Swal.fire({
             title: 'CONFIRM YOUR ORDER',
             html: `
                 <div class="text-left space-y-6 py-4">
@@ -110,6 +110,21 @@ export default function CartDrawer() {
                             `).join('')}
                         </div>
                     </div>
+
+                    <div class="space-y-2">
+                        <label class="text-[10px] text-slate-400 font-black uppercase tracking-widest ml-1">Choose Pickup Point</label>
+                        <select id="pickup-point" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20">
+                            <option value="">Select a pickup location...</option>
+                            <option value="FLA Studio HQ - East Legon">FLA Studio HQ - East Legon</option>
+                            <option value="Circle - VVIP Station">Circle - VVIP Station</option>
+                            <option value="Kumasi - Bantama Branch">Kumasi - Bantama Branch</option>
+                            <option value="Takoradi - Zenith Bank Area">Takoradi - Zenith Bank Area</option>
+                            <option value="Tamale - Modern City Hotel Area">Tamale - Modern City Hotel Area</option>
+                            <option value="Ho - Central Market">Ho - Central Market</option>
+                        </select>
+                        <p class="text-[10px] text-slate-400 mt-1 pl-1">Choose where you'll collect your package.</p>
+                    </div>
+
                     <div class="border-t-2 border-dashed border-slate-200 pt-4 flex justify-between items-center">
                         <span class="font-black text-slate-900 uppercase tracking-wider text-sm">Total Payable:</span>
                         <span class="text-2xl font-black text-slate-900 bg-brand-lemon px-4 py-2 rounded-xl shadow-sm">GH₵${subtotal}</span>
@@ -117,9 +132,17 @@ export default function CartDrawer() {
                 </div>
             `,
             showCancelButton: true,
-            confirmButtonText: 'Pay with MoMo (MTN, Telecel, AT) / Card',
+            confirmButtonText: 'Pay with MoMo / Card',
             cancelButtonText: 'Continue Shopping',
             buttonsStyling: false,
+            preConfirm: () => {
+                const pickupPoint = (document.getElementById('pickup-point') as HTMLSelectElement).value;
+                if (!pickupPoint) {
+                    Swal.showValidationMessage('Please select a pickup point');
+                    return false;
+                }
+                return { pickupPoint };
+            },
             customClass: {
                 popup: 'rounded-[40px] border-none shadow-2xl p-10 bg-white',
                 title: 'text-2xl font-black text-slate-900 tracking-tighter uppercase mb-6',
@@ -156,13 +179,17 @@ export default function CartDrawer() {
                         image: item.image
                     })),
                     totalAmount: subtotal,
-                    vendorId: cartItems[0]?.vendorId,
+                    vendorId: (typeof cartItems[0]?.vendorId === 'object' && cartItems[0]?.vendorId !== null)
+                        ? (cartItems[0].vendorId as any)._id || (cartItems[0].vendorId as any).id
+                        : cartItems[0]?.vendorId,
+                    vendorName: cartItems[0]?.vendorName,
                     shippingAddress: user?.address || 'Pickup at Studio',
                     shippingCity: user?.location || 'Accra',
                     shippingRegion: 'Greater Accra',
                     customerName: user?.name,
                     customerEmail: user?.email,
                     customerPhone: user?.phone,
+                    pickupPoint: formValues.pickupPoint,
                     paymentMethod: 'paystack',
                     notes: 'Order via Paystack'
                 };

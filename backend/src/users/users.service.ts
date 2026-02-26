@@ -17,15 +17,17 @@ export class UsersService {
   async create(createUserDto: CreateUserDto): Promise<User> {
     try {
       const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
-      const uniqueVendorId = createUserDto.role === 'vendor'
+      const role = createUserDto.role || 'customer';
+      const uniqueVendorId = role === 'vendor'
         ? `FLA-V-${Math.random().toString(36).substr(2, 6).toUpperCase()}`
         : undefined;
 
       const createdUser = new this.userModel({
         ...createUserDto,
+        role: role,
         password: hashedPassword,
         uniqueVendorId,
-        status: createUserDto.role === 'vendor' ? 'pending' : 'active',
+        status: role === 'vendor' ? 'pending' : 'active',
       });
       return await createdUser.save();
     } catch (error: any) {
@@ -37,7 +39,7 @@ export class UsersService {
   }
 
   async findOne(email: string): Promise<User | null> {
-    return this.userModel.findOne({ email }).exec();
+    return this.userModel.findOne({ email: { $regex: new RegExp(`^${email}$`, 'i') } }).exec();
   }
 
   async findAll(): Promise<User[]> {

@@ -24,7 +24,10 @@ export class WishlistService {
   async addToWishlist(userId: string, productId: string): Promise<WishlistDocument> {
     const wishlist = await this.findByUser(userId);
 
-    const itemExists = wishlist.items.find(item => item.productId.toString() === productId);
+    const itemExists = wishlist.items.find(item => {
+      const pId = (item.productId as any)._id || item.productId;
+      return pId.toString() === productId;
+    });
 
     if (!itemExists) {
       wishlist.items.push({

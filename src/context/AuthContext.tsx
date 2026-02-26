@@ -76,6 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
 
             const data = await response.json();
+
             const loggedInUser: User = {
                 id: data.user.id || data.user._id,
                 name: data.user.name,
@@ -96,6 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 walletBalance: data.user.walletBalance,
                 pendingBalance: data.user.pendingBalance,
             };
+
 
             setUser(loggedInUser);
             localStorage.setItem('fla_user', JSON.stringify(loggedInUser));

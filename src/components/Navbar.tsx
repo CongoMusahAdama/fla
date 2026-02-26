@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ShoppingBag, Search, Menu, X, User, Headset, LogOut } from 'lucide-react';
+import Swal from 'sweetalert2';
 import { useRouter, usePathname } from 'next/navigation';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
@@ -32,8 +33,45 @@ export default function Navbar() {
         };
 
         window.addEventListener('scroll', handleScroll);
+
+        // Process pending wishlist item after auth
+        if (isAuthenticated) {
+            const pending = localStorage.getItem('pending_wishlist_item');
+            if (pending) {
+                try {
+                    const item = JSON.parse(pending);
+                    localStorage.removeItem('pending_wishlist_item');
+
+                    const addToWishlist = async () => {
+                        const token = localStorage.getItem('fla_token');
+                        await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/wishlist`, {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': `Bearer ${token}`,
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ productId: item.id })
+                        });
+
+                        Swal.fire({
+                            toast: true,
+                            position: 'top-end',
+                            icon: 'success',
+                            title: `${item.name} added to wishlist`,
+                            showConfirmButton: false,
+                            timer: 3000,
+                            timerProgressBar: true
+                        });
+                    };
+                    addToWishlist();
+                } catch (e) {
+                    console.error('Failed to process pending wishlist item', e);
+                }
+            }
+        }
+
         return () => window.removeEventListener('scroll', handleScroll);
-    }, []);
+    }, [isAuthenticated]);
 
     // Hide Navbar on dashboard and admin routes - moved after hooks to avoid React error
     if (pathname?.startsWith('/admin') || pathname?.startsWith('/vendor') || pathname?.startsWith('/dashboard')) {

@@ -42,6 +42,13 @@ export class OrdersService {
 
       if (createOrderDto.vendorId) {
         orderData.vendorId = new Types.ObjectId(createOrderDto.vendorId);
+        // Auto-populate vendor name if missing
+        if (!createOrderDto.vendorName) {
+          const vendor = await this.userModel.findById(createOrderDto.vendorId).exec();
+          if (vendor) {
+            orderData.vendorName = vendor.shopName || vendor.name;
+          }
+        }
       }
 
       if (createOrderDto.items && createOrderDto.items.length > 0) {
@@ -118,6 +125,14 @@ export class OrdersService {
 
   async findOne(id: string): Promise<Order> {
     const order = await this.orderModel.findById(id).exec();
+    if (!order) throw new NotFoundException(`Order with ID ${id} not found`);
+    return order;
+  }
+
+  async trackOrder(id: string): Promise<any> {
+    const order = await this.orderModel.findById(id)
+      .select('status items trackingNumber carrier createdAt updatedAt customerName shippingCity shippingRegion totalAmount isPaid')
+      .exec();
     if (!order) throw new NotFoundException(`Order with ID ${id} not found`);
     return order;
   }
