@@ -708,7 +708,17 @@ function AuthContent() {
 
                 <div className="hidden md:flex w-[55%] relative p-10">
                     <div className="relative w-full h-full rounded-[40px] overflow-hidden group">
-                        <Image src="/hero-model.png" alt="Fashion Inspiration" fill className="object-cover group-hover:scale-105 transition-transform duration-[3s]" />
+                        <Image
+                            src="/hero-model.png"
+                            alt="Fashion Inspiration"
+                            fill
+                            unoptimized={true}
+                            className="object-cover group-hover:scale-105 transition-transform duration-[3s]"
+                            onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.src = '/product-1.jpg';
+                            }}
+                        />
                         <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 via-transparent to-transparent" />
                         <div className="absolute top-10 right-10 bg-white/10 backdrop-blur-md px-6 py-3 rounded-2xl border border-white/20 text-white">
                             <span className="text-xs font-bold tracking-tight">Bespoke Excellence</span>

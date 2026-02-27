@@ -117,11 +117,11 @@ export class AuthService {
   }
 
   async forgotPassword(email: string): Promise<void> {
+    console.log(`[ForgotPassword] Request received for: ${email}`);
     const user = await this.usersService.findOne(email);
     if (!user) {
-      // We don't want to leak if a user exists or not for security reasons, 
-      // but in some contexts it's better to be explicit. 
-      // Usually, we return success even if not found to prevent user enumeration.
+      // Don't leak whether a user exists or not (security best practice)
+      console.log(`[ForgotPassword] No user found for: ${email} — returning silently`);
       return;
     }
 
@@ -129,12 +129,21 @@ export class AuthService {
     const expires = new Date();
     expires.setHours(expires.getHours() + 1); // Token valid for 1 hour
 
+    console.log(`[ForgotPassword] Saving reset token for user: ${user.email}`);
     await this.usersService.update((user as any)._id.toString(), {
       resetPasswordToken: token,
       resetPasswordExpires: expires
     } as any);
 
-    await this.emailService.sendPasswordResetEmail(user.email, user.name || 'User', token);
+    console.log(`[ForgotPassword] Sending password reset email to: ${user.email}`);
+    try {
+      await this.emailService.sendPasswordResetEmail(user.email, user.name || 'User', token);
+      console.log(`[ForgotPassword] Email sent successfully to: ${user.email}`);
+    } catch (emailError) {
+      console.error(`[ForgotPassword] FAILED to send email to ${user.email}:`, emailError);
+      // Rethrow so the controller can return a meaningful error
+      throw new Error('Failed to send password reset email. Please try again later.');
+    }
   }
 
   async resetPassword(token: string, newPassword: string): Promise<void> {

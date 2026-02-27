@@ -6,7 +6,7 @@ import {
     Menu, X, ChevronRight, ArrowUpRight, TrendingUp,
     Clock, CheckCircle2, ShieldAlert, MessageSquare,
     Image as ImageIcon, Edit2, Trash2, Camera, UploadCloud,
-    Eye, EyeOff, ArrowLeft, Printer
+    Eye, EyeOff, ArrowLeft, Printer, MapPin, Copy
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
@@ -58,19 +58,15 @@ export default function VendorDashboard() {
         setIsHydrated(true);
     }, []);
 
-    const getImageUrl = (url: string) => {
+    const getImageUrl = (url: string | undefined | null) => {
         if (!url || url === '/product-1.jpg') return '/product-1.jpg';
-        if (url.startsWith('http') || url.startsWith('data:')) return url;
+        if (url.startsWith('http') || url.startsWith('data:') || url.startsWith('blob:')) return url;
 
         const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-        const baseUrl = apiBase.replace('/api', '');
+        const baseUrl = apiBase.replace(/\/api\/?$/, '');
 
-        // Backend uploads
-        if (url.startsWith('/uploads')) {
-            return `${baseUrl}${url}`;
-        }
-
-        // Frontend static assets
+        if (url.startsWith('/uploads/')) return `${baseUrl}${url}`;
+        if (url.startsWith('uploads/')) return `${baseUrl}/${url}`;
         if (url.startsWith('/')) return url;
 
         return `${baseUrl}/uploads/${url}`;
@@ -909,8 +905,8 @@ export default function VendorDashboard() {
                                                         src={getImageUrl(order.productImage)}
                                                         alt={order.productName || 'Product'}
                                                         fill
+                                                        unoptimized={true}
                                                         className="object-cover"
-                                                       
                                                         onError={(e) => {
                                                             const target = e.target as HTMLImageElement;
                                                             target.src = '/product-1.jpg';
@@ -1002,8 +998,8 @@ export default function VendorDashboard() {
                                             src={getImageUrl(product.image)}
                                             alt={product.name}
                                             fill
+                                            unoptimized={true}
                                             className="object-cover group-hover:scale-110 transition-transform duration-500"
-                                           
                                             onError={(e) => {
                                                 const target = e.target as HTMLImageElement;
                                                 target.src = '/product-1.jpg';
@@ -1060,6 +1056,7 @@ export default function VendorDashboard() {
                                         <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Order ID</th>
                                         <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Customer</th>
                                         <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Design</th>
+                                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Shipping To</th>
                                         <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Status</th>
                                         <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Actions</th>
                                     </tr>
@@ -1083,7 +1080,27 @@ export default function VendorDashboard() {
                                                         </div>
                                                     </div>
                                                 </td>
-                                                <td className="px-8 py-6 font-bold text-slate-700 text-xs border-r border-slate-50">{order.productName || 'Bespoke Item'}</td>
+                                                <td className="px-8 py-6 font-bold text-slate-700 text-xs border-r border-slate-50">
+                                                    {order.items && order.items.length > 0 ? (
+                                                        <div className="flex flex-col">
+                                                            <span>{order.items[0].name}</span>
+                                                            {order.items.length > 1 && (
+                                                                <span className="text-[9px] text-slate-400">+{order.items.length - 1} more items</span>
+                                                            )}
+                                                        </div>
+                                                    ) : (
+                                                        order.productName || 'Bespoke Item'
+                                                    )}
+                                                </td>
+                                                <td className="px-8 py-6 border-r border-slate-50 min-w-[180px]">
+                                                    <div className="flex flex-col gap-1">
+                                                        <div className="flex items-center gap-1.5 text-slate-900 font-bold text-[10px] uppercase">
+                                                            <MapPin className="w-3 h-3 text-brand-lemon" />
+                                                            {order.shippingCity || 'Studio Pickup'}
+                                                        </div>
+                                                        <p className="text-[10px] text-slate-400 line-clamp-1">{order.shippingAddress || 'No Address Provided'}</p>
+                                                    </div>
+                                                </td>
                                                 <td className="px-8 py-6 border-r border-slate-50">
                                                     <div className="flex flex-col gap-1">
                                                         <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest w-fit ${order.status === 'Delivered' ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'}`}>
@@ -1373,8 +1390,9 @@ export default function VendorDashboard() {
                                         src={getImageUrl(bannerImage)}
                                         alt="Banner"
                                         fill
+                                        unoptimized={true}
                                         className="object-cover"
-                                       
+
                                         onError={(e) => {
                                             const target = e.target as HTMLImageElement;
                                             target.src = '/product-1.jpg';
@@ -1397,8 +1415,9 @@ export default function VendorDashboard() {
                                                 src={getImageUrl(profileImage)}
                                                 alt="Avatar"
                                                 fill
+                                                unoptimized={true}
                                                 className="object-cover"
-                                               
+
                                                 onError={(e) => {
                                                     const target = e.target as HTMLImageElement;
                                                     target.src = '/product-1.jpg';
@@ -1881,7 +1900,7 @@ export default function VendorDashboard() {
                             className="w-11 h-11 rounded-2xl bg-slate-900 flex items-center justify-center text-white border-2 border-brand-lemon shadow-xl overflow-hidden relative group active:scale-90 transition-all"
                         >
                             {profileImage ? (
-                                <Image src={getImageUrl(profileImage)} alt="Avatar" fill className="object-cover" />
+                                <Image src={getImageUrl(profileImage)} alt="Avatar" fill className="object-cover" unoptimized={true} />
                             ) : (
                                 <>
                                     <ImageIcon className="w-5 h-5 opacity-40" />
@@ -1923,7 +1942,13 @@ export default function VendorDashboard() {
                                         <div className="grid grid-cols-2 gap-4">
                                             {formImages.map((img: any, idx) => (
                                                 <div key={idx} className="relative aspect-[3/4] rounded-3xl bg-slate-50 border border-slate-100 overflow-hidden group">
-                                                    <Image src={getImageUrl(img.url)} alt={`Preview ${idx}`} fill className="object-cover" />
+                                                    <Image
+                                                        src={getImageUrl(img.url)}
+                                                        alt={`Preview ${idx}`}
+                                                        fill
+                                                        className="object-cover"
+                                                        unoptimized={img.url?.startsWith('blob:') || img.url?.startsWith('data:')}
+                                                    />
                                                     {img.isUploading && (
                                                         <div className="absolute inset-0 bg-white/60 flex items-center justify-center backdrop-blur-sm">
                                                             <div className="w-8 h-8 border-4 border-slate-900 border-t-transparent rounded-full animate-spin"></div>
@@ -2239,8 +2264,31 @@ export default function VendorDashboard() {
                                             Dispatch Port
                                         </h4>
                                         <div className="space-y-2">
-                                            <p className="text-sm font-bold text-slate-900">{selectedOrder.shippingAddress || 'Digital Product / Studio Pickup'}</p>
-                                            <p className="text-xs font-medium text-slate-500">{selectedOrder.shippingCity}, {selectedOrder.shippingRegion}</p>
+                                            <div className="flex items-start justify-between group/addr">
+                                                <div>
+                                                    <p className="text-sm font-bold text-slate-900">{selectedOrder.shippingAddress || 'Digital Product / Studio Pickup'}</p>
+                                                    <p className="text-xs font-medium text-slate-500">{selectedOrder.shippingCity}, {selectedOrder.shippingRegion}</p>
+                                                </div>
+                                                {selectedOrder.shippingAddress && (
+                                                    <button
+                                                        onClick={() => {
+                                                            navigator.clipboard.writeText(`${selectedOrder.shippingAddress}, ${selectedOrder.shippingCity}, ${selectedOrder.shippingRegion}`);
+                                                            Swal.fire({
+                                                                toast: true,
+                                                                position: 'top-end',
+                                                                icon: 'success',
+                                                                title: 'Address Copied',
+                                                                showConfirmButton: false,
+                                                                timer: 2000
+                                                            });
+                                                        }}
+                                                        className="p-2 bg-slate-50 text-slate-400 hover:text-slate-900 rounded-lg transition-all"
+                                                        title="Copy Address"
+                                                    >
+                                                        <Copy className="w-3 h-3" />
+                                                    </button>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

@@ -16,8 +16,13 @@ export default function AboutPage() {
                             src="/hero-new.png"
                             alt="The Identity"
                             fill
+                            unoptimized={true}
                             className="object-cover group-hover:scale-105 transition-transform duration-700"
                             priority
+                            onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.src = '/product-1.jpg';
+                            }}
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 to-transparent" />
                         <div className="absolute bottom-10 left-10">
@@ -29,8 +34,13 @@ export default function AboutPage() {
                             src="/image.png"
                             alt="Bespoke Quality"
                             fill
+                            unoptimized={true}
                             className="object-cover group-hover:scale-105 transition-transform duration-700"
                             priority
+                            onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.src = '/product-1.jpg';
+                            }}
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 to-transparent" />
                         <div className="absolute bottom-10 left-10">

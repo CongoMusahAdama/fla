@@ -15,17 +15,18 @@ export class SettingsService implements OnModuleInit {
         await this.ensureSetting('withdrawal_minimum', 50, 'Minimum amount allowed for withdrawal');
         await this.ensureSetting('maintenance_mode', false, 'Whether the platform is in maintenance mode');
         await this.ensureSetting('automated_payouts', true, 'Whether payouts are automatically processed');
+        await this.ensureSetting('vendor_auto_approval', false, 'Whether vendors are automatically approved after registration');
     }
 
     private async ensureSetting(key: string, defaultValue: any, description: string) {
-        const existing = await this.settingModel.findOne({ key });
+        const existing = await this.settingModel.findOne({ key }).exec();
         if (!existing) {
             await this.settingModel.create({ key, value: defaultValue, description });
         }
     }
 
     async getSetting(key: string): Promise<any> {
-        const setting = await this.settingModel.findOne({ key });
+        const setting = await this.settingModel.findOne({ key }).exec();
         return setting ? setting.value : null;
     }
 
@@ -34,7 +35,7 @@ export class SettingsService implements OnModuleInit {
             { key },
             { value },
             { upsert: true, new: true }
-        );
+        ).exec();
     }
 
     async getAllSettings() {

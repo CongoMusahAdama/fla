@@ -5,7 +5,7 @@ import {
     HelpCircle, LogOut, Package, Clock, CheckCircle2,
     Wallet, ChevronRight, MessageSquare, ShieldAlert,
     Search, Menu, X, ArrowRight, Star, ArrowLeft,
-    Printer, FileText, Download, Check
+    Printer, FileText, Download, Check, Truck
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
@@ -174,19 +174,15 @@ export default function CustomerDashboard() {
         });
     }, [orders, orderFilter]);
 
-    const getImageUrl = (url: string) => {
+    const getImageUrl = (url: string | undefined | null) => {
         if (!url || url === '/product-1.jpg') return '/product-1.jpg';
-        if (url.startsWith('http') || url.startsWith('data:')) return url;
+        if (url.startsWith('http') || url.startsWith('data:') || url.startsWith('blob:')) return url;
 
         const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-        const baseUrl = apiBase.replace('/api', '');
+        const baseUrl = apiBase.replace(/\/api\/?$/, '');
 
-        // Backend uploads
-        if (url.startsWith('/uploads')) {
-            return `${baseUrl}${url}`;
-        }
-
-        // Frontend static assets
+        if (url.startsWith('/uploads/')) return `${baseUrl}${url}`;
+        if (url.startsWith('uploads/')) return `${baseUrl}/${url}`;
         if (url.startsWith('/')) return url;
 
         return `${baseUrl}/uploads/${url}`;
@@ -540,8 +536,9 @@ export default function CustomerDashboard() {
                                                             src={getImageUrl(order.items[0]?.image || '/product-1.jpg')}
                                                             alt={order.items[0]?.name || 'Product'}
                                                             fill
+                                                            unoptimized={true}
                                                             className="object-cover"
-                                                           
+
                                                             onError={(e) => {
                                                                 const target = e.target as HTMLImageElement;
                                                                 target.src = '/product-1.jpg';
@@ -658,11 +655,11 @@ export default function CustomerDashboard() {
                                         <div className="flex gap-4 mb-4">
                                             <div className="relative w-24 h-28 bg-slate-50 rounded-2xl overflow-hidden flex-shrink-0 border border-slate-100">
                                                 <Image
-                                                    src={getImageUrl(order.items[0]?.image || '/product-1.jpg')}
-                                                    alt="p"
+                                                    src={getImageUrl(order.items[0]?.image)}
+                                                    alt={order.items[0]?.name || 'Product'}
                                                     fill
+                                                    unoptimized={true}
                                                     className="object-cover"
-                                                   
                                                     onError={(e) => {
                                                         const target = e.target as HTMLImageElement;
                                                         target.src = '/product-1.jpg';
@@ -770,11 +767,11 @@ export default function CustomerDashboard() {
                                                     <div className="flex items-center gap-4">
                                                         <div className="relative w-12 h-14 bg-slate-50 rounded-lg overflow-hidden flex-shrink-0">
                                                             <Image
-                                                                src={getImageUrl(order.items[0]?.image || '/product-1.jpg')}
-                                                                alt="p"
+                                                                src={getImageUrl(order.items[0]?.image)}
+                                                                alt={order.items[0]?.name || 'Product'}
                                                                 fill
+                                                                unoptimized={true}
                                                                 className="object-cover"
-                                                               
                                                                 onError={(e) => {
                                                                     const target = e.target as HTMLImageElement;
                                                                     target.src = '/product-1.jpg';
@@ -866,9 +863,9 @@ export default function CustomerDashboard() {
                                                                         if (!response.ok) throw new Error('Failed to confirm receipt');
 
                                                                         // Update local state
-                                                                        setOrders(prev => prev.map(o => o._id === order._id ? { ...o, status: 'delivered', escrowStatus: 'waiting_approval' } : o));
+                                                                        setOrders(prev => prev.map(o => o._id === order._id ? { ...o, status: 'delivered', escrowStatus: 'released' } : o));
 
-                                                                        Swal.fire('Confirmed!', 'Thank you! Funds are now pending final admin approval for release.', 'success');
+                                                                        Swal.fire('Confirmed!', 'Thank you! Funds have been released to the vendor.', 'success');
                                                                     } catch (error: any) {
                                                                         Swal.fire('Error', error.message, 'error');
                                                                     }
@@ -920,8 +917,9 @@ export default function CustomerDashboard() {
                                             src={getImageUrl(profileImage)}
                                             alt="Profile"
                                             fill
+                                            unoptimized={true}
                                             className="object-cover"
-                                           
+
                                             onError={(e) => {
                                                 const target = e.target as HTMLImageElement;
                                                 target.src = '/product-1.jpg';
@@ -1496,7 +1494,7 @@ export default function CustomerDashboard() {
                                             alt="p"
                                             fill
                                             className="object-cover"
-                                           
+
                                             onError={(e) => {
                                                 const target = e.target as HTMLImageElement;
                                                 target.src = '/product-1.jpg';
@@ -1520,7 +1518,7 @@ export default function CustomerDashboard() {
                                         { title: 'Order Placed', time: 'Recently', desc: 'Your fashion request has been received.', done: true },
                                         { title: 'In Production', time: 'In Progress', desc: 'Stylists are working on your design.', done: ['processing', 'shipped', 'delivered'].includes(trackingOrder.status) },
                                         { title: 'Quality Assurance', time: 'Pending', desc: 'Checking tailoring excellence.', done: ['shipped', 'delivered'].includes(trackingOrder.status) },
-                                        { title: 'Shipped via FLA Logistics', time: 'Pending', desc: 'On its way to your location.', done: ['shipped', 'delivered'].includes(trackingOrder.status) },
+                                        { title: 'Shipped via ' + (trackingOrder.carrier || 'FLA Logistics'), time: trackingOrder.trackingNumber ? 'Tracking: ' + trackingOrder.trackingNumber : 'Pending', desc: 'On its way to your location.', done: ['shipped', 'delivered'].includes(trackingOrder.status) },
                                         { title: 'Delivered', time: 'Pending', desc: 'Package handed over to recipient.', done: trackingOrder.status === 'delivered' },
                                     ].map((s, idx) => (
                                         <div key={idx} className={`relative flex gap-6 transition-opacity ${s.done ? 'opacity-100' : 'opacity-30'}`}>
@@ -1540,11 +1538,12 @@ export default function CustomerDashboard() {
                                 <div className="p-6 bg-slate-900 rounded-[32px] text-white flex items-center justify-between">
                                     <div className="flex items-center gap-4">
                                         <div className="w-10 h-10 rounded-full bg-brand-lemon flex items-center justify-center text-slate-900">
-                                            <User className="w-5 h-5" />
+                                            <Truck className="w-5 h-5" />
                                         </div>
                                         <div>
-                                            <p className="text-[9px] font-black text-brand-lemon uppercase tracking-widest">Delivery Hero</p>
-                                            <p className="text-xs font-bold">Kojo Mensah (FLA-992)</p>
+                                            <p className="text-[9px] font-black text-brand-lemon uppercase tracking-widest">Courier Partner</p>
+                                            <p className="text-xs font-bold">{trackingOrder.carrier || 'FLA Logistics'}</p>
+                                            <p className="text-[10px] text-slate-400 font-mono">{trackingOrder.trackingNumber || 'Tracking Pending'}</p>
                                         </div>
                                     </div>
                                     <div className="relative w-12 h-12 bg-white p-1 rounded-lg border border-white/20">

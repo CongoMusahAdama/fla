@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Package, Truck, CheckCircle2, Clock, MapPin, ChevronLeft, ShieldCheck, Box } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
 import Footer from '@/components/Footer';
 
 export default function OrderTracking() {
@@ -25,6 +26,20 @@ export default function OrderTracking() {
         };
         if (id) fetchOrder();
     }, [id]);
+
+    const getImageUrl = (url: string | undefined | null) => {
+        if (!url || url === '/product-1.jpg') return '/product-1.jpg';
+        if (url.startsWith('http') || url.startsWith('data:') || url.startsWith('blob:')) return url;
+
+        const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+        const baseUrl = apiBase.replace(/\/api\/?$/, '');
+
+        if (url.startsWith('/uploads/')) return `${baseUrl}${url}`;
+        if (url.startsWith('uploads/')) return `${baseUrl}/${url}`;
+        if (url.startsWith('/')) return url;
+
+        return `${baseUrl}/uploads/${url}`;
+    };
 
     if (loading) {
         return (
@@ -134,8 +149,20 @@ export default function OrderTracking() {
                             <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest border-b border-slate-50 pb-4">Studio Manifest</h3>
                             {order.items?.map((item: any, i: number) => (
                                 <div key={i} className="flex gap-4 items-center">
-                                    <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-200">
-                                        <Package className="w-6 h-6" />
+                                    <div className="w-14 h-14 bg-slate-50 rounded-2xl overflow-hidden relative flex-shrink-0 border border-slate-100">
+                                        {item.image ? (
+                                            <Image
+                                                src={getImageUrl(item.image)}
+                                                alt={item.name}
+                                                fill
+                                                unoptimized={true}
+                                                className="object-cover"
+                                            />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center text-slate-200">
+                                                <Package className="w-6 h-6" />
+                                            </div>
+                                        )}
                                     </div>
                                     <div>
                                         <p className="text-xs font-black text-slate-900 uppercase leading-none mb-1">{item.name}</p>
@@ -149,7 +176,7 @@ export default function OrderTracking() {
                             </div>
                         </div>
 
-                        {order.trackingNumber && (
+                        {(order.trackingNumber || order.carrier) && (
                             <div className="p-10 bg-brand-lemon rounded-[48px] shadow-xl space-y-4">
                                 <div className="flex items-center gap-3">
                                     <Truck className="w-6 h-6 text-slate-900" />

@@ -65,6 +65,7 @@ export default function AdminDashboard() {
             if (updates.withdrawalMinimum !== undefined) backendUpdates.withdrawal_minimum = updates.withdrawalMinimum;
             if (updates.maintenanceMode !== undefined) backendUpdates.maintenance_mode = updates.maintenanceMode;
             if (updates.automatedPayouts !== undefined) backendUpdates.automated_payouts = updates.automatedPayouts;
+            if (updates.vendorAutoApproval !== undefined) backendUpdates.vendor_auto_approval = updates.vendorAutoApproval;
             // Add other mappings if they exist on backend
 
             if (Object.keys(backendUpdates).length > 0) {
@@ -126,7 +127,8 @@ export default function AdminDashboard() {
                     platformCommission: fetchedSettings.platform_commission ?? prev.platformCommission,
                     withdrawalMinimum: fetchedSettings.withdrawal_minimum ?? prev.withdrawalMinimum,
                     maintenanceMode: fetchedSettings.maintenance_mode ?? prev.maintenanceMode,
-                    automatedPayouts: fetchedSettings.automated_payouts ?? prev.automatedPayouts
+                    automatedPayouts: fetchedSettings.automated_payouts ?? prev.automatedPayouts,
+                    vendorAutoApproval: fetchedSettings.vendor_auto_approval ?? prev.vendorAutoApproval
                 }));
             }
         } catch (error) {
@@ -385,11 +387,17 @@ export default function AdminDashboard() {
         }
     };
 
-    const getImageUrl = (url: string) => {
+    const getImageUrl = (url: string | undefined | null) => {
         if (!url || url === '/product-1.jpg') return '/product-1.jpg';
-        if (url.startsWith('http')) return url;
-        const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '');
-        if (url.startsWith('/')) return `${baseUrl}${url}`;
+        if (url.startsWith('http') || url.startsWith('data:') || url.startsWith('blob:')) return url;
+
+        const apiBase = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api');
+        const baseUrl = apiBase.replace(/\/api\/?$/, '');
+
+        if (url.startsWith('/uploads/')) return `${baseUrl}${url}`;
+        if (url.startsWith('uploads/')) return `${baseUrl}/${url}`;
+        if (url.startsWith('/')) return url;
+
         return `${baseUrl}/uploads/${url}`;
     };
 
@@ -528,7 +536,7 @@ export default function AdminDashboard() {
                                     <div className="flex items-start justify-between">
                                         <div className="flex items-center gap-4">
                                             <div className="w-14 h-14 bg-slate-900 rounded-2xl flex items-center justify-center text-white overflow-hidden relative shadow-md">
-                                                {u.profileImage ? <Image src={getImageUrl(u.profileImage)} alt={u.name} fill className="object-cover" /> : u.name?.[0] || 'U'}
+                                                {u.profileImage ? <Image src={getImageUrl(u.profileImage)} alt={u.name} fill className="object-cover" unoptimized={true} /> : u.name?.[0] || 'U'}
                                             </div>
                                             <div>
                                                 <p className="font-black text-slate-900 text-sm">{u.shopName || u.name}</p>
@@ -600,7 +608,7 @@ export default function AdminDashboard() {
                                             <td className="px-8 py-6 border-r border-slate-50">
                                                 <div className="flex items-center gap-6">
                                                     <div className="w-20 h-20 bg-slate-900 rounded-3xl flex items-center justify-center text-white overflow-hidden relative shadow-2xl border-4 border-white">
-                                                        {u.profileImage ? <Image src={getImageUrl(u.profileImage)} alt={u.name} fill className="object-cover" /> : u.name?.[0] || 'U'}
+                                                        {u.profileImage ? <Image src={getImageUrl(u.profileImage)} alt={u.name} fill className="object-cover" unoptimized={true} /> : u.name?.[0] || 'U'}
                                                     </div>
                                                     <div>
                                                         <p className="font-black text-slate-900 text-base mb-1">{u.shopName || u.name}</p>

@@ -12,8 +12,9 @@ export class SettingsController {
     async getAll() {
         const settings = await this.settingsService.getAllSettings();
         // Return as a key-value object for easier frontend use
-        return settings.reduce((acc, curr) => {
-            acc[curr.key] = curr.value;
+        return settings.reduce((acc: Record<string, any>, curr: any) => {
+            const key = curr.key;
+            acc[key] = curr.value;
             return acc;
         }, {});
     }
@@ -22,9 +23,10 @@ export class SettingsController {
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles('admin')
     async update(@Body() updates: Record<string, any>) {
-        const results = [];
+        const results: any[] = [];
         for (const [key, value] of Object.entries(updates)) {
-            results.push(await this.settingsService.setSetting(key, value));
+            const result = await this.settingsService.setSetting(key, value);
+            results.push(result);
         }
         return results;
     }

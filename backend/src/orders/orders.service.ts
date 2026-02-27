@@ -9,6 +9,7 @@ import { User, UserDocument } from '../users/schemas/user.schema';
 import { PaystackService } from '../payments/paystack.service';
 
 import { NotificationsService } from '../notifications/notifications.service';
+import { SettingsService } from '../settings/settings.service';
 
 @Injectable()
 export class OrdersService {
@@ -18,17 +19,19 @@ export class OrdersService {
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     private readonly paystackService: PaystackService,
     private readonly notificationsService: NotificationsService,
+    private readonly settingsService: SettingsService,
   ) { }
 
   async create(createOrderDto: CreateOrderDto): Promise<any> {
     try {
       const orderId = new Types.ObjectId();
 
-      // Commission Logic: User wants it deducted at WITHDRAWAL.
-      // So here we store the FULL amount as vendor share initially.
+      // Commission Logic: User wants it deducted immediately.
       const totalAmount = createOrderDto.totalAmount;
-      const adminCommission = 0; // Will be calculated and deducted at withdrawal
-      const vendorShare = totalAmount;
+      const fetchedRate = await this.settingsService.getSetting('platform_commission');
+      const commissionRate = fetchedRate !== null && fetchedRate !== undefined ? fetchedRate : 10;
+      const adminCommission = totalAmount * (commissionRate / 100);
+      const vendorShare = totalAmount - adminCommission;
 
       const orderData: any = {
         ...createOrderDto,
@@ -37,6 +40,7 @@ export class OrdersService {
         isPaid: false,
         adminCommission,
         vendorShare,
+        commissionRate,
         paymentRef: orderId.toString()
       };
 
@@ -131,7 +135,7 @@ export class OrdersService {
 
   async trackOrder(id: string): Promise<any> {
     const order = await this.orderModel.findById(id)
-      .select('status items trackingNumber carrier createdAt updatedAt customerName shippingCity shippingRegion totalAmount isPaid')
+      .select('status items trackingNumber carrier createdAt updatedAt customerName customerPhone customerEmail shippingAddress shippingCity shippingRegion totalAmount isPaid vendorName escrowStatus')
       .exec();
     if (!order) throw new NotFoundException(`Order with ID ${id} not found`);
     return order;
@@ -307,9 +311,18 @@ export class OrdersService {
     if (order.customerId.toString() !== customerId) throw new NotFoundException('Unauthorized');
 
     order.status = 'delivered';
-    order.escrowStatus = 'waiting_approval';
+    order.escrowStatus = 'released';
     order.deliveryConfirmationDate = new Date();
     order.deliveredAt = new Date();
+
+    // Release funds to vendor
+    await this.userModel.findByIdAndUpdate(order.vendorId, {
+      $inc: {
+        pendingBalance: -order.vendorShare,
+        walletBalance: order.vendorShare,
+        fulfillmentRate: 1
+      }
+    });
 
     return order.save();
   }

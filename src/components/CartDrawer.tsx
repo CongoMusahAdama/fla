@@ -43,19 +43,15 @@ export default function CartDrawer() {
         }
     }, [isCartOpen]);
 
-    const getImageUrl = (url: string) => {
+    const getImageUrl = (url: string | undefined | null) => {
         if (!url || url === '/product-1.jpg') return '/product-1.jpg';
-        if (url.startsWith('http') || url.startsWith('data:')) return url;
+        if (url.startsWith('http') || url.startsWith('data:') || url.startsWith('blob:')) return url;
 
         const apiBase = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api');
-        const baseUrl = apiBase.replace('/api', '');
+        const baseUrl = apiBase.replace(/\/api\/?$/, '');
 
-        // Backend uploads
-        if (url.startsWith('/uploads')) {
-            return `${baseUrl}${url}`;
-        }
-
-        // Frontend static assets
+        if (url.startsWith('/uploads/')) return `${baseUrl}${url}`;
+        if (url.startsWith('uploads/')) return `${baseUrl}/${url}`;
         if (url.startsWith('/')) return url;
 
         return `${baseUrl}/uploads/${url}`;
@@ -111,18 +107,21 @@ export default function CartDrawer() {
                         </div>
                     </div>
 
-                    <div class="space-y-2">
-                        <label class="text-[10px] text-slate-400 font-black uppercase tracking-widest ml-1">Choose Pickup Point</label>
-                        <select id="pickup-point" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20">
-                            <option value="">Select a pickup location...</option>
-                            <option value="FLA Studio HQ - East Legon">FLA Studio HQ - East Legon</option>
-                            <option value="Circle - VVIP Station">Circle - VVIP Station</option>
-                            <option value="Kumasi - Bantama Branch">Kumasi - Bantama Branch</option>
-                            <option value="Takoradi - Zenith Bank Area">Takoradi - Zenith Bank Area</option>
-                            <option value="Tamale - Modern City Hotel Area">Tamale - Modern City Hotel Area</option>
-                            <option value="Ho - Central Market">Ho - Central Market</option>
-                        </select>
-                        <p class="text-[10px] text-slate-400 mt-1 pl-1">Choose where you'll collect your package.</p>
+                    <div class="space-y-4">
+                        <div class="space-y-2">
+                            <label class="text-[10px] text-slate-400 font-black uppercase tracking-widest ml-1">Delivery Address</label>
+                            <input id="delivery-address" type="text" placeholder="e.g. 123 Main St, East Legon" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20" value="${user?.address || ''}" />
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="space-y-2">
+                                <label class="text-[10px] text-slate-400 font-black uppercase tracking-widest ml-1">City</label>
+                                <input id="delivery-city" type="text" placeholder="e.g. Accra" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20" value="${user?.location || ''}" />
+                            </div>
+                            <div class="space-y-2">
+                                <label class="text-[10px] text-slate-400 font-black uppercase tracking-widest ml-1">Region</label>
+                                <input id="delivery-region" type="text" placeholder="e.g. Greater Accra" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20" value="Greater Accra" />
+                            </div>
+                        </div>
                     </div>
 
                     <div class="border-t-2 border-dashed border-slate-200 pt-4 flex justify-between items-center">
@@ -136,12 +135,14 @@ export default function CartDrawer() {
             cancelButtonText: 'Continue Shopping',
             buttonsStyling: false,
             preConfirm: () => {
-                const pickupPoint = (document.getElementById('pickup-point') as HTMLSelectElement).value;
-                if (!pickupPoint) {
-                    Swal.showValidationMessage('Please select a pickup point');
+                const deliveryAddress = (document.getElementById('delivery-address') as HTMLInputElement).value;
+                const deliveryCity = (document.getElementById('delivery-city') as HTMLInputElement).value;
+                const deliveryRegion = (document.getElementById('delivery-region') as HTMLInputElement).value;
+                if (!deliveryAddress || !deliveryCity || !deliveryRegion) {
+                    Swal.showValidationMessage('Please provide your complete delivery location');
                     return false;
                 }
-                return { pickupPoint };
+                return { deliveryAddress, deliveryCity, deliveryRegion };
             },
             customClass: {
                 popup: 'rounded-[40px] border-none shadow-2xl p-10 bg-white',
@@ -183,13 +184,13 @@ export default function CartDrawer() {
                         ? (cartItems[0].vendorId as any)._id || (cartItems[0].vendorId as any).id
                         : cartItems[0]?.vendorId,
                     vendorName: cartItems[0]?.vendorName,
-                    shippingAddress: user?.address || 'Pickup at Studio',
-                    shippingCity: user?.location || 'Accra',
-                    shippingRegion: 'Greater Accra',
+                    shippingAddress: formValues.deliveryAddress,
+                    shippingCity: formValues.deliveryCity,
+                    shippingRegion: formValues.deliveryRegion,
                     customerName: user?.name,
                     customerEmail: user?.email,
                     customerPhone: user?.phone,
-                    pickupPoint: formValues.pickupPoint,
+                    pickupPoint: 'Direct Delivery',
                     paymentMethod: 'paystack',
                     notes: 'Order via Paystack'
                 };
@@ -293,8 +294,9 @@ export default function CartDrawer() {
                                         src={getImageUrl(item.image)}
                                         alt={item.name}
                                         fill
+                                        unoptimized={true}
                                         className="object-cover"
-                                       
+
                                         onError={(e) => {
                                             const target = e.target as HTMLImageElement;
                                             target.src = '/product-1.jpg';

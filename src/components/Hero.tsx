@@ -19,9 +19,14 @@ export default function Hero() {
                     src="/hero-rack.png"
                     alt="FLA Purchase Lifestyle Collection"
                     fill
+                    unoptimized={true}
                     className="object-contain md:object-center object-bottom scale-100 md:scale-90"
                     priority
                     quality={100}
+                    onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = '/product-1.jpg';
+                    }}
                 />
 
                 {/* Subtle gradient for text readability - matching the soft botanical vibe */}

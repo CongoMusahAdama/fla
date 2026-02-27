@@ -42,22 +42,17 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
     const [imgError, setImgError] = useState(false);
     const router = useRouter();
 
-    const getImageUrl = (url: string) => {
+    const getImageUrl = (url: string | undefined | null) => {
         if (!url || url === '/product-1.jpg') return '/product-1.jpg';
-        if (url.startsWith('http') || url.startsWith('data:')) return url;
+        if (url.startsWith('http') || url.startsWith('data:') || url.startsWith('blob:')) return url;
 
         const apiBase = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api');
-        const baseUrl = apiBase.replace('/api', '');
+        const baseUrl = apiBase.replace(/\/api\/?$/, '');
 
-        // Backend uploads
-        if (url.startsWith('/uploads')) {
-            return `${baseUrl}${url}`;
-        }
-
-        // Frontend static assets
+        if (url.startsWith('/uploads/')) return `${baseUrl}${url}`;
+        if (url.startsWith('uploads/')) return `${baseUrl}/${url}`;
         if (url.startsWith('/')) return url;
 
-        // Default to backend upload if just filename
         return `${baseUrl}/uploads/${url}`;
     };
 
@@ -377,16 +372,63 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                 reverseButtons: true
             }).then((result) => {
                 if (result.isConfirmed) {
-                    handlePaystackFlow();
+                    handleDeliveryDetails();
                 }
             });
         } else {
-            handlePaystackFlow();
+            handleDeliveryDetails();
         }
     };
 
 
-    const handlePaystackFlow = async () => {
+    const handleDeliveryDetails = async () => {
+        const { value: formValues, isConfirmed } = await Swal.fire({
+            title: 'DELIVERY DETAILS',
+            html: `
+                <div class="text-left space-y-4 py-4">
+                    <div class="space-y-2">
+                        <label class="text-[10px] text-slate-400 font-black uppercase tracking-widest ml-1">Delivery Address</label>
+                        <input id="quick-delivery-address" type="text" placeholder="e.g. 123 Main St, East Legon" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20" value="${user?.address || ''}" />
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="space-y-2">
+                            <label class="text-[10px] text-slate-400 font-black uppercase tracking-widest ml-1">City</label>
+                            <input id="quick-delivery-city" type="text" placeholder="e.g. Accra" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20" value="${user?.location || ''}" />
+                        </div>
+                        <div class="space-y-2">
+                            <label class="text-[10px] text-slate-400 font-black uppercase tracking-widest ml-1">Region</label>
+                            <input id="quick-delivery-region" type="text" placeholder="e.g. Greater Accra" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20" value="Greater Accra" />
+                        </div>
+                    </div>
+                </div>
+            `,
+            showCancelButton: true,
+            confirmButtonText: 'Proceed to Payment',
+            cancelButtonText: 'Cancel',
+            preConfirm: () => {
+                const deliveryAddress = (document.getElementById('quick-delivery-address') as HTMLInputElement).value;
+                const deliveryCity = (document.getElementById('quick-delivery-city') as HTMLInputElement).value;
+                const deliveryRegion = (document.getElementById('quick-delivery-region') as HTMLInputElement).value;
+                if (!deliveryAddress || !deliveryCity || !deliveryRegion) {
+                    Swal.showValidationMessage('Please provide your complete delivery location');
+                    return false;
+                }
+                return { deliveryAddress, deliveryCity, deliveryRegion };
+            },
+            customClass: {
+                popup: 'rounded-[40px] border-none shadow-2xl p-10 bg-white',
+                title: 'text-2xl font-black text-slate-900 tracking-tighter uppercase mb-6',
+                confirmButton: 'bg-slate-900 text-white rounded-full px-10 py-4 text-[11px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all mx-2 shadow-lg',
+                cancelButton: 'bg-slate-100 text-slate-500 rounded-full px-10 py-4 text-[11px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all mx-2'
+            },
+        });
+
+        if (isConfirmed && formValues) {
+            handlePaystackFlow(formValues);
+        }
+    };
+
+    const handlePaystackFlow = async (deliveryDetails: { deliveryAddress: string, deliveryCity: string, deliveryRegion: string }) => {
         try {
             const token = localStorage.getItem('fla_token');
 
@@ -409,9 +451,9 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                 totalAmount: currentPrice,
                 vendorId: (typeof vendorId === 'object' && vendorId !== null) ? (vendorId._id || vendorId.id) : vendorId,
                 vendorName: vendorName,
-                shippingAddress: 'Registered Address',
-                shippingCity: 'Accra',
-                shippingRegion: 'Greater Accra',
+                shippingAddress: deliveryDetails.deliveryAddress,
+                shippingCity: deliveryDetails.deliveryCity,
+                shippingRegion: deliveryDetails.deliveryRegion,
                 customerName: user?.name,
                 customerEmail: user?.email,
                 customerPhone: user?.phone,
@@ -517,7 +559,7 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                             src={imgError ? '/product-1.jpg' : getImageUrl(images[currentImageIndex])}
                             alt={`${name} view ${currentImageIndex + 1}`}
                             fill
-                           
+                            unoptimized={true}
                             className={`object-contain transition-all duration-700 group-hover/image:scale-105 ${isSoldOut ? 'grayscale contrast-[0.8] opacity-60' : ''}`}
                             onError={() => setImgError(true)}
                         />
@@ -639,7 +681,7 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                                     src={imgError ? '/product-1.jpg' : getImageUrl(images[currentImageIndex])}
                                     alt={name}
                                     fill
-                                   
+                                    unoptimized={true}
                                     className="object-contain p-8 transition-all duration-700 group-hover/gallery:scale-105"
                                     onError={() => setImgError(true)}
                                 />
@@ -686,8 +728,9 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                                             src={getImageUrl(img)}
                                             alt="thumb"
                                             fill
+                                            unoptimized={true}
                                             className="object-cover"
-                                           
+
                                             onError={(e) => {
                                                 const target = e.target as HTMLImageElement;
                                                 target.src = '/product-1.jpg';

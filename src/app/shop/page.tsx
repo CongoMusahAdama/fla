@@ -109,7 +109,12 @@ function ShopContent() {
                                     src="/shop-header.png"
                                     alt="Shop Collection"
                                     fill
+                                    unoptimized={true}
                                     className="object-cover rounded-lg"
+                                    onError={(e) => {
+                                        const target = e.target as HTMLImageElement;
+                                        target.src = '/product-1.jpg';
+                                    }}
                                 />
                             </div>
                         </div>

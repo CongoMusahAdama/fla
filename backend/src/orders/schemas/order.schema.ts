@@ -140,6 +140,9 @@ export class Order {
     @Prop({ default: 0 })
     vendorShare: number;
 
+    @Prop({ default: 0 })
+    commissionRate: number;
+
     @Prop()
     paymentId?: string;
 
