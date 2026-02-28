@@ -61,7 +61,7 @@ export default function Home() {
             <div>
               <h3 className="font-heading font-bold text-slate-900 mb-4 text-lg">Category</h3>
               <div className="space-y-2">
-                {['All Product', 'For Men', 'For Women'].map((cat) => (
+                {['All Product', 'For men', 'For women', 'Accessories', 'Bespoke'].map((cat) => (
                   <button
                     key={cat}
                     onClick={() => {
@@ -116,7 +116,7 @@ export default function Home() {
                 </div>
               </div>
               <div className="flex gap-2.5 overflow-x-auto no-scrollbar pb-4 -mx-4 px-4">
-                {['All Product', 'For Men', 'For Women', 'Accessories'].map((cat) => (
+                {['All Product', 'For men', 'For women', 'Accessories', 'Bespoke'].map((cat) => (
                   <button
                     key={cat}
                     onClick={() => {

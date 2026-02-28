@@ -731,6 +731,42 @@ export default function CustomerDashboard() {
                                                         Rate
                                                     </button>
                                                 )}
+                                                {order.status === 'shipped' && (
+                                                    <button
+                                                        onClick={async () => {
+                                                            const result = await Swal.fire({
+                                                                title: 'Confirm Receipt?',
+                                                                text: "Only confirm if you have received the item and are satisfied with the quality. This will release funds to the vendor.",
+                                                                icon: 'question',
+                                                                showCancelButton: true,
+                                                                confirmButtonColor: '#10B981',
+                                                                confirmButtonText: 'Yes, I Received It'
+                                                            });
+
+                                                            if (result.isConfirmed) {
+                                                                try {
+                                                                    const token = localStorage.getItem('fla_token');
+                                                                    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders/${order._id}/confirm-receipt`, {
+                                                                        method: 'POST',
+                                                                        headers: { 'Authorization': `Bearer ${token}` }
+                                                                    });
+
+                                                                    if (!response.ok) throw new Error('Failed to confirm receipt');
+
+                                                                    // Update local state
+                                                                    setOrders(prev => prev.map(o => o._id === order._id ? { ...o, status: 'delivered', escrowStatus: 'released' } : o));
+
+                                                                    Swal.fire('Confirmed!', 'Thank you! Funds have been released to the vendor.', 'success');
+                                                                } catch (error: any) {
+                                                                    Swal.fire('Error', error.message, 'error');
+                                                                }
+                                                            }
+                                                        }}
+                                                        className="flex-1 py-3 bg-emerald-600 text-white rounded-full text-[10px] font-bold uppercase tracking-widest hover:bg-emerald-700 transition-all text-center shadow-md shadow-emerald-200"
+                                                    >
+                                                        Confirm Receipt
+                                                    </button>
+                                                )}
                                                 <button
                                                     onClick={() => handleSendOrderToWhatsApp(order)}
                                                     className="flex-1 py-3 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-full flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-all shadow-sm group"

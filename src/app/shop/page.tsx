@@ -27,8 +27,7 @@ function ShopContent() {
             try {
                 let url = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/products?`;
                 if (activeCategory !== 'All Product') {
-                    const cat = activeCategory === 'For Men' ? 'Men' : activeCategory === 'For Women' ? 'Women' : activeCategory;
-                    url += `category=${cat}&`;
+                    url += `category=${activeCategory}&`;
                 }
                 if (localSearch) {
                     url += `search=${localSearch}&`;
@@ -72,7 +71,7 @@ function ShopContent() {
 
     // Using the same product data as homepage for consistency
 
-    const categories = ['All Product', 'For Men', 'For Women'];
+    const categories = ['All Product', 'For men', 'For women', 'Accessories', 'Bespoke'];
 
     const filteredProducts = products;
 

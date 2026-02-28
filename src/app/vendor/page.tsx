@@ -4,7 +4,7 @@ import {
     LayoutDashboard, Package, ShoppingBag, Wallet, Star,
     Bell, User, HelpCircle, LogOut, Plus, Search,
     Menu, X, ChevronRight, ArrowUpRight, TrendingUp,
-    Clock, CheckCircle2, ShieldAlert, MessageSquare,
+    Clock, CheckCircle2, ShieldAlert, MessageSquare, Truck,
     Image as ImageIcon, Edit2, Trash2, Camera, UploadCloud,
     Eye, EyeOff, ArrowLeft, Printer, MapPin, Copy
 } from 'lucide-react';
@@ -1247,7 +1247,7 @@ export default function VendorDashboard() {
                                                             className="p-2 bg-slate-50 text-slate-400 hover:bg-slate-900 hover:text-white rounded-xl transition-all"
                                                             title="View Details"
                                                         >
-                                                            <Search className="w-4 h-4" />
+                                                            <Eye className="w-4 h-4" />
                                                         </button>
                                                     </div>
                                                 </td>
@@ -2062,12 +2062,10 @@ export default function VendorDashboard() {
                                             <div className="space-y-1.5">
                                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Category</label>
                                                 <select value={formCategory} onChange={(e) => setFormCategory(e.target.value)} className="w-full px-5 py-3.5 bg-slate-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20">
-                                                    <option>T-Shirt</option>
-                                                    <option>For Men</option>
-                                                    <option>For Women</option>
-                                                    <option>Hoodie</option>
-                                                    <option>Cape</option>
-                                                    <option>Bespoke</option>
+                                                    <option value="For men">For men</option>
+                                                    <option value="For women">For women</option>
+                                                    <option value="Accessories">Accessories</option>
+                                                    <option value="Bespoke">Bespoke</option>
                                                 </select>
                                             </div>
                                         </div>
@@ -2261,13 +2259,16 @@ export default function VendorDashboard() {
                                     <div className="space-y-4">
                                         <h4 className="text-xs font-black text-slate-900 uppercase tracking-[0.2em] flex items-center gap-3">
                                             <LogOut className="w-4 h-4 text-brand-lemon rotate-90" />
-                                            Dispatch Port
+                                            Shipping Destination
                                         </h4>
                                         <div className="space-y-2">
                                             <div className="flex items-start justify-between group/addr">
                                                 <div>
-                                                    <p className="text-sm font-bold text-slate-900">{selectedOrder.shippingAddress || 'Digital Product / Studio Pickup'}</p>
-                                                    <p className="text-xs font-medium text-slate-500">{selectedOrder.shippingCity}, {selectedOrder.shippingRegion}</p>
+                                                    <p className="text-sm font-bold text-slate-900">{selectedOrder.shippingAddress || 'No Address Provided'}</p>
+                                                    <p className="text-xs font-medium text-slate-500">{selectedOrder.shippingCity || 'N/A'}, {selectedOrder.shippingRegion || 'N/A'}</p>
+                                                    {selectedOrder.pickupPoint && (
+                                                        <span className="inline-block mt-2 px-3 py-1 bg-brand-lemon text-slate-900 text-[9px] font-black uppercase rounded-lg border border-slate-900/10">Point: {selectedOrder.pickupPoint}</span>
+                                                    )}
                                                 </div>
                                                 {selectedOrder.shippingAddress && (
                                                     <button
@@ -2293,9 +2294,82 @@ export default function VendorDashboard() {
                                     </div>
                                 </div>
 
+                                {/* Logistics Update Section (Feeding Box) */}
+                                <div className="space-y-6 pt-6 border-t border-slate-100">
+                                    <h4 className="text-xs font-black text-slate-900 uppercase tracking-[0.2em] flex items-center gap-3">
+                                        <Truck className="w-4 h-4 text-brand-lemon" />
+                                        Logistics Management
+                                    </h4>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="space-y-1.5">
+                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Courier Service</label>
+                                            <input
+                                                id="modal-carrier"
+                                                type="text"
+                                                defaultValue={selectedOrder.carrier || ''}
+                                                placeholder="e.g. DHL, FedEx, Bolt"
+                                                className="w-full px-5 py-3.5 bg-slate-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20 transition-all shadow-sm"
+                                            />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tracking Number</label>
+                                            <input
+                                                id="modal-tracking"
+                                                type="text"
+                                                defaultValue={selectedOrder.trackingNumber || ''}
+                                                placeholder="e.g. FLA-0123-XXXX"
+                                                className="w-full px-5 py-3.5 bg-slate-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20 transition-all shadow-sm"
+                                            />
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={async () => {
+                                            const carrier = (document.getElementById('modal-carrier') as HTMLInputElement).value;
+                                            const trackingNumber = (document.getElementById('modal-tracking') as HTMLInputElement).value;
+                                            if (!carrier || !trackingNumber) {
+                                                Swal.fire({ icon: 'warning', title: 'Details Required', text: 'Please enter both courier name and tracking number.' });
+                                                return;
+                                            }
+
+                                            try {
+                                                const token = localStorage.getItem('fla_token');
+                                                const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders/${selectedOrder._id}`, {
+                                                    method: 'PATCH',
+                                                    headers: {
+                                                        'Authorization': `Bearer ${token}`,
+                                                        'Content-Type': 'application/json'
+                                                    },
+                                                    body: JSON.stringify({ carrier, trackingNumber })
+                                                });
+
+                                                if (!response.ok) throw new Error('Failed to update tracking');
+
+                                                // Update local state
+                                                setSelectedOrder((prev: any) => ({ ...prev, carrier, trackingNumber }));
+                                                setVendorOrders(prev => prev.map(o => o._id === selectedOrder._id ? { ...o, carrier, trackingNumber } : o));
+
+                                                Swal.fire({
+                                                    icon: 'success',
+                                                    title: 'Tracking Informed',
+                                                    text: 'Logistics details have been updated successfully.',
+                                                    toast: true,
+                                                    position: 'top-end',
+                                                    showConfirmButton: false,
+                                                    timer: 3000
+                                                });
+                                            } catch (error: any) {
+                                                Swal.fire({ icon: 'error', title: 'Error', text: error.message });
+                                            }
+                                        }}
+                                        className="w-full py-4 bg-slate-900 text-brand-lemon rounded-full font-black text-[10px] uppercase tracking-[0.2em] hover:bg-slate-800 transition-all shadow-xl active:scale-95"
+                                    >
+                                        Update Logistics Info
+                                    </button>
+                                </div>
+
                                 {/* Notes Section */}
                                 {selectedOrder.notes && (
-                                    <div className="space-y-4">
+                                    <div className="space-y-4 pt-6 border-t border-slate-100">
                                         <h4 className="text-xs font-black text-slate-900 uppercase tracking-[0.2em] flex items-center gap-3">
                                             <MessageSquare className="w-4 h-4 text-brand-lemon" />
                                             Special Requests

@@ -14,6 +14,8 @@ async function bootstrap() {
       'http://localhost:3001',
       'http://localhost:3002',
       'https://fadlanstore.netlify.app',
+      'http://flamingo-store1.com',
+      'https://flamingo-store1.com',
       process.env.FRONTEND_URL,
     ].filter(Boolean),
     credentials: true,

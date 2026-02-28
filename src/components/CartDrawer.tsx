@@ -119,7 +119,7 @@ export default function CartDrawer() {
                             </div>
                             <div class="space-y-2">
                                 <label class="text-[10px] text-slate-400 font-black uppercase tracking-widest ml-1">Region</label>
-                                <input id="delivery-region" type="text" placeholder="e.g. Greater Accra" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20" value="Greater Accra" />
+                                <input id="delivery-region" type="text" placeholder="e.g. Greater Accra" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20" value="${user?.region || ''}" />
                             </div>
                         </div>
                     </div>
