@@ -97,6 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 uniqueVendorId: data.user.uniqueVendorId,
                 walletBalance: data.user.walletBalance,
                 pendingBalance: data.user.pendingBalance,
+                region: data.user.region,
             };
 
 

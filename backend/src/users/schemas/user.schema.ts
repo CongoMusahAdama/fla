@@ -43,6 +43,9 @@ export class User {
     address?: string;
 
     @Prop()
+    region?: string;
+
+    @Prop()
     profileImage?: string;
 
     @Prop()

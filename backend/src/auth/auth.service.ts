@@ -56,6 +56,7 @@ export class AuthService {
         momoNumber: user.momoNumber,
         accountName: user.accountName,
         status: user.status,
+        region: user.region,
       }
     };
   }

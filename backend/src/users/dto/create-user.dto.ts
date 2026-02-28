@@ -51,6 +51,10 @@ export class CreateUserDto {
 
     @IsString()
     @IsOptional()
+    region?: string;
+
+    @IsString()
+    @IsOptional()
     profileImage?: string;
 
     @IsString()
