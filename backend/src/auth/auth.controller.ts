@@ -32,19 +32,14 @@ export class AuthController {
   @UseGuards(AuthGuard('jwt'))
   @Patch('profile')
   async updateProfile(@Request() req, @Body() updateUserDto: UpdateUserDto) {
-    console.log('Updating profile for user:', req.user.userId);
-    console.log('Update data:', updateUserDto);
     const result = await this.usersService.update(req.user.userId, updateUserDto);
-    console.log('Update result:', result);
     return result;
   }
 
   @Post('send-otp')
   async sendOTP(@Body() body: { email: string; name: string }) {
     try {
-      console.log('Received send-otp request for:', body.email);
       await this.authService.sendVendorOTP(body.email, body.name);
-      console.log('OTP sent successfully to:', body.email);
       return { message: 'OTP sent successfully', success: true };
     } catch (error) {
       console.error('Error sending OTP:', error);
@@ -112,6 +107,26 @@ export class AuthController {
       return { message: 'Password has been reset successfully', success: true };
     } catch (error) {
       console.error('Reset password error:', error);
+      return { message: error.message || 'Failed to reset password', success: false };
+    }
+  }
+
+  @Post('forgot-password-otp')
+  async forgotPasswordOTP(@Body() body: { email: string }) {
+    try {
+      await this.authService.forgotPasswordOTP(body.email);
+      return { message: 'If an account exists with that email, a reset code has been sent.', success: true };
+    } catch (error) {
+      return { message: 'Failed to process request', success: false };
+    }
+  }
+
+  @Post('reset-password-otp')
+  async resetPasswordWithOTP(@Body() body: { email: string; code: string; password: string }) {
+    try {
+      await this.authService.resetPasswordWithOTP(body.email, body.code, body.password);
+      return { message: 'Password has been reset successfully', success: true };
+    } catch (error) {
       return { message: error.message || 'Failed to reset password', success: false };
     }
   }

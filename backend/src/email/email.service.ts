@@ -9,7 +9,6 @@ export class EmailService {
     constructor(private configService: ConfigService) {
         this.apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
         const apiKey = this.configService.get<string>('BREVO_API_KEY') || '';
-        console.log('EmailService initialized. API Key present:', !!apiKey);
         this.apiInstance.setApiKey(
             SibApiV3Sdk.TransactionalEmailsApiApiKeys.apiKey,
             apiKey
@@ -17,11 +16,8 @@ export class EmailService {
     }
 
     async sendOTP(email: string, name: string, otp: string): Promise<void> {
-        console.log('EmailService.sendOTP called with:', { email, name, otp });
-
         try {
             const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
-            console.log('Created SendSmtpEmail instance');
 
             sendSmtpEmail.subject = 'Verify Your FLA Vendor Account';
             sendSmtpEmail.to = [{ email, name }];
@@ -29,7 +25,6 @@ export class EmailService {
                 name: 'FLA Logistics',
                 email: this.configService.get<string>('BREVO_SENDER_EMAIL') || 'noreply@fla.com'
             };
-            console.log('Email configured with sender:', sendSmtpEmail.sender);
             sendSmtpEmail.htmlContent = `
             <!DOCTYPE html>
             <html>
@@ -382,10 +377,62 @@ export class EmailService {
 
         try {
             await this.apiInstance.sendTransacEmail(sendSmtpEmail);
-            console.log(`Password reset email sent to ${email}`);
         } catch (error) {
-            console.error('Error sending reset email:', error);
             throw new Error('Failed to send reset email');
+        }
+    }
+    async sendPasswordResetOTP(email: string, name: string, otp: string): Promise<void> {
+        const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
+
+        sendSmtpEmail.subject = 'Your Password Reset Code 🔒';
+        sendSmtpEmail.to = [{ email, name }];
+        sendSmtpEmail.sender = {
+            name: 'FLA Security',
+            email: this.configService.get<string>('BREVO_SENDER_EMAIL') || 'noreply@fla.com'
+        };
+        sendSmtpEmail.htmlContent = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <style>
+                    body { font-family: -apple-system, sans-serif; background-color: #f8fafc; margin: 0; padding: 0; }
+                    .container { max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 32px; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.1); }
+                    .header { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 40px; text-align: center; }
+                    .header h1 { color: #D8F800; font-size: 20px; font-weight: 900; margin: 0; text-transform: uppercase; letter-spacing: 2px; }
+                    .content { padding: 40px; text-align: center; }
+                    .message { font-size: 16px; color: #1e293b; line-height: 1.6; margin-bottom: 30px; text-align: left; }
+                    .otp-box { background: #f1f5f9; border-radius: 20px; padding: 30px; margin: 20px 0; border: 2px dashed #cbd5e1; }
+                    .otp-code { font-size: 36px; font-weight: 900; color: #0f172a; letter-spacing: 10px; }
+                    .footer { padding: 30px; text-align: center; color: #94a3b8; font-size: 12px; border-top: 1px solid #f1f5f9; }
+                    .expiry { font-size: 12px; color: #64748b; margin-top: 20px; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>Security Verification</h1>
+                    </div>
+                    <div class="content">
+                        <p class="message">Hello ${name},<br><br>You requested to reset your password. Please use the following code to verify your identity:</p>
+                        <div class="otp-box">
+                            <div class="otp-code">${otp}</div>
+                        </div>
+                        <p class="expiry">This code will expire in 10 minutes. If you didn't request a password reset, please secure your account.</p>
+                    </div>
+                    <div class="footer">
+                        <p>© 2026 FLA Logistics • Security Department</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+        `;
+
+        try {
+            await this.apiInstance.sendTransacEmail(sendSmtpEmail);
+        } catch (error) {
+            console.error('Error sending reset OTP email:', error);
+            throw new Error('Failed to send reset code');
         }
     }
 }

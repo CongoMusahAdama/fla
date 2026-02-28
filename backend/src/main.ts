@@ -7,22 +7,22 @@ async function bootstrap() {
     bodyParser: false,
   });
 
-  // ULTIMATE CORS GATEWAY: Manual middleware to ensure headers are ALWAYS set
-  app.use((req, res, next) => {
-    const origin = req.headers.origin;
-    if (origin) {
-      res.header('Access-Control-Allow-Origin', origin);
-    } else {
-      res.header('Access-Control-Allow-Origin', '*');
-    }
-    res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS,PATCH');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Accept, Authorization, X-Requested-With');
-    res.header('Access-Control-Allow-Credentials', 'true');
-
-    if (req.method === 'OPTIONS') {
-      return res.status(200).send();
-    }
-    next();
+  // Enable CORS with specific whitelist for security
+  app.enableCors({
+    origin: [
+      'http://localhost:3000',
+      'http://localhost:3001',
+      'http://localhost:3002',
+      'https://fadlanstore.netlify.app',
+      'http://flamingo-store1.com',
+      'https://flamingo-store1.com',
+      'http://www.flamingo-store1.com',
+      'https://www.flamingo-store1.com',
+      process.env.FRONTEND_URL,
+    ].filter(Boolean),
+    credentials: true,
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    allowedHeaders: 'Content-Type, Accept, Authorization, X-Requested-With',
   });
 
   // Enable body parser with higher limit

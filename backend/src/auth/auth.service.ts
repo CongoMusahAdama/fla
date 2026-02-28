@@ -16,17 +16,13 @@ export class AuthService {
   ) { }
 
   async validateUser(email: string, pass: string): Promise<any> {
-    console.log('Validating user:', email);
     const user = await this.usersService.findOne(email);
     if (!user) {
-      console.log('User not found');
       return null;
     }
 
-    console.log('User found, checking password...');
     if (!user.password) return null;
     const isMatch = await bcrypt.compare(pass, user.password);
-    console.log('Password match result:', isMatch);
 
     if (isMatch) {
       const userObj = (user as any).toObject();
@@ -73,7 +69,6 @@ export class AuthService {
 
   async verifyVendorOTP(email: string, code: string): Promise<boolean> {
     // TEMPORARILY DISABLED OTP VERIFICATION
-    console.log(`Bypassing OTP verification for ${email}`);
     // const isValid = await this.otpService.verifyOTP(email, code);
     const isValid = true;
 
@@ -136,10 +131,8 @@ export class AuthService {
       resetPasswordExpires: expires
     } as any);
 
-    console.log(`[ForgotPassword] Sending password reset email to: ${user.email}`);
     try {
       await this.emailService.sendPasswordResetEmail(user.email, user.name || 'User', token);
-      console.log(`[ForgotPassword] Email sent successfully to: ${user.email}`);
     } catch (emailError) {
       console.error(`[ForgotPassword] FAILED to send email to ${user.email}:`, emailError);
       // Rethrow so the controller can return a meaningful error
@@ -154,5 +147,32 @@ export class AuthService {
     }
 
     await this.usersService.updatePassword(user._id.toString(), newPassword);
+  }
+
+  async forgotPasswordOTP(email: string): Promise<void> {
+    const user = await this.usersService.findOne(email);
+    if (!user) {
+      // Security best practice: don't leak user existence
+      return;
+    }
+
+    const otp = this.otpService.generateOTP();
+    await this.otpService.storeOTP(email, otp);
+    await this.emailService.sendPasswordResetOTP(email, user.name || 'User', otp);
+  }
+
+  async resetPasswordWithOTP(email: string, code: string, newPassword: string): Promise<void> {
+    const isValid = await this.otpService.verifyOTP(email, code);
+    if (!isValid) {
+      throw new Error('Invalid or expired verification code');
+    }
+
+    const user = await this.usersService.findOne(email);
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    await this.usersService.updatePassword((user as any)._id.toString(), newPassword);
+    await this.otpService.deleteOTP(email);
   }
 }

@@ -98,39 +98,99 @@ const LoginForm = ({ onLogin, onForgotPassword }: { onLogin: (id: string, pass: 
     );
 };
 
-const ForgotPasswordForm = ({ onBack, onSubmit }: { onBack: () => void, onSubmit: (email: string) => void }) => {
+const ForgotPasswordForm = ({ onBack, onSubmit, onResetWithOTP }: { onBack: () => void, onSubmit: (email: string) => Promise<boolean>, onResetWithOTP: (email: string, code: string, pass: string) => void }) => {
     const [email, setEmail] = useState('');
+    const [step, setStep] = useState<'email' | 'otp'>('email');
+    const [otp, setOtp] = useState(['', '', '', '']);
+    const [newPassword, setNewPassword] = useState('');
+
+    const handleEmailSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const success = await onSubmit(email);
+        if (success) setStep('otp');
+    };
+
+    const handleOtpChange = (index: number, value: string) => {
+        if (!/^\d*$/.test(value)) return;
+        const newOtp = [...otp];
+        newOtp[index] = value.slice(-1);
+        setOtp(newOtp);
+        if (value && index < 3) {
+            const nextInput = document.getElementById(`reset-otp-${index + 1}`);
+            nextInput?.focus();
+        }
+    };
 
     return (
-        <form onSubmit={(e) => { e.preventDefault(); onSubmit(email); }} className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
-            <div className="space-y-2">
-                <h3 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Reset Password</h3>
-                <p className="text-xs text-slate-500 font-medium leading-relaxed">Enter your email address and we'll send you a link to reset your password.</p>
-            </div>
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
+            {step === 'email' ? (
+                <form onSubmit={handleEmailSubmit} className="space-y-6">
+                    <div className="space-y-2">
+                        <h3 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Reset Password</h3>
+                        <p className="text-xs text-slate-500 font-medium leading-relaxed">Enter your email address and we'll send you a 4-digit code to reset your password.</p>
+                    </div>
 
-            <AuthInput
-                label="Email Address"
-                type="email"
-                placeholder="you@email.com"
-                required
-                value={email}
-                onChange={setEmail}
-                icon={Mail}
-            />
+                    <AuthInput
+                        label="Email Address"
+                        type="email"
+                        placeholder="you@email.com"
+                        required
+                        value={email}
+                        onChange={setEmail}
+                        icon={Mail}
+                    />
 
-            <div className="space-y-3">
-                <button type="submit" className="w-full py-4 bg-slate-900 text-white rounded-full font-bold text-sm tracking-wide hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/10 active:scale-[0.98]">
-                    Send Reset Link
-                </button>
-                <button
-                    type="button"
-                    onClick={onBack}
-                    className="w-full py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-900 transition-all flex items-center justify-center gap-2"
-                >
-                    <ArrowLeft className="w-3 h-3" /> Back to Login
-                </button>
-            </div>
-        </form>
+                    <div className="space-y-3">
+                        <button type="submit" className="w-full py-4 bg-slate-900 text-white rounded-full font-bold text-sm tracking-wide hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/10 active:scale-[0.98]">
+                            Get Reset Code
+                        </button>
+                        <button
+                            type="button"
+                            onClick={onBack}
+                            className="w-full py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-900 transition-all flex items-center justify-center gap-2"
+                        >
+                            <ArrowLeft className="w-3 h-3" /> Back to Login
+                        </button>
+                    </div>
+                </form>
+            ) : (
+                <form onSubmit={(e) => { e.preventDefault(); onResetWithOTP(email, otp.join(''), newPassword); }} className="space-y-6">
+                    <div className="space-y-2">
+                        <h3 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Enter Reset Code</h3>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">A 4-digit code was sent to {email}</p>
+                    </div>
+
+                    <div className="flex gap-3 mb-4">
+                        {otp.map((digit, i) => (
+                            <input key={i} id={`reset-otp-${i}`} type="text" maxLength={1} value={digit} onChange={(e) => handleOtpChange(i, e.target.value)} className="w-full aspect-square bg-slate-50 border-none rounded-2xl text-2xl font-black text-center focus:ring-4 focus:ring-slate-900/10" required />
+                        ))}
+                    </div>
+
+                    <AuthInput
+                        label="New Password"
+                        type="password"
+                        placeholder="••••••••"
+                        required
+                        value={newPassword}
+                        onChange={setNewPassword}
+                        icon={Lock}
+                    />
+
+                    <div className="space-y-3">
+                        <button type="submit" className="w-full py-4 bg-emerald-950 text-white rounded-full font-bold text-sm tracking-wide hover:bg-slate-800 transition-all shadow-xl shadow-emerald-900/10 active:scale-[0.98]">
+                            Update & Sign In
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setStep('email')}
+                            className="w-full py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-900 transition-all flex items-center justify-center gap-2"
+                        >
+                            Change Email
+                        </button>
+                    </div>
+                </form>
+            )}
+        </div>
     );
 };
 
@@ -324,17 +384,17 @@ function AuthContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
 
-    const handleForgotPassword = async (email: string) => {
+    const handleForgotPassword = async (email: string): Promise<boolean> => {
         try {
             Swal.fire({
                 title: 'SENDING...',
-                html: '<div class="text-slate-600 text-sm">Processing your request</div>',
+                html: '<div class="text-slate-600 text-sm">Requesting reset code</div>',
                 didOpen: () => Swal.showLoading(),
                 allowOutsideClick: false,
                 customClass: { popup: 'rounded-[32px] border-none shadow-2xl p-10 bg-white', title: 'text-xl font-black text-slate-900 tracking-tighter uppercase' }
             });
 
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/auth/forgot-password`, {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/auth/forgot-password-otp`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email })
@@ -345,8 +405,51 @@ function AuthContent() {
             if (result.success) {
                 Swal.fire({
                     icon: 'success',
-                    title: 'LINK SENT',
-                    text: 'If an account exists, you will receive a reset link shortly.',
+                    title: 'CODE SENT',
+                    text: 'Please check your email for the 4-digit reset code.',
+                    timer: 2000,
+                    showConfirmButton: false,
+                    customClass: { popup: 'rounded-[32px]' }
+                });
+                return true;
+            } else {
+                throw new Error(result.message);
+            }
+        } catch (error: any) {
+            Swal.fire({
+                icon: 'error',
+                title: 'REQUEST FAILED',
+                text: error.message || 'Something went wrong. Please try again later.',
+                customClass: { popup: 'rounded-[32px]' }
+            });
+            return false;
+        }
+    };
+
+    const handleResetWithOTP = async (email: string, code: string, pass: string) => {
+        try {
+            Swal.fire({
+                title: 'RESETTING...',
+                html: '<div class="text-slate-600 text-sm">Updating your security credentials</div>',
+                didOpen: () => Swal.showLoading(),
+                allowOutsideClick: false,
+                customClass: { popup: 'rounded-[32px] border-none shadow-2xl p-10 bg-white' }
+            });
+
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/auth/reset-password-otp`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, code, password: pass })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'SUCCESS',
+                    text: 'Your password has been reset. You can now sign in.',
+                    confirmButtonText: 'Great!',
                     customClass: { popup: 'rounded-[32px]' }
                 });
                 setShowForgotPassword(false);
@@ -356,8 +459,8 @@ function AuthContent() {
         } catch (error: any) {
             Swal.fire({
                 icon: 'error',
-                title: 'REQUEST FAILED',
-                text: error.message || 'Something went wrong. Please try again later.',
+                title: 'RESET FAILED',
+                text: error.message || 'Verification failed. Please check your code.',
                 customClass: { popup: 'rounded-[32px]' }
             });
         }
@@ -675,6 +778,7 @@ function AuthContent() {
                                     <ForgotPasswordForm
                                         onBack={() => setShowForgotPassword(false)}
                                         onSubmit={handleForgotPassword}
+                                        onResetWithOTP={handleResetWithOTP}
                                     />
                                 ) : isLogin ? (
                                     <LoginForm

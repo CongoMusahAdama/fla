@@ -137,7 +137,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             // Auto-login after successful registration
             return await login(email, password);
         } catch (error) {
-            console.error('Signup error:', error);
             throw error;
         }
     };

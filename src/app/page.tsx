@@ -38,7 +38,7 @@ export default function Home() {
         }
       }
     } catch (error) {
-      console.error('Error fetching products:', error);
+      // Error handling here if needed, but silences the log for production
     } finally {
       setLoading(false);
     }
