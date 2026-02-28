@@ -28,6 +28,7 @@ export type User = {
     uniqueVendorId?: string;
     walletBalance?: number;
     pendingBalance?: number;
+    region?: string;
 };
 
 type AuthContextType = {
