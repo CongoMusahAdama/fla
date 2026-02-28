@@ -377,8 +377,9 @@ export class EmailService {
 
         try {
             await this.apiInstance.sendTransacEmail(sendSmtpEmail);
-        } catch (error) {
-            throw new Error('Failed to send reset email');
+        } catch (error: any) {
+            console.error('Brevo Email Error:', error.response?.body || error.message);
+            throw new Error('Failed to send reset email: ' + (error.response?.body?.message || error.message));
         }
     }
     async sendPasswordResetOTP(email: string, name: string, otp: string): Promise<void> {

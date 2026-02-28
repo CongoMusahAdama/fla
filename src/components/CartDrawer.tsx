@@ -4,7 +4,7 @@ import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
 import Image from 'next/image';
 import { X, Minus, Plus, ShoppingBag, Trash2 } from 'lucide-react';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Swal from 'sweetalert2';
 import { useRouter } from 'next/navigation';
 
@@ -13,6 +13,7 @@ export default function CartDrawer() {
     const { isAuthenticated, user } = useAuth();
     const router = useRouter();
     const drawerRef = useRef<HTMLDivElement>(null);
+    const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
 
     // Close on click outside
     useEffect(() => {
@@ -60,8 +61,9 @@ export default function CartDrawer() {
 
     const subtotal = cartItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
 
+
     const handleCheckout = async () => {
-        if (cartItems.length === 0) return;
+        if (cartItems.length === 0 || isProcessingCheckout) return;
 
         if (!isAuthenticated) {
             setIsCartOpen(false); // Close cart before showing modal
@@ -156,6 +158,7 @@ export default function CartDrawer() {
         });
 
         if (isConfirmed) {
+            setIsProcessingCheckout(true);
             try {
                 const token = localStorage.getItem('fla_token');
 
@@ -220,6 +223,7 @@ export default function CartDrawer() {
 
             } catch (error: any) {
                 console.error('Checkout error:', error);
+                setIsProcessingCheckout(false);
                 Swal.fire({
                     title: 'CHECKOUT FAILED',
                     text: error.message || 'An error occurred during checkout. Please try again.',

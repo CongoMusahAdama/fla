@@ -91,6 +91,12 @@ export class OrdersController {
   }
 
   @UseGuards(AuthGuard('jwt'))
+  @Post(':id/satisfied')
+  markAsSatisfied(@Param('id') id: string, @Request() req) {
+    return this.ordersService.markAsSatisfied(id, req.user.userId);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
   @Post(':id/dispute')
   fileDispute(@Param('id') id: string, @Body() body: { reason: string }, @Request() req) {
     return this.ordersService.fileDispute(id, req.user.userId, body.reason);

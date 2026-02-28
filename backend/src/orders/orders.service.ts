@@ -311,9 +311,24 @@ export class OrdersService {
     if (order.customerId.toString() !== customerId) throw new NotFoundException('Unauthorized');
 
     order.status = 'delivered';
-    order.escrowStatus = 'released';
     order.deliveryConfirmationDate = new Date();
     order.deliveredAt = new Date();
+
+    return order.save();
+  }
+
+  async markAsSatisfied(orderId: string, customerId: string): Promise<Order> {
+    const order = await this.orderModel.findById(orderId).exec();
+    if (!order) throw new NotFoundException(`Order not found`);
+    if (order.customerId.toString() !== customerId) throw new NotFoundException('Unauthorized');
+
+    if (order.status !== 'delivered') {
+      throw new Error('Order must be confirmed as received before marking as satisfied');
+    }
+
+    order.status = 'completed';
+    order.escrowStatus = 'released';
+    order.deliveryConfirmationDate = order.deliveryConfirmationDate || new Date();
 
     // Release funds to vendor
     await this.userModel.findByIdAndUpdate(order.vendorId, {
