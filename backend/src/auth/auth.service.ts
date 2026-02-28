@@ -150,15 +150,25 @@ export class AuthService {
   }
 
   async forgotPasswordOTP(email: string): Promise<void> {
+    console.log(`[ForgotPassword] OTP Request for: ${email}`);
     const user = await this.usersService.findOne(email);
     if (!user) {
+      console.warn(`[ForgotPassword] No user found with email: ${email}`);
       // Security best practice: don't leak user existence
       return;
     }
 
+    console.log(`[ForgotPassword] User found: ${user.name}. Generating OTP...`);
     const otp = this.otpService.generateOTP();
     await this.otpService.storeOTP(email, otp);
-    await this.emailService.sendPasswordResetOTP(email, user.name || 'User', otp);
+
+    try {
+      await this.emailService.sendPasswordResetOTP(email, user.name || 'User', otp);
+      console.log(`[ForgotPassword] OTP email triggered for: ${email}`);
+    } catch (error) {
+      console.error(`[ForgotPassword] Failed to trigger email:`, error.message);
+      throw error;
+    }
   }
 
   async resetPasswordWithOTP(email: string, code: string, newPassword: string): Promise<void> {

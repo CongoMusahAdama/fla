@@ -195,9 +195,9 @@ export class EmailService {
 
             try {
                 await this.apiInstance.sendTransacEmail(sendSmtpEmail);
-                console.log(`OTP email sent successfully to ${email}`);
-            } catch (error) {
-                console.error('Error sending OTP email:', error);
+                console.log(`[EmailService] Registration OTP sent successfully to ${email}`);
+            } catch (error: any) {
+                console.error('[EmailService] Brevo Registration Error:', error.response?.body || error.message);
                 throw new Error('Failed to send verification email');
             }
         } catch (error) {
@@ -431,8 +431,9 @@ export class EmailService {
 
         try {
             await this.apiInstance.sendTransacEmail(sendSmtpEmail);
-        } catch (error) {
-            console.error('Error sending reset OTP email:', error);
+            console.log(`[EmailService] Password Reset OTP sent successfully to ${email}`);
+        } catch (error: any) {
+            console.error('[EmailService] Brevo Reset OTP Error:', error.response?.body || error.message);
             throw new Error('Failed to send reset code');
         }
     }
