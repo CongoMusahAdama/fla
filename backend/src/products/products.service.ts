@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, UnauthorizedException, ForbiddenException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -110,22 +110,35 @@ export class ProductsService {
     return productObj as any;
   }
 
-  async update(id: string, updateProductDto: UpdateProductDto): Promise<Product> {
-    const existingProduct = await this.productModel
+  async update(id: string, updateProductDto: UpdateProductDto, user: any): Promise<Product> {
+    const product = await this.productModel.findById(id).exec();
+    if (!product) {
+      throw new NotFoundException(`Product with ID ${id} not found`);
+    }
+
+    // Ownership check: Only the vendor who created it or an admin can update
+    if (user.role !== 'admin' && product.vendorId.toString() !== user.userId) {
+      throw new ForbiddenException('You do not have permission to update this product');
+    }
+
+    const updatedProduct = await this.productModel
       .findByIdAndUpdate(id, updateProductDto, { new: true })
       .exec();
 
-    if (!existingProduct) {
-      throw new NotFoundException(`Product with ID ${id} not found`);
-    }
-    return existingProduct;
+    return updatedProduct;
   }
 
-  async remove(id: string): Promise<Product> {
-    const deletedProduct = await this.productModel.findByIdAndDelete(id).exec();
-    if (!deletedProduct) {
+  async remove(id: string, user: any): Promise<Product> {
+    const product = await this.productModel.findById(id).exec();
+    if (!product) {
       throw new NotFoundException(`Product with ID ${id} not found`);
     }
-    return deletedProduct;
+
+    // Ownership check: Only the vendor who created it or an admin can delete
+    if (user.role !== 'admin' && product.vendorId.toString() !== user.userId) {
+      throw new ForbiddenException('You do not have permission to delete this product');
+    }
+
+    return await this.productModel.findByIdAndDelete(id).exec();
   }
 }

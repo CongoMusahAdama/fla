@@ -68,9 +68,7 @@ export class AuthService {
   }
 
   async verifyVendorOTP(email: string, code: string): Promise<boolean> {
-    // TEMPORARILY DISABLED OTP VERIFICATION
-    // const isValid = await this.otpService.verifyOTP(email, code);
-    const isValid = true;
+    const isValid = await this.otpService.verifyOTP(email, code);
 
     if (isValid) {
       // Send welcome email

@@ -46,20 +46,20 @@ export class OrdersController {
 
   @UseGuards(AuthGuard('jwt'))
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.ordersService.findOne(id);
+  findOne(@Param('id') id: string, @Request() req) {
+    return this.ordersService.findOne(id, req.user);
   }
 
   @UseGuards(AuthGuard('jwt'))
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateOrderDto: UpdateOrderDto) {
-    return this.ordersService.update(id, updateOrderDto);
+  update(@Param('id') id: string, @Body() updateOrderDto: UpdateOrderDto, @Request() req) {
+    return this.ordersService.update(id, updateOrderDto, req.user);
   }
 
   @UseGuards(AuthGuard('jwt'))
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.ordersService.remove(id);
+  remove(@Param('id') id: string, @Request() req) {
+    return this.ordersService.remove(id, req.user);
   }
 
   @UseGuards(AuthGuard('jwt'))

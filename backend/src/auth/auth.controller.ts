@@ -20,6 +20,8 @@ export class AuthController {
 
   @Post('register')
   async register(@Body() createUserDto: CreateUserDto) {
+    // Force the role to 'customer' for public registration to prevent privilege escalation
+    createUserDto.role = 'customer';
     return this.authService.register(createUserDto);
   }
 
@@ -79,8 +81,13 @@ export class AuthController {
     }
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @Post('admin/create-vendor')
-  async adminCreateVendor(@Body() userData: any) {
+  async adminCreateVendor(@Body() userData: any, @Request() req) {
+    // Only admins can create vendors via this endpoint
+    if (req.user.role !== 'admin') {
+      throw new Error('Unauthorized - Admin only');
+    }
     try {
       return await this.authService.adminCreateVendor(userData);
     } catch (error) {

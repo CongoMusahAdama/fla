@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, NotFoundException, Inject, forwardRef, ForbiddenException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -127,32 +127,54 @@ export class OrdersService {
     return this.orderModel.find({ vendorId: new Types.ObjectId(vendorId) }).sort({ createdAt: -1 }).exec();
   }
 
-  async findOne(id: string): Promise<Order> {
+  async findOne(id: string, user: any): Promise<Order> {
     const order = await this.orderModel.findById(id).exec();
     if (!order) throw new NotFoundException(`Order with ID ${id} not found`);
+
+    // Ownership check: customer who placed it, vendor, or admin
+    if (user.role !== 'admin' &&
+      order.customerId.toString() !== user.userId &&
+      order.vendorId.toString() !== user.userId) {
+      throw new ForbiddenException('You do not have permission to view this order');
+    }
     return order;
   }
 
   async trackOrder(id: string): Promise<any> {
     const order = await this.orderModel.findById(id)
-      .select('status items trackingNumber carrier createdAt updatedAt customerName customerPhone customerEmail shippingAddress shippingCity shippingRegion totalAmount isPaid vendorName escrowStatus')
+      .select('status items trackingNumber carrier createdAt updatedAt vendorName escrowStatus shippingCity shippingRegion')
       .exec();
     if (!order) throw new NotFoundException(`Order with ID ${id} not found`);
     return order;
   }
 
-  async update(id: string, updateOrderDto: UpdateOrderDto): Promise<Order> {
+  async update(id: string, updateOrderDto: UpdateOrderDto, user: any): Promise<Order> {
+    const order = await this.orderModel.findById(id).exec();
+    if (!order) throw new NotFoundException(`Order with ID ${id} not found`);
+
+    // Ownership check: Only admin or the customer/vendor related to this order can update
+    if (user.role !== 'admin' &&
+      order.customerId.toString() !== user.userId &&
+      order.vendorId.toString() !== user.userId) {
+      throw new ForbiddenException('You do not have permission to update this order');
+    }
+
     const existingOrder = await this.orderModel
       .findByIdAndUpdate(id, updateOrderDto, { new: true })
       .exec();
-    if (!existingOrder) throw new NotFoundException(`Order with ID ${id} not found`);
     return existingOrder;
   }
 
-  async remove(id: string): Promise<Order> {
-    const deletedOrder = await this.orderModel.findByIdAndDelete(id).exec();
-    if (!deletedOrder) throw new NotFoundException(`Order with ID ${id} not found`);
-    return deletedOrder;
+  async remove(id: string, user: any): Promise<Order> {
+    const order = await this.orderModel.findById(id).exec();
+    if (!order) throw new NotFoundException(`Order with ID ${id} not found`);
+
+    // Only admin can delete orders (safety policy)
+    if (user.role !== 'admin') {
+      throw new ForbiddenException('Only administrators can remove orders');
+    }
+
+    return this.orderModel.findByIdAndDelete(id).exec();
   }
 
   async getAdminDashboardStats() {
