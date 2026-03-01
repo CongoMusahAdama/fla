@@ -7,6 +7,13 @@ async function bootstrap() {
     bodyParser: false,
   });
 
+  // Enable security headers with Helmet
+  const helmet = require('helmet');
+  app.use(helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    contentSecurityPolicy: false, // Set to false if you're serving a frontend that needs specific CSP
+  }));
+
   // Enable CORS with specific whitelist for security
   app.enableCors({
     origin: [
@@ -30,8 +37,12 @@ async function bootstrap() {
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-  // Enable validation
-  app.useGlobalPipes(new ValidationPipe());
+  // Enable validation with strict whitelisting
+  app.useGlobalPipes(new ValidationPipe({
+    whitelist: true,
+    forbidNonWhitelisted: true,
+    transform: true,
+  }));
 
   // Set global prefix
   app.setGlobalPrefix('api');

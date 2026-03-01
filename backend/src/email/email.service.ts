@@ -15,6 +15,11 @@ export class EmailService {
         return `${this.configService.get<string>('RESEND_SENDER_NAME') || 'FLA Logistics'} <${this.configService.get<string>('RESEND_SENDER_EMAIL') || 'noreply@resend.dev'}>`;
     }
 
+    private maskEmail(email: string): string {
+        const [name, domain] = email.split('@');
+        return `${name.substring(0, 1)}***@${domain}`;
+    }
+
     async sendOTP(email: string, name: string, otp: string): Promise<void> {
         try {
             const htmlContent = `
@@ -78,10 +83,10 @@ export class EmailService {
             });
 
             if (error) {
-                console.error('[EmailService] Resend Error:', error);
+                console.error('[EmailService] Resend Error:', error.message || 'Unknown error');
                 throw new Error('Failed to send verification email');
             }
-            console.log(`[EmailService] Registration OTP sent successfully to ${email}`);
+            console.log(`[EmailService] Registration OTP sent successfully to ${this.maskEmail(email)}`);
         } catch (error: any) {
             console.error('[EmailService] sendOTP Error:', error.message);
             throw error;
@@ -126,7 +131,7 @@ export class EmailService {
                 subject: `Welcome to FLA, ${shopName}! 🎉`,
                 html: htmlContent,
             });
-            console.log(`Welcome email sent to ${email}`);
+            console.log(`Welcome email sent to ${this.maskEmail(email)}`);
         } catch (error) {
             console.error('Error sending welcome email:', error);
         }
@@ -175,7 +180,7 @@ export class EmailService {
                 subject: `Your FLA Studio Account is Ready: ${shopName} 🚀`,
                 html: htmlContent,
             });
-            console.log(`Credentials email sent to ${email}`);
+            console.log(`Credentials email sent to ${this.maskEmail(email)}`);
         } catch (error) {
             console.error('Error sending credentials email:', error);
         }
@@ -215,7 +220,7 @@ export class EmailService {
                 subject: 'Reset Your FLA Password 🔒',
                 html: htmlContent,
             });
-            console.log(`Reset email sent to ${email}`);
+            console.log(`Reset email sent to ${this.maskEmail(email)}`);
         } catch (error) {
             console.error('Error sending reset email:', error);
         }
@@ -257,10 +262,10 @@ export class EmailService {
             });
 
             if (error) {
-                console.error('[EmailService] Resend Reset OTP Error:', error);
+                console.error('[EmailService] Resend Reset OTP Error:', error.message || 'Unknown error');
                 throw new Error('Failed to send reset code');
             }
-            console.log(`[EmailService] Password Reset OTP sent successfully to ${email}`);
+            console.log(`[EmailService] Password Reset OTP sent successfully to ${this.maskEmail(email)}`);
         } catch (error) {
             console.error('Error sending reset OTP email:', error);
             throw error;

@@ -15,6 +15,11 @@ export class AuthService {
     private otpService: OtpService
   ) { }
 
+  private maskEmail(email: string): string {
+    const [name, domain] = email.split('@');
+    return `${name.substring(0, 1)}***@${domain}`;
+  }
+
   async validateUser(email: string, pass: string): Promise<any> {
     const user = await this.usersService.findOne(email);
     if (!user) {
@@ -115,7 +120,7 @@ export class AuthService {
     const user = await this.usersService.findOne(email);
     if (!user) {
       // Don't leak whether a user exists or not (security best practice)
-      console.log(`[ForgotPassword] No user found for: ${email} — returning silently`);
+      console.log(`[ForgotPassword] No user found for: ${this.maskEmail(email)} — returning silently`);
       return;
     }
 
@@ -123,7 +128,7 @@ export class AuthService {
     const expires = new Date();
     expires.setHours(expires.getHours() + 1); // Token valid for 1 hour
 
-    console.log(`[ForgotPassword] Saving reset token for user: ${user.email}`);
+    console.log(`[ForgotPassword] Saving reset token for user: ${this.maskEmail(user.email)}`);
     await this.usersService.update((user as any)._id.toString(), {
       resetPasswordToken: token,
       resetPasswordExpires: expires
@@ -132,7 +137,7 @@ export class AuthService {
     try {
       await this.emailService.sendPasswordResetEmail(user.email, user.name || 'User', token);
     } catch (emailError) {
-      console.error(`[ForgotPassword] FAILED to send email to ${user.email}:`, emailError);
+      console.error(`[ForgotPassword] FAILED to send email to ${this.maskEmail(user.email)}:`, emailError);
       // Rethrow so the controller can return a meaningful error
       throw new Error('Failed to send password reset email. Please try again later.');
     }
@@ -148,10 +153,10 @@ export class AuthService {
   }
 
   async forgotPasswordOTP(email: string): Promise<void> {
-    console.log(`[ForgotPassword] OTP Request for: ${email}`);
+    console.log(`[ForgotPassword] OTP Request for: ${this.maskEmail(email)}`);
     const user = await this.usersService.findOne(email);
     if (!user) {
-      console.warn(`[ForgotPassword] No user found with email: ${email}`);
+      console.warn(`[ForgotPassword] No user found with email: ${this.maskEmail(email)}`);
       // Security best practice: don't leak user existence
       return;
     }
@@ -162,7 +167,7 @@ export class AuthService {
 
     try {
       await this.emailService.sendPasswordResetOTP(email, user.name || 'User', otp);
-      console.log(`[ForgotPassword] OTP email triggered for: ${email}`);
+      console.log(`[ForgotPassword] OTP email triggered for: ${this.maskEmail(email)}`);
     } catch (error) {
       console.error(`[ForgotPassword] Failed to trigger email:`, error.message);
       throw error;
