@@ -125,7 +125,7 @@ export class ProductsService {
       .findByIdAndUpdate(id, updateProductDto, { new: true })
       .exec();
 
-    return updatedProduct;
+    return updatedProduct as Product;
   }
 
   async remove(id: string, user: any): Promise<Product> {
@@ -139,6 +139,6 @@ export class ProductsService {
       throw new ForbiddenException('You do not have permission to delete this product');
     }
 
-    return await this.productModel.findByIdAndDelete(id).exec();
+    return await this.productModel.findByIdAndDelete(id).exec() as any;
   }
 }

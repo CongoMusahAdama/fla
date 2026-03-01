@@ -162,7 +162,7 @@ export class OrdersService {
     const existingOrder = await this.orderModel
       .findByIdAndUpdate(id, updateOrderDto, { new: true })
       .exec();
-    return existingOrder;
+    return existingOrder as Order;
   }
 
   async remove(id: string, user: any): Promise<Order> {
@@ -174,7 +174,7 @@ export class OrdersService {
       throw new ForbiddenException('Only administrators can remove orders');
     }
 
-    return this.orderModel.findByIdAndDelete(id).exec();
+    return this.orderModel.findByIdAndDelete(id).exec() as any;
   }
 
   async getAdminDashboardStats() {
