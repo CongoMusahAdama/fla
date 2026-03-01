@@ -314,6 +314,12 @@ export class OrdersService {
     order.deliveryConfirmationDate = new Date();
     order.deliveredAt = new Date();
 
+    // Set auto-release date to 2 days from now
+    // If the customer doesn't mark as satisfied by then, funds will be auto-released
+    const autoReleaseDate = new Date();
+    autoReleaseDate.setDate(autoReleaseDate.getDate() + 2);
+    order.autoReleaseDate = autoReleaseDate;
+
     return order.save();
   }
 
@@ -345,7 +351,7 @@ export class OrdersService {
   async processAutoReleases(): Promise<number> {
     const now = new Date();
     const ordersToRelease = await this.orderModel.find({
-      status: 'shipped',
+      status: { $in: ['shipped', 'delivered'] },
       escrowStatus: 'held',
       autoReleaseDate: { $lte: now }
     }).exec();
