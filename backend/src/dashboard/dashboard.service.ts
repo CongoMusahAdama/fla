@@ -28,10 +28,14 @@ export class DashboardService {
 
         const wishlistCount = wishlist.items.length;
 
+        const user = await this.usersService.findOneById(userId);
+
         return {
             totalSpent,
             activeOrders,
             wishlistCount,
+            walletBalance: user?.walletBalance || 0,
+            pendingEscrow: orders.filter(o => o.isPaid && o.escrowStatus === 'held').reduce((sum, o) => sum + o.totalAmount, 0),
             recentOrders: orders.slice(0, 5)
         };
     }

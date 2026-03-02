@@ -259,6 +259,7 @@ function ShopContent() {
                                     reviewCount={product.reviewCount}
                                     vendorName={product.vendorName}
                                     uniqueVendorId={product.uniqueVendorId}
+                                    hasSizes={product.hasSizes}
                                 />
                             ))}
                         </div>

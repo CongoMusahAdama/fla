@@ -407,8 +407,15 @@ export class OrdersService {
     } else if (resolution === 'refund') {
       order.status = 'refunded';
       order.escrowStatus = 'refunded';
+
+      // Deduct from vendor's pending balance
       await this.userModel.findByIdAndUpdate(order.vendorId, {
         $inc: { pendingBalance: -order.vendorShare }
+      });
+
+      // Credit the customer's wallet balance
+      await this.userModel.findByIdAndUpdate(order.customerId, {
+        $inc: { walletBalance: order.totalAmount }
       });
     }
 

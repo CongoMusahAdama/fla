@@ -165,6 +165,7 @@ export default function Home() {
                     uniqueVendorId={product.uniqueVendorId}
                     index={index}
                     description={product.description}
+                    hasSizes={product.hasSizes}
                   />
                 ))
               ) : (

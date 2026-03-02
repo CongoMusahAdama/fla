@@ -102,7 +102,7 @@ export default function CartDrawer() {
                         <div class="space-y-2.5 max-h-48 overflow-y-auto">
                             ${cartItems.map(item => `
                                 <div class="flex justify-between items-center text-sm bg-white p-3 rounded-xl">
-                                    <span class="font-bold text-slate-900">${item.name} <span class="text-slate-400 text-xs">(${item.size})</span> <span class="text-brand-lemon text-xs">×${item.quantity}</span></span>
+                                    <span class="font-bold text-slate-900">${item.name} ${item.size !== 'N/A' ? `<span class="text-slate-400 text-xs">(${item.size})</span>` : ''} <span class="text-brand-lemon text-xs">×${item.quantity}</span></span>
                                     <span class="text-slate-900 font-black">GH₵${item.price * item.quantity}</span>
                                 </div>
                             `).join('')}
@@ -320,7 +320,7 @@ export default function CartDrawer() {
                                                 <Trash2 className="w-4 h-4" />
                                             </button>
                                         </div>
-                                        <p className="text-xs text-slate-500 mt-1">Size: <span className="font-bold text-slate-700">{item.size}</span></p>
+                                        {item.size !== 'N/A' && <p className="text-xs text-slate-500 mt-1">Size: <span className="font-bold text-slate-700">{item.size}</span></p>}
                                     </div>
 
                                     <div className="flex items-center justify-between mt-2">

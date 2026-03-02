@@ -454,36 +454,36 @@ export default function CustomerDashboard() {
 
     const statsList = [
         {
-            label: 'Total Spent',
-            value: `GH₵ ${dashboardData?.totalSpent || 0}`,
+            label: 'Wallet Balance',
+            value: `GH₵ ${dashboardData?.walletBalance || 0}`,
             icon: Wallet,
             color: 'text-slate-900',
             bg: 'bg-brand-lemon/20',
             border: 'border-brand-lemon/30'
         },
         {
-            label: 'Active Orders',
-            value: dashboardData?.activeOrders || '0',
-            icon: Package,
+            label: 'Held in Escrow',
+            value: `GH₵ ${dashboardData?.pendingEscrow || 0}`,
+            icon: ShieldAlert,
             color: 'text-blue-600',
             bg: 'bg-blue-50',
             border: 'border-blue-100'
         },
         {
-            label: 'Wishlist Items',
-            value: dashboardData?.wishlistCount || '0',
-            icon: Heart,
-            color: 'text-rose-600',
-            bg: 'bg-rose-50',
-            border: 'border-rose-100'
-        },
-        {
-            label: 'Completed',
-            value: orders.filter(o => o.status === 'delivered').length.toString(),
-            icon: CheckCircle2,
+            label: 'Active Orders',
+            value: dashboardData?.activeOrders || '0',
+            icon: Package,
             color: 'text-emerald-600',
             bg: 'bg-emerald-50',
             border: 'border-emerald-100'
+        },
+        {
+            label: 'Total Total Spent',
+            value: `GH₵ ${dashboardData?.totalSpent || 0}`,
+            icon: ShoppingBag,
+            color: 'text-slate-600',
+            bg: 'bg-slate-50',
+            border: 'border-slate-100'
         },
     ];
 
@@ -1148,6 +1148,7 @@ export default function CustomerDashboard() {
                                         rating={item.productId?.rating}
                                         reviewCount={item.productId?.reviewCount}
                                         vendorName={item.productId?.vendorName}
+                                        hasSizes={item.productId?.hasSizes}
                                     />
                                 ))
                             ) : (

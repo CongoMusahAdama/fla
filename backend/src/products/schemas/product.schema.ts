@@ -68,6 +68,9 @@ export class Product {
     @Prop()
     uniqueVendorId: string;
 
+    @Prop({ default: true })
+    hasSizes: boolean;
+
 }
 
 export const ProductSchema = SchemaFactory.createForClass(Product);

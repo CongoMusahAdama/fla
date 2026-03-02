@@ -38,6 +38,7 @@ interface Product {
     category: string;
     imageLabels?: string[];
     sizes?: string[];
+    hasSizes?: boolean;
     isActive?: boolean;
 }
 
@@ -91,6 +92,7 @@ export default function VendorDashboard() {
     const [formNarrative, setFormNarrative] = useState('');
     const [formImages, setFormImages] = useState<{ url: string, label: string }[]>([]);
     const [formSizes, setFormSizes] = useState<string[]>([]);
+    const [formHasSizes, setFormHasSizes] = useState(true);
 
     // Profile States
     const [shopName, setShopName] = useState('');
@@ -177,7 +179,8 @@ export default function VendorDashboard() {
                         description: p.description || '',
                         category: p.category || 'T-Shirt',
                         imageLabels: p.imageLabels || [],
-                        sizes: p.sizes || []
+                        sizes: p.sizes || [],
+                        hasSizes: p.hasSizes !== undefined ? p.hasSizes : true
                     })));
                 }
                 if (ordersRes.ok) setVendorOrders(await ordersRes.json());
@@ -308,6 +311,7 @@ export default function VendorDashboard() {
         setFormNarrative('');
         setFormImages([]);
         setFormSizes([]);
+        setFormHasSizes(true);
         setEditingProduct(null);
     };
 
@@ -340,6 +344,7 @@ export default function VendorDashboard() {
                     sizes: formSizes,
                     tailoringTime: formTailoring,
                     fabrication: formFabric,
+                    hasSizes: formHasSizes,
                     vendorId: user?.id,
                     vendorName: user?.shopName,
                     uniqueVendorId: user?.uniqueVendorId
@@ -365,6 +370,7 @@ export default function VendorDashboard() {
                         label: savedProduct.imageLabels?.[idx] || 'Product'
                     })) || [],
                     sizes: savedProduct.sizes,
+                    hasSizes: savedProduct.hasSizes,
                     status: savedProduct.stock < 10 ? 'Low Stock' : 'In Stock',
                 } : p));
                 Swal.fire({ icon: 'success', title: 'Updated!', text: 'Your design has been refined.' });
@@ -385,7 +391,8 @@ export default function VendorDashboard() {
                     sales: 0,
                     tailoringTime: savedProduct.tailoringTime || '3 Days',
                     fabrication: savedProduct.fabrication || 'Cotton',
-                    sizes: savedProduct.sizes
+                    sizes: savedProduct.sizes,
+                    hasSizes: savedProduct.hasSizes
                 };
                 setVendorProducts(prev => [newProd, ...prev]);
                 Swal.fire({ icon: 'success', title: 'Published!', text: 'Your new design is now live.' });
@@ -473,6 +480,7 @@ export default function VendorDashboard() {
         setFormNarrative(product.description || '');
         setFormImages(product.images || [{ url: product.image, label: 'Front' }]);
         setFormSizes(product.sizes || []);
+        setFormHasSizes(product.hasSizes !== undefined ? product.hasSizes : true);
         setShowAddProduct(true);
     };
 
@@ -2088,32 +2096,47 @@ export default function VendorDashboard() {
                                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">The Narrative (Description)</label>
                                             <textarea rows={4} value={formNarrative} onChange={(e) => setFormNarrative(e.target.value)} placeholder="Story behind this design..." className="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20 resize-none" />
                                         </div>
-                                        <div className="space-y-1.5 pb-20 md:pb-0">
-                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Available Silhouettes (Sizes)</label>
-                                            <div className="flex flex-wrap gap-2">
-                                                {['S', 'M', 'L', 'XL', 'XXL'].map(s => {
-                                                    const isSelected = formSizes.includes(s);
-                                                    return (
-                                                        <button
-                                                            key={s}
-                                                            type="button"
-                                                            onClick={() => {
-                                                                if (isSelected) {
-                                                                    setFormSizes(prev => prev.filter(size => size !== s));
-                                                                } else {
-                                                                    setFormSizes(prev => [...prev, s]);
-                                                                }
-                                                            }}
-                                                            className={`w-11 h-11 md:w-12 md:h-12 rounded-xl border transition-all text-[9px] md:text-[10px] font-black uppercase ${isSelected
-                                                                ? 'bg-slate-900 border-slate-900 text-brand-lemon shadow-lg shadow-slate-900/10'
-                                                                : 'border-slate-100 bg-white text-slate-400 hover:border-slate-300'
-                                                                }`}
-                                                        >
-                                                            {s}
-                                                        </button>
-                                                    );
-                                                })}
+                                        <div className="space-y-4 pb-20 md:pb-0">
+                                            <div className="flex items-center justify-between px-1">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Available Silhouettes (Sizes)</label>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{formHasSizes ? 'Enabled' : 'Disabled'}</span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setFormHasSizes(!formHasSizes)}
+                                                        className={`w-10 h-5 rounded-full transition-all relative ${formHasSizes ? 'bg-brand-lemon' : 'bg-slate-200'}`}
+                                                    >
+                                                        <div className={`absolute top-1 w-3 h-3 rounded-full transition-all ${formHasSizes ? 'right-1 bg-slate-900' : 'left-1 bg-white'}`} />
+                                                    </button>
+                                                </div>
                                             </div>
+
+                                            {formHasSizes && (
+                                                <div className="flex flex-wrap gap-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                                                    {['S', 'M', 'L', 'XL', 'XXL'].map(s => {
+                                                        const isSelected = formSizes.includes(s);
+                                                        return (
+                                                            <button
+                                                                key={s}
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    if (isSelected) {
+                                                                        setFormSizes(prev => prev.filter(size => size !== s));
+                                                                    } else {
+                                                                        setFormSizes(prev => [...prev, s]);
+                                                                    }
+                                                                }}
+                                                                className={`w-11 h-11 md:w-12 md:h-12 rounded-xl border transition-all text-[9px] md:text-[10px] font-black uppercase ${isSelected
+                                                                    ? 'bg-slate-900 border-slate-900 text-brand-lemon shadow-lg shadow-slate-900/10'
+                                                                    : 'border-slate-100 bg-white text-slate-400 hover:border-slate-300'
+                                                                    }`}
+                                                            >
+                                                                {s}
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 </div>

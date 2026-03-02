@@ -25,9 +25,10 @@ interface ProductCardProps {
     reviewCount?: number;
     vendorName?: string;
     uniqueVendorId?: string;
+    hasSizes?: boolean;
 }
 
-export default function ProductCard({ id, name, price, images, sizes = [], imageLabels, duration = '3 working days', stock, index, vendorId, initialWishlistState = false, description, rating = 0, reviewCount = 0, vendorName, uniqueVendorId }: ProductCardProps) {
+export default function ProductCard({ id, name, price, images, sizes = [], imageLabels, duration = '3 working days', stock, index, vendorId, initialWishlistState = false, description, rating = 0, reviewCount = 0, vendorName, uniqueVendorId, hasSizes = true }: ProductCardProps) {
     const isBatch = false;
     const currentPrice = price;
 
@@ -209,7 +210,7 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
             return;
         }
 
-        if (!selectedSize) {
+        if (hasSizes && !selectedSize) {
             Swal.fire({
                 icon: 'warning',
                 title: 'Size Required',
@@ -231,7 +232,7 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                 name,
                 price: currentPrice,
                 image: images[0],
-                size: selectedSize!,
+                size: selectedSize || 'N/A',
                 quantity: 1,
                 vendorId: finalVendorId,
                 vendorName: vendorName,
@@ -313,7 +314,7 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
         // Batch Logic
         const actionLabel = isBatch ? 'Join Batch Group' : 'Delivery Details';
 
-        if (!selectedSize) {
+        if (hasSizes && !selectedSize) {
             Swal.fire({
                 icon: 'warning',
                 title: 'Size Required',
@@ -445,7 +446,7 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                     name: name,
                     price: currentPrice,
                     quantity: 1,
-                    size: selectedSize,
+                    size: selectedSize || 'Universal',
                     image: images[0]
                 }],
                 totalAmount: currentPrice,
@@ -611,23 +612,25 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                     </div>
 
                     {/* Size Selection (Quick Access) */}
-                    <div className="flex gap-1.5 mb-4 overflow-x-auto pb-1 no-scrollbar" onClick={(e) => e.stopPropagation()}>
-                        {(sizes && sizes.length > 0 ? sizes : ['S', 'M', 'L', 'XL']).map(size => (
-                            <button
-                                key={size}
-                                onClick={() => !isSoldOut && setSelectedSize(size)}
-                                disabled={isSoldOut}
-                                className={`flex-none w-8 h-8 rounded-lg text-[10px] font-black border transition-all active:scale-90
-                                    ${selectedSize === size
-                                        ? 'bg-brand-lemon text-slate-900 border-brand-lemon shadow-sm'
-                                        : 'bg-white text-slate-400 border-slate-100 hover:border-slate-200'
-                                    }
-                                `}
-                            >
-                                {size}
-                            </button>
-                        ))}
-                    </div>
+                    {hasSizes && (
+                        <div className="flex gap-1.5 mb-4 overflow-x-auto pb-1 no-scrollbar" onClick={(e) => e.stopPropagation()}>
+                            {(sizes && sizes.length > 0 ? sizes : ['S', 'M', 'L', 'XL']).map(size => (
+                                <button
+                                    key={size}
+                                    onClick={() => !isSoldOut && setSelectedSize(size)}
+                                    disabled={isSoldOut}
+                                    className={`flex-none w-8 h-8 rounded-lg text-[10px] font-black border transition-all active:scale-90
+                                        ${selectedSize === size
+                                            ? 'bg-brand-lemon text-slate-900 border-brand-lemon shadow-sm'
+                                            : 'bg-white text-slate-400 border-slate-100 hover:border-slate-200'
+                                        }
+                                    `}
+                                >
+                                    {size}
+                                </button>
+                            ))}
+                        </div>
+                    )}
 
                     {/* Quick Action Buttons */}
                     <div className="flex flex-col md:grid md:grid-cols-2 gap-2 mt-4 relative z-20" onClick={(e) => e.stopPropagation()}>
@@ -775,37 +778,39 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                                 </div>
 
                                 {/* Size Selection - Refined */}
-                                <div className="space-y-4 pt-6 border-t border-slate-50">
-                                    <div className="flex justify-between items-center px-1">
-                                        <div className="flex items-center gap-2">
-                                            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Select Silhouette</h4>
-                                            {!selectedSize && <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping"></span>}
+                                {hasSizes && (
+                                    <div className="space-y-4 pt-6 border-t border-slate-50">
+                                        <div className="flex justify-between items-center px-1">
+                                            <div className="flex items-center gap-2">
+                                                <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Select Silhouette</h4>
+                                                {!selectedSize && <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping"></span>}
+                                            </div>
+                                            <button className="flex items-center gap-1.5 text-[10px] font-black text-slate-900 uppercase tracking-widest group/guide">
+                                                <span className="underline decoration-brand-lemon decoration-2 underline-offset-4 group-hover/guide:text-brand-lemon transition-colors">Size Guide</span>
+                                                <ChevronRight className="w-3 h-3" />
+                                            </button>
                                         </div>
-                                        <button className="flex items-center gap-1.5 text-[10px] font-black text-slate-900 uppercase tracking-widest group/guide">
-                                            <span className="underline decoration-brand-lemon decoration-2 underline-offset-4 group-hover/guide:text-brand-lemon transition-colors">Size Guide</span>
-                                            <ChevronRight className="w-3 h-3" />
-                                        </button>
+                                        <div className="flex flex-wrap gap-3">
+                                            {(() => {
+                                                const safeSizes = (Array.isArray(sizes) && sizes.length > 0) ? sizes : ['S', 'M', 'L', 'XL', '2XL', '3XL'];
+                                                return safeSizes.map(size => (
+                                                    <button
+                                                        key={size}
+                                                        onClick={() => setSelectedSize(size)}
+                                                        className={`min-w-[3.5rem] h-12 md:h-14 px-4 rounded-2xl font-black border-2 transition-all text-xs md:text-sm
+                                                            ${selectedSize === size
+                                                                ? 'border-slate-900 bg-slate-900 text-white shadow-xl shadow-slate-900/20 scale-105'
+                                                                : 'border-slate-100 text-slate-400 hover:border-slate-200 bg-white hover:scale-105'
+                                                            }
+                                                        `}
+                                                    >
+                                                        {size}
+                                                    </button>
+                                                ));
+                                            })()}
+                                        </div>
                                     </div>
-                                    <div className="flex flex-wrap gap-3">
-                                        {(() => {
-                                            const safeSizes = (Array.isArray(sizes) && sizes.length > 0) ? sizes : ['S', 'M', 'L', 'XL', '2XL', '3XL'];
-                                            return safeSizes.map(size => (
-                                                <button
-                                                    key={size}
-                                                    onClick={() => setSelectedSize(size)}
-                                                    className={`min-w-[3.5rem] h-12 md:h-14 px-4 rounded-2xl font-black border-2 transition-all text-xs md:text-sm
-                                                        ${selectedSize === size
-                                                            ? 'border-slate-900 bg-slate-900 text-white shadow-xl shadow-slate-900/20 scale-105'
-                                                            : 'border-slate-100 text-slate-400 hover:border-slate-200 bg-white hover:scale-105'
-                                                        }
-                                                    `}
-                                                >
-                                                    {size}
-                                                </button>
-                                            ));
-                                        })()}
-                                    </div>
-                                </div>
+                                )}
 
                                 <div className="space-y-8">
                                     {/* Description Section */}

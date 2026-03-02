@@ -7,8 +7,8 @@ import Link from 'next/link';
 import {
     LayoutDashboard, Users, ShoppingBag, Settings, LogOut, ArrowLeft,
     Wallet, Package, Truck, MessageSquare, BarChart3, ShieldCheck,
-    MoreVertical, CheckCircle2, XCircle, AlertCircle, Eye, EyeOff, Search,
-    ArrowUpRight, Download, Menu, X, Trash2, Shield, Clock, TrendingUp, Star, Phone, Plus, User
+    CheckCircle2, XCircle, Eye, EyeOff, Search,
+    ArrowUpRight, Download, Menu, X, Trash2, Shield, Clock, TrendingUp, Phone, Plus, User
 } from 'lucide-react';
 import Image from 'next/image';
 import Swal from 'sweetalert2';
@@ -139,6 +139,8 @@ export default function AdminDashboard() {
     };
 
     useEffect(() => {
+        if (loading) return;
+
         if (typeof window !== 'undefined') {
             if (isAuthenticated) {
                 if (user?.role === 'customer') {
@@ -151,13 +153,18 @@ export default function AdminDashboard() {
                 }
             }
 
-            if (!isAuthenticated || user?.role !== 'admin') {
+            if (!isAuthenticated) {
+                router.push('/auth');
+                return;
+            }
+
+            if (user?.role !== 'admin') {
                 router.push('/auth');
                 return;
             }
         }
         refreshData();
-    }, [isAuthenticated, user, router]);
+    }, [isAuthenticated, user, router, loading]);
 
     const handleConfirmPayment = async (orderId: string) => {
         try {
@@ -417,7 +424,6 @@ export default function AdminDashboard() {
     ] as const;
 
     const statsCards = [
-        { id: 'escrow' as const, label: 'Gross Revenue', value: `GH₵ ${adminData?.totalRevenue?.toLocaleString() || '0'}`, icon: ShoppingBag, color: 'text-white', bg: 'bg-gradient-to-br from-emerald-500 to-emerald-600', pattern: 'opacity-10' },
         { id: 'escrow' as const, label: 'Platform Commission', value: `GH₵ ${adminData?.totalCommission?.toLocaleString() || '0'}`, icon: ShieldCheck, color: 'text-white', bg: 'bg-gradient-to-br from-violet-500 to-indigo-600', pattern: 'opacity-10' },
         { id: 'escrow' as const, label: 'Escrow Balance', value: `GH₵ ${adminData?.escrowBalance?.toLocaleString() || '0'}`, icon: Wallet, color: 'text-white', bg: 'bg-gradient-to-br from-amber-500 to-orange-600', pattern: 'opacity-10' },
         { id: 'orders' as const, label: 'Total Orders', value: adminData?.totalOrders?.toString() || '0', icon: ShoppingBag, color: 'text-white', bg: 'bg-gradient-to-br from-blue-500 to-indigo-600', pattern: 'opacity-10' },
@@ -1145,7 +1151,7 @@ export default function AdminDashboard() {
                                                 </td>
                                                 <td className="px-8 py-6">
                                                     <div className="max-w-xs">
-                                                        <p className="text-xs text-slate-600 italic leading-relaxed">"{o.disputeReason || 'No reason provided'}"</p>
+                                                        <p className="text-xs text-slate-600 italic leading-relaxed">&quot;{o.disputeReason || 'No reason provided'}&quot;</p>
                                                     </div>
                                                 </td>
                                                 <td className="px-8 py-6">
