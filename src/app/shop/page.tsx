@@ -270,7 +270,7 @@ function ShopContent() {
                                     vendorName={product.vendorName}
                                     uniqueVendorId={product.uniqueVendorId}
                                     hasSizes={product.hasSizes}
-                                    region={product.region}
+                                    vendorRegion={product.region}
                                 />
                             ))}
                         </div>

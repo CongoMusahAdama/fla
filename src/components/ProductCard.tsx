@@ -27,10 +27,10 @@ interface ProductCardProps {
     vendorName?: string;
     uniqueVendorId?: string;
     hasSizes?: boolean;
-    region?: string;
+    vendorRegion?: string;
 }
 
-export default function ProductCard({ id, name, price, images, sizes = [], imageLabels, duration = '3 working days', stock, index, vendorId, initialWishlistState = false, description, rating = 0, reviewCount = 0, vendorName, uniqueVendorId, hasSizes = true, region }: ProductCardProps) {
+export default function ProductCard({ id, name, price, images, sizes = [], imageLabels, duration = '3 working days', stock, index, vendorId, initialWishlistState = false, description, rating = 0, reviewCount = 0, vendorName, uniqueVendorId, hasSizes = true, vendorRegion }: ProductCardProps) {
     const isBatch = false;
     const currentPrice = price;
 
@@ -225,7 +225,7 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                 quantity: 1,
                 vendorId: finalVendorId,
                 vendorName: vendorName,
-                vendorRegion: region,
+                vendorRegion: vendorRegion,
             });
             setIsAdding(false);
             const Toast = Swal.mixin({
@@ -579,10 +579,10 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                     )}
 
                     {/* Region Badge */}
-                    {region && (
+                    {vendorRegion && (
                         <div className="flex items-center gap-1.5 text-slate-400">
                             <MapPin className="w-3 h-3 text-brand-lemon" />
-                            <span className="text-[10px] font-black uppercase tracking-widest">{region}</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest">{vendorRegion}</span>
                         </div>
                     )}
 
