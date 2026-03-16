@@ -5,6 +5,7 @@ import { Package, Truck, CheckCircle2, Clock, MapPin, ChevronLeft, ShieldCheck, 
 import Link from 'next/link';
 import Image from 'next/image';
 import Footer from '@/components/Footer';
+import { getImageUrl } from '@/lib/utils';
 
 export default function OrderTracking() {
     const { id } = useParams();
@@ -27,19 +28,6 @@ export default function OrderTracking() {
         if (id) fetchOrder();
     }, [id]);
 
-    const getImageUrl = (url: string | undefined | null) => {
-        if (!url || url === '/product-1.jpg') return '/product-1.jpg';
-        if (url.startsWith('http') || url.startsWith('data:') || url.startsWith('blob:')) return url;
-
-        const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-        const baseUrl = apiBase.replace(/\/api\/?$/, '');
-
-        if (url.startsWith('/uploads/')) return `${baseUrl}${url}`;
-        if (url.startsWith('uploads/')) return `${baseUrl}/${url}`;
-        if (url.startsWith('/')) return url;
-
-        return `${baseUrl}/uploads/${url}`;
-    };
 
     if (loading) {
         return (

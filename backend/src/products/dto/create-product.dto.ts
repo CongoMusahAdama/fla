@@ -63,7 +63,7 @@ export class CreateProductDto {
 
     @IsString()
     @IsOptional()
-    fabrication?: string;
+    region?: string;
 
     @IsString()
     @IsOptional()

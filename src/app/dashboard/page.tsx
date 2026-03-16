@@ -443,6 +443,31 @@ export default function CustomerDashboard() {
         }
     };
 
+    const handlePayDeliveryFee = async (orderId: string) => {
+        try {
+            Swal.fire({
+                title: 'INITIALIZING GATEWAY...',
+                didOpen: () => { Swal.showLoading(); }
+            });
+
+            const token = localStorage.getItem('fla_token');
+            const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+
+            const res = await fetch(`${apiBase}/orders/${orderId}/initialize-first-mile-payment`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (!res.ok) throw new Error('Could not initialize payment');
+            const { paymentLink } = await res.json();
+
+            // Redirect to Paystack
+            window.location.href = paymentLink;
+        } catch (error: any) {
+            Swal.fire('ERROR', error.message, 'error');
+        }
+    };
+
     const sidebarItems = [
         { id: 'home', label: 'Dashboard', icon: LayoutDashboard },
         { id: 'orders', label: 'My Orders', icon: ShoppingBag },
@@ -478,7 +503,7 @@ export default function CustomerDashboard() {
             border: 'border-emerald-100'
         },
         {
-            label: 'Total Total Spent',
+            label: 'Total Spent',
             value: `GH₵ ${dashboardData?.totalSpent || 0}`,
             icon: ShoppingBag,
             color: 'text-slate-600',
@@ -684,6 +709,13 @@ export default function CustomerDashboard() {
                                                 </div>
                                                 <h3 className="font-bold text-slate-900 text-sm mb-1 line-clamp-2">{order.items[0]?.name || 'Multiple Items'}</h3>
                                                 <p className="text-xs text-slate-500 font-medium">{order.vendorName || 'FLA Vendor'}</p>
+                                                {order.deliveryType === 'inter-regional' && (
+                                                    <div className="mt-2 text-[10px] font-black uppercase tracking-widest text-slate-500 flex flex-col gap-1">
+                                                        <span>1st Mile: GH₵ {order.firstMileFee || 'TBD'} 
+                                                            {order.firstMileFee > 0 && ` (${order.isFirstMileFeePaid ? 'Paid' : 'Pending'})`}
+                                                        </span>
+                                                    </div>
+                                                )}
                                                 <p className="font-sans font-black text-slate-900 mt-2">GH₵ {order.totalAmount}</p>
                                             </div>
                                         </div>
@@ -693,7 +725,15 @@ export default function CustomerDashboard() {
                                                     onClick={() => handleSubmitProof(order._id)}
                                                     className="col-span-2 py-3 bg-brand-lemon text-slate-900 rounded-full text-[10px] font-black uppercase tracking-widest hover:shadow-lg transition-all active:scale-95 text-center mb-1"
                                                 >
-                                                    Submit Payment Proof
+                                                    Submit Order Pay
+                                                </button>
+                                            )}
+                                            {order.deliveryType === 'inter-regional' && order.firstMileFee > 0 && !order.isFirstMileFeePaid && (
+                                                <button
+                                                    onClick={() => handlePayDeliveryFee(order._id)}
+                                                    className="col-span-2 py-3 bg-slate-900 text-white rounded-full text-[10px] font-black uppercase tracking-widest hover:shadow-lg transition-all active:scale-95 text-center mb-1"
+                                                >
+                                                    Pay Delivery Fee (Paystack)
                                                 </button>
                                             )}
                                             {order.paymentProof && !order.isPaid && (
@@ -879,6 +919,14 @@ export default function CustomerDashboard() {
                                                             <span className="text-[9px] font-black text-brand-black bg-brand-lemon px-2 py-0.5 rounded-md border border-brand-lemon/20 inline-block uppercase">POINT: {order.pickupPoint}</span>
                                                         </div>
                                                     )}
+                                                    {order.deliveryType === 'inter-regional' && (
+                                                        <div className="mt-1 flex flex-col gap-0.5">
+                                                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">1st Mile: GH₵ {order.firstMileFee || 'TBD'}</span>
+                                                            <span className={`text-[8px] font-black uppercase tracking-widest ${order.isFirstMileFeePaid ? 'text-emerald-500' : 'text-amber-500'}`}>
+                                                                {order.firstMileFee > 0 ? (order.isFirstMileFeePaid ? 'PAID' : 'PENDING') : ''}
+                                                            </span>
+                                                        </div>
+                                                    )}
                                                 </td>
                                                 <td className="px-8 py-6 font-sans font-black text-slate-900">GH₵ {order.totalAmount}</td>
                                                 <td className="px-8 py-6 text-right flex items-center justify-end gap-2">
@@ -887,7 +935,15 @@ export default function CustomerDashboard() {
                                                             onClick={() => handleSubmitProof(order._id)}
                                                             className="px-6 py-2 bg-brand-lemon text-slate-900 rounded-full text-[9px] font-black uppercase tracking-widest hover:shadow-lg transition-all whitespace-nowrap"
                                                         >
-                                                            Submit Proof
+                                                            Order Pay
+                                                        </button>
+                                                    )}
+                                                    {order.deliveryType === 'inter-regional' && order.firstMileFee > 0 && !order.isFirstMileFeePaid && (
+                                                        <button
+                                                            onClick={() => handlePayDeliveryFee(order._id)}
+                                                            className="px-6 py-2 bg-slate-900 text-white rounded-full text-[9px] font-black uppercase tracking-widest hover:shadow-lg transition-all whitespace-nowrap"
+                                                        >
+                                                            Pay Delivery Fee
                                                         </button>
                                                     )}
                                                     {order.paymentProof && !order.isPaid && (

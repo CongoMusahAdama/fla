@@ -1,27 +1,22 @@
-import { Controller, Post, UseInterceptors, UploadedFile, UseGuards, Req } from '@nestjs/common';
+import { Controller, Post, UseInterceptors, UploadedFile, UseGuards } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
+import { memoryStorage } from 'multer';
 import { AuthGuard } from '@nestjs/passport';
+import { CloudinaryService } from './cloudinary.service';
 
 @Controller('upload')
 export class UploadController {
+    constructor(private readonly cloudinaryService: CloudinaryService) {}
+
     @Post()
     @UseGuards(AuthGuard('jwt'))
     @UseInterceptors(
         FileInterceptor('file', {
-            storage: diskStorage({
-                destination: './uploads',
-                filename: (req, file, callback) => {
-                    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-                    const ext = extname(file.originalname);
-                    callback(null, `file-${uniqueSuffix}${ext}`);
-                },
-            }),
+            storage: memoryStorage(),
         }),
     )
-    uploadFile(@UploadedFile() file: Express.Multer.File) {
-        const url = `/uploads/${file.filename}`;
-        return { url };
+    async uploadFile(@UploadedFile() file: Express.Multer.File) {
+        const result = await this.cloudinaryService.uploadFile(file);
+        return { url: result.secure_url };
     }
 }

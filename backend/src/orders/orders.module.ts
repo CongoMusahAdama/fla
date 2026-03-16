@@ -7,6 +7,7 @@ import { Order, OrderSchema } from './schemas/order.schema';
 import { ProductSchema } from '../products/schemas/product.schema';
 import { User, UserSchema } from '../users/schemas/user.schema';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { EmailModule } from '../email/email.module';
 import { SettingsModule } from '../settings/settings.module';
 
 @Module({
@@ -18,6 +19,7 @@ import { SettingsModule } from '../settings/settings.module';
     ]),
     forwardRef(() => PaymentsModule),
     NotificationsModule,
+    EmailModule,
     SettingsModule
   ],
   controllers: [OrdersController],

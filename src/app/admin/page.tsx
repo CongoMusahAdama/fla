@@ -4,6 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { getImageUrl } from '@/lib/utils';
 import {
     LayoutDashboard, Users, ShoppingBag, Settings, LogOut, ArrowLeft,
     Wallet, Package, Truck, MessageSquare, BarChart3, ShieldCheck,
@@ -16,7 +17,7 @@ import Swal from 'sweetalert2';
 type AdminSection = 'dashboard' | 'vendors' | 'customers' | 'orders' | 'escrow' | 'products' | 'disputes' | 'delivery' | 'settings' | 'reports';
 
 export default function AdminDashboard() {
-    const { user, isAuthenticated, logout } = useAuth();
+    const { user, isAuthenticated, logout, isLoading: isAuthLoading } = useAuth();
     const router = useRouter();
 
     const [activeSection, setActiveSection] = useState<AdminSection>('dashboard');
@@ -40,7 +41,7 @@ export default function AdminDashboard() {
         momoNumber: '',
         momoProvider: 'MTN',
         bio: '',
-        password: Math.random().toString(36).slice(-8) // Initial random password
+        password: Math.random().toString(36).slice(-8)
     });
 
     // System Settings State
@@ -138,8 +139,32 @@ export default function AdminDashboard() {
         }
     };
 
+    const handleLogout = () => {
+        Swal.fire({
+            title: 'End Session?',
+            text: "Are you sure you want to sign out of the Admin HQ?",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#0F172A',
+            cancelButtonColor: '#F1F5F9',
+            confirmButtonText: 'Yes, Sign Out',
+            cancelButtonText: 'Cancel',
+            reverseButtons: true,
+            customClass: {
+                popup: 'rounded-[32px] border border-slate-100 shadow-2xl',
+                confirmButton: 'rounded-full px-8 py-3 uppercase text-[10px] font-black tracking-widest bg-slate-900 text-white',
+                cancelButton: 'rounded-full px-8 py-3 uppercase text-[10px] font-black tracking-widest text-slate-500'
+            }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                logout();
+                router.push('/');
+            }
+        });
+    };
+
     useEffect(() => {
-        if (loading) return;
+        if (isAuthLoading) return;
 
         if (typeof window !== 'undefined') {
             if (isAuthenticated) {
@@ -162,9 +187,11 @@ export default function AdminDashboard() {
                 router.push('/auth');
                 return;
             }
+            
+            // If already authenticated and admin, fetch data
+            refreshData();
         }
-        refreshData();
-    }, [isAuthenticated, user, router, loading]);
+    }, [isAuthenticated, user, router, isAuthLoading]);
 
     const handleConfirmPayment = async (orderId: string) => {
         try {
@@ -394,19 +421,6 @@ export default function AdminDashboard() {
         }
     };
 
-    const getImageUrl = (url: string | undefined | null) => {
-        if (!url || url === '/product-1.jpg') return '/product-1.jpg';
-        if (url.startsWith('http') || url.startsWith('data:') || url.startsWith('blob:')) return url;
-
-        const apiBase = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api');
-        const baseUrl = apiBase.replace(/\/api\/?$/, '');
-
-        if (url.startsWith('/uploads/')) return `${baseUrl}${url}`;
-        if (url.startsWith('uploads/')) return `${baseUrl}/${url}`;
-        if (url.startsWith('/')) return url;
-
-        return `${baseUrl}/uploads/${url}`;
-    };
 
     if (!user || user.role !== 'admin') return null;
 
@@ -542,7 +556,7 @@ export default function AdminDashboard() {
                                     <div className="flex items-start justify-between">
                                         <div className="flex items-center gap-4">
                                             <div className="w-14 h-14 bg-slate-900 rounded-2xl flex items-center justify-center text-white overflow-hidden relative shadow-md">
-                                                {u.profileImage ? <Image src={getImageUrl(u.profileImage)} alt={u.name} fill className="object-cover" unoptimized={true} /> : u.name?.[0] || 'U'}
+                                                {u.profileImage ? <Image src={getImageUrl(u.profileImage)} alt={u.name} fill sizes="56px" className="object-cover" unoptimized={true} /> : u.name?.[0] || 'U'}
                                             </div>
                                             <div>
                                                 <p className="font-black text-slate-900 text-sm">{u.shopName || u.name}</p>
@@ -613,8 +627,8 @@ export default function AdminDashboard() {
                                         <tr key={u._id} className="hover:bg-slate-50/50 transition-colors">
                                             <td className="px-8 py-6 border-r border-slate-50">
                                                 <div className="flex items-center gap-6">
-                                                    <div className="w-20 h-20 bg-slate-900 rounded-3xl flex items-center justify-center text-white overflow-hidden relative shadow-2xl border-4 border-white">
-                                                        {u.profileImage ? <Image src={getImageUrl(u.profileImage)} alt={u.name} fill className="object-cover" unoptimized={true} /> : u.name?.[0] || 'U'}
+                                                    <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center text-white overflow-hidden relative border border-slate-100/10">
+                                                        {u.profileImage ? <Image src={getImageUrl(u.profileImage)} alt={u.name} fill sizes="40px" className="object-cover" unoptimized={true} /> : u.name?.[0] || 'U'}
                                                     </div>
                                                     <div>
                                                         <p className="font-black text-slate-900 text-base mb-1">{u.shopName || u.name}</p>
@@ -721,7 +735,7 @@ export default function AdminDashboard() {
                                 <div key={u._id} className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm space-y-4">
                                     <div className="flex items-center gap-4">
                                         <div className="w-14 h-14 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 overflow-hidden relative border-2 border-white shadow-md">
-                                            {u.profileImage ? <Image src={getImageUrl(u.profileImage)} alt={u.name} fill className="object-cover" /> : u.name?.[0] || 'U'}
+                                            {u.profileImage ? <Image src={getImageUrl(u.profileImage)} alt={u.name} fill sizes="56px" className="object-cover" /> : u.name?.[0] || 'U'}
                                         </div>
                                         <div>
                                             <p className="font-black text-slate-900 text-sm">{u.name}</p>
@@ -768,8 +782,8 @@ export default function AdminDashboard() {
                                         <tr key={u._id} className="hover:bg-slate-50/50 transition-colors">
                                             <td className="px-8 py-6 border-r border-slate-50">
                                                 <div className="flex items-center gap-4">
-                                                    <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 overflow-hidden relative border-4 border-white shadow-lg">
-                                                        {u.profileImage ? <Image src={getImageUrl(u.profileImage)} alt={u.name} fill className="object-cover" /> : u.name?.[0] || 'U'}
+                                                    <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center text-white overflow-hidden relative border border-slate-100/10">
+                                                        {u.profileImage ? <Image src={getImageUrl(u.profileImage)} alt={u.name} fill sizes="40px" className="object-cover" /> : u.name?.[0] || 'U'}
                                                     </div>
                                                     <div>
                                                         <p className="font-black text-slate-900 text-sm">{u.name}</p>
@@ -828,8 +842,8 @@ export default function AdminDashboard() {
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                             {allProducts.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase())).map((p) => (
                                 <div key={p._id} className={`bg-white rounded-[32px] border ${p.isActive ? 'border-slate-100' : 'border-red-100 grayscale-[0.5]'} shadow-sm overflow-hidden group hover:shadow-xl transition-all duration-500`}>
-                                    <div className="aspect-[4/5] relative bg-slate-50">
-                                        <Image src={getImageUrl(p.images?.[0])} alt={p.name} fill className="object-cover group-hover:scale-110 transition-transform duration-700" />
+                                    <div className="relative aspect-[3/4] bg-slate-50 rounded-[28px] overflow-hidden mb-4">
+                                        <Image src={getImageUrl(p.images?.[0])} alt={p.name} fill sizes="(max-width: 768px) 50vw, 200px" className="object-cover group-hover:scale-110 transition-transform duration-700" />
                                         <div className="absolute top-4 right-4 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                             <button onClick={() => handleToggleProductStatus(p._id, p.isActive)} className={`p-3 rounded-2xl shadow-xl transition-all ${p.isActive ? 'bg-white text-slate-900 hover:bg-slate-900 hover:text-white' : 'bg-emerald-500 text-white'}`}>
                                                 {p.isActive ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -1009,6 +1023,19 @@ export default function AdminDashboard() {
                                                         <span className="text-[9px] font-black text-slate-400 uppercase">Vendor Net</span>
                                                         <span className="text-[10px] font-black text-slate-900 tabular-nums">GH₵ {(o.vendorShare || o.totalAmount * 0.9).toLocaleString()}</span>
                                                     </div>
+                                                    {o.deliveryType === 'inter-regional' && (
+                                                        <div className="flex justify-between items-center gap-4 pt-1 border-t border-slate-100">
+                                                            <span className="text-[9px] font-black text-blue-500 uppercase">1st Mile Fee</span>
+                                                            <div className="text-right">
+                                                                <span className="text-[10px] font-black text-blue-600 tabular-nums block">GH₵ {o.firstMileFee || 'TBD'}</span>
+                                                                {o.firstMileFee > 0 && (
+                                                                    <span className={`text-[7px] font-black uppercase tracking-widest ${o.isFirstMileFeePaid ? 'text-emerald-500' : 'text-amber-500'}`}>
+                                                                        {o.isFirstMileFeePaid ? 'PAID' : 'PENDING'}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </td>
                                             <td className="px-8 py-6 border-r border-slate-50">
@@ -1101,7 +1128,7 @@ export default function AdminDashboard() {
                                                     <button
                                                         onClick={() => setSelectedOrder(o)}
                                                         className="px-5 py-2 bg-slate-50 text-slate-400 text-[10px] font-black rounded-full uppercase tracking-widest hover:bg-slate-900 hover:text-white transition-all border border-slate-100"
-                                                    >
+                                                        >
                                                         Details
                                                     </button>
                                                 )}
@@ -1483,7 +1510,7 @@ export default function AdminDashboard() {
                             </button>
                         </Link>
                         <button
-                            onClick={() => { logout(); router.push('/'); }}
+                            onClick={handleLogout}
                             className="w-full flex items-center gap-4 px-6 py-4 text-red-400 hover:bg-red-500/10 rounded-2xl text-xs font-black uppercase tracking-widest transition-all group text-left"
                         >
                             <LogOut className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
@@ -1809,8 +1836,8 @@ export default function AdminDashboard() {
                                                 <tr key={idx} className="bg-white">
                                                     <td className="px-6 py-4">
                                                         <div className="flex items-center gap-4">
-                                                            <div className="w-12 h-12 bg-slate-50 rounded-xl overflow-hidden relative border border-slate-100">
-                                                                <Image src={getImageUrl(item.image)} alt={item.name} fill className="object-cover" />
+                                                            <div className="w-12 h-16 bg-slate-50 rounded-lg overflow-hidden relative flex-shrink-0">
+                                                                <Image src={getImageUrl(item.image)} alt={item.name} fill sizes="48px" className="object-cover" />
                                                             </div>
                                                             <span className="font-black text-slate-900 text-sm uppercase tracking-tighter">{item.name}</span>
                                                         </div>
@@ -1835,8 +1862,8 @@ export default function AdminDashboard() {
                             {selectedOrder.paymentProof && (
                                 <div className="space-y-4">
                                     <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Payment Verification Artifact</h3>
-                                    <div className="relative aspect-video max-w-md bg-slate-100 rounded-[32px] overflow-hidden border-4 border-white shadow-lg">
-                                        <Image src={getImageUrl(selectedOrder.paymentProof)} alt="Payment Proof" fill className="object-cover" />
+                                    <div className="relative aspect-video bg-slate-50 rounded-3xl overflow-hidden border border-slate-100 shadow-inner group">
+                                        <Image src={getImageUrl(selectedOrder.paymentProof)} alt="Payment Proof" fill sizes="(max-width: 768px) 100vw, 600px" className="object-cover" />
                                         <div className="absolute inset-0 bg-black/20 hover:bg-transparent transition-colors cursor-zoom-in" onClick={() => window.open(getImageUrl(selectedOrder.paymentProof), '_blank')} />
                                     </div>
                                 </div>

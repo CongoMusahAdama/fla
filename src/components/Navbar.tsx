@@ -27,6 +27,30 @@ export default function Navbar() {
         }
     };
 
+    const handleLogout = () => {
+        Swal.fire({
+            title: 'End Session?',
+            text: "Are you sure you want to sign out?",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#0F172A',
+            cancelButtonColor: '#F1F5F9',
+            confirmButtonText: 'Yes, Sign Out',
+            cancelButtonText: 'Cancel',
+            reverseButtons: true,
+            customClass: {
+                popup: 'rounded-[24px] border border-slate-100 shadow-xl',
+                confirmButton: 'rounded-full px-6 py-2.5 uppercase text-[10px] font-black tracking-widest bg-slate-900 text-white',
+                cancelButton: 'rounded-full px-6 py-2.5 uppercase text-[10px] font-black tracking-widest text-slate-500'
+            }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                logout();
+                router.push('/');
+            }
+        });
+    };
+
     useEffect(() => {
         const handleScroll = () => {
             setIsScrolled(window.scrollY > 20);
@@ -213,7 +237,7 @@ export default function Navbar() {
                                             <Link href={user?.role === 'vendor' || user?.role === 'admin' ? '/admin' : '/dashboard'} className="text-slate-700 p-2 hover:text-slate-900 transition-colors">
                                                 <User className="h-5 w-5" />
                                             </Link>
-                                            <button onClick={logout} className="text-slate-400 p-2 hover:text-red-500 transition-colors">
+                                             <button onClick={handleLogout} className="text-slate-400 p-2 hover:text-red-500 transition-colors">
                                                 <LogOut className="h-4 w-4" />
                                             </button>
                                         </div>

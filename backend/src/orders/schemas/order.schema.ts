@@ -148,6 +148,37 @@ export class Order {
 
     @Prop()
     paymentRef?: string;
+
+    @Prop({
+        type: String,
+        enum: ['intra-regional', 'inter-regional'],
+        default: 'intra-regional'
+    })
+    deliveryType: string;
+
+    @Prop({ default: 0 })
+    firstMileFee: number;
+
+    @Prop({ default: false })
+    isFirstMileFeePaid: boolean;
+
+    @Prop()
+    firstMileFeePaidAt?: Date;
+
+    @Prop()
+    firstMilePaymentProof?: string;
+
+    @Prop()
+    firstMilePaymentSubmittedAt?: Date;
+
+    @Prop({ default: false })
+    firstMilePaymentVerifiedByVendor: boolean;
+
+    @Prop()
+    firstMilePaymentVerifiedAt?: Date;
+
+    @Prop()
+    firstMilePaymentId?: string;
 }
 
 export const OrderSchema = SchemaFactory.createForClass(Order);

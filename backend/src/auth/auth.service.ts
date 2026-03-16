@@ -112,6 +112,12 @@ export class AuthService {
     // Send the welcome email
     await this.emailService.sendWelcomeEmail(user.email, user.name || 'Vendor', user.shopName || 'FLA Studio');
 
+    // Send Notification Email
+    if (user.email) {
+        const message = `Welcome to FLA, ${user.shopName || user.name}! Your studio account is active. Check your email for login credentials.`;
+        await this.emailService.sendGenericNotification(user.email, user.name || 'Vendor', 'Welcome to FLA Studio! 🚀', message);
+    }
+
     return user;
   }
 

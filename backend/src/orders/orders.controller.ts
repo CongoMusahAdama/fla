@@ -131,4 +131,34 @@ export class OrdersController {
     if (req.user.role !== 'admin') throw new Error('Unauthorized - Admin only');
     return this.ordersService.approveEscrow(id);
   }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Patch(':id/first-mile-fee')
+  setFirstMileFee(@Param('id') id: string, @Body() body: { fee: number }, @Request() req) {
+    if (req.user.role !== 'vendor' && req.user.role !== 'admin') {
+      throw new Error('Unauthorized - Only vendors can set delivery fees');
+    }
+    return this.ordersService.setFirstMileFee(id, req.user.userId, body.fee);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Post(':id/initialize-first-mile-payment')
+  initializeFirstMilePayment(@Param('id') id: string, @Request() req) {
+    return this.ordersService.initializeFirstMilePayment(id, req.user.userId);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Post(':id/submit-first-mile-proof')
+  submitFirstMileProof(@Param('id') id: string, @Body() body: { proofUrl: string }, @Request() req) {
+    return this.ordersService.submitFirstMilePaymentProof(id, req.user.userId, body.proofUrl);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Post(':id/verify-first-mile-payment')
+  verifyFirstMilePayment(@Param('id') id: string, @Request() req) {
+    if (req.user.role !== 'vendor' && req.user.role !== 'admin') {
+      throw new Error('Only vendors can verify delivery fees');
+    }
+    return this.ordersService.verifyFirstMilePayment(id, req.user.userId);
+  }
 }

@@ -12,6 +12,12 @@ import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 
 // Wrap content in Suspense for search params
+const GHANA_REGIONS = [
+    'Ahafo', 'Ashanti', 'Bono', 'Bono East', 'Central', 'Eastern', 
+    'Greater Accra', 'North East', 'Northern', 'Oti', 'Savannah', 
+    'Upper East', 'Upper West', 'Volta', 'Western', 'Western North'
+];
+
 function ShopContent() {
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const [products, setProducts] = useState<any[]>([]);
@@ -32,6 +38,9 @@ function ShopContent() {
                 if (localSearch) {
                     url += `search=${localSearch}&`;
                 }
+                if (activeFilters.Region) {
+                    url += `region=${activeFilters.Region}&`;
+                }
 
                 const response = await fetch(url);
                 if (response.ok) {
@@ -50,7 +59,7 @@ function ShopContent() {
         }, 500); // Debounce search
 
         return () => clearTimeout(timer);
-    }, [activeCategory, localSearch]);
+    }, [activeCategory, localSearch, activeFilters.Region]);
 
     const searchParams = useSearchParams();
     const searchQuery = searchParams.get('search');
@@ -63,6 +72,7 @@ function ShopContent() {
     }, [searchQuery]);
 
     const filterData: Record<string, string[]> = {
+        Region: GHANA_REGIONS,
         Color: ['Black', 'White', 'Blue', 'Purple', 'Green'],
         Size: ['Small', 'Medium', 'Large', 'XL', 'XXL'],
         Brand: ['FLA Bespoke', 'Signature Print', 'Urban Thread'],
@@ -174,7 +184,7 @@ function ShopContent() {
                         </div>
 
                         {/* Filter Wrappers for Consistency */}
-                        {['Color', 'Size', 'Price'].map((filter) => (
+                        {['Region', 'Color', 'Size', 'Price'].map((filter) => (
                             <div className="relative" key={filter}>
                                 <button
                                     onClick={() => toggleDropdown(filter)}
@@ -260,6 +270,7 @@ function ShopContent() {
                                     vendorName={product.vendorName}
                                     uniqueVendorId={product.uniqueVendorId}
                                     hasSizes={product.hasSizes}
+                                    region={product.region}
                                 />
                             ))}
                         </div>

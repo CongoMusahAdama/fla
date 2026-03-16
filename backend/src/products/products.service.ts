@@ -38,6 +38,10 @@ export class ProductsService {
       filters.isFeatured = query.isFeatured === 'true';
     }
 
+    if (query.region) {
+      filters.region = query.region;
+    }
+
     if (query.search) {
       // Find vendors that match the search term
       const matchingVendors = await this.userModel.find({
@@ -55,6 +59,7 @@ export class ProductsService {
         { name: { $regex: query.search, $options: 'i' } },
         { vendorName: { $regex: query.search, $options: 'i' } },
         { description: { $regex: query.search, $options: 'i' } },
+        { region: { $regex: query.search, $options: 'i' } },
         { vendorId: { $in: matchingVendorIds } }
       ];
     }
@@ -63,7 +68,7 @@ export class ProductsService {
       filters.vendorId = query.vendorId;
     }
 
-    let q = this.productModel.find(filters).populate('vendorId', 'uniqueVendorId');
+    let q = this.productModel.find(filters).populate('vendorId', 'uniqueVendorId region');
 
     if (query.sort === 'latest' || query.filter === 'New Arrival') {
       q = q.sort({ createdAt: -1 });
@@ -83,16 +88,22 @@ export class ProductsService {
       if (!productObj.uniqueVendorId && productObj.vendorId && (productObj.vendorId as any).uniqueVendorId) {
         productObj.uniqueVendorId = (productObj.vendorId as any).uniqueVendorId;
       }
+      if (!productObj.region && productObj.vendorId && (productObj.vendorId as any).region) {
+        productObj.region = (productObj.vendorId as any).region;
+      }
       return productObj;
     });
   }
 
   async findByVendor(vendorId: string): Promise<Product[]> {
-    const products = await this.productModel.find({ vendorId: vendorId }).populate('vendorId', 'uniqueVendorId').exec();
+    const products = await this.productModel.find({ vendorId: vendorId }).populate('vendorId', 'uniqueVendorId region').exec();
     return products.map(p => {
       const productObj = p.toObject();
       if (!productObj.uniqueVendorId && productObj.vendorId && (productObj.vendorId as any).uniqueVendorId) {
         productObj.uniqueVendorId = (productObj.vendorId as any).uniqueVendorId;
+      }
+      if (!productObj.region && productObj.vendorId && (productObj.vendorId as any).region) {
+        productObj.region = (productObj.vendorId as any).region;
       }
       return productObj;
     });
@@ -103,9 +114,12 @@ export class ProductsService {
     if (!product) {
       throw new NotFoundException(`Product with ID ${id} not found`);
     }
-    const productObj = product.toObject();
+    const productObj = product.toObject() as any;
     if (!productObj.uniqueVendorId && productObj.vendorId && (productObj.vendorId as any).uniqueVendorId) {
       productObj.uniqueVendorId = (productObj.vendorId as any).uniqueVendorId;
+    }
+    if (!productObj.region && productObj.vendorId && (productObj.vendorId as any).region) {
+      productObj.region = (productObj.vendorId as any).region;
     }
     return productObj as any;
   }

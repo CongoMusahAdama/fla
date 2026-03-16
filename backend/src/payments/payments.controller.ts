@@ -32,16 +32,24 @@ export class PaymentsController {
         this.logger.log(`Paystack Webhook received: ${payload.event}`);
 
         if (payload.event === 'charge.success') {
-            const { reference, id: transactionId, amount, status } = payload.data;
+            const { reference, id: transactionId, amount, status, metadata } = payload.data;
 
             if (status === 'success') {
                 // Double verify with Paystack API to be absolutely sure
                 const verification = await this.paystackService.verifyTransaction(reference);
 
                 if (verification.status === true && verification.data.status === 'success' && verification.data.amount >= amount) {
-                    // Update the order
-                    this.logger.log(`Payment successful for order: ${reference}`);
-                    await this.ordersService.handlePaymentSuccess(reference, transactionId.toString());
+                    const orderId = metadata?.orderId || reference;
+                    const paymentType = metadata?.paymentType;
+
+                    if (paymentType === 'first_mile_fee') {
+                        this.logger.log(`First-mile delivery fee payment successful for order: ${orderId}`);
+                        await this.ordersService.handleFirstMilePaymentSuccess(orderId, transactionId.toString());
+                    } else {
+                        // Default to main order payment
+                        this.logger.log(`Main order payment successful for order: ${orderId}`);
+                        await this.ordersService.handlePaymentSuccess(orderId, transactionId.toString());
+                    }
                 }
             }
         }

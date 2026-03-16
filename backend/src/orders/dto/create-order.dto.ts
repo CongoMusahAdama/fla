@@ -92,4 +92,8 @@ export class CreateOrderDto {
     @IsString()
     @IsOptional()
     pickupPoint?: string;
+
+    @IsString()
+    @IsOptional()
+    deliveryType?: string;
 }

@@ -1,10 +1,11 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { Clock, ChevronLeft, ChevronRight, X, MessageSquare, ShoppingBag, Star, Zap, Shield, Check, Heart } from 'lucide-react';
+import { Clock, ChevronLeft, ChevronRight, X, MessageSquare, ShoppingBag, Star, Zap, Shield, Check, Heart, MapPin } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
+import { getImageUrl } from '@/lib/utils';
 
 import Swal from 'sweetalert2';
 
@@ -26,9 +27,10 @@ interface ProductCardProps {
     vendorName?: string;
     uniqueVendorId?: string;
     hasSizes?: boolean;
+    region?: string;
 }
 
-export default function ProductCard({ id, name, price, images, sizes = [], imageLabels, duration = '3 working days', stock, index, vendorId, initialWishlistState = false, description, rating = 0, reviewCount = 0, vendorName, uniqueVendorId, hasSizes = true }: ProductCardProps) {
+export default function ProductCard({ id, name, price, images, sizes = [], imageLabels, duration = '3 working days', stock, index, vendorId, initialWishlistState = false, description, rating = 0, reviewCount = 0, vendorName, uniqueVendorId, hasSizes = true, region }: ProductCardProps) {
     const isBatch = false;
     const currentPrice = price;
 
@@ -43,19 +45,6 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
     const [imgError, setImgError] = useState(false);
     const router = useRouter();
 
-    const getImageUrl = (url: string | undefined | null) => {
-        if (!url || url === '/product-1.jpg') return '/product-1.jpg';
-        if (url.startsWith('http') || url.startsWith('data:') || url.startsWith('blob:')) return url;
-
-        const apiBase = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api');
-        const baseUrl = apiBase.replace(/\/api\/?$/, '');
-
-        if (url.startsWith('/uploads/')) return `${baseUrl}${url}`;
-        if (url.startsWith('uploads/')) return `${baseUrl}/${url}`;
-        if (url.startsWith('/')) return url;
-
-        return `${baseUrl}/uploads/${url}`;
-    };
 
 
     const handleVendorProfile = async (e: React.MouseEvent | React.TouchEvent) => {
@@ -236,6 +225,7 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                 quantity: 1,
                 vendorId: finalVendorId,
                 vendorName: vendorName,
+                vendorRegion: region,
             });
             setIsAdding(false);
             const Toast = Swal.mixin({
@@ -560,6 +550,7 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                             src={imgError ? '/product-1.jpg' : getImageUrl(images[currentImageIndex])}
                             alt={`${name} view ${currentImageIndex + 1}`}
                             fill
+                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                             unoptimized={true}
                             className={`object-contain transition-all duration-700 group-hover/image:scale-105 ${isSoldOut ? 'grayscale contrast-[0.8] opacity-60' : ''}`}
                             onError={() => setImgError(true)}
@@ -584,6 +575,14 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                                 {uniqueVendorId && <span className="text-slate-900 ml-2 bg-brand-lemon px-2 py-0.5 rounded-full text-[8px] font-black shadow-sm">{uniqueVendorId}</span>}
                             </span>
                             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)] group-hover/vendor:animate-pulse"></div>
+                        </div>
+                    )}
+
+                    {/* Region Badge */}
+                    {region && (
+                        <div className="flex items-center gap-1.5 text-slate-400">
+                            <MapPin className="w-3 h-3 text-brand-lemon" />
+                            <span className="text-[10px] font-black uppercase tracking-widest">{region}</span>
                         </div>
                     )}
 
@@ -731,6 +730,7 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                                             src={getImageUrl(img)}
                                             alt="thumb"
                                             fill
+                                            sizes="64px"
                                             unoptimized={true}
                                             className="object-cover"
 

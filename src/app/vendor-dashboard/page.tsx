@@ -133,8 +133,27 @@ export default function VendorDashboard() {
     };
 
     const handleLogout = () => {
-        logout();
-        router.push('/');
+        Swal.fire({
+            title: 'End Session?',
+            text: "Are you sure you want to sign out of the Vendor Panel?",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#0F172A',
+            cancelButtonColor: '#F1F5F9',
+            confirmButtonText: 'Yes, Sign Out',
+            cancelButtonText: 'Cancel',
+            reverseButtons: true,
+            customClass: {
+                popup: 'rounded-[32px] border border-slate-100 shadow-2xl',
+                confirmButton: 'rounded-full px-8 py-3 uppercase text-[10px] font-black tracking-widest bg-slate-900 text-white',
+                cancelButton: 'rounded-full px-8 py-3 uppercase text-[10px] font-black tracking-widest text-slate-500'
+            }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                logout();
+                router.push('/');
+            }
+        });
     };
 
     if (isLoading || loading) {

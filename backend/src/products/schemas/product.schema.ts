@@ -63,7 +63,7 @@ export class Product {
     tailoringTime: string;
 
     @Prop()
-    fabrication: string;
+    region: string;
 
     @Prop()
     uniqueVendorId: string;

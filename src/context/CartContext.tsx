@@ -11,6 +11,7 @@ export type CartItem = {
     quantity: number;
     vendorId?: string;
     vendorName?: string;
+    vendorRegion?: string;
 };
 
 type CartContextType = {

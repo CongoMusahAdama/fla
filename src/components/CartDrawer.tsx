@@ -7,6 +7,7 @@ import { X, Minus, Plus, ShoppingBag, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import Swal from 'sweetalert2';
 import { useRouter } from 'next/navigation';
+import { getImageUrl } from '@/lib/utils';
 
 export default function CartDrawer() {
     const { cartItems, isCartOpen, setIsCartOpen, removeFromCart, updateQuantity } = useCart();
@@ -44,19 +45,6 @@ export default function CartDrawer() {
         }
     }, [isCartOpen]);
 
-    const getImageUrl = (url: string | undefined | null) => {
-        if (!url || url === '/product-1.jpg') return '/product-1.jpg';
-        if (url.startsWith('http') || url.startsWith('data:') || url.startsWith('blob:')) return url;
-
-        const apiBase = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api');
-        const baseUrl = apiBase.replace(/\/api\/?$/, '');
-
-        if (url.startsWith('/uploads/')) return `${baseUrl}${url}`;
-        if (url.startsWith('uploads/')) return `${baseUrl}/${url}`;
-        if (url.startsWith('/')) return url;
-
-        return `${baseUrl}/uploads/${url}`;
-    };
 
 
     const subtotal = cartItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
@@ -121,7 +109,12 @@ export default function CartDrawer() {
                             </div>
                             <div class="space-y-2">
                                 <label class="text-[10px] text-slate-400 font-black uppercase tracking-widest ml-1">Region</label>
-                                <input id="delivery-region" type="text" placeholder="e.g. Greater Accra" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20" value="${user?.region || ''}" />
+                                <select id="delivery-region" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20">
+                                    <option value="">Select Region</option>
+                                    ${['Greater Accra', 'Ashanti', 'Western', 'Central', 'Eastern', 'Volta', 'Northern', 'Upper East', 'Upper West', 'Bono', 'Bono East', 'Ahafo', 'Savannah', 'North East', 'Oti', 'Western North'].map(r => `
+                                        <option value="${r}" ${user?.region === r ? 'selected' : ''}>${r}</option>
+                                    `).join('')}
+                                </select>
                             </div>
                         </div>
                     </div>
@@ -139,7 +132,7 @@ export default function CartDrawer() {
             preConfirm: () => {
                 const deliveryAddress = (document.getElementById('delivery-address') as HTMLInputElement).value;
                 const deliveryCity = (document.getElementById('delivery-city') as HTMLInputElement).value;
-                const deliveryRegion = (document.getElementById('delivery-region') as HTMLInputElement).value;
+                const deliveryRegion = (document.getElementById('delivery-region') as HTMLSelectElement).value;
                 if (!deliveryAddress || !deliveryCity || !deliveryRegion) {
                     Swal.showValidationMessage('Please provide your complete delivery location');
                     return false;
@@ -190,6 +183,9 @@ export default function CartDrawer() {
                     shippingAddress: formValues.deliveryAddress,
                     shippingCity: formValues.deliveryCity,
                     shippingRegion: formValues.deliveryRegion,
+                    deliveryType: cartItems[0]?.vendorRegion && cartItems[0].vendorRegion === formValues.deliveryRegion 
+                        ? 'intra-regional' 
+                        : 'inter-regional',
                     customerName: user?.name,
                     customerEmail: user?.email,
                     customerPhone: user?.phone,

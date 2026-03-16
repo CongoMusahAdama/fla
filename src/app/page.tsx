@@ -166,6 +166,7 @@ export default function Home() {
                     index={index}
                     description={product.description}
                     hasSizes={product.hasSizes}
+                    vendorRegion={product.vendorRegion}
                   />
                 ))
               ) : (

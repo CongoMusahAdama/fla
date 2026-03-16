@@ -36,8 +36,8 @@ export default function Hero() {
                 <div className={`absolute bottom-12 md:bottom-24 left-8 md:left-16 z-10 transition-all duration-1000 ease-out ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
                     }`}>
                     <h1 className="font-heading text-4xl md:text-7xl font-bold text-white md:text-slate-900 tracking-tight leading-tight mb-8">
-                        The Art of Style <br />
-                        <span className="text-[#E5FF7F]">by FLA Purchase.</span>
+                        SHOP WITH CONFIDENCE <br />
+                        <span className="text-[#E5FF7F]">BY FLA PURCHASE</span>
                     </h1>
 
                     <div className="flex flex-wrap gap-4">

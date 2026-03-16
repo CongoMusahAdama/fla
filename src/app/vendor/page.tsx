@@ -12,7 +12,14 @@ import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
+import { getImageUrl } from '@/lib/utils';
 import Swal from 'sweetalert2';
+
+const GHANA_REGIONS = [
+    'Ahafo', 'Ashanti', 'Bono', 'Bono East', 'Central', 'Eastern', 
+    'Greater Accra', 'North East', 'Northern', 'Oti', 'Savannah', 
+    'Upper East', 'Upper West', 'Volta', 'Western', 'Western North'
+];
 
 // Reuse the WhatsApp Icon from customer dashboard
 const WhatsAppIcon = ({ className }: { className?: string }) => (
@@ -33,7 +40,7 @@ interface Product {
     sales: number;
     quantity: number;
     tailoringTime: string;
-    fabrication: string;
+    region: string;
     description: string;
     category: string;
     imageLabels?: string[];
@@ -59,19 +66,6 @@ export default function VendorDashboard() {
         setIsHydrated(true);
     }, []);
 
-    const getImageUrl = (url: string | undefined | null) => {
-        if (!url || url === '/product-1.jpg') return '/product-1.jpg';
-        if (url.startsWith('http') || url.startsWith('data:') || url.startsWith('blob:')) return url;
-
-        const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-        const baseUrl = apiBase.replace(/\/api\/?$/, '');
-
-        if (url.startsWith('/uploads/')) return `${baseUrl}${url}`;
-        if (url.startsWith('uploads/')) return `${baseUrl}/${url}`;
-        if (url.startsWith('/')) return url;
-
-        return `${baseUrl}/uploads/${url}`;
-    };
 
 
     // Profile States
@@ -85,10 +79,10 @@ export default function VendorDashboard() {
     const [editingProduct, setEditingProduct] = useState<Product | null>(null);
     const [formName, setFormName] = useState('');
     const [formPrice, setFormPrice] = useState('');
-    const [formCategory, setFormCategory] = useState('T-Shirt');
+    const [formCategory, setFormCategory] = useState('For men');
     const [formQuantity, setFormQuantity] = useState('');
     const [formTailoring, setFormTailoring] = useState('');
-    const [formFabric, setFormFabric] = useState('');
+    const [formRegion, setFormRegion] = useState('Greater Accra');
     const [formNarrative, setFormNarrative] = useState('');
     const [formImages, setFormImages] = useState<{ url: string, label: string }[]>([]);
     const [formSizes, setFormSizes] = useState<string[]>([]);
@@ -175,7 +169,7 @@ export default function VendorDashboard() {
                         sales: 0,
                         quantity: p.stock,
                         tailoringTime: p.tailoringTime || '3 Days',
-                        fabrication: p.fabrication || 'Cotton',
+                        region: p.region || 'Greater Accra',
                         description: p.description || '',
                         category: p.category || 'T-Shirt',
                         imageLabels: p.imageLabels || [],
@@ -307,7 +301,7 @@ export default function VendorDashboard() {
         setFormCategory('T-Shirt');
         setFormQuantity('');
         setFormTailoring('');
-        setFormFabric('');
+        setFormRegion('Greater Accra');
         setFormNarrative('');
         setFormImages([]);
         setFormSizes([]);
@@ -316,8 +310,18 @@ export default function VendorDashboard() {
     };
 
     const handleAddOrEditProduct = async () => {
-        if (!formName || !formPrice) {
-            Swal.fire({ icon: 'error', title: 'Missing Info', text: 'Please fill in the name and price.' });
+        const missing = [];
+        if (!formName.trim()) missing.push('Product Name');
+        if (!formPrice || Number(formPrice) <= 0) missing.push('Valid Price');
+        if (!formNarrative.trim()) missing.push('The Narrative (Description)');
+        if (!formCategory) missing.push('Category');
+
+        if (missing.length > 0) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Required Fields',
+                text: `Remaining: ${missing.join(', ')}`
+            });
             return;
         }
 
@@ -343,7 +347,7 @@ export default function VendorDashboard() {
                     imageLabels: formImages.map(img => img.label),
                     sizes: formSizes,
                     tailoringTime: formTailoring,
-                    fabrication: formFabric,
+                    region: formRegion,
                     hasSizes: formHasSizes,
                     vendorId: user?.id,
                     vendorName: user?.shopName,
@@ -351,9 +355,13 @@ export default function VendorDashboard() {
                 })
             });
 
-            if (!response.ok) throw new Error('Failed to save product');
+            const resultData = await response.json().catch(() => ({}));
 
-            const savedProduct = await response.json();
+            if (!response.ok) {
+                throw new Error(resultData.message || 'Failed to save product');
+            }
+
+            const savedProduct = resultData;
 
             if (editingProduct) {
                 setVendorProducts(prev => prev.map(p => p.id === editingProduct.id ? {
@@ -364,7 +372,7 @@ export default function VendorDashboard() {
                     category: savedProduct.category,
                     description: savedProduct.description,
                     tailoringTime: savedProduct.tailoringTime,
-                    fabrication: savedProduct.fabrication,
+                    region: savedProduct.region,
                     images: savedProduct.images?.map((img: string, idx: number) => ({
                         url: img,
                         label: savedProduct.imageLabels?.[idx] || 'Product'
@@ -390,7 +398,7 @@ export default function VendorDashboard() {
                     status: savedProduct.stock < 10 ? 'Low Stock' : 'In Stock',
                     sales: 0,
                     tailoringTime: savedProduct.tailoringTime || '3 Days',
-                    fabrication: savedProduct.fabrication || 'Cotton',
+                    region: savedProduct.region || 'Greater Accra',
                     sizes: savedProduct.sizes,
                     hasSizes: savedProduct.hasSizes
                 };
@@ -473,10 +481,10 @@ export default function VendorDashboard() {
         setEditingProduct(product);
         setFormName(product.name);
         setFormPrice(product.price);
-        setFormCategory(product.category || 'T-Shirt');
+        setFormCategory(product.category || 'For men');
         setFormQuantity(product.quantity?.toString() || '');
         setFormTailoring(product.tailoringTime || '');
-        setFormFabric(product.fabrication || '');
+        setFormRegion(product.region || 'Greater Accra');
         setFormNarrative(product.description || '');
         setFormImages(product.images || [{ url: product.image, label: 'Front' }]);
         setFormSizes(product.sizes || []);
@@ -659,6 +667,47 @@ export default function VendorDashboard() {
             Swal.fire({ icon: 'error', title: 'Error', text: error.message });
         }
     };
+
+    const handleSetDeliveryFee = async (orderId: string) => {
+        const { value: fee } = await Swal.fire({
+            title: 'SET DELIVERY FEE',
+            text: 'Enter the amount for 1st mile delivery (Vendor to Station)',
+            input: 'number',
+            inputAttributes: { min: '0', step: '1' },
+            showCancelButton: true,
+            confirmButtonText: 'SET FEE',
+            buttonsStyling: false,
+            customClass: {
+                popup: 'rounded-[32px] p-10',
+                confirmButton: 'bg-slate-900 text-white px-10 py-4 rounded-full text-[10px] font-black uppercase tracking-widest mr-3',
+                cancelButton: 'bg-slate-100 text-slate-400 px-10 py-4 rounded-full text-[10px] font-black uppercase tracking-widest',
+                input: 'bg-slate-50 border-none rounded-xl text-center font-black text-xl mb-4 h-16'
+            }
+        });
+
+        if (fee !== undefined) {
+            try {
+                const token = localStorage.getItem('fla_token');
+                const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders/${orderId}/first-mile-fee`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ fee: parseFloat(fee) })
+                });
+
+                if (!response.ok) throw new Error('Failed to set fee');
+
+                setVendorOrders(prev => prev.map(o => o._id === orderId ? { ...o, firstMileFee: parseFloat(fee) } : o));
+                Swal.fire({ icon: 'success', title: 'Fee Set', customClass: { popup: 'rounded-[32px]' } });
+            } catch (err) {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'Failed to set delivery fee.' });
+            }
+        }
+    };
+
+
 
     const handleVerifyPayment = async (orderId: string) => {
         try {
@@ -1006,6 +1055,7 @@ export default function VendorDashboard() {
                                             src={getImageUrl(product.image)}
                                             alt={product.name}
                                             fill
+                                            sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 200px"
                                             unoptimized={true}
                                             className="object-cover group-hover:scale-110 transition-transform duration-500"
                                             onError={(e) => {
@@ -1100,12 +1150,25 @@ export default function VendorDashboard() {
                                                         order.productName || 'Bespoke Item'
                                                     )}
                                                 </td>
-                                                <td className="px-8 py-6 border-r border-slate-50 min-w-[180px]">
+                                                <td className="px-8 py-6 border-r border-slate-50 min-w-[200px]">
                                                     <div className="flex flex-col gap-1">
                                                         <div className="flex items-center gap-1.5 text-slate-900 font-bold text-[10px] uppercase">
                                                             <MapPin className="w-3 h-3 text-brand-lemon" />
-                                                            {order.shippingCity || 'Studio Pickup'}
+                                                            {order.shippingCity || 'Studio Pickup'}, {order.shippingRegion}
                                                         </div>
+                                                        <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-tighter w-fit ${order.deliveryType === 'inter-regional' ? 'bg-amber-50 text-amber-600 border border-amber-200' : 'bg-slate-50 text-slate-400'}`}>
+                                                            {order.deliveryType === 'inter-regional' ? 'Inter-Regional' : 'Intra-Regional'}
+                                                        </span>
+                                                        {order.deliveryType === 'inter-regional' && (
+                                                            <div className="mt-1 flex flex-col gap-0.5">
+                                                                <p className="text-[9px] font-bold text-slate-500 uppercase">1st Mile Fee: <span className="text-slate-900 font-black">GH₵ {order.firstMileFee || 0}</span></p>
+                                                                {order.firstMileFee > 0 && (
+                                                                    <span className={`text-[8px] font-black uppercase tracking-tighter ${order.isFirstMileFeePaid ? 'text-emerald-500' : 'text-amber-500'}`}>
+                                                                        {order.isFirstMileFeePaid ? '● Fee Paid' : '○ Waiting Fee'}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        )}
                                                         <p className="text-[10px] text-slate-400 line-clamp-1">{order.shippingAddress || 'No Address Provided'}</p>
                                                     </div>
                                                 </td>
@@ -1142,6 +1205,7 @@ export default function VendorDashboard() {
                                                                 <Eye className="w-4 h-4" />
                                                             </button>
                                                         )}
+
                                                         {!order.paymentVerifiedByVendor && order.paymentProof && (
                                                             <button
                                                                 onClick={() => handleVerifyPayment(order._id)}
@@ -1150,7 +1214,7 @@ export default function VendorDashboard() {
                                                                 Verify Payment
                                                             </button>
                                                         )}
-                                                        {order.paymentVerifiedByVendor && order.status !== 'shipped' && order.status !== 'delivered' && (
+                                                        {order.paymentVerifiedByVendor && (order.deliveryType !== 'inter-regional' || order.isFirstMileFeePaid) && order.status !== 'shipped' && order.status !== 'delivered' && (
                                                             <button
                                                                 onClick={() => handleMarkShipped(order._id)}
                                                                 className="px-4 py-2 bg-blue-500 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-blue-600 transition-all shadow-md"
@@ -1158,6 +1222,15 @@ export default function VendorDashboard() {
                                                                 Mark Shipped
                                                             </button>
                                                         )}
+                                                        {order.deliveryType === 'inter-regional' && !order.firstMileFee && (
+                                                            <button
+                                                                onClick={() => handleSetDeliveryFee(order._id)}
+                                                                className="px-4 py-2 bg-slate-900 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-slate-800 transition-all shadow-md"
+                                                            >
+                                                                Set Delivery Fee
+                                                            </button>
+                                                        )}
+
                                                         {order.status === 'pending' && order.paymentProof && (
                                                             <button
                                                                 onClick={() => {
@@ -1398,6 +1471,7 @@ export default function VendorDashboard() {
                                         src={getImageUrl(bannerImage)}
                                         alt="Banner"
                                         fill
+                                        sizes="(max-width: 768px) 100vw, 800px"
                                         unoptimized={true}
                                         className="object-cover"
 
@@ -1423,6 +1497,7 @@ export default function VendorDashboard() {
                                                 src={getImageUrl(profileImage)}
                                                 alt="Avatar"
                                                 fill
+                                                sizes="128px"
                                                 unoptimized={true}
                                                 className="object-cover"
 
@@ -1881,7 +1956,7 @@ export default function VendorDashboard() {
                             className="w-8 h-8 rounded-full bg-slate-900 flex items-center justify-center text-white border-2 border-brand-lemon shadow-lg overflow-hidden relative active:scale-95 transition-transform"
                         >
                             {profileImage ? (
-                                <Image src={getImageUrl(profileImage)} alt="Avatar" fill className="object-cover" />
+                                <Image src={getImageUrl(profileImage)} alt="Avatar" fill sizes="32px" className="object-cover" />
                             ) : (
                                 <User className="w-4 h-4" />
                             )}
@@ -1954,6 +2029,7 @@ export default function VendorDashboard() {
                                                         src={getImageUrl(img.url)}
                                                         alt={`Preview ${idx}`}
                                                         fill
+                                                        sizes="200px"
                                                         className="object-cover"
                                                         unoptimized={img.url?.startsWith('blob:') || img.url?.startsWith('data:')}
                                                     />
@@ -2089,8 +2165,16 @@ export default function VendorDashboard() {
                                         </div>
 
                                         <div className="space-y-1.5">
-                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Fabrication</label>
-                                            <input type="text" value={formFabric} onChange={(e) => setFormFabric(e.target.value)} placeholder="e.g. 100% Cotton Print" className="w-full px-5 py-3.5 bg-slate-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20" />
+                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Region</label>
+                                            <select 
+                                                value={formRegion} 
+                                                onChange={(e) => setFormRegion(e.target.value)} 
+                                                className="w-full px-5 py-3.5 bg-slate-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20"
+                                            >
+                                                {GHANA_REGIONS.map(region => (
+                                                    <option key={region} value={region}>{region}</option>
+                                                ))}
+                                            </select>
                                         </div>
                                         <div className="space-y-1.5">
                                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">The Narrative (Description)</label>
@@ -2245,7 +2329,7 @@ export default function VendorDashboard() {
                                         {selectedOrder.items?.map((item: any, idx: number) => (
                                             <div key={idx} className="flex items-center gap-4 p-4 bg-white border border-slate-100 rounded-2xl">
                                                 <div className="w-14 h-14 bg-slate-50 rounded-xl flex-shrink-0 relative overflow-hidden">
-                                                    <Image src={getImageUrl(item.image)} alt={item.name} fill className="object-cover" />
+                                                    <Image src={getImageUrl(item.image)} alt={item.name} fill sizes="56px" className="object-cover" />
                                                 </div>
                                                 <div className="flex-1">
                                                     <p className="text-sm font-black text-slate-900 uppercase tracking-tight">{item.name}</p>
