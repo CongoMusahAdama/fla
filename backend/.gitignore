@@ -40,7 +40,7 @@ Thumbs.db
 *.sublime-workspace
 
 # Uploads and user-generated content
-uploads/
+/uploads/
 temp/
 tmp/
 
