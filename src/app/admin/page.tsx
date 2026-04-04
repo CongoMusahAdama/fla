@@ -58,7 +58,6 @@ export default function AdminDashboard() {
         setSettings(newSettings); // Optimistic update
 
         try {
-            const token = localStorage.getItem('fla_token');
 
             // Map frontend key to backend key
             const backendUpdates: any = {};
@@ -73,9 +72,9 @@ export default function AdminDashboard() {
                 await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/settings`, {
                     method: 'PATCH',
                     headers: {
-                        'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
                     },
+                    credentials: 'include',
                     body: JSON.stringify(backendUpdates)
                 });
 
@@ -101,20 +100,17 @@ export default function AdminDashboard() {
     const refreshData = async () => {
         setLoading(true);
         try {
-            const token = localStorage.getItem('fla_token');
-            if (!token) return;
 
             const headers = {
-                'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
             };
 
             const [statsRes, ordersRes, usersRes, productsRes, settingsRes] = await Promise.all([
-                fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/dashboard/admin/stats`, { headers }),
-                fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders`, { headers }),
-                fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/users`, { headers }),
-                fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/products`, { headers }),
-                fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/settings`, { headers })
+                fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/dashboard/admin/stats`, { headers, credentials: 'include' }),
+                fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders`, { headers, credentials: 'include' }),
+                fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/users`, { headers, credentials: 'include' }),
+                fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/products`, { headers, credentials: 'include' }),
+                fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/settings`, { headers, credentials: 'include' })
             ]);
 
             if (statsRes.ok) setAdminData(await statsRes.json());
@@ -195,13 +191,12 @@ export default function AdminDashboard() {
 
     const handleConfirmPayment = async (orderId: string) => {
         try {
-            const token = localStorage.getItem('fla_token');
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders/${orderId}`, {
                 method: 'PATCH',
                 headers: {
-                    'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
+                credentials: 'include',
                 body: JSON.stringify({ isPaid: true, status: 'confirmed' })
             });
 
@@ -224,13 +219,12 @@ export default function AdminDashboard() {
 
     const handleUpdateUserStatus = async (userId: string, status: string) => {
         try {
-            const token = localStorage.getItem('fla_token');
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/users/${userId}`, {
                 method: 'PATCH',
                 headers: {
-                    'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
+                credentials: 'include',
                 body: JSON.stringify({ status })
             });
 
@@ -268,10 +262,9 @@ export default function AdminDashboard() {
 
         if (result.isConfirmed) {
             try {
-                const token = localStorage.getItem('fla_token');
                 await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/users/${userId}`, {
                     method: 'DELETE',
-                    headers: { 'Authorization': `Bearer ${token}` }
+                    credentials: 'include'
                 });
                 await refreshData();
                 Swal.fire('Deleted!', 'User has been removed.', 'success');
@@ -283,13 +276,12 @@ export default function AdminDashboard() {
 
     const handleToggleProductStatus = async (productId: string, currentStatus: boolean) => {
         try {
-            const token = localStorage.getItem('fla_token');
             await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/products/${productId}`, {
                 method: 'PATCH',
                 headers: {
-                    'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
+                credentials: 'include',
                 body: JSON.stringify({ isActive: !currentStatus })
             });
             await refreshData();
@@ -321,10 +313,9 @@ export default function AdminDashboard() {
 
         if (result.isConfirmed) {
             try {
-                const token = localStorage.getItem('fla_token');
                 await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/products/${productId}`, {
                     method: 'DELETE',
-                    headers: { 'Authorization': `Bearer ${token}` }
+                    credentials: 'include'
                 });
                 await refreshData();
                 Swal.fire('Purged!', 'Design removed from archives.', 'success');
@@ -352,13 +343,12 @@ export default function AdminDashboard() {
 
         if (result.isConfirmed) {
             try {
-                const token = localStorage.getItem('fla_token');
                 const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders/${orderId}/resolve-dispute`, {
                     method: 'POST',
                     headers: {
-                        'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
                     },
+                    credentials: 'include',
                     body: JSON.stringify({ resolution })
                 });
 
@@ -376,13 +366,12 @@ export default function AdminDashboard() {
         e.preventDefault();
         setIsSubmitting(true);
         try {
-            const token = localStorage.getItem('fla_token');
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/auth/admin/create-vendor`, {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
+                credentials: 'include',
                 body: JSON.stringify(newVendorData)
             });
 
@@ -956,10 +945,9 @@ export default function AdminDashboard() {
                                                 <button
                                                     onClick={async () => {
                                                         try {
-                                                            const token = localStorage.getItem('fla_token');
                                                             const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders/${o._id}/approve-escrow`, {
                                                                 method: 'POST',
-                                                                headers: { 'Authorization': `Bearer ${token}` }
+                                                                credentials: 'include'
                                                             });
                                                             if (!res.ok) throw new Error('Failed to approve');
                                                             Swal.fire({ icon: 'success', title: 'Funds Released', timer: 1500, showConfirmButton: false });
@@ -1104,10 +1092,9 @@ export default function AdminDashboard() {
                                                         {o.isPaid && o.escrowStatus === 'waiting_approval' && (
                                                             <button onClick={async () => {
                                                                 try {
-                                                                    const token = localStorage.getItem('fla_token');
                                                                     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders/${o._id}/approve-escrow`, {
                                                                         method: 'POST',
-                                                                        headers: { 'Authorization': `Bearer ${token}` }
+                                                                        credentials: 'include'
                                                                     });
                                                                     if (!res.ok) throw new Error('Failed to approve');
                                                                     Swal.fire({ icon: 'success', title: 'Funds Released', timer: 1500, showConfirmButton: false });

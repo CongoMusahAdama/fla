@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
+import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -9,9 +10,20 @@ async function bootstrap() {
 
   // Enable security headers with Helmet
   const helmet = require('helmet');
+  const cookieParser = require('cookie-parser');
+  app.use(cookieParser());
   app.use(helmet({
     crossOriginResourcePolicy: { policy: "cross-origin" },
-    contentSecurityPolicy: false, // Set to false if you're serving a frontend that needs specific CSP
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'"],
+        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+        fontSrc: ["'self'", "https://fonts.gstatic.com"],
+        imgSrc: ["'self'", "data:", "https://res.cloudinary.com"],
+        connectSrc: ["'self'", "*"], // Temporarily broad for dev, should be restricted to API in prod
+      },
+    },
   }));
 
   // Enable CORS with specific whitelist for security
@@ -32,10 +44,10 @@ async function bootstrap() {
     allowedHeaders: 'Content-Type, Accept, Authorization, X-Requested-With',
   });
 
-  // Enable body parser with higher limit
+  // Enable body parser with reasonable limit
   const express = require('express');
-  app.use(express.json({ limit: '50mb' }));
-  app.use(express.urlencoded({ limit: '50mb', extended: true }));
+  app.use(express.json({ limit: '10mb' }));
+  app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
   // Enable validation with strict whitelisting
   app.useGlobalPipes(new ValidationPipe({
@@ -46,6 +58,9 @@ async function bootstrap() {
 
   // Set global prefix
   app.setGlobalPrefix('api');
+
+  // Register global exception filter
+  app.useGlobalFilters(new AllExceptionsFilter());
 
   // Serve uploads
   const path = require('path');

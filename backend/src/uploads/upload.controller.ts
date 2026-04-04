@@ -13,6 +13,15 @@ export class UploadController {
     @UseInterceptors(
         FileInterceptor('file', {
             storage: memoryStorage(),
+            limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+            fileFilter: (req, file, callback) => {
+                const allowedMimes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
+                if (allowedMimes.includes(file.mimetype)) {
+                    callback(null, true);
+                } else {
+                    callback(new Error('Invalid file type. Only JPEG, PNG, and PDF are allowed.'), false);
+                }
+            },
         }),
     )
     async uploadFile(@UploadedFile() file: Express.Multer.File) {

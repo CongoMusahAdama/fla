@@ -150,12 +150,10 @@ export default function CartDrawer() {
             backdrop: 'rgba(15, 23, 42, 0.7)'
         });
 
-        if (isConfirmed) {
-            setIsProcessingCheckout(true);
-            try {
-                const token = localStorage.getItem('fla_token');
-
-                Swal.fire({
+            if (isConfirmed) {
+                setIsProcessingCheckout(true);
+                try {
+                    Swal.fire({
                     title: 'PREPARING PAYMENT...',
                     text: 'Connecting to secure MoMo gateway...',
                     allowOutsideClick: false,
@@ -197,9 +195,9 @@ export default function CartDrawer() {
                 const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders`, {
                     method: 'POST',
                     headers: {
-                        'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
                     },
+                    credentials: 'include',
                     body: JSON.stringify(orderData)
                 });
 

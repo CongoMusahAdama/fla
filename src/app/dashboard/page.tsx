@@ -36,8 +36,6 @@ export default function CustomerDashboard() {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [trackingOrder, setTrackingOrder] = useState<any>(null);
     const [orderFilter, setOrderFilter] = useState('All');
-    const [ratingOrder, setRatingOrder] = useState<any>(null);
-    const [ratingValue, setRatingValue] = useState(0);
     const [selectedReceipt, setSelectedReceipt] = useState<any>(null);
 
     // Help Center States
@@ -93,19 +91,15 @@ export default function CustomerDashboard() {
         if (!user) return;
 
         try {
-            const token = localStorage.getItem('fla_token');
-            if (!token) return;
+            const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
             const headers = {
-                'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
             };
 
-            const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-
             const fetchData = async (endpoint: string, setter: (data: any) => void) => {
                 try {
-                    const res = await fetch(`${apiBase}${endpoint}`, { headers });
+                    const res = await fetch(`${apiBase}${endpoint}`, { headers, credentials: 'include' });
                     if (res.ok) {
                         const data = await res.json();
                         setter(data);
@@ -205,13 +199,12 @@ export default function CustomerDashboard() {
     const handleUpdateProfile = async () => {
         setIsUpdating(true);
         try {
-            const token = localStorage.getItem('fla_token');
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/auth/profile`, {
                 method: 'PATCH',
                 headers: {
-                    'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
+                credentials: 'include',
                 body: JSON.stringify({
                     name: profileName,
                     email: profileEmail,
@@ -321,13 +314,12 @@ export default function CustomerDashboard() {
 
         setIsSubmittingDispute(true);
         try {
-            const token = localStorage.getItem('fla_token');
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders/${disputeOrderId}/dispute`, {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
+                credentials: 'include',
                 body: JSON.stringify({
                     reason: `${disputeCategory}: ${disputeDescription}`
                 })
@@ -398,13 +390,12 @@ export default function CustomerDashboard() {
                 const formData = new FormData();
                 formData.append('file', file);
 
-                const token = localStorage.getItem('fla_token');
                 const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
                 // 1. Upload the file
                 const uploadRes = await fetch(`${apiBase}/upload`, {
                     method: 'POST',
-                    headers: { 'Authorization': `Bearer ${token}` },
+                    credentials: 'include',
                     body: formData
                 });
 
@@ -415,9 +406,9 @@ export default function CustomerDashboard() {
                 const submitRes = await fetch(`${apiBase}/orders/${orderId}/submit-proof`, {
                     method: 'POST',
                     headers: {
-                        'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
                     },
+                    credentials: 'include',
                     body: JSON.stringify({ proofUrl: url })
                 });
 
@@ -450,12 +441,11 @@ export default function CustomerDashboard() {
                 didOpen: () => { Swal.showLoading(); }
             });
 
-            const token = localStorage.getItem('fla_token');
             const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
             const res = await fetch(`${apiBase}/orders/${orderId}/initialize-first-mile-payment`, {
                 method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
+                credentials: 'include'
             });
 
             if (!res.ok) throw new Error('Could not initialize payment');
@@ -487,13 +477,12 @@ export default function CustomerDashboard() {
 
         if (result.isConfirmed) {
             try {
-                const token = localStorage.getItem('fla_token');
                 const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders/${orderId}`, {
                     method: 'PATCH',
                     headers: {
-                        'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
                     },
+                    credentials: 'include',
                     body: JSON.stringify({ status: 'cancelled', escrowStatus: 'frozen' })
                 });
 
@@ -841,14 +830,7 @@ export default function CustomerDashboard() {
                                                 Report
                                             </button>
                                             <div className="flex gap-3">
-                                                {order.status === 'delivered' && (
-                                                    <button
-                                                        onClick={() => setRatingOrder({ id: order._id, name: order.items[0]?.name })}
-                                                        className="flex-1 py-3 bg-brand-lemon text-slate-900 rounded-full text-[10px] font-bold uppercase tracking-widest hover:shadow-lg transition-all text-center"
-                                                    >
-                                                        Rate
-                                                    </button>
-                                                )}
+
                                                 {order.status === 'shipped' && (
                                                     <button
                                                         onClick={async () => {
@@ -863,10 +845,9 @@ export default function CustomerDashboard() {
 
                                                             if (result.isConfirmed) {
                                                                 try {
-                                                                    const token = localStorage.getItem('fla_token');
                                                                     const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders/${order._id}/confirm-receipt`, {
                                                                         method: 'POST',
-                                                                        headers: { 'Authorization': `Bearer ${token}` }
+                                                                        credentials: 'include'
                                                                     });
 
                                                                     if (!response.ok) throw new Error('Failed to confirm receipt');
@@ -900,10 +881,9 @@ export default function CustomerDashboard() {
 
                                                             if (result.isConfirmed) {
                                                                 try {
-                                                                    const token = localStorage.getItem('fla_token');
                                                                     const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders/${order._id}/satisfied`, {
                                                                         method: 'POST',
-                                                                        headers: { 'Authorization': `Bearer ${token}` }
+                                                                        credentials: 'include'
                                                                     });
 
                                                                     if (!response.ok) throw new Error('Failed to release funds');
@@ -1035,14 +1015,6 @@ export default function CustomerDashboard() {
                                                     {order.paymentProof && !order.isPaid && (
                                                         <span className="px-3 py-1 rounded-lg text-[8px] font-black text-slate-400 uppercase tracking-widest border border-slate-100">Verifying...</span>
                                                     )}
-                                                    {order.status === 'delivered' && (
-                                                        <button
-                                                            onClick={() => setRatingOrder({ id: order._id, name: order.items[0]?.name })}
-                                                            className="px-6 py-2 bg-brand-lemon text-slate-900 rounded-full text-[9px] font-bold uppercase tracking-widest hover:shadow-lg transition-all"
-                                                        >
-                                                            Rate Design
-                                                        </button>
-                                                    )}
                                                     <button
                                                         onClick={() => setTrackingOrder(order)}
                                                         className="px-6 py-2 bg-slate-900 text-white rounded-full text-[9px] font-bold uppercase tracking-widest hover:bg-slate-800 transition-all hover:scale-105 active:scale-95 whitespace-nowrap"
@@ -1069,10 +1041,9 @@ export default function CustomerDashboard() {
 
                                                                 if (result.isConfirmed) {
                                                                     try {
-                                                                        const token = localStorage.getItem('fla_token');
                                                                         const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders/${order._id}/confirm-receipt`, {
                                                                             method: 'POST',
-                                                                            headers: { 'Authorization': `Bearer ${token}` }
+                                                                            credentials: 'include'
                                                                         });
 
                                                                         if (!response.ok) throw new Error('Failed to confirm receipt');
@@ -1106,10 +1077,9 @@ export default function CustomerDashboard() {
 
                                                                 if (result.isConfirmed) {
                                                                     try {
-                                                                        const token = localStorage.getItem('fla_token');
                                                                         const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders/${order._id}/satisfied`, {
                                                                             method: 'POST',
-                                                                            headers: { 'Authorization': `Bearer ${token}` }
+                                                                            credentials: 'include'
                                                                         });
 
                                                                         if (!response.ok) throw new Error('Failed to release funds');
@@ -1287,8 +1257,7 @@ export default function CustomerDashboard() {
                                         imageLabels={item.productId?.imageLabels}
                                         initialWishlistState={true}
                                         description={item.productId?.description}
-                                        rating={item.productId?.rating}
-                                        reviewCount={item.productId?.reviewCount}
+
                                         vendorName={item.productId?.vendorName}
                                         hasSizes={item.productId?.hasSizes}
                                     />
@@ -1480,16 +1449,7 @@ export default function CustomerDashboard() {
                     ))}
                 </nav>
 
-                <div className="p-8 m-6 rounded-[32px] bg-slate-50 group border border-slate-100">
-                    <div className="flex justify-between items-start mb-4">
-                        <div className="w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center text-brand-lemon">
-                            <Star className="w-5 h-5 fill-current" />
-                        </div>
-                        <span className="text-[8px] font-black bg-slate-900 text-white px-2 py-0.5 rounded-full uppercase tracking-widest">VIP</span>
-                    </div>
-                    <p className="text-xs font-black text-slate-900 leading-tight">Elite Fashion <br />Access Member</p>
-                    <button className="mt-4 text-[9px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-900 transition-colors">Upgrade Plan</button>
-                </div>
+
 
                 <div className="p-10 border-t border-slate-50 space-y-4">
                     <Link href="/">
@@ -1663,64 +1623,7 @@ export default function CustomerDashboard() {
                     </div>
                 )}
 
-                {/* Rating Modal */}
-                {ratingOrder && (
-                    <div className="fixed inset-0 z-[310] flex items-center justify-center p-4">
-                        <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={() => setRatingOrder(null)} />
-                        <div className="relative bg-white w-full max-w-md rounded-[40px] shadow-2xl p-10 text-center animate-in zoom-in-95 duration-300">
-                            <div className="w-20 h-20 bg-brand-lemon/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                                <Star className="w-10 h-10 text-brand-lemon fill-current" />
-                            </div>
-                            <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tighter mb-2">Rate Your Design</h2>
-                            <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-4">— Optional —</p>
-                            <p className="text-slate-500 text-sm mb-8">How would you rate the tailoring and print quality of <b>{ratingOrder.name}</b>?</p>
 
-                            <div className="flex justify-center gap-3 mb-10">
-                                {[1, 2, 3, 4, 5].map((star) => (
-                                    <button
-                                        key={star}
-                                        onMouseEnter={() => setRatingValue(star)}
-                                        onMouseLeave={() => setRatingValue(0)}
-                                        onClick={() => {
-                                            Swal.fire({
-                                                icon: 'success',
-                                                title: 'Thank You!',
-                                                text: 'Your feedback helps our tailoring community grow.',
-                                                customClass: { popup: 'rounded-[32px]' }
-                                            });
-                                            setRatingOrder(null);
-                                        }}
-                                        className="transition-transform active:scale-90 hover:scale-110"
-                                    >
-                                        <Star className={`w-8 h-8 ${star <= ratingValue ? 'text-brand-lemon fill-current' : 'text-slate-200'}`} />
-                                    </button>
-                                ))}
-                            </div>
-
-                            <textarea
-                                placeholder="Share your experience (optional)..."
-                                className="w-full p-4 bg-slate-50 border-none rounded-2xl text-sm mb-8 resize-none h-24 focus:ring-2 focus:ring-brand-lemon/20"
-                            />
-
-                            <button
-                                onClick={() => setRatingOrder(null)}
-                                className="w-full py-4 bg-slate-900 text-white rounded-full font-bold text-sm tracking-widest uppercase shadow-xl shadow-slate-900/20 active:scale-95 transition-all"
-                            >
-                                Submit Rating
-                            </button>
-
-                            <button
-                                onClick={() => {
-                                    setRatingOrder(null);
-                                    setRatingValue(0);
-                                }}
-                                className="w-full mt-4 py-2 text-slate-400 text-[10px] font-black uppercase tracking-widest hover:text-slate-900 transition-colors"
-                            >
-                                Maybe Later
-                            </button>
-                        </div>
-                    </div>
-                )}
 
                 {/* Tracking Modal */}
                 {trackingOrder && (

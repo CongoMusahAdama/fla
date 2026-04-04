@@ -315,14 +315,14 @@ export class OrdersService {
       }
     ]);
 
-    const result = stats[0];
+    const result = stats[0] || { escrow: [], revenue: [], counts: [] };
     return {
-      escrowBalance: result.escrow[0]?.balance || 0,
-      totalRevenue: result.revenue[0]?.total || 0,
-      totalCommission: result.revenue[0]?.commission || 0,
-      totalOrders: result.counts[0]?.total || 0,
-      completedTransactions: result.counts[0]?.completed || 0,
-      pendingOrders: result.counts[0]?.pending || 0
+      escrowBalance: result.escrow?.[0]?.balance || 0,
+      totalRevenue: result.revenue?.[0]?.total || 0,
+      totalCommission: result.revenue?.[0]?.commission || 0,
+      totalOrders: result.counts?.[0]?.total || 0,
+      completedTransactions: result.counts?.[0]?.completed || 0,
+      pendingOrders: result.counts?.[0]?.pending || 0
     };
   }
 

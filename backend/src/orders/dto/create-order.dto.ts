@@ -95,5 +95,21 @@ export class CreateOrderDto {
 
     @IsString()
     @IsOptional()
+    status?: string;
+
+    @IsString()
+    @IsOptional()
+    escrowStatus?: string;
+
+    @IsString()
+    @IsOptional()
+    trackingNumber?: string;
+
+    @IsString()
+    @IsOptional()
+    carrier?: string;
+
+    @IsString()
+    @IsOptional()
     deliveryType?: string;
 }

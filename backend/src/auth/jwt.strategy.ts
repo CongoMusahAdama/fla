@@ -11,7 +11,16 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
             console.error('CRITICAL: JWT_SECRET is not defined in environment variables');
         }
         super({
-            jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+            jwtFromRequest: ExtractJwt.fromExtractors([
+                ExtractJwt.fromAuthHeaderAsBearerToken(),
+                (req) => {
+                    let token = null;
+                    if (req && req.cookies) {
+                        token = req.cookies['fla_token'];
+                    }
+                    return token;
+                },
+            ]),
             ignoreExpiration: false,
             secretOrKey: secret || 'temporary-secret-key-to-prevent-crash',
         });

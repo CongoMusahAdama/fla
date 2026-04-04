@@ -265,8 +265,6 @@ function ShopContent() {
                                     vendorId={product.vendorId}
                                     index={index}
                                     description={product.description}
-                                    rating={product.rating}
-                                    reviewCount={product.reviewCount}
                                     vendorName={product.vendorName}
                                     uniqueVendorId={product.uniqueVendorId}
                                     hasSizes={product.hasSizes}

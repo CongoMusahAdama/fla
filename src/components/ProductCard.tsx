@@ -22,15 +22,14 @@ interface ProductCardProps {
     vendorId?: string | any;
     initialWishlistState?: boolean;
     description?: string;
-    rating?: number;
-    reviewCount?: number;
+
     vendorName?: string;
     uniqueVendorId?: string;
     hasSizes?: boolean;
     vendorRegion?: string;
 }
 
-export default function ProductCard({ id, name, price, images, sizes = [], imageLabels, duration = '3 working days', stock, index, vendorId, initialWishlistState = false, description, rating = 0, reviewCount = 0, vendorName, uniqueVendorId, hasSizes = true, vendorRegion }: ProductCardProps) {
+export default function ProductCard({ id, name, price, images, sizes = [], imageLabels, duration = '3 working days', stock, index, vendorId, initialWishlistState = false, description, vendorName, uniqueVendorId, hasSizes = true, vendorRegion }: ProductCardProps) {
     const isBatch = false;
     const currentPrice = price;
 
@@ -266,7 +265,6 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
         }
 
         try {
-            const token = localStorage.getItem('fla_token');
             const method = isWishlisted ? 'DELETE' : 'POST';
             const url = isWishlisted
                 ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/wishlist/${id}`
@@ -275,9 +273,9 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
             const response = await fetch(url, {
                 method,
                 headers: {
-                    'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
+                credentials: 'include',
                 body: isWishlisted ? undefined : JSON.stringify({ productId: id })
             });
 
@@ -421,7 +419,6 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
 
     const handlePaystackFlow = async (deliveryDetails: { deliveryAddress: string, deliveryCity: string, deliveryRegion: string }) => {
         try {
-            const token = localStorage.getItem('fla_token');
 
             Swal.fire({
                 title: 'PREPARING PAYMENT...',
@@ -455,9 +452,9 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders`, {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
+                credentials: 'include',
                 body: JSON.stringify(orderData)
             });
 
@@ -535,14 +532,7 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                         </div>
                     )}
 
-                    {/* Rating Badge */}
-                    {!isSoldOut && (
-                        <div className="absolute bottom-4 left-4 z-20 bg-white/95 backdrop-blur-sm px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-sm border border-slate-100 group-hover:scale-105 transition-transform">
-                            <span className="text-[11px] font-black text-slate-900">{rating || 4.9}</span>
-                            <Star className="w-3 h-3 fill-brand-lemon text-brand-lemon" />
-                            <span className="text-[9px] font-black text-slate-400/40">({reviewCount || 214})</span>
-                        </div>
-                    )}
+
 
                     {/* Carousel Image */}
                     <div className="w-full h-full relative p-4">
@@ -598,15 +588,10 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                         </div>
                     </div>
 
-                    {/* Price & Rating Summary (Mobile First) */}
                     <div className="flex justify-between items-center pt-2 pb-3 border-b border-slate-50 mb-3">
                         <div className="flex flex-col">
                             <span className="text-slate-300 line-through text-[9px] font-bold">GH₵{Math.round(price * 1.15)}</span>
                             <span className="font-sans font-black text-slate-900 text-base md:text-lg tracking-tight -mt-1">GH₵{price}</span>
-                        </div>
-                        <div className="flex items-center gap-1 bg-slate-50 px-2 py-1 rounded-lg">
-                            <Star className="w-2.5 h-2.5 fill-brand-lemon text-brand-lemon" />
-                            <span className="text-[10px] font-black text-slate-900">{rating || 4.9}</span>
                         </div>
                     </div>
 
@@ -767,12 +752,6 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                                         <h2 className="font-heading text-2xl md:text-4xl font-black text-slate-900 mb-2 leading-tight tracking-tighter uppercase">{name}</h2>
                                         <div className="flex items-center gap-4">
                                             <p className="text-xl md:text-3xl font-black text-slate-900 tracking-tighter">GH₵{price}</p>
-                                            <div className="h-6 w-[1px] bg-slate-100" />
-                                            <div className="flex items-center gap-1">
-                                                <Star className="w-4 h-4 fill-brand-lemon text-brand-lemon" />
-                                                <span className="text-xs font-black text-slate-900">{rating || 4.9}</span>
-                                                <span className="text-[10px] font-bold text-slate-300 ml-1">({reviewCount || 214} Reviews)</span>
-                                            </div>
                                         </div>
                                     </div>
                                 </div>

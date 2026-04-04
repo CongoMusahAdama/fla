@@ -35,15 +35,9 @@ export default function VendorDashboard() {
 
     const fetchVendorData = async () => {
         try {
-            const token = localStorage.getItem('fla_token');
-            const headers = {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            };
-
             const [pendingRes, ordersRes] = await Promise.all([
-                fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders/pending-verifications/list`, { headers }),
-                fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders/vendor-orders`, { headers })
+                fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders/pending-verifications/list`, { credentials: 'include' }),
+                fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders/vendor-orders`, { credentials: 'include' })
             ]);
 
             if (pendingRes.ok) setPendingPayments(await pendingRes.json());
@@ -69,15 +63,14 @@ export default function VendorDashboard() {
 
         if (result.isConfirmed) {
             try {
-                const token = localStorage.getItem('fla_token');
                 const response = await fetch(
                     `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders/${orderId}/verify-payment`,
                     {
                         method: 'POST',
                         headers: {
-                            'Authorization': `Bearer ${token}`,
                             'Content-Type': 'application/json'
-                        }
+                        },
+                        credentials: 'include'
                     }
                 );
 

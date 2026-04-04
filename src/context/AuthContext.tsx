@@ -50,8 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Load user from localStorage on mount
     useEffect(() => {
         const savedUser = localStorage.getItem('fla_user');
-        const savedToken = localStorage.getItem('fla_token');
-        if (savedUser && savedToken) {
+        if (savedUser) {
             try {
                 setUser(JSON.parse(savedUser));
             } catch (e) {
@@ -68,6 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 headers: {
                     'Content-Type': 'application/json',
                 },
+                credentials: 'include',
                 body: JSON.stringify({ email: identifier, password }),
             });
 
@@ -103,7 +103,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
             setUser(loggedInUser);
             localStorage.setItem('fla_user', JSON.stringify(loggedInUser));
-            localStorage.setItem('fla_token', data.access_token);
             return loggedInUser;
         } catch (error) {
             console.error('Login error:', error);
@@ -118,6 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 headers: {
                     'Content-Type': 'application/json',
                 },
+                credentials: 'include',
                 body: JSON.stringify({
                     email,
                     password,
@@ -141,10 +141,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
     };
 
-    const logout = () => {
+    const logout = async () => {
+        try {
+            await fetch(`${API_URL}/auth/logout`, { 
+                method: 'POST',
+                credentials: 'include'
+            });
+        } catch (error) {
+            console.error('Logout error:', error);
+        }
         setUser(null);
         localStorage.removeItem('fla_user');
-        localStorage.removeItem('fla_token');
     };
 
     const updateUser = (updatedData: Partial<User>) => {

@@ -67,13 +67,12 @@ export default function Navbar() {
                     localStorage.removeItem('pending_wishlist_item');
 
                     const addToWishlist = async () => {
-                        const token = localStorage.getItem('fla_token');
                         await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/wishlist`, {
                             method: 'POST',
                             headers: {
-                                'Authorization': `Bearer ${token}`,
                                 'Content-Type': 'application/json'
                             },
+                            credentials: 'include',
                             body: JSON.stringify({ productId: item.id })
                         });
 

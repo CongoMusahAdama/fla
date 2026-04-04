@@ -1,4 +1,5 @@
-import { Controller, Post, Body, UseGuards, Request, Get, Patch } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, Request, Get, Patch, Res } from '@nestjs/common';
+import type { Response } from 'express';
 import { AuthService } from './auth.service';
 import { CreateUserDto } from '../users/dto/create-user.dto';
 import { UpdateUserDto } from '../users/dto/update-user.dto';
@@ -14,8 +15,31 @@ export class AuthController {
 
   @UseGuards(AuthGuard('local'))
   @Post('login')
-  async login(@Request() req) {
-    return this.authService.login(req.user);
+  async login(@Request() req, @Res({ passthrough: true }) res: Response) {
+    const loginResult = await this.authService.login(req.user);
+    
+    // Set the JWT token in an httpOnly cookie
+    res.cookie('fla_token', loginResult.access_token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production', // Only send over HTTPS in production
+      sameSite: 'strict', // or 'lax' depending on needs
+      maxAge: 15 * 60 * 1000, // 15 minutes to match the token shelf-life
+      path: '/',
+    });
+    
+    return loginResult;
+  }
+
+  @Post('logout')
+  async logout(@Res({ passthrough: true }) res: Response) {
+    // Clear the JWT cookie
+    res.clearCookie('fla_token', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      path: '/',
+    });
+    return { message: 'Logged out' };
   }
 
   @Post('register')
