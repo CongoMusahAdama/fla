@@ -668,6 +668,43 @@ export default function VendorDashboard() {
         }
     };
 
+    const handleQuickSetFee = async (orderId: string, fee: number) => {
+        if (fee < 0) return;
+        try {
+            const token = localStorage.getItem('fla_token');
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders/${orderId}/first-mile-fee`, {
+                method: 'PATCH',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ fee })
+            });
+
+            if (!response.ok) throw new Error('Failed to set fee');
+
+            const updatedOrder = await response.json();
+            setVendorOrders(prev => prev.map(o => o._id === orderId ? updatedOrder : o));
+            
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'success',
+                title: 'Delivery Fee Updated',
+                text: `GH₵ ${fee} fee notified to customer.`,
+                showConfirmButton: false,
+                timer: 3000
+            });
+        } catch (err) {
+            console.error('Error setting delivery fee:', err);
+            Swal.fire({
+                icon: 'error',
+                title: 'Operation Failed',
+                text: 'Could not update delivery fee. Please try again.'
+            });
+        }
+    };
+
     const handleSetDeliveryFee = async (orderId: string) => {
         const { value: fee } = await Swal.fire({
             title: 'SET DELIVERY FEE',
@@ -1156,30 +1193,57 @@ export default function VendorDashboard() {
                                                             <MapPin className="w-3 h-3 text-brand-lemon" />
                                                             {order.shippingCity || 'Studio Pickup'}, {order.shippingRegion}
                                                         </div>
-                                                        <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-tighter w-fit ${order.deliveryType === 'inter-regional' ? 'bg-amber-50 text-amber-600 border border-amber-200' : 'bg-slate-50 text-slate-400'}`}>
-                                                            {order.deliveryType === 'inter-regional' ? 'Inter-Regional' : 'Intra-Regional'}
-                                                        </span>
-                                                        {order.deliveryType === 'inter-regional' && (
-                                                            <div className="mt-1 flex flex-col gap-0.5">
-                                                                <p className="text-[9px] font-bold text-slate-500 uppercase">1st Mile Fee: <span className="text-slate-900 font-black">GH₵ {order.firstMileFee || 0}</span></p>
-                                                                {order.firstMileFee > 0 && (
-                                                                    <span className={`text-[8px] font-black uppercase tracking-tighter ${order.isFirstMileFeePaid ? 'text-emerald-500' : 'text-amber-500'}`}>
-                                                                        {order.isFirstMileFeePaid ? '● Fee Paid' : '○ Waiting Fee'}
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                        )}
                                                         <p className="text-[10px] text-slate-400 line-clamp-1">{order.shippingAddress || 'No Address Provided'}</p>
                                                     </div>
                                                 </td>
                                                 <td className="px-8 py-6 border-r border-slate-50">
-                                                    <div className="flex flex-col gap-1">
-                                                        <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest w-fit ${order.status === 'Delivered' ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'}`}>
+                                                    <div className="flex flex-col gap-3">
+                                                        <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest w-fit ${order.status === 'delivered' ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'}`}>
                                                             {order.status || 'Processing'}
                                                         </span>
-                                                        {order.isPaid && (
-                                                            <span className="text-[8px] font-black text-emerald-500 uppercase tracking-tighter ml-1">Verified Paid</span>
-                                                        )}
+                                                        
+                                                        <div className="bg-slate-50/50 p-4 rounded-3xl border border-slate-100 flex flex-col gap-2.5 min-w-[160px] shadow-sm">
+                                                            <div className="flex items-center justify-between">
+                                                                <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none">Logistics Status</p>
+                                                                <span className="text-[7px] font-black bg-slate-900 text-white px-1.5 py-0.5 rounded-md uppercase tracking-tighter shadow-sm">{order.deliveryType === 'inter-regional' ? 'Inter-Region' : 'Local'}</span>
+                                                            </div>
+                                                            
+                                                            {order.deliveryType === 'inter-regional' ? (
+                                                                <>
+                                                                    {!order.firstMileFee ? (
+                                                                        <div className="flex items-center gap-1.5 animate-in fade-in slide-in-from-top-1 duration-500">
+                                                                            <input 
+                                                                                type="number" 
+                                                                                id={`fee-input-${order._id}`}
+                                                                                placeholder="GHC" 
+                                                                                className="w-full h-9 px-3 bg-white border border-slate-100 rounded-xl text-[11px] font-black text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-lemon/30 transition-all"
+                                                                            />
+                                                                            <button 
+                                                                                onClick={() => {
+                                                                                    const input = document.getElementById(`fee-input-${order._id}`) as HTMLInputElement;
+                                                                                    if(input.value) handleQuickSetFee(order._id, parseFloat(input.value));
+                                                                                }}
+                                                                                className="h-9 px-4 bg-slate-900 text-brand-lemon rounded-xl text-[9px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-md shrink-0"
+                                                                            >
+                                                                                Update
+                                                                            </button>
+                                                                        </div>
+                                                                    ) : (
+                                                                        <div className="flex items-center justify-between bg-white/50 p-2 rounded-xl">
+                                                                            <span className="text-xs font-black text-slate-900 tracking-tighter">GH₵ {order.firstMileFee.toLocaleString()}</span>
+                                                                            <span className={`text-[8px] font-black uppercase px-2 py-1 rounded-lg ${order.isFirstMileFeePaid ? 'bg-emerald-500 text-white shadow-emerald-500/20' : 'bg-orange-500 text-white shadow-orange-500/20'} shadow-lg`}>
+                                                                                {order.isFirstMileFeePaid ? 'Fee Paid' : 'Awaiting Pay'}
+                                                                            </span>
+                                                                        </div>
+                                                                    )}
+                                                                </>
+                                                            ) : (
+                                                                <div className="flex items-center gap-2 bg-emerald-50/50 p-2 rounded-xl border border-emerald-100/50">
+                                                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                                                                    <span className="text-[10px] font-black text-emerald-600 uppercase tracking-tighter">Free Delivery Included</span>
+                                                                </div>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 </td>
                                                 <td className="px-8 py-6 text-right">
@@ -1206,73 +1270,15 @@ export default function VendorDashboard() {
                                                             </button>
                                                         )}
 
-                                                        {!order.paymentVerifiedByVendor && order.paymentProof && (
-                                                            <button
-                                                                onClick={() => handleVerifyPayment(order._id)}
-                                                                className="px-4 py-2 bg-emerald-500 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-md"
-                                                            >
-                                                                Verify Payment
-                                                            </button>
-                                                        )}
-                                                        {order.paymentVerifiedByVendor && (order.deliveryType !== 'inter-regional' || order.isFirstMileFeePaid) && order.status !== 'shipped' && order.status !== 'delivered' && (
+                                                        {(order.deliveryType !== 'inter-regional' || order.isFirstMileFeePaid) && order.status !== 'shipped' && order.status !== 'delivered' && (
                                                             <button
                                                                 onClick={() => handleMarkShipped(order._id)}
-                                                                className="px-4 py-2 bg-blue-500 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-blue-600 transition-all shadow-md"
+                                                                className="px-4 py-2 bg-emerald-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-lg active:scale-95"
                                                             >
-                                                                Mark Shipped
+                                                                Ship Order
                                                             </button>
                                                         )}
-                                                        {order.deliveryType === 'inter-regional' && !order.firstMileFee && (
-                                                            <button
-                                                                onClick={() => handleSetDeliveryFee(order._id)}
-                                                                className="px-4 py-2 bg-slate-900 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-slate-800 transition-all shadow-md"
-                                                            >
-                                                                Set Delivery Fee
-                                                            </button>
-                                                        )}
-
-                                                        {order.status === 'pending' && order.paymentProof && (
-                                                            <button
-                                                                onClick={() => {
-                                                                    Swal.fire({
-                                                                        title: 'Confirm Payment?',
-                                                                        text: 'Have you verified the funds in your account?',
-                                                                        icon: 'question',
-                                                                        showCancelButton: true,
-                                                                        confirmButtonText: 'YES, CONFIRM',
-                                                                        cancelButtonText: 'NOT YET',
-                                                                        buttonsStyling: false,
-                                                                        customClass: {
-                                                                            popup: 'rounded-[32px] p-10',
-                                                                            title: 'text-xl font-black text-slate-900 uppercase',
-                                                                            confirmButton: 'bg-emerald-500 text-white px-8 py-4 rounded-full text-[10px] font-black uppercase tracking-widest mr-3',
-                                                                            cancelButton: 'bg-slate-100 text-slate-400 px-8 py-4 rounded-full text-[10px] font-black uppercase tracking-widest'
-                                                                        }
-                                                                    }).then(async r => {
-                                                                        if (r.isConfirmed) {
-                                                                            try {
-                                                                                const token = localStorage.getItem('fla_token');
-                                                                                await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders/${order._id}`, {
-                                                                                    method: 'PATCH',
-                                                                                    headers: {
-                                                                                        'Authorization': `Bearer ${token}`,
-                                                                                        'Content-Type': 'application/json'
-                                                                                    },
-                                                                                    body: JSON.stringify({ status: 'confirmed' })
-                                                                                });
-                                                                                setVendorOrders(prev => prev.map(o => o._id === order._id ? { ...o, status: 'confirmed' } : o));
-                                                                                Swal.fire({ icon: 'success', title: 'Payment Confirmed', customClass: { popup: 'rounded-[32px]' } });
-                                                                            } catch (err) {
-                                                                                Swal.fire({ icon: 'error', title: 'Error', text: 'Failed to confirm payment.' });
-                                                                            }
-                                                                        }
-                                                                    });
-                                                                }}
-                                                                className="px-5 py-2 bg-emerald-500 text-white rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20"
-                                                            >
-                                                                Confirm Payment
-                                                            </button>
-                                                        )}
+                                                        
                                                         <button
                                                             onClick={() => {
                                                                 Swal.fire({
@@ -1312,9 +1318,9 @@ export default function VendorDashboard() {
                                                                     }
                                                                 });
                                                             }}
-                                                            className="px-5 py-2 bg-slate-900 text-white rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all"
+                                                            className="px-5 py-2 bg-slate-100 text-slate-500 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all"
                                                         >
-                                                            Update Status
+                                                            Status
                                                         </button>
                                                         <button
                                                             onClick={() => setPrintingOrder(order)}

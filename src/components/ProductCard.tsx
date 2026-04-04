@@ -589,12 +589,12 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                     {/* Feature Highlights */}
                     <div className="space-y-2 pb-3 border-b border-slate-100">
                         <div className="flex items-center gap-2 text-slate-500">
-                            <Zap className="w-3.5 h-3.5 text-slate-400" />
-                            <span className="text-[10px] font-bold uppercase tracking-tight">Customized Tailoring</span>
+                            <Check className="w-3.5 h-3.5 text-emerald-500" />
+                            <span className="text-[10px] font-black uppercase tracking-tight">Authentic Product</span>
                         </div>
                         <div className="flex items-center gap-2 text-slate-500">
-                            <Shield className="w-3.5 h-3.5 text-slate-400" />
-                            <span className="text-[10px] font-bold uppercase tracking-tight">Premium Fabric Choice</span>
+                            <Shield className="w-3.5 h-3.5 text-blue-500" />
+                            <span className="text-[10px] font-black uppercase tracking-tight">Quality Guarantee</span>
                         </div>
                     </div>
 
@@ -756,10 +756,10 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                             <div className="p-6 md:p-10 pb-32 space-y-8">
                                 <div className="space-y-4">
                                     <div className="flex flex-wrap items-center gap-2">
-                                        <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-900 bg-brand-lemon px-3 py-1 rounded-full shadow-sm">Bespoke Collection</span>
-                                        <div className="flex items-center gap-1.5 text-emerald-500 text-[10px] font-black uppercase tracking-widest">
+                                        <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-white bg-slate-900 px-3 py-1 rounded-full shadow-sm">Verified Design</span>
+                                        <div className="flex items-center gap-1.5 text-blue-500 text-[10px] font-black uppercase tracking-widest">
                                             <Zap className="w-3 h-3 fill-current" />
-                                            Active Tailoring
+                                            Marketplace Choice
                                         </div>
                                     </div>
 

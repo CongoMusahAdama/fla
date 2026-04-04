@@ -46,7 +46,7 @@ export default function Navbar() {
         }).then((result) => {
             if (result.isConfirmed) {
                 logout();
-                router.push('/');
+                router.push('/auth');
             }
         });
     };

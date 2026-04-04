@@ -75,13 +75,13 @@ function ShopContent() {
         Region: GHANA_REGIONS,
         Color: ['Black', 'White', 'Blue', 'Purple', 'Green'],
         Size: ['Small', 'Medium', 'Large', 'XL', 'XXL'],
-        Brand: ['FLA Bespoke', 'Signature Print', 'Urban Thread'],
+        Brand: ['FLA Exclusive', 'Signature Print', 'Urban Thread'],
         Price: ['Under GH₵500', 'GH₵500 - GH₵800', 'Over GH₵800']
     };
 
     // Using the same product data as homepage for consistency
 
-    const categories = ['All Product', 'For men', 'For women', 'Accessories', 'Bespoke'];
+    const categories = ['All Product', 'For men', 'For women', 'Accessories', 'Exclusive'];
 
     const filteredProducts = products;
 

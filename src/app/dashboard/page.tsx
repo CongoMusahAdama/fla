@@ -468,6 +468,51 @@ export default function CustomerDashboard() {
         }
     };
 
+    const handleWithdrawOrder = async (orderId: string) => {
+        const result = await Swal.fire({
+            title: 'WITHDRAW ORDER?',
+            text: "Are you sure you want to cancel this order? This will notify the vendor and start a refund process if you already paid for the item.",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'YES, WITHDRAW',
+            cancelButtonText: 'CANCEL',
+            buttonsStyling: false,
+            customClass: {
+                popup: 'rounded-[32px] p-10',
+                title: 'text-2xl font-black text-slate-900 uppercase',
+                confirmButton: 'bg-red-500 text-white px-8 py-4 rounded-full text-[10px] font-black uppercase tracking-widest mr-3',
+                cancelButton: 'bg-slate-100 text-slate-400 px-8 py-4 rounded-full text-[10px] font-black uppercase tracking-widest'
+            }
+        });
+
+        if (result.isConfirmed) {
+            try {
+                const token = localStorage.getItem('fla_token');
+                const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders/${orderId}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ status: 'cancelled', escrowStatus: 'frozen' })
+                });
+
+                if (!response.ok) throw new Error('Failed to withdraw order');
+                
+                setOrders(prev => prev.map(o => o._id === orderId ? { ...o, status: 'cancelled', escrowStatus: 'frozen' } : o));
+                
+                Swal.fire({
+                    icon: 'success',
+                    title: 'ORDER WITHDRAWN',
+                    text: 'Our support team will contact you regarding any refunds.',
+                    customClass: { popup: 'rounded-[32px]' }
+                });
+            } catch (err: any) {
+                Swal.fire('ERROR', err.message, 'error');
+            }
+        }
+    };
+
     const sidebarItems = [
         { id: 'home', label: 'Dashboard', icon: LayoutDashboard },
         { id: 'orders', label: 'My Orders', icon: ShoppingBag },
@@ -541,6 +586,31 @@ export default function CustomerDashboard() {
                                 </div>
                             ))}
                         </div>
+
+                        {/* Logistics Attention Banner (If any inter-regional order requires fee payment) */}
+                        {orders.some(o => o.deliveryType === 'inter-regional' && o.firstMileFee > 0 && !o.isFirstMileFeePaid) && (
+                            <div className="bg-slate-900 rounded-[32px] p-6 text-white overflow-hidden relative group animate-in slide-in-from-top-4 duration-700">
+                                <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-125 transition-transform">
+                                    <Truck className="w-32 h-32" />
+                                </div>
+                                <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                                    <div className="space-y-2">
+                                        <div className="flex items-center gap-2">
+                                            <span className="bg-brand-lemon text-slate-900 text-[8px] font-black uppercase tracking-[0.2em] px-3 py-1 rounded-full">Action Required</span>
+                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Premium Logistics</span>
+                                        </div>
+                                        <h2 className="text-xl font-black uppercase tracking-tighter">Logistics Update Ready</h2>
+                                        <p className="text-slate-400 text-xs font-medium max-w-md">Your vendors have updated delivery quotations for your inter-regional orders. Please review and pay to proceed with fulfillment.</p>
+                                    </div>
+                                    <button 
+                                        onClick={() => setActiveSection('orders')}
+                                        className="bg-brand-lemon text-slate-900 px-8 py-4 rounded-full text-[11px] font-black uppercase tracking-widest hover:scale-105 transition-all shadow-xl shadow-brand-lemon/10"
+                                    >
+                                        Pay Delivery Fees
+                                    </button>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Recent Activity & Quick Links */}
                         <div className="grid lg:grid-cols-4 gap-8">
@@ -729,12 +799,20 @@ export default function CustomerDashboard() {
                                                 </button>
                                             )}
                                             {order.deliveryType === 'inter-regional' && order.firstMileFee > 0 && !order.isFirstMileFeePaid && (
-                                                <button
-                                                    onClick={() => handlePayDeliveryFee(order._id)}
-                                                    className="col-span-2 py-3 bg-slate-900 text-white rounded-full text-[10px] font-black uppercase tracking-widest hover:shadow-lg transition-all active:scale-95 text-center mb-1"
-                                                >
-                                                    Pay Delivery Fee (Paystack)
-                                                </button>
+                                                <div className="col-span-2 flex flex-col gap-2 mb-2">
+                                                    <button
+                                                        onClick={() => handlePayDeliveryFee(order._id)}
+                                                        className="py-4 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:shadow-lg transition-all active:scale-95 text-center shadow-slate-900/10"
+                                                    >
+                                                        Accept & Pay Delivery (GHC {order.firstMileFee})
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleWithdrawOrder(order._id)}
+                                                        className="py-4 bg-red-50 text-red-500 border border-red-100 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-red-100 transition-all active:scale-95 text-center"
+                                                    >
+                                                        Withdraw Order
+                                                    </button>
+                                                </div>
                                             )}
                                             {order.paymentProof && !order.isPaid && (
                                                 <div className="col-span-2 py-2 bg-slate-50 border border-slate-100 rounded-xl text-center mb-1">
@@ -939,12 +1017,20 @@ export default function CustomerDashboard() {
                                                         </button>
                                                     )}
                                                     {order.deliveryType === 'inter-regional' && order.firstMileFee > 0 && !order.isFirstMileFeePaid && (
-                                                        <button
-                                                            onClick={() => handlePayDeliveryFee(order._id)}
-                                                            className="px-6 py-2 bg-slate-900 text-white rounded-full text-[9px] font-black uppercase tracking-widest hover:shadow-lg transition-all whitespace-nowrap"
-                                                        >
-                                                            Pay Delivery Fee
-                                                        </button>
+                                                        <div className="flex items-center gap-2">
+                                                            <button
+                                                                onClick={() => handlePayDeliveryFee(order._id)}
+                                                                className="px-6 py-2 bg-slate-900 text-white rounded-full text-[9px] font-black uppercase tracking-widest hover:shadow-lg transition-all whitespace-nowrap"
+                                                            >
+                                                                Accept Fee
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleWithdrawOrder(order._id)}
+                                                                className="px-6 py-2 bg-red-50 text-red-500 border border-red-100 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-red-100 transition-all whitespace-nowrap"
+                                                            >
+                                                                Withdraw
+                                                            </button>
+                                                        </div>
                                                     )}
                                                     {order.paymentProof && !order.isPaid && (
                                                         <span className="px-3 py-1 rounded-lg text-[8px] font-black text-slate-400 uppercase tracking-widest border border-slate-100">Verifying...</span>

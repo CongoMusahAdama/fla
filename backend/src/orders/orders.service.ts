@@ -205,20 +205,70 @@ export class OrdersService {
   }
 
   async update(id: string, updateOrderDto: UpdateOrderDto, user: any): Promise<Order> {
-    const order = await this.orderModel.findById(id).exec();
-    if (!order) throw new NotFoundException(`Order with ID ${id} not found`);
+    const session = await this.connection.startSession();
+    session.startTransaction();
+    try {
+      const order = await this.orderModel.findById(id).session(session).exec();
+      if (!order) throw new NotFoundException(`Order with ID ${id} not found`);
 
-    // Ownership check: Only admin or the customer/vendor related to this order can update
-    if (user.role !== 'admin' &&
-      order.customerId.toString() !== user.userId &&
-      order.vendorId.toString() !== user.userId) {
-      throw new ForbiddenException('You do not have permission to update this order');
+      // Ownership check: Only admin or the customer/vendor related to this order can update
+      if (user.role !== 'admin' &&
+        order.customerId.toString() !== user.userId &&
+        order.vendorId.toString() !== user.userId) {
+        throw new ForbiddenException('You do not have permission to update this order');
+      }
+
+      // Special Handling for Cancellation (Vendor/Admin)
+      if (updateOrderDto.status === 'cancelled' && order.status !== 'cancelled') {
+        // If order was paid, we need to handle the refund to customer wallet
+        if (order.isPaid) {
+          // 1. Deduct from vendor's pending balance (if it was added)
+          await this.userModel.findByIdAndUpdate(order.vendorId, {
+            $inc: { pendingBalance: -order.vendorShare }
+          }).session(session);
+
+          // 2. Credit the customer's wallet balance
+          await this.userModel.findByIdAndUpdate(order.customerId, {
+            $inc: { walletBalance: order.totalAmount }
+          }).session(session);
+
+          // 3. Update escrow status
+          (updateOrderDto as any).escrowStatus = 'refunded';
+        }
+
+        // Notify Customer
+        await this.notificationsService.create(order.customerId.toString(), {
+          title: 'Order Cancelled ⚠️',
+          message: `Your Order #ORD-${order._id.toString().slice(-6).toUpperCase()} has been cancelled by the vendor. ${order.isPaid ? 'A full refund has been credited to your FLA Wallet.' : ''}`,
+          type: 'order',
+          orderId: order._id
+        });
+
+        // Email to Customer
+        const customer = await this.userModel.findById(order.customerId).exec();
+        if (customer && customer.email) {
+          await this.emailService.sendGenericNotification(
+            customer.email,
+            customer.name || 'Customer',
+            'Order Cancellation Update',
+            `We regret to inform you that Order #ORD-${order._id.toString().slice(-6).toUpperCase()} was cancelled by the vendor. ${order.isPaid ? 'The full amount has been refunded to your wallet balance.' : 'No funds were charged.'}`
+          ).catch(console.error);
+        }
+      }
+
+      const existingOrder = await this.orderModel
+        .findByIdAndUpdate(id, updateOrderDto, { new: true })
+        .session(session)
+        .exec();
+
+      await session.commitTransaction();
+      return existingOrder as Order;
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      session.endSession();
     }
-
-    const existingOrder = await this.orderModel
-      .findByIdAndUpdate(id, updateOrderDto, { new: true })
-      .exec();
-    return existingOrder as Order;
   }
 
   async remove(id: string, user: any): Promise<Order> {

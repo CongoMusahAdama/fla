@@ -18,8 +18,8 @@ const outfit = Outfit({
 });
 
 export const metadata: Metadata = {
-  title: "FLA Purchase | Custom-Print & Bespoke Tailoring",
-  description: "Your Style, Tailored in Real-Time.",
+  title: "FLA Purchase | Exclusive Designs & Quality Brands",
+  description: "Your Style, Curated and Delivered.",
 };
 
 import { CartProvider } from "@/context/CartContext";

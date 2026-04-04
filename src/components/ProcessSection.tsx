@@ -1,27 +1,27 @@
 
-import { Scissors, ShieldCheck, Clock, Truck } from 'lucide-react';
+import { Package, ShieldCheck, Clock, Truck } from 'lucide-react';
 
 export default function ProcessSection() {
     const steps = [
         {
-            icon: <Scissors className="w-6 h-6 text-slate-900" />,
-            title: "Bespoke Order",
-            description: "Choose your fabric and design. Whether it's a simple cloth purchase or a full sewing service, you start the creation process."
+            icon: <Package className="w-6 h-6 text-slate-900" />,
+            title: "Direct Order",
+            description: "Choose your favorite item and quantity. Whether it's an exclusive brand or a custom print, you start the purchase process."
         },
         {
             icon: <Clock className="w-6 h-6 text-slate-900" />,
             title: "Real-Time Tracking",
-            description: "Track your garment's journey from fabric cutting to final stitching. Know exactly when your custom piece will be ready."
+            description: "Track your order's journey from processing to final delivery. Know exactly when your authentic item will be ready."
         },
         {
             icon: <ShieldCheck className="w-6 h-6 text-slate-900" />,
             title: "Escrow Protection",
-            description: "Your payment is held securely in escrow. Funds are only released when both you and the tailor are satisfied with the result."
+            description: "Your payment is held securely in escrow. Funds are only released when both you and the vendor are satisfied with the result."
         },
         {
             icon: <Truck className="w-6 h-6 text-slate-900" />,
             title: "Secure Delivery",
-            description: "Once approved, your bespoke piece is professionally packaged and delivered directly to your doorstep."
+            description: "Once approved, your item is professionally packaged and delivered directly to your doorstep."
         }
     ];
 
