@@ -46,11 +46,11 @@ export class DashboardService {
 
         const totalRevenue = orders
             .filter(o => o.status?.toLowerCase() !== 'cancelled' && o.isPaid)
-            .reduce((sum, order) => sum + order.totalAmount, 0);
+            .reduce((sum, order) => sum + (order.vendorShare || (order.totalAmount * 0.9)), 0);
 
         const pendingRevenue = orders
             .filter(o => o.status?.toLowerCase() !== 'cancelled' && !o.isPaid)
-            .reduce((sum, order) => sum + order.totalAmount, 0);
+            .reduce((sum, order) => sum + (order.vendorShare || (order.totalAmount * 0.9)), 0);
 
         const activeOrders = orders.filter(o =>
             !['delivered', 'cancelled'].includes(o.status?.toLowerCase())

@@ -297,7 +297,7 @@ export class OrdersService {
               $group: {
                 _id: null,
                 total: { $sum: '$totalAmount' },
-                commission: { $sum: { $ifNull: ['$adminCommission', { $multiply: ['$totalAmount', (FLA_CONSTANTS.DEFAULT_COMMISSION_RATE / 100)] }] } }
+                commission: { $sum: { $ifNull: ['$adminCommission', { $multiply: ['$totalAmount', 0.1] }] } }
               }
             }
           ],

@@ -39,6 +39,10 @@ export const VendorFinances: React.FC<VendorFinancesProps> = ({
                         <span className="font-black text-brand-lemon">GH₵ {(user?.pendingBalance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                     </div>
                     <div className="pt-4 border-t border-white/10 mt-2">
+                        <div className="flex justify-between items-center mb-4">
+                            <p className="text-[10px] font-black text-slate-400 capitalize whitespace-nowrap">Platform Commission</p>
+                            <span className="text-[10px] font-black text-brand-lemon bg-brand-lemon/10 px-2 py-0.5 rounded-full border border-brand-lemon/20">{commissionRate}% Fee</span>
+                        </div>
                         <p className="text-[10px] font-black text-brand-lemon uppercase tracking-widest mb-1">Payout Destination</p>
                         <p className="text-xs font-bold text-white uppercase">{user?.accountName || 'Primary Account'}</p>
                         <p className="text-sm font-black text-white tracking-widest">{user?.momoNumber || 'No Number Linked'}</p>

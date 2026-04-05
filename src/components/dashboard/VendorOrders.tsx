@@ -21,6 +21,9 @@ interface Order {
   items?: any[];
   pickupPoint?: string;
   carrier?: string;
+  totalAmount: number;
+  adminCommission: number;
+  vendorShare: number;
 }
 
 interface VendorOrdersProps {
@@ -152,6 +155,7 @@ export const VendorOrders: React.FC<VendorOrdersProps> = ({
                 <th className="px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-r border-slate-800">Design Perspective</th>
                 <th className="px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-r border-slate-800">Destiny (Shipping)</th>
                 <th className="px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-r border-slate-800">Operational Phase</th>
+                <th className="px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-r border-slate-800">Financial Insight</th>
                 <th className="px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] text-right">Studio Controls</th>
               </tr>
             </thead>
@@ -273,6 +277,22 @@ export const VendorOrders: React.FC<VendorOrdersProps> = ({
                               <span className="text-[9px] font-black text-emerald-600 uppercase tracking-tighter">Standard Local Delivery</span>
                             </div>
                           )}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-10 py-8 border-r border-slate-50 min-w-[200px]">
+                      <div className="flex flex-col gap-1">
+                        <div className="flex justify-between items-center text-[10px] font-black text-slate-900 border-b border-slate-50 pb-1 mb-1">
+                          <span className="uppercase text-slate-400">Gross:</span>
+                          <span>GH₵ {order.totalAmount?.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-[10px] font-black text-emerald-500">
+                          <span className="uppercase text-slate-400">Net:</span>
+                          <span>GH₵ {(order.vendorShare || (order.totalAmount * 0.9))?.toLocaleString()}</span>
+                        </div>
+                        <div className="mt-1 pt-1 flex justify-between items-center text-[8px] font-black text-slate-300">
+                          <span className="uppercase text-slate-400">Fee ({order.totalAmount > 0 ? (((order.adminCommission || (order.totalAmount * 0.1)) / order.totalAmount * 100)).toFixed(0) : '10'}%):</span>
+                          <span>GH₵ {(order.adminCommission || (order.totalAmount * 0.1))?.toLocaleString()}</span>
                         </div>
                       </div>
                     </td>

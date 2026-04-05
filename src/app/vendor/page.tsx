@@ -59,7 +59,7 @@ export default function VendorDashboard() {
     const [editingProduct, setEditingProduct] = useState<Product | null>(null);
     const [formName, setFormName] = useState('');
     const [formPrice, setFormPrice] = useState('');
-    const [formCategory, setFormCategory] = useState('For men');
+    const [formCategory, setFormCategory] = useState('Electronics');
     const [formQuantity, setFormQuantity] = useState('');
     const [formTailoring, setFormTailoring] = useState('');
     const [formRegion, setFormRegion] = useState('Greater Accra');
@@ -224,6 +224,8 @@ export default function VendorDashboard() {
                     colors: formHasColors ? formColors : [],
                     hasColors: formHasColors,
                     imageLabels: formImages.map((url, idx) => url !== '' ? formImageLabels[idx] : null).filter(l => l !== null),
+                    tailoringTime: formTailoring,
+                    region: formRegion,
                     vendorId: user?.id,
                     vendorName: user?.shopName,
                     uniqueVendorId: user?.uniqueVendorId
@@ -370,7 +372,7 @@ export default function VendorDashboard() {
         setEditingProduct(null);
         setFormName('');
         setFormPrice('');
-        setFormCategory('For men');
+        setFormCategory('Electronics');
         setFormQuantity('');
         setFormTailoring('');
         setFormRegion('Greater Accra');
@@ -610,11 +612,19 @@ export default function VendorDashboard() {
                                 <div className="space-y-4">
                                     <label htmlFor="p-category" className="text-[12px] font-black text-slate-900 uppercase tracking-widest ml-1 cursor-pointer">Category</label>
                                     <select id="p-category" name="category" value={formCategory} onChange={(e) => setFormCategory(e.target.value)} className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-slate-900/10 h-14">
+                                        <option value="Electronics">Electronics</option>
+                                        <option value="Home goods">Home goods</option>
+                                        <option value="Beauty/cosmetics">Beauty/cosmetics</option>
+                                        <option value="Used items">Used items</option>
+                                        <option value="Wholesaler">Wholesaler</option>
                                         <option value="For men">For men</option>
                                         <option value="For women">For women</option>
+                                        <option value="Children/Toys">Children/Toys</option>
+                                        <option value="Furniture">Furniture</option>
+                                        <option value="Food/beverages">Food/beverages</option>
+                                        <option value="Hardware items">Hardware items</option>
+                                        <option value="Refurbished items">Refurbished items</option>
                                         <option value="Unisex">Unisex</option>
-                                        <option value="Accessories">Accessories</option>
-                                        <option value="Heritage">Heritage</option>
                                     </select>
                                 </div>
                                 <div className="space-y-4">

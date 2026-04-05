@@ -1558,14 +1558,14 @@ export default function AdminDashboard() {
                                     <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
                                         <div>
                                             <p className="text-xs font-black text-slate-900 uppercase">Platform Commission</p>
-                                            <p className="text-[10px] text-slate-400 font-bold mt-1">Percentage taken from every sale.</p>
+                                            <p className="text-[10px] text-slate-400 font-bold mt-1">Global adjustable fee taken from every sale.</p>
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <input
                                                 type="number"
                                                 value={settings.platformCommission}
                                                 onChange={(e) => updateSettings({ platformCommission: Number(e.target.value) })}
-                                                className="w-16 px-3 py-2 text-center font-black bg-white rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-lemon/20 outline-none"
+                                                className="w-20 px-3 py-2 text-center font-black bg-white rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-lemon/20 outline-none"
                                             />
                                             <span className="text-xs font-black text-slate-400">%</span>
                                         </div>
@@ -2051,18 +2051,18 @@ export default function AdminDashboard() {
                                     <div className="absolute top-0 right-0 p-8 opacity-10">
                                         <Wallet className="w-32 h-32" />
                                     </div>
-                                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-8 relative z-10">Financial Audit</h3>
+                                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-8 relative z-10">Commission Breakdown</h3>
                                     <div className="space-y-6 relative z-10">
                                         <div className="flex justify-between items-center">
-                                            <span className="text-slate-400 text-xs font-bold uppercase">Base Amount</span>
+                                            <span className="text-slate-400 text-xs font-bold uppercase">Order Gross Total</span>
                                             <span className="text-xl font-black">GH₵ {selectedOrder.totalAmount.toLocaleString()}</span>
                                         </div>
-                                        <div className="flex justify-between items-center text-emerald-400 pb-4 border-b border-white/10">
+                                        <div className="flex justify-between items-center text-red-400 pb-4 border-b border-white/10">
                                             <span className="text-[10px] font-black uppercase">App Commission ({((selectedOrder.adminCommission || selectedOrder.totalAmount * 0.1) / selectedOrder.totalAmount * 100).toFixed(0)}%)</span>
-                                            <span className="font-black">+ GH₵ {(selectedOrder.adminCommission || selectedOrder.totalAmount * 0.1)?.toLocaleString()}</span>
+                                            <span className="font-black">- GH₵ {(selectedOrder.adminCommission || selectedOrder.totalAmount * 0.1)?.toLocaleString()}</span>
                                         </div>
                                         <div className="pt-4 flex justify-between items-center">
-                                            <span className="text-brand-lemon text-xs font-black uppercase">To Be Paid to Vendor</span>
+                                            <span className="text-brand-lemon text-xs font-black uppercase">Vendor Net Share</span>
                                             <span className="text-2xl font-black text-brand-lemon">GH₵ {(selectedOrder.vendorShare || selectedOrder.totalAmount * 0.9)?.toLocaleString()}</span>
                                         </div>
                                     </div>

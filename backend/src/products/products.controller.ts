@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards, Request, UnauthorizedException } from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
@@ -11,9 +11,8 @@ export class ProductsController {
   @UseGuards(AuthGuard('jwt'))
   @Post()
   create(@Body() createProductDto: CreateProductDto, @Request() req) {
-    // Only vendors and admins can create products
     if (req.user.role !== 'vendor' && req.user.role !== 'admin') {
-      throw new Error('Unauthorized - Only vendors can create products');
+      throw new UnauthorizedException('Unauthorized - Only vendors can create products');
     }
     // Set the vendorId to the current user's ID
     createProductDto.vendorId = req.user.userId;
