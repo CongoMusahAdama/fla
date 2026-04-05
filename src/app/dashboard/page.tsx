@@ -88,7 +88,7 @@ export default function CustomerDashboard() {
     }, []);
 
     const fetchDashboardData = React.useCallback(async () => {
-        if (!user) return;
+        if (!user || !token) return;
 
         try {
             const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';

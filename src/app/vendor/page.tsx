@@ -111,6 +111,7 @@ export default function VendorDashboard() {
         }
 
         const fetchData = async () => {
+            if (!token) return;
             try {
                 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
                 const results = await Promise.allSettled([
@@ -335,6 +336,10 @@ export default function VendorDashboard() {
 
     const handleImageUpload = async (file: File, type: 'avatar' | 'banner') => {
         try {
+            if (!token) {
+                Swal.fire('Authentication Required', 'Please log in again to upload images.', 'warning');
+                return;
+            }
             const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
             const formData = new FormData();
             formData.append('file', file);
@@ -344,16 +349,26 @@ export default function VendorDashboard() {
                 credentials: 'include', 
                 body: formData 
             });
+
+            if (!res.ok) {
+               const errData = await res.json().catch(() => ({}));
+               throw new Error(errData.message || 'Server rejected the upload');
+            }
+
             const data = await res.json();
             if (type === 'avatar') setProfileImage(data.url);
             else setBannerImage(data.url);
-        } catch (err) {
-            Swal.fire('Upload Failed', 'Visual asset could not be stored.', 'error');
+        } catch (err: any) {
+            Swal.fire('Upload Failed', err.message || 'Visual asset could not be stored.', 'error');
         }
     };
 
     const handleFormImageUpload = async (file: File, index: number) => {
         try {
+            if (!token) {
+                Swal.fire('Authentication Required', 'Please log in again to upload products.', 'warning');
+                return;
+            }
             const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
             const formData = new FormData();
             formData.append('file', file);
@@ -363,19 +378,24 @@ export default function VendorDashboard() {
                 credentials: 'include', 
                 body: formData 
             });
+
+            if (!res.ok) {
+               const errData = await res.json().catch(() => ({}));
+               throw new Error(errData.message || 'Server rejected the upload');
+            }
+
             const data = await res.json();
             
             setFormImages(prev => {
                 const newImages = [...prev];
-                // Ensure the array is at least long enough to hold the new image at the specified index
                 while (newImages.length <= index) {
                     newImages.push('');
                 }
                 newImages[index] = data.url;
-                return newImages; // Keep indices stable
+                return newImages;
             });
-        } catch (err) {
-            Swal.fire('Upload Failed', 'Product image could not be stored.', 'error');
+        } catch (err: any) {
+            Swal.fire('Upload Failed', err.message || 'Product image could not be stored.', 'error');
         }
     };
 

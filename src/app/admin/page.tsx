@@ -105,6 +105,7 @@ export default function AdminDashboard() {
     };
 
     const refreshData = async () => {
+        if (!token) return;
         setLoading(true);
         try {
 

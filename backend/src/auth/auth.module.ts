@@ -24,7 +24,7 @@ import { RolesGuard } from './guards/roles.guard';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: async (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET') || 'super-secret-key-change-this',
+        secret: configService.get<string>('JWT_SECRET') || 'fla-super-secret-key-2024',
         signOptions: { expiresIn: '15m' },
       }),
     }),

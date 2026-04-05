@@ -22,7 +22,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
                 },
             ]),
             ignoreExpiration: false,
-            secretOrKey: secret || 'temporary-secret-key-to-prevent-crash',
+            secretOrKey: process.env.JWT_SECRET || 'fla-super-secret-key-2024',
         });
     }
 
