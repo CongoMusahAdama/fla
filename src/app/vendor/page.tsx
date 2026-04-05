@@ -178,7 +178,7 @@ export default function VendorDashboard() {
             }
         };
         fetchData();
-    }, [user, isAuthenticated, isLoading, isHydrated]);
+    }, [user, token, isAuthenticated, isLoading, isHydrated]);
 
     const handleLogout = () => {
         Swal.fire({

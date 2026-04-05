@@ -195,7 +195,7 @@ export default function AdminDashboard() {
             // If already authenticated and admin, fetch data
             refreshData();
         }
-    }, [isAuthenticated, user, router, isAuthLoading]);
+    }, [isAuthenticated, user, token, router, isAuthLoading]);
 
     const handleConfirmPayment = async (orderId: string) => {
         try {

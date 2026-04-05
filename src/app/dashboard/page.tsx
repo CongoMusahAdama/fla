@@ -131,7 +131,7 @@ export default function CustomerDashboard() {
         } finally {
             setLoading(false);
         }
-    }, [user]);
+    }, [user, token]);
 
     useEffect(() => {
         if (user) {

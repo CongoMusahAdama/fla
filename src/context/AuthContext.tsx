@@ -179,7 +179,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             signup,
             logout,
             updateUser,
-            isAuthenticated: !!user,
+            isAuthenticated: !!user && !!token,
             isLoading
         }}>
             {children}
