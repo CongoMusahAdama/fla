@@ -1,4 +1,4 @@
-import { Controller, Post, UseInterceptors, UploadedFile, UseGuards } from '@nestjs/common';
+import { Controller, Post, UseInterceptors, UploadedFile, UseGuards, BadRequestException, InternalServerErrorException } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { AuthGuard } from '@nestjs/passport';
@@ -25,7 +25,22 @@ export class UploadController {
         }),
     )
     async uploadFile(@UploadedFile() file: Express.Multer.File) {
-        const result = await this.cloudinaryService.uploadFile(file);
-        return { url: result.secure_url };
+        if (!file) {
+            throw new BadRequestException('UPLOAD_MISSING: No file part found in request. Use "file" as the key.');
+        }
+
+        try {
+            const result = await this.cloudinaryService.uploadFile(file);
+            if (!result || (result as any).error) {
+                console.error('CLOUDINARY_REJECTED:', result);
+                throw new Error((result as any).error?.message || 'External storage failed to process file.');
+            }
+            return { url: result.secure_url };
+        } catch (error: any) {
+            console.error('UPLOAD_FINAL_CRASH:', error);
+            throw new InternalServerErrorException(
+                `STORAGE_FAILURE: ${error.message || 'Unknown backend error during visual asset storage.'}`
+            );
+        }
     }
 }
