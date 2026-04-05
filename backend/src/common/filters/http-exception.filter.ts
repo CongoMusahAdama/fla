@@ -24,9 +24,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       statusCode: status,
       timestamp: new Date().toISOString(),
       path: request.url,
-      message: status === HttpStatus.INTERNAL_SERVER_ERROR 
-        ? (process.env.NODE_ENV === 'production' ? 'Unforeseen studio error occurred. Please contact support.' : message)
-        : message,
+      message: message, // Allow the message through for debugging the 500 error
     };
 
     // Log the error internally (should use a proper logger in production)
