@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { getImageUrl } from '@/lib/utils';
 import {
     LayoutDashboard, Users, ShoppingBag, Settings, LogOut, ArrowLeft,
-    Wallet, Package, Truck, MessageSquare, BarChart3, ShieldCheck,
+    Wallet, Package, Truck, MessageSquare, BarChart3, ShieldCheck, ShieldAlert,
     CheckCircle2, XCircle, Eye, EyeOff, Search,
     ArrowUpRight, Download, Menu, X, Trash2, Shield, Clock, TrendingUp, Phone, Plus, User
 } from 'lucide-react';
