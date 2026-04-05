@@ -37,7 +37,7 @@ type VendorSection = 'dashboard' | 'products' | 'orders' | 'wallet' | 'reviews' 
 
 
 export default function VendorDashboard() {
-    const { user, logout, updateUser, isAuthenticated, isLoading } = useAuth();
+    const { user, token, logout, updateUser, isAuthenticated, isLoading } = useAuth();
     const router = useRouter();
     const [activeSection, setActiveSection] = useState<VendorSection>('dashboard');
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -114,12 +114,12 @@ export default function VendorDashboard() {
             try {
                 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
                 const results = await Promise.allSettled([
-                    fetch(`${api}/dashboard/vendor/stats`, { credentials: 'include' }),
-                    fetch(`${api}/products?vendorId=${user.id}&showAll=true`, { credentials: 'include' }),
-                    fetch(`${api}/orders/vendor-orders`, { credentials: 'include' }),
-                    fetch(`${api}/notifications/my-notifications`, { credentials: 'include' }),
-                    fetch(`${api}/payments/withdrawals/my-history`, { credentials: 'include' }),
-                    fetch(`${api}/settings`, { credentials: 'include' })
+                    fetch(`${api}/dashboard/vendor/stats`, { headers: { 'Authorization': `Bearer ${token}` }, credentials: 'include' }),
+                    fetch(`${api}/products?vendorId=${user.id}&showAll=true`, { headers: { 'Authorization': `Bearer ${token}` }, credentials: 'include' }),
+                    fetch(`${api}/orders/vendor-orders`, { headers: { 'Authorization': `Bearer ${token}` }, credentials: 'include' }),
+                    fetch(`${api}/notifications/my-notifications`, { headers: { 'Authorization': `Bearer ${token}` }, credentials: 'include' }),
+                    fetch(`${api}/payments/withdrawals/my-history`, { headers: { 'Authorization': `Bearer ${token}` }, credentials: 'include' }),
+                    fetch(`${api}/settings`, { headers: { 'Authorization': `Bearer ${token}` }, credentials: 'include' })
                 ]);
 
                 const [statsRes, prodsRes, ordsRes, notifsRes, withdrawalsRes, settingsRes] = results;
@@ -210,7 +210,10 @@ export default function VendorDashboard() {
 
             const res = await fetch(url, {
                 method,
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
                 credentials: 'include',
                 body: JSON.stringify({
                     name: formName,
@@ -259,7 +262,11 @@ export default function VendorDashboard() {
         if (r.isConfirmed) {
             try {
                 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-                await fetch(`${api}/products/${id}`, { method: 'DELETE', credentials: 'include' });
+                await fetch(`${api}/products/${id}`, { 
+                    method: 'DELETE', 
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    credentials: 'include' 
+                });
                 setVendorProducts(prev => prev.filter(p => p.id !== id));
                 Swal.fire('Discarded!', 'Design removed.', 'success');
             } catch (err) {
@@ -290,7 +297,10 @@ export default function VendorDashboard() {
                 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
                 await fetch(`${api}/payments/withdrawals/request`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
                     credentials: 'include',
                     body: JSON.stringify({ amount: parseFloat(amount), paymentMethod: 'momo' })
                 });
@@ -306,7 +316,10 @@ export default function VendorDashboard() {
             const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
             const res = await fetch(`${api}/auth/profile`, {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
                 credentials: 'include',
                 body: JSON.stringify({ shopName, phone, momoNumber, accountName, location: shopLocation, bio, profileImage, bannerImage })
             });
@@ -325,7 +338,12 @@ export default function VendorDashboard() {
             const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
             const formData = new FormData();
             formData.append('file', file);
-            const res = await fetch(`${api}/upload`, { method: 'POST', credentials: 'include', body: formData });
+            const res = await fetch(`${api}/upload`, { 
+                method: 'POST', 
+                headers: { 'Authorization': `Bearer ${token}` },
+                credentials: 'include', 
+                body: formData 
+            });
             const data = await res.json();
             if (type === 'avatar') setProfileImage(data.url);
             else setBannerImage(data.url);
@@ -339,7 +357,12 @@ export default function VendorDashboard() {
             const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
             const formData = new FormData();
             formData.append('file', file);
-            const res = await fetch(`${api}/upload`, { method: 'POST', credentials: 'include', body: formData });
+            const res = await fetch(`${api}/upload`, { 
+                method: 'POST', 
+                headers: { 'Authorization': `Bearer ${token}` },
+                credentials: 'include', 
+                body: formData 
+            });
             const data = await res.json();
             
             setFormImages(prev => {
@@ -457,7 +480,10 @@ export default function VendorDashboard() {
                                     const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
                                     await fetch(`${api}/orders/${id}`, {
                                         method: 'PATCH',
-                                        headers: { 'Content-Type': 'application/json' },
+                                        headers: { 
+                                            'Content-Type': 'application/json',
+                                            'Authorization': `Bearer ${token}`
+                                        },
                                         credentials: 'include',
                                         body: JSON.stringify({ status: r.value })
                                     });
@@ -466,7 +492,11 @@ export default function VendorDashboard() {
                             });
                         }}
                         onDelete={async (id) => {
-                             const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders/${id}`, { method: 'DELETE', credentials: 'include' });
+                             const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders/${id}`, { 
+                                 method: 'DELETE', 
+                                 headers: { 'Authorization': `Bearer ${token}` },
+                                 credentials: 'include' 
+                             });
                              if (res.ok) setVendorOrders(prev => prev.filter(o => o._id !== id));
                         }}
                         onQuickSetFee={handleQuickSetFee}
@@ -615,6 +645,7 @@ export default function VendorDashboard() {
                                         <option value="Electronics">Electronics</option>
                                         <option value="Home goods">Home goods</option>
                                         <option value="Beauty/cosmetics">Beauty/cosmetics</option>
+                                        <option value="Accessories">Accessories</option>
                                         <option value="Used items">Used items</option>
                                         <option value="Wholesaler">Wholesaler</option>
                                         <option value="For men">For men</option>

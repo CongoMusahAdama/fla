@@ -61,7 +61,7 @@ export default function Home() {
             <div>
               <h3 className="font-heading font-bold text-slate-900 mb-4 text-lg">Category</h3>
               <div className="space-y-2">
-                {['All Product', 'Electronics', 'Home goods', 'Beauty/cosmetics', 'Used items', 'Wholesaler', 'For men', 'For women', 'Children/Toys', 'Furniture', 'Food/beverages', 'Hardware items', 'Refurbished items', 'Unisex'].map((cat) => (
+                {['All Product', 'Electronics', 'Home goods', 'Beauty/cosmetics', 'Accessories', 'Used items', 'Wholesaler', 'For men', 'For women', 'Children/Toys', 'Furniture', 'Food/beverages', 'Hardware items', 'Refurbished items', 'Unisex'].map((cat) => (
                   <button
                     key={cat}
                     onClick={() => {
@@ -116,7 +116,7 @@ export default function Home() {
                 </div>
               </div>
               <div className="flex gap-2.5 overflow-x-auto no-scrollbar pb-4 -mx-4 px-4">
-                {['All Product', 'Electronics', 'Home goods', 'Beauty/cosmetics', 'Used items', 'Wholesaler', 'For men', 'For women', 'Children/Toys', 'Furniture', 'Food/beverages', 'Hardware items', 'Refurbished items', 'Unisex'].map((cat) => (
+                {['All Product', 'Electronics', 'Home goods', 'Beauty/cosmetics', 'Accessories', 'Used items', 'Wholesaler', 'For men', 'For women', 'Children/Toys', 'Furniture', 'Food/beverages', 'Hardware items', 'Refurbished items', 'Unisex'].map((cat) => (
                   <button
                     key={cat}
                     onClick={() => {

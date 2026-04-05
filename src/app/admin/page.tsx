@@ -17,7 +17,7 @@ import Swal from 'sweetalert2';
 type AdminSection = 'dashboard' | 'vendors' | 'customers' | 'orders' | 'escrow' | 'products' | 'disputes' | 'delivery' | 'settings' | 'reports';
 
 export default function AdminDashboard() {
-    const { user, isAuthenticated, logout, isLoading: isAuthLoading } = useAuth();
+    const { user, token, isAuthenticated, logout, isLoading: isAuthLoading } = useAuth();
     const router = useRouter();
 
     const [activeSection, setActiveSection] = useState<AdminSection>('dashboard');
@@ -78,7 +78,8 @@ export default function AdminDashboard() {
                 await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/settings`, {
                     method: 'PATCH',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
                     },
                     credentials: 'include',
                     body: JSON.stringify(backendUpdates)
@@ -108,7 +109,8 @@ export default function AdminDashboard() {
         try {
 
             const headers = {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
             };
 
             const [statsRes, ordersRes, usersRes, productsRes, settingsRes] = await Promise.all([
@@ -200,7 +202,8 @@ export default function AdminDashboard() {
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders/${orderId}/verify-payment`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
                 },
                 credentials: 'include'
             });
@@ -230,7 +233,8 @@ export default function AdminDashboard() {
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/users/${userId}`, {
                 method: 'PATCH',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
                 },
                 credentials: 'include',
                 body: JSON.stringify({ status })
@@ -272,6 +276,7 @@ export default function AdminDashboard() {
             try {
                 await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/users/${userId}`, {
                     method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` },
                     credentials: 'include'
                 });
                 await refreshData();
@@ -287,7 +292,8 @@ export default function AdminDashboard() {
             await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/products/${productId}`, {
                 method: 'PATCH',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
                 },
                 credentials: 'include',
                 body: JSON.stringify({ isActive: !currentStatus })
@@ -323,6 +329,7 @@ export default function AdminDashboard() {
             try {
                 await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/products/${productId}`, {
                     method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` },
                     credentials: 'include'
                 });
                 await refreshData();
@@ -354,7 +361,8 @@ export default function AdminDashboard() {
                 const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders/${orderId}/resolve-dispute`, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
                     },
                     credentials: 'include',
                     body: JSON.stringify({ resolution })
@@ -377,7 +385,8 @@ export default function AdminDashboard() {
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/auth/admin/create-vendor`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
                 },
                 credentials: 'include',
                 body: JSON.stringify(newVendorData)

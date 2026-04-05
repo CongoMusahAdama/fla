@@ -11,7 +11,7 @@ import { getImageUrl } from '@/lib/utils';
 
 export default function CartDrawer() {
     const { cartItems, isCartOpen, setIsCartOpen, removeFromCart, updateQuantity } = useCart();
-    const { isAuthenticated, user } = useAuth();
+    const { isAuthenticated, user, token } = useAuth();
     const router = useRouter();
     const drawerRef = useRef<HTMLDivElement>(null);
     const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
@@ -205,7 +205,8 @@ export default function CartDrawer() {
                 const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders`, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
                     },
                     credentials: 'include',
                     body: JSON.stringify(orderData)

@@ -33,6 +33,7 @@ export type User = {
 
 type AuthContextType = {
     user: User | null;
+    token: string | null;
     login: (identifier: string, password: string) => Promise<User>;
     signup: (name: string, email: string, phone: string, location: string, password: string, role?: UserRole, vendorData?: Partial<User>) => Promise<User>;
     logout: () => void;
@@ -45,17 +46,22 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
+    const [token, setToken] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
     // Load user from localStorage on mount
     useEffect(() => {
         const savedUser = localStorage.getItem('fla_user');
+        const savedToken = localStorage.getItem('fla_token');
         if (savedUser) {
             try {
                 setUser(JSON.parse(savedUser));
             } catch (e) {
                 console.error('Failed to parse saved user', e);
             }
+        }
+        if (savedToken) {
+            setToken(savedToken);
         }
         setIsLoading(false);
     }, []);
@@ -102,7 +108,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 
             setUser(loggedInUser);
+            setToken(data.access_token);
             localStorage.setItem('fla_user', JSON.stringify(loggedInUser));
+            localStorage.setItem('fla_token', data.access_token);
             return loggedInUser;
         } catch (error) {
             console.error('Login error:', error);
@@ -151,7 +159,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             console.error('Logout error:', error);
         }
         setUser(null);
+        setToken(null);
         localStorage.removeItem('fla_user');
+        localStorage.removeItem('fla_token');
     };
 
     const updateUser = (updatedData: Partial<User>) => {
@@ -164,6 +174,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return (
         <AuthContext.Provider value={{
             user,
+            token,
             login,
             signup,
             logout,

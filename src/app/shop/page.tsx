@@ -81,7 +81,7 @@ function ShopContent() {
 
     // Using the same product data as homepage for consistency
 
-    const categories = ['All Product', 'Electronics', 'Home goods', 'Beauty/cosmetics', 'Used items', 'Wholesaler', 'For men', 'For women', 'Children/Toys', 'Furniture', 'Food/beverages', 'Hardware items', 'Refurbished items', 'Unisex'];
+    const categories = ['All Product', 'Electronics', 'Home goods', 'Beauty/cosmetics', 'Accessories', 'Used items', 'Wholesaler', 'For men', 'For women', 'Children/Toys', 'Furniture', 'Food/beverages', 'Hardware items', 'Refurbished items', 'Unisex'];
 
     const filteredProducts = products;
 

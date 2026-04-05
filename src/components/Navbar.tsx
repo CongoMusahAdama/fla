@@ -12,7 +12,7 @@ export default function Navbar() {
     const [isScrolled, setIsScrolled] = useState(false);
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const { cartCount, isCartOpen, setIsCartOpen, setIsSupportOpen } = useCart();
-    const { user, isAuthenticated, logout } = useAuth();
+    const { user, token, isAuthenticated, logout } = useAuth();
     const router = useRouter();
 
     const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -70,7 +70,8 @@ export default function Navbar() {
                         await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/wishlist`, {
                             method: 'POST',
                             headers: {
-                                'Content-Type': 'application/json'
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${token}`
                             },
                             credentials: 'include',
                             body: JSON.stringify({ productId: item.id })

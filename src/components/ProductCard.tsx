@@ -42,7 +42,7 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
     const [isAdding, setIsAdding] = useState(false);
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     const { addToCart } = useCart();
-    const { isAuthenticated, user } = useAuth();
+    const { isAuthenticated, user, token } = useAuth();
     const [isWishlisted, setIsWishlisted] = useState(initialWishlistState);
     const [imgError, setImgError] = useState(false);
     const router = useRouter();
@@ -287,7 +287,8 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
             const response = await fetch(url, {
                 method,
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
                 },
                 credentials: 'include',
                 body: isWishlisted ? undefined : JSON.stringify({ productId: id })
@@ -477,7 +478,8 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
                 },
                 credentials: 'include',
                 body: JSON.stringify(orderData)

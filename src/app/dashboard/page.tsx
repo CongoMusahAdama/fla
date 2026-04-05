@@ -29,7 +29,7 @@ const WhatsAppIcon = ({ className }: { className?: string }) => (
 type DashboardSection = 'home' | 'orders' | 'wishlist' | 'notifications' | 'profile' | 'help';
 
 export default function CustomerDashboard() {
-    const { user, logout, updateUser, isAuthenticated, isLoading } = useAuth();
+    const { user, token, logout, updateUser, isAuthenticated, isLoading } = useAuth();
     const { addToCart } = useCart();
     const router = useRouter();
     const [activeSection, setActiveSection] = useState<DashboardSection>('home');
@@ -99,7 +99,13 @@ export default function CustomerDashboard() {
 
             const fetchData = async (endpoint: string, setter: (data: any) => void) => {
                 try {
-                    const res = await fetch(`${apiBase}${endpoint}`, { headers, credentials: 'include' });
+                    const res = await fetch(`${apiBase}${endpoint}`, { 
+                        headers: {
+                            ...headers,
+                            'Authorization': `Bearer ${token}`
+                        }, 
+                        credentials: 'include' 
+                    });
                     if (res.ok) {
                         const data = await res.json();
                         setter(data);
@@ -202,7 +208,8 @@ export default function CustomerDashboard() {
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/auth/profile`, {
                 method: 'PATCH',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
                 },
                 credentials: 'include',
                 body: JSON.stringify({
@@ -317,7 +324,8 @@ export default function CustomerDashboard() {
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders/${disputeOrderId}/dispute`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
                 },
                 credentials: 'include',
                 body: JSON.stringify({
@@ -395,6 +403,7 @@ export default function CustomerDashboard() {
                 // 1. Upload the file
                 const uploadRes = await fetch(`${apiBase}/upload`, {
                     method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` },
                     credentials: 'include',
                     body: formData
                 });
@@ -406,7 +415,8 @@ export default function CustomerDashboard() {
                 const submitRes = await fetch(`${apiBase}/orders/${orderId}/submit-proof`, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
                     },
                     credentials: 'include',
                     body: JSON.stringify({ proofUrl: url })
@@ -445,6 +455,7 @@ export default function CustomerDashboard() {
 
             const res = await fetch(`${apiBase}/orders/${orderId}/initialize-first-mile-payment`, {
                 method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
                 credentials: 'include'
             });
 
@@ -480,7 +491,8 @@ export default function CustomerDashboard() {
                 const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders/${orderId}`, {
                     method: 'PATCH',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
                     },
                     credentials: 'include',
                     body: JSON.stringify({ status: 'cancelled', escrowStatus: 'frozen' })
