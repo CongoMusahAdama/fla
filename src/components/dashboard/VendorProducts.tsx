@@ -21,6 +21,8 @@ export interface Product {
   imageLabels?: string[];
   sizes?: string[];
   hasSizes?: boolean;
+  colors?: string[];
+  hasColors?: boolean;
   isActive?: boolean;
 }
 

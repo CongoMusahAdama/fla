@@ -90,8 +90,17 @@ export default function CartDrawer() {
                         <div class="space-y-2.5 max-h-48 overflow-y-auto">
                             ${cartItems.map(item => `
                                 <div class="flex justify-between items-center text-sm bg-white p-3 rounded-xl">
-                                    <span class="font-bold text-slate-900">${item.name} ${item.size !== 'N/A' ? `<span class="text-slate-400 text-xs">(${item.size})</span>` : ''} <span class="text-brand-lemon text-xs">×${item.quantity}</span></span>
-                                    <span class="text-slate-900 font-black">GH₵${item.price * item.quantity}</span>
+                                    <div class="flex flex-col">
+                                        <span class="font-bold text-slate-900">${item.name}</span>
+                                        <span class="text-slate-400 text-[10px] uppercase font-black tracking-widest">
+                                            ${item.size !== 'N/A' ? `Size: ${item.size}` : ''} 
+                                            ${item.color !== 'N/A' ? ` | Color: ${item.color}` : ''}
+                                        </span>
+                                    </div>
+                                    <div class="text-right flex flex-col">
+                                        <span class="text-brand-lemon text-xs font-black">×${item.quantity}</span>
+                                        <span class="text-slate-900 font-black">GH₵${item.price * item.quantity}</span>
+                                    </div>
                                 </div>
                             `).join('')}
                         </div>
@@ -171,6 +180,7 @@ export default function CartDrawer() {
                         price: item.price,
                         quantity: item.quantity,
                         size: item.size,
+                        color: item.color,
                         image: item.image
                     })),
                     totalAmount: subtotal,
@@ -209,7 +219,7 @@ export default function CartDrawer() {
                 const { paymentLink } = await response.json();
 
                 // Clear cart locally before redirect
-                cartItems.forEach(item => removeFromCart(item.id, item.size));
+                cartItems.forEach(item => removeFromCart(item.id, item.size, item.color));
                 setIsCartOpen(false);
 
                 // Redirect to Flutterwave
@@ -285,7 +295,7 @@ export default function CartDrawer() {
                         </div>
                     ) : (
                         cartItems.map((item) => (
-                            <div key={`${item.id}-${item.size}`} className="flex gap-4 group">
+                            <div key={`${item.id}-${item.size}-${item.color}`} className="flex gap-4 group">
                                 {/* Image */}
                                 <div className="relative w-20 h-24 flex-shrink-0 bg-gray-100 rounded-lg overflow-hidden border border-gray-100">
                                     <Image
@@ -308,19 +318,22 @@ export default function CartDrawer() {
                                         <div className="flex justify-between items-start">
                                             <h3 className="font-heading font-bold text-slate-900 text-sm line-clamp-2">{item.name}</h3>
                                             <button
-                                                onClick={() => removeFromCart(item.id, item.size)}
+                                                onClick={() => removeFromCart(item.id, item.size, item.color)}
                                                 className="text-gray-300 hover:text-red-500 transition-colors p-1 -mr-1"
                                             >
                                                 <Trash2 className="w-4 h-4" />
                                             </button>
                                         </div>
-                                        {item.size !== 'N/A' && <p className="text-xs text-slate-500 mt-1">Size: <span className="font-bold text-slate-700">{item.size}</span></p>}
+                                        <div className="flex flex-wrap gap-2 mt-1">
+                                            {item.size !== 'N/A' && <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 bg-slate-50 px-2 py-0.5 rounded border border-slate-100">Size: <span className="text-slate-900">{item.size}</span></p>}
+                                            {item.color !== 'N/A' && <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 bg-slate-50 px-2 py-0.5 rounded border border-slate-100">Color: <span className="text-slate-900">{item.color}</span></p>}
+                                        </div>
                                     </div>
 
                                     <div className="flex items-center justify-between mt-2">
                                         <div className="flex items-center gap-3 bg-gray-50 rounded-lg px-2 py-1 border border-gray-100">
                                             <button
-                                                onClick={() => updateQuantity(item.id, item.size, -1)}
+                                                onClick={() => updateQuantity(item.id, item.size, item.color, -1)}
                                                 className="text-slate-400 hover:text-slate-600 disabled:opacity-50"
                                                 disabled={item.quantity <= 1}
                                             >
@@ -328,7 +341,7 @@ export default function CartDrawer() {
                                             </button>
                                             <span className="text-xs font-bold text-slate-900 w-3 text-center">{item.quantity}</span>
                                             <button
-                                                onClick={() => updateQuantity(item.id, item.size, 1)}
+                                                onClick={() => updateQuantity(item.id, item.size, item.color, 1)}
                                                 className="text-slate-400 hover:text-slate-600"
                                             >
                                                 <Plus className="w-3 h-3" />

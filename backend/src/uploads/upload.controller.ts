@@ -15,11 +15,11 @@ export class UploadController {
             storage: memoryStorage(),
             limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
             fileFilter: (req, file, callback) => {
-                const allowedMimes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
+                const allowedMimes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp', 'application/pdf', 'image/gif', 'image/svg+xml'];
                 if (allowedMimes.includes(file.mimetype)) {
                     callback(null, true);
                 } else {
-                    callback(new Error('Invalid file type. Only JPEG, PNG, and PDF are allowed.'), false);
+                    callback(new Error('Invalid file type. Only JPEG, PNG, WEBP, and PDF are allowed.'), false);
                 }
             },
         }),

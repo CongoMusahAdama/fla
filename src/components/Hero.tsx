@@ -13,29 +13,26 @@ export default function Hero() {
 
     return (
         <section className="relative w-full z-0">
-            <div className="relative h-[450px] md:h-[550px] overflow-hidden">
+            <div className="relative h-[550px] md:h-[650px] overflow-hidden">
                 {/* Botanical Lifestyle Image */}
                 <Image
-                    src="/hero-rack.png"
-                    alt="FLA Purchase Lifestyle Collection"
+                    src="/image copy.png"
+                    alt="FLA Purchase Hero Collection"
                     fill
-                    unoptimized={true}
-                    className="object-contain md:object-center object-bottom scale-100 md:scale-90"
+                    className="object-cover object-[center_10%]"
                     priority
                     quality={100}
-                    onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.src = '/product-1.jpg';
-                    }}
                 />
 
-                {/* Subtle gradient for text readability - matching the soft botanical vibe */}
-                <div className="absolute inset-0 bg-black/10 md:bg-transparent z-[5]" />
+                {/* Content Contrast Layer */}
+                <div className="absolute inset-0 bg-black/20 z-[5]" />
+                <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/20 to-transparent z-[6] hidden md:block" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent z-[6] md:hidden" />
 
                 {/* Content - Inspired by Pura Design */}
                 <div className={`absolute bottom-12 md:bottom-24 left-8 md:left-16 z-10 transition-all duration-1000 ease-out ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
                     }`}>
-                    <h1 className="font-heading text-4xl md:text-7xl font-bold text-white md:text-slate-900 tracking-tight leading-tight mb-8">
+                    <h1 className="font-heading text-4xl md:text-7xl font-bold text-white tracking-tight leading-tight mb-8">
                         SHOP WITH CONFIDENCE <br />
                         <span className="text-[#E5FF7F]">BY FLA PURCHASE</span>
                     </h1>

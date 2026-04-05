@@ -1766,29 +1766,46 @@ export default function CustomerDashboard() {
                                     </div>
                                 </div>
 
-                                <table className="w-full mb-12">
-                                    <thead>
-                                        <tr className="border-b border-slate-100">
-                                            <th className="py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left">Item Description</th>
-                                            <th className="py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center w-20">Qty</th>
-                                            <th className="py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right w-32">Amount</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-50">
+                                {/* Itemized List */}
+                                <div className="space-y-4 mb-12">
+                                    <div className="md:hidden divide-y divide-slate-100">
                                         {selectedReceipt.items.map((item: any, i: number) => (
-                                            <tr key={i}>
-                                                <td className="py-6">
-                                                    <p className="font-bold text-slate-900 text-sm">{item.name}</p>
-                                                    <p className="text-[10px] text-slate-400 font-medium mt-1 uppercase tracking-wider">
-                                                        Size: {item.size} • Studio: {selectedReceipt.vendorName || 'FLA Studio'}
-                                                    </p>
-                                                </td>
-                                                <td className="py-6 text-center text-sm font-bold text-slate-900">{item.quantity}</td>
-                                                <td className="py-6 text-right font-sans font-black text-slate-900">GH₵ {item.price * (item.quantity || 1)}</td>
-                                            </tr>
+                                            <div key={i} className="py-6 space-y-4">
+                                                <div className="flex justify-between items-start gap-4">
+                                                    <div className="min-w-0">
+                                                        <p className="font-black text-slate-900 text-[13px] uppercase tracking-tighter truncate">{item.name}</p>
+                                                        <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-1">SIZE: {item.size} • QTY: {item.quantity}</p>
+                                                    </div>
+                                                    <p className="font-black text-slate-900 text-sm tabular-nums whitespace-nowrap">GH₵ {(item.price * (item.quantity || 1)).toLocaleString()}</p>
+                                                </div>
+                                            </div>
                                         ))}
-                                    </tbody>
-                                </table>
+                                    </div>
+
+                                    <table className="hidden md:table w-full">
+                                        <thead>
+                                            <tr className="border-b border-slate-100">
+                                                <th className="py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left">Item Description</th>
+                                                <th className="py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center w-20">Qty</th>
+                                                <th className="py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right w-32">Amount</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-50">
+                                            {selectedReceipt.items.map((item: any, i: number) => (
+                                                <tr key={i}>
+                                                    <td className="py-6">
+                                                        <p className="font-bold text-slate-900 text-sm">{item.name}</p>
+                                                        <p className="text-[10px] text-slate-400 font-medium mt-1 uppercase tracking-wider">
+                                                            Size: {item.size} • Studio: {selectedReceipt.vendorName || 'FLA Studio'}
+                                                        </p>
+                                                    </td>
+                                                    <td className="py-6 text-center text-sm font-bold text-slate-900">{item.quantity}</td>
+                                                    <td className="py-6 text-right font-sans font-black text-slate-900">GH₵ {(item.price * (item.quantity || 1)).toLocaleString()}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
 
                                 <div className="space-y-3 pt-6 border-t-2 border-slate-50 mb-12">
                                     <div className="flex justify-between items-center text-slate-500">

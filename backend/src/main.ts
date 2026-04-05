@@ -67,7 +67,7 @@ async function bootstrap() {
   app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
   const port = process.env.PORT || 3001;
-  await app.listen(port, '0.0.0.0');
+  await app.listen(port);
   console.log(`🚀 Backend running on port ${port}`);
   console.log(`🌍 Health Check at http://localhost:${port}/api`);
 }

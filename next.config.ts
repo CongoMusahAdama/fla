@@ -6,6 +6,7 @@ const nextConfig: NextConfig = {
   poweredByHeader: false, // Remove X-Powered-By header for security
   images: {
     formats: ['image/avif', 'image/webp'],
+    qualities: [100, 75],
     remotePatterns: [
       {
         protocol: 'https',

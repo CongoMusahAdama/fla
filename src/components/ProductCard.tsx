@@ -26,15 +26,18 @@ interface ProductCardProps {
     vendorName?: string;
     uniqueVendorId?: string;
     hasSizes?: boolean;
+    hasColors?: boolean;
+    colors?: string[];
     vendorRegion?: string;
 }
 
-export default function ProductCard({ id, name, price, images, sizes = [], imageLabels, duration = '3 working days', stock, index, vendorId, initialWishlistState = false, description, vendorName, uniqueVendorId, hasSizes = true, vendorRegion }: ProductCardProps) {
+export default function ProductCard({ id, name, price, images, sizes = [], imageLabels, duration = '3 working days', stock, index, vendorId, initialWishlistState = false, description, vendorName, uniqueVendorId, hasSizes = true, hasColors = true, colors = [], vendorRegion }: ProductCardProps) {
     const isBatch = false;
     const currentPrice = price;
 
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [selectedSize, setSelectedSize] = useState<string | null>(null);
+    const [selectedColor, setSelectedColor] = useState<string | null>(null);
     const [isVisible, setIsVisible] = useState(false);
     const [isAdding, setIsAdding] = useState(false);
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -203,7 +206,17 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                 icon: 'warning',
                 title: 'Size Required',
                 text: 'Please select a size to continue.',
-                confirmButtonColor: '#0f172a', // slate-900
+                confirmButtonColor: '#0f172a',
+            });
+            return;
+        }
+
+        if (hasColors && !selectedColor) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Color Required',
+                text: 'Please select a color to continue.',
+                confirmButtonColor: '#0f172a',
             });
             return;
         }
@@ -221,6 +234,7 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                 price: currentPrice,
                 image: images[0],
                 size: selectedSize || 'N/A',
+                color: selectedColor || 'N/A',
                 quantity: 1,
                 vendorId: finalVendorId,
                 vendorName: vendorName,
@@ -307,6 +321,16 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                 icon: 'warning',
                 title: 'Size Required',
                 text: 'Please select a size to continue.',
+                confirmButtonColor: '#0f172a',
+            });
+            return;
+        }
+
+        if (hasColors && !selectedColor) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Color Required',
+                text: 'Please select a color to continue.',
                 confirmButtonColor: '#0f172a',
             });
             return;
@@ -434,6 +458,7 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                     price: currentPrice,
                     quantity: 1,
                     size: selectedSize || 'Universal',
+                    color: selectedColor || 'Universal',
                     image: images[0]
                 }],
                 totalAmount: currentPrice,
@@ -791,6 +816,41 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                                     </div>
                                 )}
 
+                                {/* Color Selection (NEW) */}
+                                {hasColors && (
+                                    <div className="space-y-4 pt-6 border-t border-slate-50">
+                                        <div className="flex justify-between items-center px-1">
+                                            <div className="flex items-center gap-2">
+                                                <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Select Finish</h4>
+                                                {!selectedColor && <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping"></span>}
+                                            </div>
+                                        </div>
+                                        <div className="flex flex-wrap gap-3">
+                                            {(() => {
+                                                const safeColors = (Array.isArray(colors) && colors.length > 0) ? colors : ['Black', 'White', 'Cream', 'Gold'];
+                                                return safeColors.map(color => (
+                                                    <button
+                                                        key={color}
+                                                        onClick={() => setSelectedColor(color)}
+                                                        className={`h-12 md:h-14 px-5 rounded-2xl font-black border-2 transition-all text-xs flex items-center gap-2
+                                                            ${selectedColor === color
+                                                                ? 'border-slate-900 bg-slate-900 text-white shadow-xl shadow-slate-900/20 scale-105'
+                                                                : 'border-slate-100 text-slate-400 hover:border-slate-200 bg-white hover:scale-105'
+                                                            }
+                                                        `}
+                                                    >
+                                                        <div className={`w-3 h-3 rounded-full border border-black/10`} style={{ 
+                                                            backgroundColor: color.toLowerCase() === 'pattern' ? 'transparent' : color.toLowerCase(),
+                                                            backgroundImage: color.toLowerCase() === 'pattern' ? 'conic-gradient(from 0deg,#ff0000,#ffff00,#00ff00,#00ffff,#0000ff,#ff00ff,#ff0000)' : 'none'
+                                                        }} />
+                                                        {color}
+                                                    </button>
+                                                ));
+                                            })()}
+                                        </div>
+                                    </div>
+                                )}
+
                                 <div className="space-y-8">
                                     {/* Description Section */}
                                     <div className="space-y-6">
@@ -802,7 +862,7 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                                             </div>
                                         </div>
                                         <p className="text-slate-600 text-sm md:text-base leading-relaxed text-left font-medium opacity-90">
-                                            {description || `Crafted with precision using premium bespoke tailoring techniques. This piece features our signature ${name.toLowerCase()} design, combining traditional aesthetics with modern comfort. Every stitch is a testament to our commitment to excellence.`}
+                                            {description || `Crafted with precision using premium heritage craftsmanship techniques. This piece features our signature ${name.toLowerCase()} design, combining traditional aesthetics with modern comfort. Every detail is a testament to our commitment to excellence.`}
                                         </p>
 
                                         {/* Trust Badges */}
@@ -854,7 +914,7 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                                         <div className="flex items-center gap-3 p-4 rounded-2xl bg-white border border-slate-100 shadow-sm">
                                             <Clock className="w-5 h-5 text-slate-900" />
                                             <div className="flex flex-col">
-                                                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Tailoring</span>
+                                                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Prep Time</span>
                                                 <span className="text-[11px] font-black text-slate-900">{duration}</span>
                                             </div>
                                         </div>
@@ -862,7 +922,7 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                                             <Shield className="w-5 h-5 text-slate-900" />
                                             <div className="flex flex-col">
                                                 <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Quality</span>
-                                                <span className="text-[11px] font-black text-slate-900">Bespoke</span>
+                                                <span className="text-[11px] font-black text-slate-900">Signature</span>
                                             </div>
                                         </div>
                                     </div>

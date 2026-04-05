@@ -71,6 +71,8 @@ export class Product {
     @Prop({ default: true })
     hasSizes: boolean;
 
+    @Prop({ default: true })
+    hasColors: boolean;
 }
 
 export const ProductSchema = SchemaFactory.createForClass(Product);

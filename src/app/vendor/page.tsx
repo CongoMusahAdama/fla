@@ -64,9 +64,13 @@ export default function VendorDashboard() {
     const [formTailoring, setFormTailoring] = useState('');
     const [formRegion, setFormRegion] = useState('Greater Accra');
     const [formNarrative, setFormNarrative] = useState('');
-    const [formImages, setFormImages] = useState<{ url: string, label: string }[]>([]);
+    const [formImages, setFormImages] = useState<string[]>([]);
     const [formSizes, setFormSizes] = useState<string[]>([]);
     const [formHasSizes, setFormHasSizes] = useState(true);
+    const [formHasColors, setFormHasColors] = useState(true);
+    const [formColors, setFormColors] = useState<string[]>([]);
+    const [formImageLabels, setFormImageLabels] = useState<string[]>(['Front', 'Back', 'Side', 'Details']);
+    const [customColorInput, setCustomColorInput] = useState('');
 
     // Profile States
     const [shopName, setShopName] = useState('');
@@ -98,7 +102,7 @@ export default function VendorDashboard() {
     useEffect(() => {
         if (isLoading) return;
         if (!isAuthenticated) {
-            if (isHydrated) router.push('/auth?role=vendor');
+            if (isHydrated) router.push('/auth?view=login&role=vendor');
             return;
         }
         if (user?.role !== 'vendor' && user?.role !== 'admin') {
@@ -109,18 +113,23 @@ export default function VendorDashboard() {
         const fetchData = async () => {
             try {
                 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-                const [stats, prods, ords, notifs, withdrawals, settings] = await Promise.all([
+                const results = await Promise.allSettled([
                     fetch(`${api}/dashboard/vendor/stats`, { credentials: 'include' }),
-                    fetch(`${api}/products?vendorId=${user.id}`, { credentials: 'include' }),
+                    fetch(`${api}/products?vendorId=${user.id}&showAll=true`, { credentials: 'include' }),
                     fetch(`${api}/orders/vendor-orders`, { credentials: 'include' }),
                     fetch(`${api}/notifications/my-notifications`, { credentials: 'include' }),
                     fetch(`${api}/payments/withdrawals/my-history`, { credentials: 'include' }),
                     fetch(`${api}/settings`, { credentials: 'include' })
                 ]);
 
-                if (stats.ok) setDashboardData(await stats.json());
-                if (prods.ok) {
-                    const p = await prods.json();
+                const [statsRes, prodsRes, ordsRes, notifsRes, withdrawalsRes, settingsRes] = results;
+
+                if (statsRes.status === 'fulfilled' && statsRes.value.ok) {
+                    setDashboardData(await statsRes.value.json());
+                }
+
+                if (prodsRes.status === 'fulfilled' && prodsRes.value.ok) {
+                    const p = await prodsRes.value.json();
                     setVendorProducts(p.map((prod: any) => ({
                         id: prod._id,
                         name: prod.name,
@@ -143,14 +152,22 @@ export default function VendorDashboard() {
                         isActive: prod.isActive
                     })));
                 }
-                if (ords.ok) setVendorOrders(await ords.json());
-                if (notifs.ok) setNotifications(await notifs.json());
-                if (withdrawals.ok) {
-                    const w = await withdrawals.json();
+
+                if (ordsRes.status === 'fulfilled' && ordsRes.value.ok) {
+                    setVendorOrders(await ordsRes.value.json());
+                }
+
+                if (notifsRes.status === 'fulfilled' && notifsRes.value.ok) {
+                    setNotifications(await notifsRes.value.json());
+                }
+
+                if (withdrawalsRes.status === 'fulfilled' && withdrawalsRes.value.ok) {
+                    const w = await withdrawalsRes.value.json();
                     setDashboardData((prev: any) => ({ ...prev, withdrawalHistory: w }));
                 }
-                if (settings.ok) {
-                   const s = await settings.json();
+
+                if (settingsRes.status === 'fulfilled' && settingsRes.value.ok) {
+                    const s = await settingsRes.value.json();
                    if (s.platform_commission) setCommissionRate(Number(s.platform_commission));
                    if (s.withdrawal_minimum) setWithdrawalMin(Number(s.withdrawal_minimum));
                 }
@@ -175,7 +192,7 @@ export default function VendorDashboard() {
         }).then((r) => {
             if (r.isConfirmed) {
                 logout();
-                router.push('/');
+                router.push('/auth?view=login&role=vendor');
             }
         });
     };
@@ -201,12 +218,12 @@ export default function VendorDashboard() {
                     category: formCategory,
                     stock: parseInt(formQuantity) || 0,
                     description: formNarrative,
-                    images: formImages.map(i => i.url),
-                    imageLabels: formImages.map(i => i.label),
-                    sizes: formSizes,
-                    tailoringTime: formTailoring,
-                    region: formRegion,
+                    images: formImages.filter(url => url !== ''),
+                    sizes: formHasSizes ? formSizes : [],
                     hasSizes: formHasSizes,
+                    colors: formHasColors ? formColors : [],
+                    hasColors: formHasColors,
+                    imageLabels: formImages.map((url, idx) => url !== '' ? formImageLabels[idx] : null).filter(l => l !== null),
                     vendorId: user?.id,
                     vendorName: user?.shopName,
                     uniqueVendorId: user?.uniqueVendorId
@@ -215,7 +232,7 @@ export default function VendorDashboard() {
 
             if (!res.ok) throw new Error("Save operation failed");
             
-            const saved = await res.json();
+            const savedData = await res.json();
             // Refresh logic context...
             Swal.fire({ icon: 'success', title: 'STORE UPDATED', customClass: { popup: 'rounded-[32px]' } });
             setShowAddProduct(false);
@@ -315,6 +332,28 @@ export default function VendorDashboard() {
         }
     };
 
+    const handleFormImageUpload = async (file: File, index: number) => {
+        try {
+            const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+            const formData = new FormData();
+            formData.append('file', file);
+            const res = await fetch(`${api}/upload`, { method: 'POST', credentials: 'include', body: formData });
+            const data = await res.json();
+            
+            setFormImages(prev => {
+                const newImages = [...prev];
+                // Ensure the array is at least long enough to hold the new image at the specified index
+                while (newImages.length <= index) {
+                    newImages.push('');
+                }
+                newImages[index] = data.url;
+                return newImages; // Keep indices stable
+            });
+        } catch (err) {
+            Swal.fire('Upload Failed', 'Product image could not be stored.', 'error');
+        }
+    };
+
     const handleToggleVisibility = async (id: any, status: boolean) => {
         // Logic handled in modular component
     };
@@ -339,6 +378,10 @@ export default function VendorDashboard() {
         setFormImages([]);
         setFormSizes([]);
         setFormHasSizes(true);
+        setFormHasColors(true);
+        setFormColors([]);
+        setFormImageLabels(['Front', 'Back', 'Side', 'Details']);
+        setCustomColorInput('');
     };
 
     const renderContent = () => {
@@ -362,9 +405,12 @@ export default function VendorDashboard() {
                             setFormTailoring(p.tailoringTime);
                             setFormRegion(p.region);
                             setFormNarrative(p.description);
-                            setFormImages(p.images || []);
+                            setFormImages(p.images?.map((img: any) => typeof img === 'string' ? img : img.url) || []);
                             setFormSizes(p.sizes || []);
-                            setFormHasSizes(!!p.hasSizes);
+                            setFormHasSizes(true);
+                            setFormHasColors(true);
+                            setFormColors((p as any).colors || []);
+                            setFormImageLabels(p.imageLabels || ['Front', 'Back', 'Side', 'Details']);
                             setShowAddProduct(true);
                         }}
                         onDelete={handleDeleteProduct}
@@ -494,29 +540,219 @@ export default function VendorDashboard() {
                     <div className="relative w-full max-w-4xl max-h-[90vh] bg-white rounded-[48px] overflow-hidden shadow-2xl flex flex-col animate-in zoom-in-95 duration-300">
                         <div className="p-8 border-b border-slate-50 flex items-center justify-between">
                             <div>
-                                <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">{editingProduct ? 'Refine Design' : 'Manifest New Design'}</h3>
-                                <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-1">Configure your artisanal masterpiece.</p>
+                                <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">{editingProduct ? 'Edit Product' : 'Add New Product'}</h3>
+                                <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mt-1">Configure your product details for the marketplace.</p>
                             </div>
                             <button onClick={() => setShowAddProduct(false)} className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center hover:bg-slate-900 hover:text-white transition-all"><X className="w-6 h-6" /></button>
                         </div>
-                        <div className="flex-1 overflow-y-auto p-8 md:p-12 space-y-10">
-                            {/* Form fields... abbreviated for stability... */}
+                        <div className="flex-1 overflow-y-auto p-8 md:p-12 space-y-12">
+                            {/* Visual Assets (Images) */}
+                            <div className="space-y-6">
+                                <label className="text-[12px] font-black text-slate-900 uppercase tracking-widest ml-1">Visualization (Images)</label>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                    {[0, 1, 2, 3].map((idx) => (
+                                        <div key={idx} className="relative aspect-square rounded-3xl bg-slate-50 border-2 border-dashed border-slate-200 overflow-hidden group">
+                                            {/* Image Label Selector */}
+                                            <div className="absolute top-2 left-2 right-2 bg-white/90 backdrop-blur-md rounded-xl p-1 shadow-sm border border-slate-100 z-10">
+                                                <select
+                                                    value={formImageLabels[idx] || 'Front'}
+                                                    onChange={(e) => {
+                                                        const newLabels = [...formImageLabels];
+                                                        newLabels[idx] = e.target.value;
+                                                        setFormImageLabels(newLabels);
+                                                    }}
+                                                    className="w-full bg-transparent border-none text-[8px] font-black uppercase tracking-widest focus:ring-0 cursor-pointer text-slate-600"
+                                                >
+                                                    <option value="Front">Front View</option>
+                                                    <option value="Back">Back View</option>
+                                                    <option value="Side">Side Profile</option>
+                                                    <option value="Details">Details/Art</option>
+                                                    <option value="Lifestyle">Lifestyle</option>
+                                                </select>
+                                            </div>
+
+                                            {formImages[idx] ? (
+                                                <div className="absolute inset-0">
+                                                    <Image src={formImages[idx]} alt={`Preview ${idx}`} fill sizes="(max-width: 768px) 50vw, 25vw" style={{ objectFit: 'cover' }} className="rounded-3xl" />
+                                                    <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
+                                                        <label className="cursor-pointer px-4 py-2 bg-white rounded-full text-[8px] font-black uppercase tracking-widest">Replace
+                                                            <input type="file" className="hidden" accept="image/*" onChange={(e) => e.target.files?.[0] && handleFormImageUpload(e.target.files[0], idx)} />
+                                                        </label>
+                                                        <button onClick={() => setFormImages(prev => prev.filter((_, i) => i !== idx))} className="px-4 py-2 bg-red-500 text-white rounded-full text-[8px] font-black uppercase tracking-widest">Delete</button>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <label className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-100 transition-all">
+                                                    <Camera className="w-6 h-6 text-slate-300" />
+                                                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mt-2">Upload</span>
+                                                    <input type="file" className="hidden" accept="image/*" onChange={(e) => e.target.files?.[0] && handleFormImageUpload(e.target.files[0], idx)} />
+                                                </label>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Core Identity (Name, Price, Category) */}
                             <div className="grid md:grid-cols-2 gap-8">
                                 <div className="space-y-4">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Design Name</label>
-                                    <input type="text" value={formName} onChange={(e) => setFormName(e.target.value)} className="w-full px-6 py-4 bg-slate-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-slate-900/10 h-14" />
+                                    <label htmlFor="p-name" className="text-[12px] font-black text-slate-900 uppercase tracking-widest ml-1 cursor-pointer">Product Name</label>
+                                    <input id="p-name" name="name" type="text" placeholder="e.g. Traditional Smock" value={formName} onChange={(e) => setFormName(e.target.value)} className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-slate-900/10 h-14" />
                                 </div>
                                 <div className="space-y-4">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Price (GH₵)</label>
-                                    <input type="number" value={formPrice} onChange={(e) => setFormPrice(e.target.value)} className="w-full px-6 py-4 bg-slate-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-slate-900/10 h-14" />
+                                    <label htmlFor="p-price" className="text-[12px] font-black text-slate-900 uppercase tracking-widest ml-1 cursor-pointer">Price (GH₵)</label>
+                                    <input id="p-price" name="price" type="number" placeholder="0.00" value={formPrice} onChange={(e) => setFormPrice(e.target.value)} className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-slate-900/10 h-14" />
                                 </div>
                             </div>
-                            <div className="space-y-4">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">The Narrative (Description)</label>
-                                <textarea value={formNarrative} onChange={(e) => setFormNarrative(e.target.value)} rows={4} className="w-full px-6 py-4 bg-slate-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-slate-900/10 resize-none" />
+
+                            {/* Logistic Specs (Category, Stock, Tailoring, Region) */}
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+                                <div className="space-y-4">
+                                    <label htmlFor="p-category" className="text-[12px] font-black text-slate-900 uppercase tracking-widest ml-1 cursor-pointer">Category</label>
+                                    <select id="p-category" name="category" value={formCategory} onChange={(e) => setFormCategory(e.target.value)} className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-slate-900/10 h-14">
+                                        <option value="For men">For men</option>
+                                        <option value="For women">For women</option>
+                                        <option value="Unisex">Unisex</option>
+                                        <option value="Accessories">Accessories</option>
+                                        <option value="Heritage">Heritage</option>
+                                    </select>
+                                </div>
+                                <div className="space-y-4">
+                                    <label htmlFor="p-stock" className="text-[12px] font-black text-slate-900 uppercase tracking-widest ml-1 cursor-pointer">Stock Vol.</label>
+                                    <input id="p-stock" name="stock" type="number" placeholder="20" value={formQuantity} onChange={(e) => setFormQuantity(e.target.value)} className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-slate-900/10 h-14" />
+                                </div>
+                                <div className="space-y-4">
+                                    <label htmlFor="p-tailoring" className="text-[12px] font-black text-slate-900 uppercase tracking-widest ml-1 cursor-pointer">Prep Time</label>
+                                    <input id="p-tailoring" name="tailoringTime" type="text" placeholder="e.g., 3-5 Days" value={formTailoring} onChange={(e) => setFormTailoring(e.target.value)} className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-slate-900/10 h-14" />
+                                </div>
+                                <div className="space-y-4">
+                                    <label htmlFor="p-region" className="text-[12px] font-black text-slate-900 uppercase tracking-widest ml-1 cursor-pointer">Studio Region</label>
+                                    <select id="p-region" name="region" value={formRegion} onChange={(e) => setFormRegion(e.target.value)} className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-slate-900/10 h-14">
+                                        {GHANA_REGIONS.map((r) => <option key={r} value={r}>{r}</option>)}
+                                    </select>
+                                </div>
                             </div>
-                            <button onClick={handleAddOrEditProduct} className="w-full py-6 bg-slate-900 text-white rounded-full font-black text-xs uppercase tracking-widest hover:bg-brand-lemon hover:text-slate-900 transition-all active:scale-95 mt-4">
-                                {editingProduct ? 'UPDATE REPERTOIRE' : 'PUBLISH TO MARKETPLACE'}
+
+                            {/* Dimensional & Variety Specs (Sizes & Colors) */}
+                            <div className="grid md:grid-cols-2 gap-12">
+                                {/* Sizes Section */}
+                                <div className="space-y-6">
+                                    <div className="flex items-center justify-between">
+                                        <label className="text-[12px] font-black text-slate-900 uppercase tracking-widest ml-1">Size Availability</label>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[10px] font-bold text-slate-400">{formHasSizes ? 'ACTIVE' : 'INACTIVE'}</span>
+                                            <button type="button" onClick={() => setFormHasSizes(!formHasSizes)} className={`w-12 h-6 rounded-full transition-all relative ${formHasSizes ? 'bg-slate-900' : 'bg-slate-200'}`}>
+                                                <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${formHasSizes ? 'left-[26px]' : 'left-1'}`} />
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {formHasSizes && (
+                                        <div className="flex flex-wrap gap-2">
+                                            {['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', 'Custom'].map((size) => (
+                                                <button
+                                                    key={size}
+                                                    type="button"
+                                                    onClick={() => setFormSizes(prev => prev.includes(size) ? prev.filter(s => s !== size) : [...prev, size])}
+                                                    className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border ${formSizes.includes(size) ? 'bg-slate-900 text-brand-lemon border-slate-900 shadow-lg' : 'bg-white text-slate-400 border-slate-100 hover:border-slate-200'}`}
+                                                >
+                                                    {size}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Colors Section */}
+                                <div className="space-y-6">
+                                    <div className="flex items-center justify-between">
+                                        <label className="text-[12px] font-black text-slate-900 uppercase tracking-widest ml-1">Color Options</label>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[10px] font-bold text-slate-400">{formHasColors ? 'ACTIVE' : 'INACTIVE'}</span>
+                                            <button type="button" onClick={() => setFormHasColors(!formHasColors)} className={`w-12 h-6 rounded-full transition-all relative ${formHasColors ? 'bg-slate-900' : 'bg-slate-200'}`}>
+                                                <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${formHasColors ? 'left-[26px]' : 'left-1'}`} />
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {formHasColors && (
+                                        <div className="flex flex-wrap gap-2">
+                                            {[
+                                                { label: 'Black', hex: '#000000' },
+                                                { label: 'White', hex: '#FFFFFF' },
+                                                { label: 'Cream', hex: '#F5F5DC' },
+                                                { label: 'Navy', hex: '#000080' },
+                                                { label: 'Red', hex: '#EF4444' },
+                                                { label: 'Emerald', hex: '#10B981' },
+                                                { label: 'Coffee', hex: '#6F4E37' },
+                                                { label: 'Gold', hex: '#FFD700' },
+                                                { label: 'Grey', hex: '#9CA3AF' }
+                                            ].map((color) => (
+                                                <button
+                                                    key={color.label}
+                                                    type="button"
+                                                    onClick={() => setFormColors(prev => prev.includes(color.label) ? prev.filter(c => c !== color.label) : [...prev, color.label])}
+                                                    className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border flex items-center gap-2 ${formColors.includes(color.label) ? 'bg-slate-900 text-brand-lemon border-slate-900 shadow-lg' : 'bg-white text-slate-400 border-slate-100 hover:border-slate-200'}`}
+                                                >
+                                                    <div className="w-3 h-3 rounded-full border border-black/10" style={{ backgroundColor: color.hex }} />
+                                                    {color.label}
+                                                </button>
+                                            ))}
+                                            <button
+                                                type="button"
+                                                onClick={() => setFormColors(prev => prev.includes('Pattern') ? prev.filter(c => c !== 'Pattern') : [...prev, 'Pattern'])}
+                                                className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border flex items-center gap-2 ${formColors.includes('Pattern') ? 'bg-slate-900 text-brand-lemon border-slate-900 shadow-lg' : 'bg-white text-slate-400 border-slate-100 hover:border-slate-200'}`}
+                                            >
+                                                <div className="w-3 h-3 rounded-full border border-black/10 bg-[conic-gradient(from_0deg,#ff0000,#ffff00,#00ff00,#00ffff,#0000ff,#ff00ff,#ff0000)]" />
+                                                Pattern
+                                            </button>
+
+                                            <div className="flex gap-2 w-full mt-4">
+                                                <input
+                                                    type="text"
+                                                    placeholder="Add custom color..."
+                                                    value={customColorInput}
+                                                    onChange={(e) => setCustomColorInput(e.target.value)}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter') {
+                                                            e.preventDefault();
+                                                            if (customColorInput.trim()) {
+                                                                if (!formColors.includes(customColorInput.trim())) {
+                                                                    setFormColors((prev) => [...prev, customColorInput.trim()]);
+                                                                }
+                                                                setCustomColorInput('');
+                                                            }
+                                                        }
+                                                    }}
+                                                    className="flex-1 px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-[10px] font-bold focus:ring-2 focus:ring-slate-900/10 placeholder:text-slate-300"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        if (customColorInput.trim()) {
+                                                            if (!formColors.includes(customColorInput.trim())) {
+                                                                setFormColors((prev) => [...prev, customColorInput.trim()]);
+                                                            }
+                                                            setCustomColorInput('');
+                                                        }
+                                                    }}
+                                                    className="px-6 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/10"
+                                                >
+                                                    Add
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="space-y-4">
+                                <label htmlFor="p-desc" className="text-[12px] font-black text-slate-900 uppercase tracking-widest ml-1 cursor-pointer">Product Description</label>
+                                <textarea id="p-desc" name="description" value={formNarrative} onChange={(e) => setFormNarrative(e.target.value)} rows={4} className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-slate-900/10 resize-none md:p-8" placeholder="Tell the story behind this product..." />
+                            </div>
+                            
+                            <button onClick={handleAddOrEditProduct} className="w-full py-6 bg-slate-900 text-white rounded-[24px] font-black text-xs uppercase tracking-widest hover:bg-brand-lemon hover:text-slate-900 transition-all active:scale-95 mt-4">
+                                {editingProduct ? 'UPDATE PRODUCT' : 'PUBLISH PRODUCT'}
                             </button>
                         </div>
                     </div>

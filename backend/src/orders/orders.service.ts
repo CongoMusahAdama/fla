@@ -330,13 +330,25 @@ export class OrdersService {
     return this.orderModel.find().sort({ createdAt: -1 }).limit(limit).exec();
   }
 
-  async verifyPayment(orderId: string, vendorId: string): Promise<Order> {
+  async verifyPayment(orderId: string, callerId: string): Promise<Order> {
     const session = await this.connection.startSession();
     session.startTransaction();
     try {
       const order = await this.orderModel.findById(orderId).session(session).exec();
-      if (!order) throw new NotFoundException(`Order not found`);
-      if (order.vendorId.toString() !== vendorId) throw new NotFoundException('Unauthorized');
+      if (!order) throw new NotFoundException('Order not found');
+
+      // Authorization Check: Must be the vendor who owns the order OR an admin
+      const caller = await this.userModel.findById(callerId).exec();
+      const isAdmin = caller?.role === 'admin';
+      
+      if (!isAdmin && order.vendorId.toString() !== callerId) {
+        throw new ForbiddenException('Unauthorized - You do not have permission to verify this payment');
+      }
+
+      if (order.isPaid) {
+        await session.abortTransaction();
+        return order;
+      }
 
       order.paymentVerifiedByVendor = true;
       order.paymentVerifiedAt = new Date();
@@ -345,7 +357,8 @@ export class OrdersService {
       order.status = 'payment_verified';
       order.escrowStatus = 'held';
 
-      await this.userModel.findByIdAndUpdate(vendorId, {
+      // ALWAYS credit the vendor related to the order
+      await this.userModel.findByIdAndUpdate(order.vendorId, {
         $inc: { pendingBalance: order.vendorShare }
       }).session(session);
 

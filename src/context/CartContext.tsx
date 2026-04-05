@@ -8,6 +8,7 @@ export type CartItem = {
     price: number;
     image: string;
     size: string;
+    color: string;
     quantity: number;
     vendorId?: string;
     vendorName?: string;
@@ -18,8 +19,8 @@ type CartContextType = {
     cartItems: CartItem[];
     cartCount: number;
     addToCart: (item: CartItem) => void;
-    removeFromCart: (itemId: string, size: string) => void;
-    updateQuantity: (itemId: string, size: string, delta: number) => void;
+    removeFromCart: (itemId: string, size: string, color: string) => void;
+    updateQuantity: (itemId: string, size: string, color: string, delta: number) => void;
 
     // UI States
     isCartOpen: boolean;
@@ -42,10 +43,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
         cartCount: cartItems.reduce((acc, item) => acc + item.quantity, 0),
         addToCart: (newItem: CartItem) => {
             setCartItems(prev => {
-                const existing = prev.find(item => item.id === newItem.id && item.size === newItem.size);
+                const existing = prev.find(item => item.id === newItem.id && item.size === newItem.size && item.color === newItem.color);
                 if (existing) {
                     return prev.map(item =>
-                        (item.id === newItem.id && item.size === newItem.size)
+                        (item.id === newItem.id && item.size === newItem.size && item.color === newItem.color)
                             ? { ...item, quantity: item.quantity + 1 }
                             : item
                     );
@@ -54,12 +55,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
             });
             setIsCartOpen(true);
         },
-        removeFromCart: (itemId: string, size: string) => {
-            setCartItems(prev => prev.filter(item => !(item.id === itemId && item.size === size)));
+        removeFromCart: (itemId: string, size: string, color: string) => {
+            setCartItems(prev => prev.filter(item => !(item.id === itemId && item.size === size && item.color === color)));
         },
-        updateQuantity: (itemId: string, size: string, delta: number) => {
+        updateQuantity: (itemId: string, size: string, color: string, delta: number) => {
             setCartItems(prev => prev.map(item => {
-                if (item.id === itemId && item.size === size) {
+                if (item.id === itemId && item.size === size && item.color === color) {
                     const newQty = Math.max(1, item.quantity + delta);
                     return { ...item, quantity: newQty };
                 }

@@ -69,5 +69,13 @@ export class CreateProductDto {
     @IsOptional()
     uniqueVendorId?: string;
 
+    @IsBoolean()
+    @IsOptional()
+    hasSizes?: boolean;
+
+    @IsBoolean()
+    @IsOptional()
+    hasColors?: boolean;
+
 }
 

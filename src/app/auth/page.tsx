@@ -473,10 +473,11 @@ function AuthContent() {
         if (urlRole === 'vendor') {
             setRole('vendor');
             localStorage.setItem('last_intended_role', 'vendor');
-            setIsLogin(false);
+            if (view !== 'login') setIsLogin(false);
         } else if (urlRole === 'customer') {
             setRole('customer');
             localStorage.setItem('last_intended_role', 'customer');
+            if (view === 'register') setIsLogin(false);
         } else if (view === 'register') {
             setIsLogin(false);
         }

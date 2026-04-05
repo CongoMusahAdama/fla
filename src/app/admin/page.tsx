@@ -44,7 +44,6 @@ export default function AdminDashboard() {
         password: Math.random().toString(36).slice(-8)
     });
 
-    // System Settings State
     const [settings, setSettings] = useState({
         platformCommission: 10,
         withdrawalMinimum: 50,
@@ -52,6 +51,13 @@ export default function AdminDashboard() {
         vendorAutoApproval: false,
         maintenanceMode: false
     });
+
+    // Pagination States
+    const [vendorsPage, setVendorsPage] = useState(1);
+    const [customersPage, setCustomersPage] = useState(1);
+    const [ordersPage, setOrdersPage] = useState(1);
+    const [productsPage, setProductsPage] = useState(1);
+    const itemsPerPage = 8;
 
     const updateSettings = async (updates: Partial<typeof settings>) => {
         const newSettings = { ...settings, ...updates };
@@ -154,7 +160,7 @@ export default function AdminDashboard() {
         }).then((result) => {
             if (result.isConfirmed) {
                 logout();
-                router.push('/');
+                router.push('/auth?view=login');
             }
         });
     };
@@ -191,23 +197,25 @@ export default function AdminDashboard() {
 
     const handleConfirmPayment = async (orderId: string) => {
         try {
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders/${orderId}`, {
-                method: 'PATCH',
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders/${orderId}/verify-payment`, {
+                method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                credentials: 'include',
-                body: JSON.stringify({ isPaid: true, status: 'confirmed' })
+                credentials: 'include'
             });
 
-            if (!response.ok) throw new Error('Failed to confirm payment');
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.message || 'Failed to confirm payment');
+            }
 
             await refreshData();
 
             Swal.fire({
                 icon: 'success',
                 title: 'PAYMENT VERIFIED',
-                text: 'Funds have been released to orders escrow.',
+                text: 'The financial transaction has been successfully recorded.',
                 timer: 2000,
                 showConfirmButton: false,
                 customClass: { popup: 'rounded-[32px]' }
@@ -505,7 +513,16 @@ export default function AdminDashboard() {
                     </div>
                 );
             case 'vendors':
-                const vendors = allUsers.filter(u => u.role === 'vendor');
+                const filteredVendors = allUsers.filter(u => 
+                    u.role === 'vendor' && (
+                        u.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                        u.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                        u.shopName?.toLowerCase().includes(searchQuery.toLowerCase())
+                    )
+                );
+                const paginatedVendors = filteredVendors.slice((vendorsPage - 1) * itemsPerPage, vendorsPage * itemsPerPage);
+                const vendorsTotalPages = Math.ceil(filteredVendors.length / itemsPerPage);
+
                 return (
                     <div className="space-y-8 animate-in fade-in duration-500">
                         <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-6">
@@ -519,7 +536,8 @@ export default function AdminDashboard() {
                                     <input
                                         type="text"
                                         placeholder="Search studios..."
-                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        value={searchQuery}
+                                        onChange={(e) => { setSearchQuery(e.target.value); setVendorsPage(1); }}
                                         className="w-full pl-11 pr-6 py-3.5 bg-white border border-slate-200 rounded-2xl text-xs font-bold focus:outline-none focus:ring-4 focus:ring-brand-lemon/10 md:min-w-[340px] shadow-sm"
                                     />
                                 </div>
@@ -536,11 +554,7 @@ export default function AdminDashboard() {
 
                         {/* Mobile Grid View */}
                         <div className="grid grid-cols-1 gap-4 md:hidden">
-                            {vendors.filter(u =>
-                                u.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                                u.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                                u.shopName?.toLowerCase().includes(searchQuery.toLowerCase())
-                            ).map((u) => (
+                            {paginatedVendors.map((u) => (
                                 <div key={u._id} className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm space-y-4">
                                     <div className="flex items-start justify-between">
                                         <div className="flex items-center gap-4">
@@ -596,23 +610,20 @@ export default function AdminDashboard() {
                         </div>
 
                         {/* Desktop Table View */}
-                        <div className="hidden md:block bg-white rounded-[40px] border border-slate-100 shadow-sm overflow-hidden overflow-x-auto">
-                            <table className="w-full text-left border-collapse">
-                                <thead className="bg-slate-900">
-                                    <tr>
-                                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Studio / Profile</th>
-                                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Location & Contacts</th>
-                                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Products</th>
-                                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Payment (MOMO)</th>
-                                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-50">
-                                    {vendors.filter(u =>
-                                        u.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                                        u.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                                        u.shopName?.toLowerCase().includes(searchQuery.toLowerCase())
-                                    ).map((u) => (
+                        <div className="hidden md:flex flex-col bg-white rounded-[40px] border border-slate-100 shadow-sm overflow-hidden">
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left border-collapse">
+                                    <thead className="bg-slate-900">
+                                        <tr>
+                                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Studio / Profile</th>
+                                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Location & Contacts</th>
+                                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Products</th>
+                                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Payment (MOMO)</th>
+                                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-50">
+                                        {paginatedVendors.map((u) => (
                                         <tr key={u._id} className="hover:bg-slate-50/50 transition-colors">
                                             <td className="px-8 py-6 border-r border-slate-50">
                                                 <div className="flex items-center gap-6">
@@ -692,11 +703,59 @@ export default function AdminDashboard() {
                                     ))}
                                 </tbody>
                             </table>
+                            </div>
+
+                            {vendorsTotalPages > 1 && (
+                                <div className="px-10 py-6 bg-slate-50 border-t border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4">
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                        Showing <span className="text-slate-900">{(vendorsPage - 1) * itemsPerPage + 1} - {Math.min(vendorsPage * itemsPerPage, filteredVendors.length)}</span> of <span className="text-slate-900">{filteredVendors.length}</span> Studios
+                                    </p>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={() => setVendorsPage(prev => Math.max(1, prev - 1))}
+                                            disabled={vendorsPage === 1}
+                                            className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-200"
+                                        >
+                                            Prev
+                                        </button>
+                                        <div className="flex items-center gap-1">
+                                            {[...Array(vendorsTotalPages)].map((_, i) => (
+                                                <button
+                                                    key={i}
+                                                    onClick={() => setVendorsPage(i + 1)}
+                                                    className={`w-8 h-8 rounded-xl text-[10px] font-black transition-all ${
+                                                        vendorsPage === i + 1 
+                                                            ? 'bg-slate-900 text-white shadow-lg' 
+                                                            : 'text-slate-400 hover:bg-slate-200'
+                                                    }`}
+                                                >
+                                                    {i + 1}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <button
+                                            onClick={() => setVendorsPage(prev => Math.min(vendorsTotalPages, prev + 1))}
+                                            disabled={vendorsPage === vendorsTotalPages}
+                                            className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-200"
+                                        >
+                                            Next
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 );
             case 'customers':
-                const customers = allUsers.filter(u => u.role === 'customer');
+                const filteredPatrons = allUsers.filter(u => 
+                    u.role === 'customer' && (
+                        u.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                        u.email?.toLowerCase().includes(searchQuery.toLowerCase())
+                    )
+                );
+                const paginatedPatrons = filteredPatrons.slice((customersPage - 1) * itemsPerPage, customersPage * itemsPerPage);
+                const totalPatronPages = Math.ceil(filteredPatrons.length / itemsPerPage);
+
                 return (
                     <div className="space-y-8 animate-in fade-in duration-500">
                         <div className="flex justify-between items-end gap-6 flex-wrap">
@@ -709,7 +768,8 @@ export default function AdminDashboard() {
                                 <input
                                     type="text"
                                     placeholder="Search customers..."
-                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    value={searchQuery}
+                                    onChange={(e) => { setSearchQuery(e.target.value); setCustomersPage(1); }}
                                     className="pl-11 pr-6 py-3.5 bg-white border border-slate-200 rounded-2xl text-xs font-bold focus:outline-none focus:ring-4 focus:ring-brand-lemon/10 min-w-[340px] shadow-sm"
                                 />
                             </div>
@@ -717,10 +777,7 @@ export default function AdminDashboard() {
 
                         {/* Mobile Grid View */}
                         <div className="grid grid-cols-1 gap-4 md:hidden">
-                            {customers.filter(u =>
-                                u.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                                u.email?.toLowerCase().includes(searchQuery.toLowerCase())
-                            ).map((u) => (
+                            {paginatedPatrons.map((u) => (
                                 <div key={u._id} className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm space-y-4">
                                     <div className="flex items-center gap-4">
                                         <div className="w-14 h-14 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 overflow-hidden relative border-2 border-white shadow-md">
@@ -764,10 +821,7 @@ export default function AdminDashboard() {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-50">
-                                    {customers.filter(u =>
-                                        u.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                                        u.email?.toLowerCase().includes(searchQuery.toLowerCase())
-                                    ).map((u) => (
+                                    {paginatedPatrons.map((u) => (
                                         <tr key={u._id} className="hover:bg-slate-50/50 transition-colors">
                                             <td className="px-8 py-6 border-r border-slate-50">
                                                 <div className="flex items-center gap-4">
@@ -807,9 +861,52 @@ export default function AdminDashboard() {
                                 </tbody>
                             </table>
                         </div>
+
+                        {totalPatronPages > 1 && (
+                            <div className="px-10 py-6 bg-slate-50 border-t border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4">
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                    Displaying <span className="text-slate-900">{(customersPage - 1) * itemsPerPage + 1} - {Math.min(customersPage * itemsPerPage, filteredPatrons.length)}</span> of <span className="text-slate-900">{filteredPatrons.length}</span> Patrons
+                                </p>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => setCustomersPage(prev => Math.max(1, prev - 1))}
+                                        disabled={customersPage === 1}
+                                        className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-200"
+                                    >
+                                        Prev
+                                    </button>
+                                    <div className="flex items-center gap-1">
+                                        {[...Array(totalPatronPages)].map((_, i) => (
+                                            <button
+                                                key={i}
+                                                onClick={() => setCustomersPage(i + 1)}
+                                                className={`w-8 h-8 rounded-xl text-[10px] font-black transition-all ${
+                                                    customersPage === i + 1 
+                                                        ? 'bg-slate-900 text-white shadow-lg' 
+                                                        : 'text-slate-400 hover:bg-slate-200'
+                                                }`}
+                                            >
+                                                {i + 1}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <button
+                                        onClick={() => setCustomersPage(prev => Math.min(totalPatronPages, prev + 1))}
+                                        disabled={customersPage === totalPatronPages}
+                                        className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-200"
+                                    >
+                                        Next
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 );
             case 'products':
+                const filteredProducts = allProducts.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
+                const paginatedProducts = filteredProducts.slice((productsPage - 1) * itemsPerPage, productsPage * itemsPerPage);
+                const productsTotalPages = Math.ceil(filteredProducts.length / itemsPerPage);
+
                 return (
                     <div className="space-y-8 animate-in fade-in duration-500">
                         <div className="flex justify-between items-end gap-6 flex-wrap">
@@ -822,14 +919,15 @@ export default function AdminDashboard() {
                                 <input
                                     type="text"
                                     placeholder="Search products by title..."
-                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    value={searchQuery}
+                                    onChange={(e) => { setSearchQuery(e.target.value); setProductsPage(1); }}
                                     className="pl-11 pr-6 py-3.5 bg-white border border-slate-200 rounded-2xl text-xs font-bold focus:outline-none focus:ring-4 focus:ring-brand-lemon/10 min-w-[340px] shadow-sm"
                                 />
                             </div>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                            {allProducts.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase())).map((p) => (
+                            {paginatedProducts.map((p) => (
                                 <div key={p._id} className={`bg-white rounded-[32px] border ${p.isActive ? 'border-slate-100' : 'border-red-100 grayscale-[0.5]'} shadow-sm overflow-hidden group hover:shadow-xl transition-all duration-500`}>
                                     <div className="relative aspect-[3/4] bg-slate-50 rounded-[28px] overflow-hidden mb-4">
                                         <Image src={getImageUrl(p.images?.[0])} alt={p.name} fill sizes="(max-width: 768px) 50vw, 200px" className="object-cover group-hover:scale-110 transition-transform duration-700" />
@@ -850,12 +948,49 @@ export default function AdminDashboard() {
                                         </div>
                                         <h3 className="font-black text-slate-900 text-sm uppercase tracking-tighter line-clamp-1">{p.name}</h3>
                                         <p className="text-[10px] font-bold text-slate-400 uppercase mt-1">Vendor: {p.vendorName || 'FLA Studio'}</p>
-
-
                                     </div>
                                 </div>
                             ))}
                         </div>
+
+                        {productsTotalPages > 1 && (
+                            <div className="px-10 py-6 bg-white border border-slate-100 rounded-[32px] flex flex-col md:flex-row justify-between items-center gap-4">
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                    Displaying <span className="text-slate-900">{(productsPage - 1) * itemsPerPage + 1} - {Math.min(productsPage * itemsPerPage, filteredProducts.length)}</span> of <span className="text-slate-900">{filteredProducts.length}</span> Marketplace Items
+                                </p>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => setProductsPage(prev => Math.max(1, prev - 1))}
+                                        disabled={productsPage === 1}
+                                        className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-200"
+                                    >
+                                        Prev
+                                    </button>
+                                    <div className="flex items-center gap-1">
+                                        {[...Array(productsTotalPages)].map((_, i) => (
+                                            <button
+                                                key={i}
+                                                onClick={() => setProductsPage(i + 1)}
+                                                className={`w-8 h-8 rounded-xl text-[10px] font-black transition-all ${
+                                                    productsPage === i + 1 
+                                                        ? 'bg-slate-900 text-white shadow-lg' 
+                                                        : 'text-slate-400 hover:bg-slate-200'
+                                                }`}
+                                            >
+                                                {i + 1}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <button
+                                        onClick={() => setProductsPage(prev => Math.min(productsTotalPages, prev + 1))}
+                                        disabled={productsPage === productsTotalPages}
+                                        className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-200"
+                                    >
+                                        Next
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 );
             case 'orders':
@@ -865,6 +1000,15 @@ export default function AdminDashboard() {
                 const isDelivery = activeSection === 'delivery';
                 // Escrow should show orders that are pending payment verification, OR have funds currently held in escrow
                 const displayOrders = isEscrow ? allOrders.filter(o => !o.isPaid || ['held', 'frozen', 'waiting_approval'].includes(o.escrowStatus)) : isDelivery ? allOrders.filter(o => ['processing', 'shipped', 'delivered'].includes(o.status)) : allOrders;
+                
+                const filteredOrders = displayOrders.filter(o => 
+                    o._id.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                    o.customerName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    o.customerEmail?.toLowerCase().includes(searchQuery.toLowerCase())
+                );
+
+                const paginatedOrders = filteredOrders.slice((ordersPage - 1) * itemsPerPage, ordersPage * itemsPerPage);
+                const ordersTotalPages = Math.ceil(filteredOrders.length / itemsPerPage);
 
                 return (
                     <div className="space-y-8 animate-in fade-in duration-500">
@@ -874,19 +1018,35 @@ export default function AdminDashboard() {
                                     {isEscrow ? 'Escrow & Verification' : isDelivery ? 'Logistics & Dispatch' : 'Order Ledger'}
                                 </h1>
                                 <p className="text-slate-500 text-sm">
-                                    {isEscrow ? 'Verify customer payments to release vendor orders.' : 'Monitor shipping tracking and final deliveries.'}
+                                    {isEscrow ? 'Verify customer payments to release vendor orders.' : isDelivery ? 'Monitor shipping tracking and final deliveries.' : 'Comprehensive history of platform fashion requests.'}
                                 </p>
+                            </div>
+                            <div className="relative">
+                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
+                                <input
+                                    type="text"
+                                    placeholder="Search orders..."
+                                    onChange={(e) => { setSearchQuery(e.target.value); setOrdersPage(1); }}
+                                    className="pl-11 pr-6 py-3.5 bg-white border border-slate-200 rounded-2xl text-xs font-bold focus:outline-none focus:ring-4 focus:ring-brand-lemon/10 min-w-[340px] shadow-sm"
+                                />
                             </div>
                         </div>
 
                         {/* Mobile Grid View */}
                         <div className="grid grid-cols-1 gap-4 md:hidden">
-                            {displayOrders.map((o) => (
+                            {paginatedOrders.map((o) => (
                                 <div key={o._id} className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm space-y-4">
                                     <div className="flex justify-between items-start">
-                                        <div>
-                                            <p className="font-black text-slate-900 text-sm">#ORD-{o._id.slice(-6).toUpperCase()}</p>
-                                            <p className="text-[10px] font-bold text-slate-400">{new Date(o.createdAt).toLocaleDateString()}</p>
+                                        <div className="flex items-center gap-3">
+                                            {o.items?.[0] && (
+                                                <div className="w-12 h-12 bg-slate-50 rounded-xl overflow-hidden border border-slate-100 flex-shrink-0">
+                                                    <Image src={getImageUrl(o.items[0].image)} alt="Product" fill sizes="48px" className="object-cover" />
+                                                </div>
+                                            )}
+                                            <div>
+                                                <p className="font-black text-slate-900 text-sm">#ORD-{o._id.slice(-6).toUpperCase()}</p>
+                                                <p className="text-[10px] font-bold text-slate-400">{new Date(o.createdAt).toLocaleDateString()}</p>
+                                            </div>
                                         </div>
                                         <span className={`text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-tighter ${o.isPaid ? 'bg-emerald-50 text-emerald-600' : 'bg-orange-50 text-orange-600'}`}>
                                             {o.isPaid ? 'PAID' : 'ESCROW'}
@@ -974,161 +1134,200 @@ export default function AdminDashboard() {
                         </div>
 
                         {/* Desktop Table View */}
-                        <div className="hidden md:block bg-white rounded-[40px] border border-slate-100 shadow-sm overflow-hidden overflow-x-auto">
-                            <table className="w-full text-left border-collapse">
-                                <thead className="bg-slate-900">
-                                    <tr>
-                                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Order / Date</th>
-                                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Customer</th>
-                                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Payment Breakdown</th>
-                                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Vendor Verification</th>
-                                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Status</th>
-                                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-50">
-                                    {displayOrders.map((o) => (
-                                        <tr key={o._id} className="hover:bg-slate-50/50 transition-colors">
-                                            <td className="px-8 py-6 border-r border-slate-50">
-                                                <p className="font-black text-slate-900 text-sm">#ORD-{o._id.slice(-6).toUpperCase()}</p>
-                                                <p className="text-[10px] font-bold text-slate-400">{new Date(o.createdAt).toLocaleDateString()}</p>
-                                            </td>
-                                            <td className="px-8 py-6 border-r border-slate-50">
-                                                <p className="text-xs font-black text-slate-700">{o.customerName || 'Guest'}</p>
-                                                <p className="text-[10px] font-bold text-slate-400">{o.customerEmail}</p>
-                                            </td>
-                                            <td className="px-8 py-6 border-r border-slate-50">
-                                                <div className="space-y-1">
-                                                    <div className="flex justify-between items-center gap-4">
-                                                        <span className="text-[9px] font-black text-slate-400 uppercase">Gross</span>
-                                                        <span className="text-sm font-black text-slate-900 tabular-nums">GH₵ {o.totalAmount.toLocaleString()}</span>
-                                                    </div>
-                                                    <div className="flex justify-between items-center gap-4">
-                                                        <span className="text-[9px] font-black text-emerald-500 uppercase">Fee (10%)</span>
-                                                        <span className="text-[10px] font-black text-emerald-600 tabular-nums">GH₵ {(o.adminCommission || o.totalAmount * 0.1).toLocaleString()}</span>
-                                                    </div>
-                                                    <div className="flex justify-between items-center gap-4 pt-1 border-t border-slate-100">
-                                                        <span className="text-[9px] font-black text-slate-400 uppercase">Vendor Net</span>
-                                                        <span className="text-[10px] font-black text-slate-900 tabular-nums">GH₵ {(o.vendorShare || o.totalAmount * 0.9).toLocaleString()}</span>
-                                                    </div>
-                                                    {o.deliveryType === 'inter-regional' && (
-                                                        <div className="flex justify-between items-center gap-4 pt-1 border-t border-slate-100">
-                                                            <span className="text-[9px] font-black text-blue-500 uppercase">1st Mile Fee</span>
-                                                            <div className="text-right">
-                                                                <span className="text-[10px] font-black text-blue-600 tabular-nums block">GH₵ {o.firstMileFee || 'TBD'}</span>
-                                                                {o.firstMileFee > 0 && (
-                                                                    <span className={`text-[7px] font-black uppercase tracking-widest ${o.isFirstMileFeePaid ? 'text-emerald-500' : 'text-amber-500'}`}>
-                                                                        {o.isFirstMileFeePaid ? 'PAID' : 'PENDING'}
-                                                                    </span>
-                                                                )}
+                        <div className="hidden md:flex flex-col bg-white rounded-[40px] border border-slate-100 shadow-sm overflow-hidden">
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left border-collapse">
+                                    <thead className="bg-slate-900">
+                                        <tr>
+                                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Preview / Reference</th>
+                                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Customer</th>
+                                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Payment Breakdown</th>
+                                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Vendor Verification</th>
+                                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Platform Status</th>
+                                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Context</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-50">
+                                        {paginatedOrders.map((o) => (
+                                            <tr key={o._id} className="hover:bg-slate-50/50 transition-colors">
+                                                <td className="px-8 py-6 border-r border-slate-50">
+                                                    <div className="flex items-center gap-4">
+                                                        {o.items?.[0] && (
+                                                            <div className="w-14 h-14 bg-slate-50 rounded-2xl overflow-hidden border border-slate-100 flex-shrink-0 shadow-sm relative">
+                                                                <Image src={getImageUrl(o.items[0].image)} alt="Product" fill sizes="56px" className="object-cover" />
                                                             </div>
+                                                        )}
+                                                        <div>
+                                                            <p className="font-black text-slate-900 text-sm">#ORD-{o._id.slice(-6).toUpperCase()}</p>
+                                                            <p className="text-[10px] font-bold text-slate-400">{new Date(o.createdAt).toLocaleDateString()}</p>
                                                         </div>
-                                                    )}
-                                                </div>
-                                            </td>
-                                            <td className="px-8 py-6 border-r border-slate-50">
-                                                {o.paymentProof ? (
-                                                    <div className="space-y-2">
-                                                        {o.paymentVerifiedByVendor ? (
-                                                            <div>
-                                                                <span className="text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-tighter bg-emerald-50 text-emerald-600 flex items-center gap-1 w-fit">
-                                                                    <CheckCircle2 className="w-3 h-3" /> Verified
-                                                                </span>
-                                                                <p className="text-[9px] font-bold text-slate-400 mt-1">
-                                                                    {o.paymentVerifiedAt ? new Date(o.paymentVerifiedAt).toLocaleString() : 'Recently'}
-                                                                </p>
-                                                            </div>
-                                                        ) : (
-                                                            <div>
-                                                                <span className="text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-tighter bg-orange-50 text-orange-600 flex items-center gap-1 w-fit">
-                                                                    <Clock className="w-3 h-3" /> Awaiting Vendor
-                                                                </span>
-                                                                <p className="text-[9px] font-bold text-slate-400 mt-1">
-                                                                    {o.paymentSubmittedAt ? `Submitted ${new Date(o.paymentSubmittedAt).toLocaleTimeString()}` : 'Pending'}
-                                                                </p>
-                                                            </div>
-                                                        )}
                                                     </div>
-                                                ) : (
-                                                    <span className="text-[9px] font-bold text-slate-300 uppercase">No Proof</span>
-                                                )}
-                                            </td>
-                                            <td className="px-8 py-6 border-r border-slate-50">
-                                                <div className="space-y-2">
-                                                    <span className={`text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-tighter ${o.isPaid ? 'bg-emerald-50 text-emerald-600' : 'bg-orange-50 text-orange-600'}`}>
-                                                        {o.isPaid ? (o.escrowStatus === 'released' ? 'FUNDS RELEASED' : 'FUNDS HELD') : 'PENDING PAYMENT'}
-                                                    </span>
-                                                    <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest pl-1">
-                                                        {o.escrowStatus === 'waiting_approval' ? 'Pending Admin Approval' : o.status}
-                                                    </p>
-                                                </div>
-                                            </td>
-                                            <td className="px-8 py-6 text-right">
-                                                {isEscrow ? (
-                                                    <div className="flex justify-end items-center gap-3">
-                                                        {o.paymentProof && !o.isPaid && (
+                                                </td>
+                                                <td className="px-8 py-6 border-r border-slate-50">
+                                                    <p className="text-xs font-black text-slate-700">{o.customerName || 'Guest'}</p>
+                                                    <p className="text-[10px] font-bold text-slate-400">{o.customerEmail}</p>
+                                                </td>
+                                                <td className="px-8 py-6 border-r border-slate-50">
+                                                    <div className="space-y-1">
+                                                        <div className="flex justify-between items-center gap-4">
+                                                            <span className="text-[9px] font-black text-slate-400 uppercase">Gross</span>
+                                                            <span className="text-sm font-black text-slate-900 tabular-nums">GH₵ {o.totalAmount.toLocaleString()}</span>
+                                                        </div>
+                                                        <div className="flex justify-between items-center gap-4">
+                                                            <span className="text-[9px] font-black text-emerald-500 uppercase">Fee (10%)</span>
+                                                            <span className="text-[10px] font-black text-emerald-600 tabular-nums">GH₵ {(o.adminCommission || o.totalAmount * 0.1).toLocaleString()}</span>
+                                                        </div>
+                                                        <div className="flex justify-between items-center gap-4 pt-1 border-t border-slate-100">
+                                                            <span className="text-[9px] font-black text-slate-400 uppercase">Vendor Net</span>
+                                                            <span className="text-[10px] font-black text-slate-900 tabular-nums">GH₵ {(o.vendorShare || o.totalAmount * 0.9).toLocaleString()}</span>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="px-8 py-6 border-r border-slate-50">
+                                                    {o.paymentProof ? (
+                                                        <div className="space-y-2">
+                                                            {o.paymentVerifiedByVendor ? (
+                                                                <div>
+                                                                    <span className="text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-tighter bg-emerald-50 text-emerald-600 flex items-center gap-1 w-fit">
+                                                                        <CheckCircle2 className="w-3 h-3" /> Verified
+                                                                    </span>
+                                                                    <p className="text-[9px] font-bold text-slate-400 mt-1">
+                                                                        {o.paymentVerifiedAt ? new Date(o.paymentVerifiedAt).toLocaleString() : 'Recently'}
+                                                                    </p>
+                                                                </div>
+                                                            ) : (
+                                                                <div>
+                                                                    <span className="text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-tighter bg-orange-50 text-orange-600 flex items-center gap-1 w-fit">
+                                                                        <Clock className="w-3 h-3" /> Awaiting Vendor
+                                                                    </span>
+                                                                    <p className="text-[9px] font-bold text-slate-400 mt-1">
+                                                                        {o.paymentSubmittedAt ? `Submitted ${new Date(o.paymentSubmittedAt).toLocaleTimeString()}` : 'Pending'}
+                                                                    </p>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-[9px] font-bold text-slate-300 uppercase">No Proof</span>
+                                                    )}
+                                                </td>
+                                                <td className="px-8 py-6 border-r border-slate-50">
+                                                    <div className="space-y-2">
+                                                        <span className={`text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-tighter ${o.isPaid ? 'bg-emerald-50 text-emerald-600' : 'bg-orange-50 text-orange-600'}`}>
+                                                            {o.isPaid ? (o.escrowStatus === 'released' ? 'FUNDS RELEASED' : 'FUNDS HELD') : 'PENDING PAYMENT'}
+                                                        </span>
+                                                        <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest pl-1">
+                                                            {o.escrowStatus === 'waiting_approval' ? 'Pending Admin Approval' : o.status}
+                                                        </p>
+                                                    </div>
+                                                </td>
+                                                <td className="px-8 py-6 text-right">
+                                                    {isEscrow ? (
+                                                        <div className="flex justify-end items-center gap-3">
+                                                            {o.paymentProof && !o.isPaid && (
+                                                                <button
+                                                                    onClick={() => {
+                                                                        Swal.fire({
+                                                                            title: 'Payment Verification',
+                                                                            imageUrl: getImageUrl(o.paymentProof),
+                                                                            imageAlt: 'Payment Screenshot',
+                                                                            confirmButtonText: 'CLOSE',
+                                                                            buttonsStyling: false,
+                                                                            customClass: {
+                                                                                popup: 'rounded-[32px] p-8',
+                                                                                confirmButton: 'bg-slate-900 text-white px-8 py-3 rounded-full text-[10px] font-black uppercase tracking-widest'
+                                                                            }
+                                                                        });
+                                                                    }}
+                                                                    className="text-[10px] font-black text-blue-500 uppercase tracking-widest hover:underline"
+                                                                >
+                                                                    View Proof
+                                                                </button>
+                                                            )}
+                                                            {!o.isPaid && (
+                                                                <button onClick={() => handleConfirmPayment(o._id)} className="bg-slate-900 text-brand-lemon px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/10 whitespace-nowrap">Verify Payment</button>
+                                                            )}
+                                                            {o.isPaid && o.escrowStatus === 'waiting_approval' && (
+                                                                <button onClick={async () => {
+                                                                    try {
+                                                                        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders/${o._id}/approve-escrow`, {
+                                                                            method: 'POST',
+                                                                            credentials: 'include'
+                                                                        });
+                                                                        if (!res.ok) throw new Error('Failed to approve');
+                                                                        Swal.fire({ icon: 'success', title: 'Funds Released', timer: 1500, showConfirmButton: false });
+                                                                        refreshData();
+                                                                    } catch (err: any) {
+                                                                        Swal.fire('Error', err.message, 'error');
+                                                                    }
+                                                                }} className="bg-emerald-500 text-white px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20 whitespace-nowrap">Approve Release</button>
+                                                            )}
                                                             <button
-                                                                onClick={() => {
-                                                                    Swal.fire({
-                                                                        title: 'Payment Verification',
-                                                                        imageUrl: getImageUrl(o.paymentProof),
-                                                                        imageAlt: 'Payment Screenshot',
-                                                                        confirmButtonText: 'CLOSE',
-                                                                        buttonsStyling: false,
-                                                                        customClass: {
-                                                                            popup: 'rounded-[32px] p-8',
-                                                                            confirmButton: 'bg-slate-900 text-white px-8 py-3 rounded-full text-[10px] font-black uppercase tracking-widest'
-                                                                        }
-                                                                    });
-                                                                }}
-                                                                className="text-[10px] font-black text-blue-500 uppercase tracking-widest hover:underline"
+                                                                onClick={() => setSelectedOrder(o)}
+                                                                className="px-5 py-2 bg-slate-50 text-slate-400 text-[10px] font-black rounded-full uppercase tracking-widest hover:bg-slate-900 hover:text-white transition-all border border-slate-100"
                                                             >
-                                                                View Proof
+                                                                Details
                                                             </button>
-                                                        )}
-                                                        {!o.isPaid && (
-                                                            <button onClick={() => handleConfirmPayment(o._id)} className="bg-slate-900 text-brand-lemon px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/10 whitespace-nowrap">Verify Payment</button>
-                                                        )}
-                                                        {o.isPaid && o.escrowStatus === 'waiting_approval' && (
-                                                            <button onClick={async () => {
-                                                                try {
-                                                                    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders/${o._id}/approve-escrow`, {
-                                                                        method: 'POST',
-                                                                        credentials: 'include'
-                                                                    });
-                                                                    if (!res.ok) throw new Error('Failed to approve');
-                                                                    Swal.fire({ icon: 'success', title: 'Funds Released', timer: 1500, showConfirmButton: false });
-                                                                    refreshData();
-                                                                } catch (err: any) {
-                                                                    Swal.fire('Error', err.message, 'error');
-                                                                }
-                                                            }} className="bg-emerald-500 text-white px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20 whitespace-nowrap">Approve Release</button>
-                                                        )}
+                                                        </div>
+                                                    ) : (
                                                         <button
                                                             onClick={() => setSelectedOrder(o)}
                                                             className="px-5 py-2 bg-slate-50 text-slate-400 text-[10px] font-black rounded-full uppercase tracking-widest hover:bg-slate-900 hover:text-white transition-all border border-slate-100"
-                                                        >
+                                                            >
                                                             Details
                                                         </button>
-                                                    </div>
-                                                ) : (
-                                                    <button
-                                                        onClick={() => setSelectedOrder(o)}
-                                                        className="px-5 py-2 bg-slate-50 text-slate-400 text-[10px] font-black rounded-full uppercase tracking-widest hover:bg-slate-900 hover:text-white transition-all border border-slate-100"
-                                                        >
-                                                        Details
-                                                    </button>
-                                                )}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            {ordersTotalPages > 1 && (
+                                <div className="px-10 py-6 bg-slate-50 border-t border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4">
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                        Showing <span className="text-slate-900">{(ordersPage - 1) * itemsPerPage + 1} - {Math.min(ordersPage * itemsPerPage, filteredOrders.length)}</span> of <span className="text-slate-900">{filteredOrders.length}</span> Orders
+                                    </p>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={() => setOrdersPage(prev => Math.max(1, prev - 1))}
+                                            disabled={ordersPage === 1}
+                                            className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-200"
+                                        >
+                                            Prev
+                                        </button>
+                                        <div className="flex items-center gap-1">
+                                            {[...Array(ordersTotalPages)].map((_, i) => (
+                                                <button
+                                                    key={i}
+                                                    onClick={() => setOrdersPage(i + 1)}
+                                                    className={`w-8 h-8 rounded-xl text-[10px] font-black transition-all ${
+                                                        ordersPage === i + 1 
+                                                            ? 'bg-slate-900 text-white shadow-lg' 
+                                                            : 'text-slate-400 hover:bg-slate-200'
+                                                    }`}
+                                                >
+                                                    {i + 1}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <button
+                                            onClick={() => setOrdersPage(prev => Math.min(ordersTotalPages, prev + 1))}
+                                            disabled={ordersPage === ordersTotalPages}
+                                            className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-200"
+                                        >
+                                            Next
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 );
             case 'disputes':
                 const disputedOrders = allOrders.filter(o => o.status === 'disputed');
+                const paginatedDisputes = disputedOrders.slice(0, itemsPerPage); // Static for now as we don't have a disputesPage yet, let's just use it anyway
+                
                 return (
                     <div className="space-y-8 animate-in fade-in duration-500">
                         <div className="flex justify-between items-end gap-6 flex-wrap">
@@ -1139,61 +1338,117 @@ export default function AdminDashboard() {
                         </div>
 
                         {disputedOrders.length > 0 ? (
-                            <div className="bg-white rounded-[40px] border border-slate-100 shadow-sm overflow-hidden overflow-x-auto">
-                                <table className="w-full text-left">
-                                    <thead className="bg-slate-900">
-                                        <tr>
-                                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Order / Date</th>
-                                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Parties</th>
-                                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Dispute Reason</th>
-                                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Amount</th>
-                                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Mediation</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-50">
-                                        {disputedOrders.map((o) => (
-                                            <tr key={o._id} className="hover:bg-slate-50/50 transition-colors">
-                                                <td className="px-8 py-6">
-                                                    <p className="font-black text-slate-900 text-sm">#ORD-{o._id.slice(-6).toUpperCase()}</p>
-                                                    <p className="text-[10px] font-bold text-slate-400">{new Date(o.createdAt).toLocaleDateString()}</p>
-                                                </td>
-                                                <td className="px-8 py-6">
-                                                    <div className="space-y-1">
-                                                        <p className="text-[10px] font-black text-slate-400 uppercase">Customer: <span className="text-slate-900">{o.customerName || 'Guest'}</span></p>
-                                                        <p className="text-[10px] font-black text-slate-400 uppercase">Vendor: <span className="text-slate-900">{o.vendorName || 'Unknown Studio'}</span></p>
+                            <div className="flex flex-col bg-transparent md:bg-white md:rounded-[40px] md:border md:border-slate-100 md:shadow-sm overflow-hidden">
+                                {/* Mobile View: Dispute Cards */}
+                                <div className="grid md:hidden grid-cols-1 gap-6">
+                                    {disputedOrders.map((o) => (
+                                        <div key={o._id} className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm space-y-6">
+                                            <div className="flex justify-between items-start">
+                                                <div className="flex items-center gap-3">
+                                                    {o.items?.[0] && (
+                                                        <div className="w-12 h-12 bg-slate-50 rounded-xl overflow-hidden border border-slate-100 relative shadow-sm">
+                                                            <Image src={getImageUrl(o.items[0].image)} alt="Product" fill sizes="48px" className="object-cover" />
+                                                        </div>
+                                                    )}
+                                                    <div>
+                                                        <p className="font-black text-slate-900 text-sm">#ORD-{o._id.slice(-6).toUpperCase()}</p>
+                                                        <p className="text-[10px] font-bold text-slate-400">{new Date(o.createdAt).toLocaleDateString()}</p>
                                                     </div>
-                                                </td>
-                                                <td className="px-8 py-6">
-                                                    <div className="max-w-xs">
-                                                        <p className="text-xs text-slate-600 italic leading-relaxed">&quot;{o.disputeReason || 'No reason provided'}&quot;</p>
-                                                    </div>
-                                                </td>
-                                                <td className="px-8 py-6">
-                                                    <p className="font-black text-slate-900">GH₵ {o.totalAmount.toLocaleString()}</p>
-                                                </td>
-                                                <td className="px-8 py-6 text-right">
-                                                    <div className="flex justify-end gap-2">
-                                                        <button
-                                                            onClick={() => handleResolveDispute(o._id, 'refund')}
-                                                            className="px-4 py-2 bg-red-50 text-red-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-sm"
-                                                        >
-                                                            Refund Customer
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleResolveDispute(o._id, 'release')}
-                                                            className="px-4 py-2 bg-emerald-50 text-emerald-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-600 hover:text-white transition-all shadow-sm"
-                                                        >
-                                                            Release to Vendor
-                                                        </button>
-                                                    </div>
-                                                </td>
+                                                </div>
+                                                <p className="font-black text-slate-900 text-xs">GH₵ {o.totalAmount.toLocaleString()}</p>
+                                            </div>
+
+                                            <div className="space-y-2 p-4 bg-red-50/50 rounded-2xl border border-red-100/50">
+                                                <p className="text-[10px] font-black text-red-600 uppercase tracking-widest mb-1 flex items-center gap-2">
+                                                    <ShieldAlert className="w-3 h-3" /> Dispute Reason
+                                                </p>
+                                                <p className="text-xs text-slate-600 italic font-bold leading-relaxed">&quot;{o.disputeReason || 'No reason provided'}&quot;</p>
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-2 pt-2">
+                                                <button
+                                                    onClick={() => handleResolveDispute(o._id, 'refund')}
+                                                    className="h-11 bg-red-50 text-red-600 rounded-2xl text-[9px] font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-sm"
+                                                >
+                                                    Refund
+                                                </button>
+                                                <button
+                                                    onClick={() => handleResolveDispute(o._id, 'release')}
+                                                    className="h-11 bg-emerald-50 text-emerald-600 rounded-2xl text-[9px] font-black uppercase tracking-widest hover:bg-emerald-600 hover:text-white transition-all shadow-sm"
+                                                >
+                                                    Release
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* Desktop View: Dispute Table */}
+                                <div className="hidden md:block overflow-x-auto">
+                                    <table className="w-full text-left">
+                                        <thead className="bg-slate-900">
+                                            <tr>
+                                                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Preview / Reference</th>
+                                                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Parties</th>
+                                                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Dispute Reason</th>
+                                                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Amount</th>
+                                                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Mediation</th>
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-50">
+                                            {disputedOrders.map((o) => (
+                                                <tr key={o._id} className="hover:bg-slate-50/50 transition-colors">
+                                                    <td className="px-8 py-6 border-r border-slate-50">
+                                                        <div className="flex items-center gap-4">
+                                                            {o.items?.[0] && (
+                                                                <div className="w-12 h-12 bg-slate-50 rounded-xl overflow-hidden border border-slate-100 flex-shrink-0 relative shadow-sm">
+                                                                    <Image src={getImageUrl(o.items[0].image)} alt="Product" fill sizes="48px" className="object-cover" />
+                                                                </div>
+                                                            )}
+                                                            <div>
+                                                                <p className="font-black text-slate-900 text-sm">#ORD-{o._id.slice(-6).toUpperCase()}</p>
+                                                                <p className="text-[10px] font-bold text-slate-400">{new Date(o.createdAt).toLocaleDateString()}</p>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-8 py-6 border-r border-slate-50">
+                                                        <div className="space-y-1">
+                                                            <p className="text-[10px] font-black text-slate-400 uppercase">Customer: <span className="text-slate-900">{o.customerName || 'Guest'}</span></p>
+                                                            <p className="text-[10px] font-black text-slate-400 uppercase">Vendor: <span className="text-slate-900">{o.vendorName || 'Unknown Studio'}</span></p>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-8 py-6 border-r border-slate-50">
+                                                        <div className="max-w-xs">
+                                                            <p className="text-xs text-slate-600 italic leading-relaxed font-bold">&quot;{o.disputeReason || 'No reason provided'}&quot;</p>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-8 py-6 border-r border-slate-50">
+                                                        <p className="font-black text-slate-900">GH₵ {o.totalAmount.toLocaleString()}</p>
+                                                    </td>
+                                                    <td className="px-8 py-6 text-right">
+                                                        <div className="flex justify-end gap-2">
+                                                            <button
+                                                                onClick={() => handleResolveDispute(o._id, 'refund')}
+                                                                className="px-4 py-2 bg-red-50 text-red-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-sm"
+                                                            >
+                                                                Refund Customer
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleResolveDispute(o._id, 'release')}
+                                                                className="px-4 py-2 bg-emerald-50 text-emerald-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-600 hover:text-white transition-all shadow-sm"
+                                                            >
+                                                                Release to Vendor
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         ) : (
-                            <div className="py-20 text-center bg-white rounded-[40px] border border-dashed border-slate-200">
+                            <div className="py-20 text-center bg-white rounded-[40px] border border-dashed border-slate-200 mx-4 md:mx-0">
                                 <ShieldCheck className="w-16 h-16 text-slate-100 mx-auto mb-4" />
                                 <p className="text-slate-400 font-bold text-sm uppercase tracking-widest">No Active Disputes</p>
                                 <p className="text-[10px] text-slate-300 mt-1">Platform transactions are currently healthy.</p>
@@ -1591,8 +1846,9 @@ export default function AdminDashboard() {
                             {/* Row 1: Basic Info */}
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Owner Name</label>
+                                    <label htmlFor="ov-name" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 cursor-pointer">Owner Name</label>
                                     <input
+                                        id="ov-name"
                                         required
                                         type="text"
                                         placeholder="Full Name"
@@ -1602,8 +1858,9 @@ export default function AdminDashboard() {
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Shop/Studio Name</label>
+                                    <label htmlFor="ov-shop" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 cursor-pointer">Shop/Studio Name</label>
                                     <input
+                                        id="ov-shop"
                                         required
                                         type="text"
                                         placeholder="e.g. Signature Styles"
@@ -1613,8 +1870,9 @@ export default function AdminDashboard() {
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Email Address</label>
+                                    <label htmlFor="ov-email" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 cursor-pointer">Email Address</label>
                                     <input
+                                        id="ov-email"
                                         required
                                         type="email"
                                         placeholder="vendor@example.com"
@@ -1628,8 +1886,9 @@ export default function AdminDashboard() {
                             {/* Row 2: Location & Payment */}
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Phone Number</label>
+                                    <label htmlFor="ov-phone" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 cursor-pointer">Phone Number</label>
                                     <input
+                                        id="ov-phone"
                                         required
                                         type="tel"
                                         placeholder="+233..."
@@ -1639,8 +1898,9 @@ export default function AdminDashboard() {
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Location</label>
+                                    <label htmlFor="ov-location" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 cursor-pointer">Location</label>
                                     <input
+                                        id="ov-location"
                                         required
                                         type="text"
                                         placeholder="City, Region"
@@ -1650,18 +1910,20 @@ export default function AdminDashboard() {
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Payment Details</label>
+                                    <label htmlFor="ov-momo" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 cursor-pointer">Payment Details</label>
                                     <div className="flex gap-2">
                                         <select
+                                            id="ov-provider"
                                             value={newVendorData.momoProvider}
                                             onChange={(e) => setNewVendorData({ ...newVendorData, momoProvider: e.target.value })}
-                                            className="w-1/3 px-2 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold focus:ring-2 focus:ring-brand-lemon/20 focus:outline-none"
+                                            className="w-1/3 px-2 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold focus:ring-2 focus:ring-brand-lemon/20 focus:outline-none cursor-pointer"
                                         >
                                             <option value="MTN">MTN</option>
                                             <option value="Telecel">Telecel</option>
                                             <option value="AT">AT</option>
                                         </select>
                                         <input
+                                            id="ov-momo"
                                             required
                                             type="tel"
                                             placeholder="024..."
@@ -1676,8 +1938,9 @@ export default function AdminDashboard() {
                             {/* Row 3: Account Name & Generated Password */}
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Account Name</label>
+                                    <label htmlFor="ov-acc-name" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 cursor-pointer">Account Name</label>
                                     <input
+                                        id="ov-acc-name"
                                         required
                                         type="text"
                                         placeholder="Mobile Money Name"
@@ -1702,8 +1965,9 @@ export default function AdminDashboard() {
                             </div>
 
                             <div className="space-y-2">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Brand Bio / Story</label>
+                                <label htmlFor="ov-bio" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 cursor-pointer">Brand Bio / Story</label>
                                 <textarea
+                                    id="ov-bio"
                                     rows={2}
                                     placeholder="Short description of the brand..."
                                     value={newVendorData.bio}
@@ -1809,39 +2073,63 @@ export default function AdminDashboard() {
                             <div className="space-y-4">
                                 <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Purchased Designs</h3>
                                 <div className="bg-slate-50 rounded-[32px] border border-slate-100 overflow-hidden">
-                                    <table className="w-full text-left">
-                                        <thead className="bg-slate-100">
-                                            <tr>
-                                                <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">Product</th>
-                                                <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">Variation</th>
-                                                <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest text-center">Qty</th>
-                                                <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest text-right">Price</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-slate-100">
-                                            {selectedOrder.items?.map((item: any, idx: number) => (
-                                                <tr key={idx} className="bg-white">
-                                                    <td className="px-6 py-4">
-                                                        <div className="flex items-center gap-4">
-                                                            <div className="w-12 h-16 bg-slate-50 rounded-lg overflow-hidden relative flex-shrink-0">
-                                                                <Image src={getImageUrl(item.image)} alt={item.name} fill sizes="48px" className="object-cover" />
-                                                            </div>
-                                                            <span className="font-black text-slate-900 text-sm uppercase tracking-tighter">{item.name}</span>
+                                    {/* Mobile View: Cards */}
+                                    <div className="md:hidden divide-y divide-slate-100">
+                                        {selectedOrder.items?.map((item: any, idx: number) => (
+                                            <div key={idx} className="bg-white p-6 space-y-4">
+                                                <div className="flex items-start gap-4">
+                                                    <div className="w-16 h-20 bg-slate-50 rounded-xl overflow-hidden relative flex-shrink-0 shadow-sm border border-slate-100">
+                                                        <Image src={getImageUrl(item.image)} alt={item.name} fill sizes="64px" className="object-cover" />
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <h4 className="font-black text-slate-900 text-[13px] uppercase tracking-tighter truncate">{item.name}</h4>
+                                                        <div className="flex flex-wrap gap-2 mt-2">
+                                                            <span className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded text-[9px] font-black uppercase tracking-widest">SIZE: {item.size}</span>
+                                                            <span className="px-2 py-0.5 bg-slate-900 text-white rounded text-[9px] font-black uppercase tracking-widest">QTY: {item.quantity}</span>
                                                         </div>
-                                                    </td>
-                                                    <td className="px-6 py-4">
-                                                        <span className="text-xs font-bold text-slate-600 uppercase">Size: {item.size}</span>
-                                                    </td>
-                                                    <td className="px-6 py-4 text-center">
-                                                        <span className="bg-slate-900 text-white w-6 h-6 rounded-full inline-flex items-center justify-center text-[10px] font-black">{item.quantity}</span>
-                                                    </td>
-                                                    <td className="px-6 py-4 text-right">
-                                                        <span className="font-black text-slate-900">GH₵ {item.price.toLocaleString()}</span>
-                                                    </td>
+                                                        <p className="text-sm font-black text-slate-900 mt-3 tabular-nums">GH₵ {item.price.toLocaleString()}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    {/* Desktop View: Table */}
+                                    <div className="hidden md:block overflow-x-auto">
+                                        <table className="w-full text-left">
+                                            <thead className="bg-slate-100">
+                                                <tr>
+                                                    <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">Product</th>
+                                                    <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">Variation</th>
+                                                    <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest text-center">Qty</th>
+                                                    <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest text-right">Price</th>
                                                 </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-100">
+                                                {selectedOrder.items?.map((item: any, idx: number) => (
+                                                    <tr key={idx} className="bg-white">
+                                                        <td className="px-6 py-4">
+                                                            <div className="flex items-center gap-4">
+                                                                <div className="w-12 h-16 bg-slate-50 rounded-lg overflow-hidden relative flex-shrink-0">
+                                                                    <Image src={getImageUrl(item.image)} alt={item.name} fill sizes="48px" className="object-cover" />
+                                                                </div>
+                                                                <span className="font-black text-slate-900 text-sm uppercase tracking-tighter">{item.name}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-6 py-4">
+                                                            <span className="text-xs font-bold text-slate-600 uppercase">Size: {item.size}</span>
+                                                        </td>
+                                                        <td className="px-6 py-4 text-center">
+                                                            <span className="bg-slate-900 text-white w-6 h-6 rounded-full inline-flex items-center justify-center text-[10px] font-black">{item.quantity}</span>
+                                                        </td>
+                                                        <td className="px-6 py-4 text-right">
+                                                            <span className="font-black text-slate-900">GH₵ {item.price.toLocaleString()}</span>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
                             </div>
 

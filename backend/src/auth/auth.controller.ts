@@ -21,9 +21,9 @@ export class AuthController {
     // Set the JWT token in an httpOnly cookie
     res.cookie('fla_token', loginResult.access_token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production', // Only send over HTTPS in production
-      sameSite: 'strict', // or 'lax' depending on needs
-      maxAge: 15 * 60 * 1000, // 15 minutes to match the token shelf-life
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days instead of 15 mins for stability
       path: '/',
     });
     
@@ -36,7 +36,7 @@ export class AuthController {
     res.clearCookie('fla_token', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
       path: '/',
     });
     return { message: 'Logged out' };
