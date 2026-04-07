@@ -736,10 +736,10 @@ export default function CustomerDashboard() {
                                         <div className="grid grid-cols-2 gap-3">
                                             {!order.isPaid && !order.paymentProof && (
                                                 <button
-                                                    onClick={() => handleSubmitProof(order._id)}
+                                                    onClick={() => handlePayNow(order._id, order.totalAmount)}
                                                     className="col-span-2 py-3 bg-brand-lemon text-slate-900 rounded-full text-[10px] font-black uppercase tracking-widest hover:shadow-lg transition-all active:scale-95 text-center mb-1"
                                                 >
-                                                    Submit Order Pay
+                                                    Pay Now
                                                 </button>
                                             )}
                                             {order.deliveryType === 'inter-regional' && order.firstMileFee > 0 && !order.isFirstMileFeePaid && (
