@@ -484,20 +484,41 @@ export default function VendorDashboard() {
                         onUpdateStatus={(id) => {
                             Swal.fire({
                                 title: 'Update Progress',
-                                text: 'Update the fulfillment status of this design.',
-                                icon: 'info',
-                                input: 'select',
-                                inputOptions: {
-                                    'processing': 'Processing',
-                                    'shipped': 'Shipped',
-                                    'delivered': 'Delivered',
-                                    'cancelled': 'Cancelled'
-                                },
+                                html: `
+                                    <div class="space-y-4 text-left">
+                                        <div>
+                                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Phase Select</label>
+                                            <select id="swal-status" class="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold">
+                                                <option value="processing">In Production</option>
+                                                <option value="preparing_shipment">Preparing Shipment</option>
+                                                <option value="in_transit_to_first_mile">In Transit to First Mile Delivery</option>
+                                                <option value="in_transit">In Transit (Direct to Customer)</option>
+                                                <option value="arrived_at_first_mile">Arrived at First Mile Delivery</option>
+                                                <option value="in_transit_to_last_mile">In Transit to Last Mile</option>
+                                                <option value="delivered">Shipment Delivered</option>
+                                                <option value="cancelled">Cancelled</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Carrier Details (Optional)</label>
+                                            <input id="swal-carrier" type="text" placeholder="e.g. DHL, FedEx, VIP" class="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold">
+                                        </div>
+                                    </div>
+                                `,
+                                showCancelButton: true,
                                 confirmButtonText: 'UPDATE',
-                                customClass: { popup: 'rounded-[32px]' }
+                                focusConfirm: false,
+                                preConfirm: () => {
+                                    return {
+                                        status: (document.getElementById('swal-status') as HTMLSelectElement).value,
+                                        carrier: (document.getElementById('swal-carrier') as HTMLInputElement).value
+                                    }
+                                },
+                                customClass: { popup: 'rounded-[32px] p-8' }
                             }).then(async r => {
                                 if (r.isConfirmed && r.value) {
                                     const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+                                    const { status, carrier } = r.value;
                                     await fetch(`${api}/orders/${id}`, {
                                         method: 'PATCH',
                                         headers: { 
@@ -505,9 +526,9 @@ export default function VendorDashboard() {
                                             'Authorization': `Bearer ${token}`
                                         },
                                         credentials: 'include',
-                                        body: JSON.stringify({ status: r.value })
+                                        body: JSON.stringify({ status, carrier })
                                     });
-                                    setVendorOrders(prev => prev.map(o => o._id === id ? { ...o, status: r.value } : o));
+                                    setVendorOrders(prev => prev.map(o => o._id === id ? { ...o, status, carrier } : o));
                                 }
                             });
                         }}
@@ -652,8 +673,42 @@ export default function VendorDashboard() {
                                     <input id="p-name" name="name" type="text" placeholder="e.g. Traditional Smock" value={formName} onChange={(e) => setFormName(e.target.value)} className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-slate-900/10 h-14" />
                                 </div>
                                 <div className="space-y-4">
-                                    <label htmlFor="p-price" className="text-[12px] font-black text-slate-900 uppercase tracking-widest ml-1 cursor-pointer">Price (GH₵)</label>
-                                    <input id="p-price" name="price" type="number" placeholder="0.00" value={formPrice} onChange={(e) => setFormPrice(e.target.value)} className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-slate-900/10 h-14" />
+                                    <div className="flex justify-between items-center">
+                                        <label htmlFor="p-price" className="text-[12px] font-black text-slate-900 uppercase tracking-widest ml-1 cursor-pointer">Price (GH₵)</label>
+                                        {formPrice && (
+                                            <span className="text-[9px] font-black text-emerald-500 uppercase tracking-tighter">
+                                                Net: GH₵ {(parseFloat(formPrice) * (1 - commissionRate / 100)).toLocaleString()}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="relative group">
+                                        <input 
+                                            id="p-price" 
+                                            name="price" 
+                                            type="number" 
+                                            placeholder="0.00" 
+                                            value={formPrice} 
+                                            onChange={(e) => setFormPrice(e.target.value)} 
+                                            className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-slate-900/10 h-14" 
+                                        />
+                                        {formPrice && (
+                                            <div className="absolute right-4 top-[68px] bg-slate-900 text-white p-4 rounded-2xl shadow-2xl border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none w-48">
+                                                <div className="flex justify-between text-[8px] font-black uppercase tracking-widest mb-2 border-b border-white/10 pb-1">
+                                                    <span>Breakdown</span>
+                                                </div>
+                                                <div className="space-y-1.5">
+                                                    <div className="flex justify-between text-[10px] items-center">
+                                                        <span className="text-slate-400">Admin ({commissionRate}%):</span>
+                                                        <span className="text-red-400 font-bold">-GH₵ {(parseFloat(formPrice) * (commissionRate / 100)).toFixed(2)}</span>
+                                                    </div>
+                                                    <div className="flex justify-between text-[10px] items-center border-t border-white/5 pt-1.5">
+                                                        <span className="text-slate-400">Vendor Share:</span>
+                                                        <span className="text-emerald-400 font-black">GH₵ {(parseFloat(formPrice) * (1 - commissionRate / 100)).toFixed(2)}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
 

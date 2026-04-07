@@ -167,9 +167,9 @@ export default function CustomerDashboard() {
     const filteredOrders = React.useMemo(() => {
         return orders.filter(order => {
             if (orderFilter === 'All') return true;
-            if (orderFilter === 'Active') return !['delivered', 'cancelled'].includes(order.status);
-
-            if (orderFilter === 'Completed') return order.status === 'delivered';
+            if (orderFilter === 'In delivery') return ![ 'delivered', 'completed', 'cancelled' ].includes(order.status);
+            if (orderFilter === 'Completed') return [ 'delivered', 'completed' ].includes(order.status);
+            if (orderFilter === 'Cancelled') return order.status === 'cancelled';
             return true;
         });
     }, [orders, orderFilter]);
@@ -368,79 +368,31 @@ export default function CustomerDashboard() {
         }
     };
 
-    const handleSubmitProof = async (orderId: string) => {
-        const { value: file } = await Swal.fire({
-            title: 'UPLOAD PAYMENT PROOF',
-            text: 'Please upload a screenshot of your transaction confirmation.',
-            input: 'file',
-            inputAttributes: {
-                'accept': 'image/*',
-                'aria-label': 'Upload your payment receipt'
-            },
-            confirmButtonText: 'SUBMIT PROOF',
-            showCancelButton: true,
-            buttonsStyling: false,
-            customClass: {
-                popup: 'rounded-[32px] border-none shadow-2xl p-10 bg-white',
-                title: 'text-2xl font-black text-slate-900 tracking-tighter uppercase mb-2',
-                confirmButton: 'bg-slate-900 text-white rounded-full px-10 py-4 text-[11px] font-black uppercase tracking-widest mx-2',
-                cancelButton: 'bg-slate-100 text-slate-500 rounded-full px-10 py-4 text-[11px] font-black uppercase tracking-widest mx-2'
-            }
-        });
+    const handlePayNow = async (orderId: string, amount: number) => {
+        try {
+            Swal.fire({
+                title: 'PREPARING PAYMENT...',
+                didOpen: () => { Swal.showLoading(); }
+            });
 
-        if (file) {
-            try {
-                Swal.fire({
-                    title: 'PROCCESSING...',
-                    didOpen: () => { Swal.showLoading(); }
-                });
+            const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
-                const formData = new FormData();
-                formData.append('file', file);
+            // We need to re-initialize payment for this order if it was already created but not paid.
+            // Or we can fetch the existing payment link if the backend supports it.
+            // For now, let's assume the backend will return a new payment link when requested.
+            const res = await fetch(`${apiBase}/orders/${orderId}/initialize-payment`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
+                credentials: 'include'
+            });
 
-                const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+            if (!res.ok) throw new Error('Could not initialize payment');
+            const { paymentLink } = await res.json();
 
-                // 1. Upload the file
-                const uploadRes = await fetch(`${apiBase}/upload`, {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${token}` },
-                    credentials: 'include',
-                    body: formData
-                });
-
-                if (!uploadRes.ok) throw new Error('Upload failed');
-                const { url } = await uploadRes.json();
-
-                // 2. Submit proof URL to order
-                const submitRes = await fetch(`${apiBase}/orders/${orderId}/submit-proof`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    credentials: 'include',
-                    body: JSON.stringify({ proofUrl: url })
-                });
-
-                if (!submitRes.ok) throw new Error('Failed to submit proof');
-
-                setOrders(prev => prev.map(o => o._id === orderId ? { ...o, paymentProof: url } : o));
-
-                Swal.fire({
-                    icon: 'success',
-                    title: 'PROOF SUBMITTED!',
-                    text: 'The vendor will verify your payment shortly.',
-                    confirmButtonText: 'GREAT',
-                    buttonsStyling: false,
-                    customClass: {
-                        popup: 'rounded-[32px] border-none shadow-2xl p-10 bg-white',
-                        title: 'text-2xl font-black text-slate-900 tracking-tighter uppercase mb-2',
-                        confirmButton: 'bg-slate-900 text-white rounded-full px-10 py-4 text-[11px] font-black uppercase tracking-widest'
-                    }
-                });
-            } catch (error: any) {
-                Swal.fire('ERROR', error.message, 'error');
-            }
+            // Redirect to Paystack
+            window.location.href = paymentLink;
+        } catch (error: any) {
+            Swal.fire('ERROR', error.message, 'error');
         }
     };
 
@@ -673,16 +625,7 @@ export default function CustomerDashboard() {
                                                     </div>
 
                                                     <div className="flex items-center gap-3">
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                handleSendOrderToWhatsApp(order);
-                                                            }}
-                                                            className="h-9 w-9 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-all shadow-sm border border-emerald-100"
-                                                            title="Send to WhatsApp"
-                                                        >
-                                                            <WhatsAppIcon className="w-4.5 h-4.5" />
-                                                        </button>
+                                                        {/* Removed WhatsApp button to utilize space for 'Satisfied' button in core order list */}
                                                     </div>
                                                 </div>
                                             </div>
@@ -728,7 +671,7 @@ export default function CustomerDashboard() {
                                 <p className="text-slate-500 text-sm mt-1">Manage and track your fashion orders.</p>
                             </div>
                             <div className="flex bg-slate-100 p-1 rounded-full overflow-x-auto no-scrollbar max-w-full self-start md:self-auto">
-                                {['All', 'Active', 'Completed'].map(f => (
+                                {['All', 'In delivery', 'Completed', 'Cancelled'].map(f => (
                                     <button
                                         key={f}
                                         onClick={() => setOrderFilter(f)}
@@ -879,7 +822,7 @@ export default function CustomerDashboard() {
                                                     </button>
                                                 )}
 
-                                                {order.status === 'delivered' && order.escrowStatus !== 'released' && (
+                                                 {order.status === 'delivered' && order.escrowStatus !== 'released' && (
                                                     <button
                                                         onClick={async () => {
                                                             const result = await Swal.fire({
@@ -909,18 +852,11 @@ export default function CustomerDashboard() {
                                                                 }
                                                             }
                                                         }}
-                                                        className="flex-1 py-3 bg-emerald-600 text-white rounded-full text-[10px] font-bold uppercase tracking-widest hover:bg-emerald-700 transition-all text-center shadow-md shadow-emerald-200"
+                                                        className="flex-1 py-3 bg-slate-900 text-white rounded-full text-[10px] font-bold uppercase tracking-widest hover:bg-slate-800 transition-all text-center shadow-md shadow-slate-200"
                                                     >
                                                         I'm Satisfied
                                                     </button>
                                                 )}
-                                                <button
-                                                    onClick={() => handleSendOrderToWhatsApp(order)}
-                                                    className="flex-1 py-3 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-full flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-all shadow-sm group"
-                                                    title="Send Order to WhatsApp"
-                                                >
-                                                    <WhatsAppIcon className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                                                </button>
                                             </div>
                                         </div>
                                     </div>
@@ -1000,12 +936,12 @@ export default function CustomerDashboard() {
                                                 </td>
                                                 <td className="px-8 py-6 font-sans font-black text-slate-900">GH₵ {order.totalAmount}</td>
                                                 <td className="px-8 py-6 text-right flex items-center justify-end gap-2">
-                                                    {!order.isPaid && !order.paymentProof && (
+                                                    {!order.isPaid && (
                                                         <button
-                                                            onClick={() => handleSubmitProof(order._id)}
+                                                            onClick={() => handlePayNow(order._id, order.totalAmount)}
                                                             className="px-6 py-2 bg-brand-lemon text-slate-900 rounded-full text-[9px] font-black uppercase tracking-widest hover:shadow-lg transition-all whitespace-nowrap"
                                                         >
-                                                            Order Pay
+                                                            Pay Now
                                                         </button>
                                                     )}
                                                     {order.deliveryType === 'inter-regional' && order.firstMileFee > 0 && !order.isFirstMileFeePaid && (
@@ -1024,9 +960,7 @@ export default function CustomerDashboard() {
                                                             </button>
                                                         </div>
                                                     )}
-                                                    {order.paymentProof && !order.isPaid && (
-                                                        <span className="px-3 py-1 rounded-lg text-[8px] font-black text-slate-400 uppercase tracking-widest border border-slate-100">Verifying...</span>
-                                                    )}
+
                                                     <button
                                                         onClick={() => setTrackingOrder(order)}
                                                         className="px-6 py-2 bg-slate-900 text-white rounded-full text-[9px] font-bold uppercase tracking-widest hover:bg-slate-800 transition-all hover:scale-105 active:scale-95 whitespace-nowrap"
@@ -1117,14 +1051,7 @@ export default function CustomerDashboard() {
                                                         }}
                                                         className="px-6 py-2 bg-slate-50 text-red-500 border border-slate-100 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-red-50 hover:border-red-100 transition-all hover:scale-105 active:scale-95 whitespace-nowrap"
                                                     >
-                                                        Report Issue
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleSendOrderToWhatsApp(order)}
-                                                        className="h-9 w-9 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-all shadow-md group"
-                                                        title="Send Order to WhatsApp"
-                                                    >
-                                                        <WhatsAppIcon className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                                                        Complain
                                                     </button>
                                                 </td>
                                             </tr>
@@ -1675,31 +1602,53 @@ export default function CustomerDashboard() {
                                     </div>
                                     <div className="ml-auto text-right">
                                         <p className="text-[10px] font-black text-brand-lemon uppercase tracking-wider">Estimated Delivery</p>
-                                        <p className="text-sm font-black text-slate-900">3-5 Working Days</p>
+                                        <p className="text-sm font-black text-slate-900">6-7 Working Days</p>
                                     </div>
                                 </div>
 
                                 {/* Tracking Stepper */}
                                 <div className="relative space-y-6 pl-2">
                                     <div className="absolute left-[17px] top-2 bottom-2 w-0.5 bg-slate-100" />
-                                    {[
-                                        { title: 'Order Placed', time: 'Recently', desc: 'Your fashion request has been received.', done: true },
-                                        { title: 'In Production', time: 'In Progress', desc: 'Stylists are working on your design.', done: ['processing', 'shipped', 'delivered'].includes(trackingOrder.status) },
-                                        { title: 'Quality Assurance', time: 'Pending', desc: 'Checking tailoring excellence.', done: ['shipped', 'delivered'].includes(trackingOrder.status) },
-                                        { title: 'Shipped via ' + (trackingOrder.carrier || 'FLA Logistics'), time: trackingOrder.trackingNumber ? 'Tracking: ' + trackingOrder.trackingNumber : 'Pending', desc: 'On its way to your location.', done: ['shipped', 'delivered'].includes(trackingOrder.status) },
-                                        { title: 'Delivered', time: 'Pending', desc: 'Package handed over to recipient.', done: trackingOrder.status === 'delivered' },
-                                    ].map((s, idx) => (
-                                        <div key={idx} className={`relative flex gap-6 transition-opacity ${s.done ? 'opacity-100' : 'opacity-30'}`}>
-                                            <div className={`w-3 h-3 rounded-full mt-1.5 z-10 border-2 border-white ring-4 ${s.done ? 'bg-brand-lemon ring-brand-lemon/20' : 'bg-slate-200 ring-slate-100'}`} />
-                                            <div className="flex-1">
-                                                <div className="flex justify-between items-start">
-                                                    <h4 className="font-bold text-slate-900 text-sm">{s.title}</h4>
-                                                    <span className="text-[9px] font-black text-slate-400 uppercase">{s.time}</span>
+                                    {(() => {
+                                        const status = trackingOrder.status;
+                                        const isInterRegional = trackingOrder.deliveryType === 'inter-regional';
+                                        
+                                        const baseSteps = [
+                                            { title: 'Order Placed', time: 'Recently', desc: 'Your fashion request has been received.', done: true },
+                                            { title: 'In Production', time: ['processing', 'preparing_shipment', 'in_transit_to_first_mile', 'in_transit', 'arrived_at_first_mile', 'in_transit_to_last_mile', 'shipped', 'delivered', 'completed'].includes(status) ? 'Done' : 'In Progress', desc: 'Stylists are working on your design.', done: ['processing', 'preparing_shipment', 'in_transit_to_first_mile', 'in_transit', 'arrived_at_first_mile', 'in_transit_to_last_mile', 'shipped', 'delivered', 'completed'].includes(status) },
+                                            { title: 'Preparing Shipment', time: ['preparing_shipment', 'in_transit_to_first_mile', 'in_transit', 'arrived_at_first_mile', 'in_transit_to_last_mile', 'shipped', 'delivered', 'completed'].includes(status) ? 'Done' : 'Pending', desc: 'Vendor is carefully packaging your items.', done: ['preparing_shipment', 'in_transit_to_first_mile', 'in_transit', 'arrived_at_first_mile', 'in_transit_to_last_mile', 'shipped', 'delivered', 'completed'].includes(status) },
+                                        ];
+
+                                        let trackingSteps = [];
+                                        if (isInterRegional) {
+                                            trackingSteps = [
+                                                ...baseSteps,
+                                                { title: 'In Transit to First Mile', time: ['in_transit_to_first_mile', 'arrived_at_first_mile', 'in_transit_to_last_mile', 'shipped', 'delivered', 'completed'].includes(status) ? 'Done' : 'Pending', desc: 'On its way to the regional sorting hub.', done: ['in_transit_to_first_mile', 'arrived_at_first_mile', 'in_transit_to_last_mile', 'shipped', 'delivered', 'completed'].includes(status) },
+                                                { title: 'Arrived at First Mile', time: ['arrived_at_first_mile', 'in_transit_to_last_mile', 'shipped', 'delivered', 'completed'].includes(status) ? 'Done' : 'Pending', desc: 'Sorting at the regional delivery station.', done: ['arrived_at_first_mile', 'in_transit_to_last_mile', 'shipped', 'delivered', 'completed'].includes(status) },
+                                                { title: 'In Transit to Last Mile', time: ['in_transit_to_last_mile', 'shipped', 'delivered', 'completed'].includes(status) ? 'Done' : 'Pending', desc: 'Moving to your local delivery hub.', done: ['in_transit_to_last_mile', 'shipped', 'delivered', 'completed'].includes(status) },
+                                                { title: 'Shipment Delivered', time: ['delivered', 'completed'].includes(status) ? 'Finalized' : 'Pending', desc: ['delivered', 'completed'].includes(status) ? `Arrived via ${trackingOrder.carrier || 'FLA Logistics'} (Tracking: ${trackingOrder.trackingNumber || 'N/A'})` : 'Package handed over to recipient.', done: ['delivered', 'completed'].includes(status) },
+                                            ];
+                                        } else {
+                                            trackingSteps = [
+                                                ...baseSteps,
+                                                { title: 'In Transit (Direct)', time: ['in_transit', 'shipped', 'delivered', 'completed'].includes(status) ? 'Done' : 'Pending', desc: 'On its way directly to your location.', done: ['in_transit', 'shipped', 'delivered', 'completed'].includes(status) },
+                                                { title: 'Shipment Delivered', time: ['delivered', 'completed'].includes(status) ? 'Finalized' : 'Pending', desc: ['delivered', 'completed'].includes(status) ? `Arrived via ${trackingOrder.carrier || 'FLA Logistics'} (Tracking: ${trackingOrder.trackingNumber || 'N/A'})` : 'Package handed over to recipient.', done: ['delivered', 'completed'].includes(status) },
+                                            ];
+                                        }
+
+                                        return trackingSteps.map((s, idx) => (
+                                            <div key={idx} className={`relative flex gap-6 transition-opacity ${s.done ? 'opacity-100' : 'opacity-30'}`}>
+                                                <div className={`w-3 h-3 rounded-full mt-1.5 z-10 border-2 border-white ring-4 ${s.done ? 'bg-brand-lemon ring-brand-lemon/20' : 'bg-slate-200 ring-slate-100'}`} />
+                                                <div className="flex-1">
+                                                    <div className="flex justify-between items-start">
+                                                        <h4 className="font-bold text-slate-900 text-sm">{s.title}</h4>
+                                                        <span className="text-[9px] font-black text-slate-400 uppercase">{s.time}</span>
+                                                    </div>
+                                                    <p className="text-[11px] text-slate-500 mt-0.5">{s.desc}</p>
                                                 </div>
-                                                <p className="text-[11px] text-slate-500 mt-0.5">{s.desc}</p>
                                             </div>
-                                        </div>
-                                    ))}
+                                        ));
+                                    })()}
                                 </div>
 
                                 {/* Map / Courier Placeholder */}

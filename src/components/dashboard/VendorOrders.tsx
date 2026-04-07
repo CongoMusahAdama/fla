@@ -45,22 +45,69 @@ export const VendorOrders: React.FC<VendorOrdersProps> = ({
   onQuickSetFee,
   onPrintLabel
 }) => {
+  const [activeTab, setActiveTab] = React.useState('All');
   const [currentPage, setCurrentPage] = React.useState(1);
   const itemsPerPage = 8;
-  const totalPages = Math.ceil(orders.length / itemsPerPage);
+
+  const filteredOrders = React.useMemo(() => {
+    switch (activeTab) {
+      case 'In delivery':
+        return orders.filter(o => [
+          'preparing_shipment', 
+          'in_transit_to_first_mile', 
+          'in_transit', 
+          'arrived_at_first_mile', 
+          'in_transit_to_last_mile', 
+          'shipped'
+        ].includes(o.status));
+      case 'completed':
+        return orders.filter(o => ['delivered', 'completed'].includes(o.status));
+      case 'cancelled':
+        return orders.filter(o => ['cancelled'].includes(o.status));
+      default:
+        return orders;
+    }
+  }, [orders, activeTab]);
+
+  const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedOrders = orders.slice(startIndex, startIndex + itemsPerPage);
+  const paginatedOrders = filteredOrders.slice(startIndex, startIndex + itemsPerPage);
 
   // Reset to first page if orders length changes (e.g. on search/filter)
   React.useEffect(() => {
     setCurrentPage(1);
-  }, [orders.length]);
+  }, [filteredOrders.length]);
+
+  const tabs = ['All', 'In delivery', 'completed', 'cancelled'];
 
   return (
-    <div className="space-y-12 animate-in fade-in duration-700">
+    <div className="space-y-8 animate-in fade-in duration-700">
       <div>
         <h1 className="text-3xl font-black text-slate-900 uppercase tracking-tighter">Order Ledger</h1>
         <p className="text-slate-500 font-medium text-sm mt-1">Track and fulfillment customer fashion requests across the global network.</p>
+      </div>
+
+      {/* Status Filtering Tabs */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
+        {tabs.map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap border-2 ${
+              activeTab === tab 
+                ? 'bg-slate-900 text-brand-lemon border-slate-900 shadow-lg shadow-slate-900/10' 
+                : 'bg-white text-slate-400 border-slate-50 hover:border-slate-100'
+            }`}
+          >
+            {tab}
+            <span className={`ml-2 px-1.5 py-0.5 rounded-md text-[8px] ${activeTab === tab ? 'bg-brand-lemon/20 text-brand-lemon' : 'bg-slate-100 text-slate-400'}`}>
+              {tab === 'All' ? orders.length : 
+               tab === 'In delivery' ? orders.filter(o => ['preparing_shipment', 'in_transit_to_first_mile', 'in_transit', 'arrived_at_first_mile', 'in_transit_to_last_mile', 'shipped'].includes(o.status)).length :
+               tab === 'completed' ? orders.filter(o => ['delivered', 'completed'].includes(o.status)).length :
+               tab === 'cancelled' ? orders.filter(o => ['cancelled'].includes(o.status)).length : 0}
+            </span>
+          </button>
+        ))}
       </div>
 
       <div className="bg-transparent md:bg-white md:rounded-[48px] md:border md:border-slate-100 md:shadow-xl overflow-hidden flex flex-col min-h-[600px]">
@@ -360,7 +407,7 @@ export const VendorOrders: React.FC<VendorOrdersProps> = ({
         {totalPages > 1 && (
           <div className="px-10 py-6 bg-slate-50 border-t border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-              Showing <span className="text-slate-900">{startIndex + 1}-{Math.min(startIndex + itemsPerPage, orders.length)}</span> of <span className="text-slate-900">{orders.length}</span> Orders
+              Showing <span className="text-slate-900">{startIndex + 1}-{Math.min(startIndex + itemsPerPage, filteredOrders.length)}</span> of <span className="text-slate-900">{filteredOrders.length}</span> Orders
             </p>
             <div className="flex items-center gap-2">
               <button

@@ -5,7 +5,7 @@ import ProductCard from "@/components/ProductCard";
 import Footer from "@/components/Footer";
 import ProcessSection from "@/components/ProcessSection";
 import Link from 'next/link';
-import { Filter, ChevronRight, LayoutGrid, List } from 'lucide-react';
+import { Filter, ChevronRight, LayoutGrid, List, MapPin } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 
 export default function Home() {
@@ -15,13 +15,16 @@ export default function Home() {
   const [activeFilter, setActiveFilter] = useState('');
   const [totalCount, setTotalCount] = useState(0);
 
-  const fetchLatestProducts = async (cat: string, filt: string) => {
+  const [activeRegion, setActiveRegion] = useState('');
+
+  const fetchLatestProducts = async (cat: string, filt: string, region: string) => {
     setLoading(true);
     try {
       let url = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/products?limit=12`;
       if (cat !== 'All Product') url += `&category=${encodeURIComponent(cat)}`;
       if (filt) url += `&filter=${encodeURIComponent(filt)}`;
-      else url += '&sort=latest';
+      if (region) url += `&region=${encodeURIComponent(region)}`;
+      if (!filt) url += '&sort=latest';
 
       const response = await fetch(url);
       if (response.ok) {
@@ -30,7 +33,7 @@ export default function Home() {
       }
 
       // Fetch total count for "All Product" if not already set or whenever we need it
-      if (cat === 'All Product' && !filt) {
+      if (cat === 'All Product' && !filt && !region) {
         const countRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/products`);
         if (countRes.ok) {
           const allData = await countRes.json();
@@ -45,8 +48,14 @@ export default function Home() {
   };
 
   useEffect(() => {
-    fetchLatestProducts(activeCategory, activeFilter);
-  }, [activeCategory, activeFilter]);
+    fetchLatestProducts(activeCategory, activeFilter, activeRegion);
+  }, [activeCategory, activeFilter, activeRegion]);
+
+  const GHANA_REGIONS = [
+    'Ahafo', 'Ashanti', 'Bono', 'Bono East', 'Central', 'Eastern', 
+    'Greater Accra', 'North East', 'Northern', 'Oti', 'Savannah', 
+    'Upper East', 'Upper West', 'Volta', 'Western', 'Western North'
+  ];
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -57,6 +66,29 @@ export default function Home() {
 
           {/* Sidebar - Hidden on Mobile */}
           <aside className="hidden md:block w-64 flex-shrink-0 space-y-8">
+            {/* Region Filter */}
+            <div className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm">
+              <h3 className="font-heading font-bold text-slate-900 mb-4 text-sm uppercase tracking-widest flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-brand-blue" />
+                Select Region
+              </h3>
+              <div className="relative group">
+                <select 
+                  value={activeRegion}
+                  onChange={(e) => setActiveRegion(e.target.value)}
+                  className="w-full pl-5 pr-10 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold appearance-none cursor-pointer focus:ring-2 focus:ring-slate-900/10 transition-all hover:bg-slate-100"
+                >
+                  <option value="">All Regions</option>
+                  {GHANA_REGIONS.map((r) => (
+                    <option key={r} value={r}>{r}</option>
+                  ))}
+                </select>
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 group-hover:text-slate-900 transition-colors">
+                  <ChevronRight className="w-4 h-4 rotate-90" />
+                </div>
+              </div>
+            </div>
+
             {/* Categories */}
             <div>
               <h3 className="font-heading font-bold text-slate-900 mb-4 text-lg">Category</h3>
@@ -92,12 +124,15 @@ export default function Home() {
                     <ChevronRight className={`w-4 h-4 transition-all ${activeFilter === filt ? 'opacity-100 translate-x-1 text-slate-900' : 'opacity-0 group-hover:opacity-100 text-brand-blue'}`} />
                   </button>
                 ))}
-                {activeFilter && (
+                {(activeFilter || activeRegion) && (
                   <button
-                    onClick={() => setActiveFilter('')}
+                    onClick={() => {
+                      setActiveFilter('');
+                      setActiveRegion('');
+                    }}
                     className="w-full text-left px-4 py-2 text-[10px] font-black text-red-500 uppercase tracking-widest mt-2 hover:bg-red-50 transition-colors rounded-lg"
                   >
-                    Clear Filter
+                    Clear All
                   </button>
                 )}
               </div>
@@ -107,14 +142,29 @@ export default function Home() {
           {/* Main Content Areas */}
           <div className="flex-1">
             {/* Mobile Categories - Luxury Scroll */}
-            <div className="md:hidden mb-12">
-              <div className="flex items-center justify-between mb-6 px-1">
+            <div className="md:hidden mb-8">
+              <div className="flex items-center justify-between mb-4 px-1">
                 <h2 className="font-heading text-2xl font-black text-slate-900 uppercase tracking-tighter">Collections</h2>
                 <div className="flex items-center gap-1.5 px-3 py-1 bg-slate-900 rounded-full shadow-lg">
                   <div className="w-1.5 h-1.5 rounded-full bg-brand-lemon animate-pulse" />
                   <span className="text-[9px] font-black text-white uppercase tracking-widest">New Arrivals</span>
                 </div>
               </div>
+
+              {/* Mobile Region Filter */}
+              <div className="mb-6">
+                <select 
+                  value={activeRegion}
+                  onChange={(e) => setActiveRegion(e.target.value)}
+                  className="w-full px-5 py-3.5 bg-white border border-slate-100 rounded-full text-[10px] font-black uppercase tracking-widest focus:ring-0 shadow-sm transition-all"
+                >
+                  <option value="">Filter By Region</option>
+                  {GHANA_REGIONS.map((r) => (
+                    <option key={r} value={r}>{r}</option>
+                  ))}
+                </select>
+              </div>
+
               <div className="flex gap-2.5 overflow-x-auto no-scrollbar pb-4 -mx-4 px-4">
                 {['All Product', 'Electronics', 'Home goods', 'Beauty/cosmetics', 'Accessories', 'Used items', 'Wholesaler', 'For men', 'For women', 'Children/Toys', 'Furniture', 'Food/beverages', 'Hardware items', 'Refurbished items', 'Unisex'].map((cat) => (
                   <button
@@ -135,9 +185,16 @@ export default function Home() {
             </div>
 
             <div className="flex flex-wrap justify-between items-center mb-6 gap-4">
-              <h2 className="font-heading text-xl md:text-2xl font-black text-slate-900 uppercase">
-                {activeFilter || activeCategory}
-              </h2>
+              <div className="flex flex-col gap-1">
+                <h2 className="font-heading text-xl md:text-2xl font-black text-slate-900 uppercase">
+                  {activeFilter || activeCategory}
+                </h2>
+                {activeRegion && (
+                  <span className="text-[10px] font-black text-brand-blue uppercase tracking-widest flex items-center gap-1">
+                    <MapPin className="w-3 h-3" /> {activeRegion}
+                  </span>
+                )}
+              </div>
               <div className="flex gap-2">
                 <button className="p-2.5 bg-white rounded-xl shadow-sm border border-slate-100 text-slate-900 active:bg-slate-50 transition-colors"><LayoutGrid className="w-4 h-4" /></button>
                 <button className="p-2.5 text-slate-400 hover:text-slate-900 transition-colors"><List className="w-4 h-4" /></button>
@@ -166,7 +223,7 @@ export default function Home() {
                     index={index}
                     description={product.description}
                     hasSizes={product.hasSizes}
-                    vendorRegion={product.vendorRegion}
+                    vendorRegion={product.region}
                   />
                 ))
               ) : (

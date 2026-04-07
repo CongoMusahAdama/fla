@@ -31,7 +31,7 @@ interface ProductCardProps {
     vendorRegion?: string;
 }
 
-export default function ProductCard({ id, name, price, images, sizes = [], imageLabels, duration = '3 working days', stock, index, vendorId, initialWishlistState = false, description, vendorName, uniqueVendorId, hasSizes = true, hasColors = true, colors = [], vendorRegion }: ProductCardProps) {
+export default function ProductCard({ id, name, price, images, sizes = [], imageLabels, duration = '6-7 working days', stock, index, vendorId, initialWishlistState = false, description, vendorName, uniqueVendorId, hasSizes = true, hasColors = true, colors = [], vendorRegion }: ProductCardProps) {
     const isBatch = false;
     const currentPrice = price;
 
@@ -127,27 +127,26 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                             <div class="flex flex-col gap-4">
                                 <h4 class="text-[9px] font-black text-slate-400 uppercase tracking-widest text-center">Contact Designer</h4>
                                 <div class="grid grid-cols-2 gap-3">
-                                    <a href="https://wa.me/${vendor.phone}" target="_blank" class="flex items-center justify-center gap-2 bg-emerald-500 text-white p-3 md:p-4 rounded-2xl md:rounded-3xl shadow-xl shadow-emerald-500/10 hover:shadow-emerald-500/20 active:scale-95 transition-all text-[10px] md:text-xs font-black uppercase tracking-widest">
-                                        WhatsApp
+                                    <a href="https://wa.me/${vendor.phone}" target="_blank" class="flex flex-col items-center justify-center gap-1 bg-emerald-500 text-white p-3 md:p-4 rounded-2xl md:rounded-3xl shadow-xl shadow-emerald-500/10 hover:shadow-emerald-500/20 active:scale-95 transition-all text-[10px] md:text-xs font-black uppercase tracking-widest">
+                                        <span>WhatsApp</span>
+                                        <span class="text-[8px] opacity-80">${vendor.phone || 'Contact'}</span>
                                     </a>
-                                    <a href="tel:${vendor.phone}" class="flex items-center justify-center gap-2 bg-slate-900 text-white p-3 md:p-4 rounded-2xl md:rounded-3xl shadow-xl shadow-slate-900/10 hover:shadow-slate-900/20 active:scale-95 transition-all text-[10px] md:text-xs font-black uppercase tracking-widest text-center">
-                                        Call Store
+                                    <a href="tel:${vendor.phone}" class="flex flex-col items-center justify-center gap-1 bg-slate-900 text-white p-3 md:p-4 rounded-2xl md:rounded-3xl shadow-xl shadow-slate-900/10 hover:shadow-slate-900/20 active:scale-95 transition-all text-[10px] md:text-xs font-black uppercase tracking-widest text-center">
+                                        <span>Call Store</span>
+                                        <span class="text-[8px] opacity-80">${vendor.phone || 'Contact'}</span>
                                     </a>
                                 </div>
                             </div>
 
                             <!-- Performance Grid -->
-                            <div class="grid grid-cols-2 gap-3 text-center">
-                                <div class="bg-slate-50 p-4 rounded-[2rem] border border-slate-100 flex flex-col items-center">
-                                    <span class="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Reliability</span>
+                            <div class="flex justify-center">
+                                <div class="bg-slate-50 px-10 py-5 rounded-[2.5rem] border border-slate-100 flex flex-col items-center shadow-sm">
+                                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Shipping Time</span>
                                     <div class="flex items-center gap-2">
-                                        <span class="text-lg font-black text-slate-900">${vendor.fulfillmentRate || 99}%</span>
-                                        <div class="w-1 h-1 rounded-full bg-emerald-500 animate-pulse"></div>
+                                        <span class="text-xl font-black text-slate-900">${duration || '6-7 Days'}</span>
+                                        <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
                                     </div>
-                                </div>
-                                <div class="bg-slate-50 p-4 rounded-[2rem] border border-slate-100 flex flex-col items-center">
-                                    <span class="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Shipping</span>
-                                    <span class="text-lg font-black text-slate-900">${vendor.averageTimeToShip || '2-4 Days'}</span>
+                                    <span class="text-[8px] font-black text-slate-400 uppercase tracking-widest mt-1 opacity-60 italic">Escrow Protected</span>
                                 </div>
                             </div>
                         </div>
@@ -620,6 +619,17 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                             <span className="text-slate-300 line-through text-[9px] font-bold">GH₵{Math.round(price * 1.15)}</span>
                             <span className="font-sans font-black text-slate-900 text-base md:text-lg tracking-tight -mt-1">GH₵{price}</span>
                         </div>
+                        <div className="flex flex-col items-end">
+                            <span className={`text-[10px] font-black uppercase tracking-widest ${stock > 5 ? 'text-emerald-500' : 'text-orange-500'}`}>
+                                {stock > 0 ? `${stock} Left` : 'Sold Out'}
+                            </span>
+                            <div className={`w-12 h-1 bg-slate-100 rounded-full mt-1 overflow-hidden`}>
+                                <div 
+                                    className={`h-full rounded-full ${stock > 5 ? 'bg-emerald-500' : 'bg-orange-500'}`} 
+                                    style={{ width: `${Math.min((stock / 20) * 100, 100)}%` }}
+                                />
+                            </div>
+                        </div>
                     </div>
 
                     {/* Size Selection (Quick Access) */}
@@ -777,8 +787,13 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
 
                                     <div>
                                         <h2 className="font-heading text-2xl md:text-4xl font-black text-slate-900 mb-2 leading-tight tracking-tighter uppercase">{name}</h2>
-                                        <div className="flex items-center gap-4">
+                                        <div className="flex items-center justify-between">
                                             <p className="text-xl md:text-3xl font-black text-slate-900 tracking-tighter">GH₵{price}</p>
+                                            <div className="flex flex-col items-end">
+                                                <span className={`text-[11px] font-black uppercase tracking-widest ${stock > 5 ? 'text-emerald-500' : 'text-orange-500'}`}>
+                                                    Availability: {stock > 0 ? `${stock} Pieces in Stock` : 'Out of Stock'}
+                                                </span>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
