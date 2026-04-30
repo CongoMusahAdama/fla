@@ -217,8 +217,41 @@ const RegisterForm = ({ role, onSignup }: { role: UserRole, onSignup: (data: any
     const [paymentMethods, setPaymentMethods] = useState([{
         network: 'MTN',
         accountNumber: '',
-        accountName: ''
+        accountName: '',
+        isLookingUp: false
     }]);
+
+    const handleAccountNumberChange = async (index: number, value: string, network: string) => {
+        const updated = [...paymentMethods];
+        updated[index].accountNumber = value;
+        
+        // Reset name if number is too short
+        if (value.length < 10) {
+            updated[index].accountName = '';
+            updated[index].isLookingUp = false;
+            setPaymentMethods(updated);
+            return;
+        }
+
+        updated[index].isLookingUp = true;
+        setPaymentMethods([...updated]);
+
+        try {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/payments/lookup-name/${network}/${value}`);
+            const data = await response.json();
+            
+            if (data.success && data.name) {
+                updated[index].accountName = data.name;
+            } else {
+                updated[index].accountName = 'Name not found';
+            }
+        } catch (error) {
+            updated[index].accountName = 'Verification failed';
+        } finally {
+            updated[index].isLookingUp = false;
+            setPaymentMethods([...updated]);
+        }
+    };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -306,11 +339,7 @@ const RegisterForm = ({ role, onSignup }: { role: UserRole, onSignup: (data: any
                                             placeholder="024XXXXXXX"
                                             required
                                             value={method.accountNumber}
-                                            onChange={(e) => {
-                                                const updated = [...paymentMethods];
-                                                updated[index].accountNumber = e.target.value;
-                                                setPaymentMethods(updated);
-                                            }}
+                                            onChange={(e) => handleAccountNumberChange(index, e.target.value, method.network)}
                                             className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm transition-all focus:border-slate-900 focus:ring-2 focus:ring-slate-900/5 outline-none"
                                         />
                                     </div>
@@ -320,15 +349,17 @@ const RegisterForm = ({ role, onSignup }: { role: UserRole, onSignup: (data: any
                                         <CreditCard className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-slate-900 transition-colors pointer-events-none w-4 h-4" />
                                         <input
                                             type="text"
-                                            placeholder="Account Name"
+                                            placeholder={method.isLookingUp ? "Verifying Account..." : "Account Name (Auto-filled)"}
                                             required
+                                            disabled
                                             value={method.accountName}
-                                            onChange={(e) => {
-                                                const updated = [...paymentMethods];
-                                                updated[index].accountName = e.target.value;
-                                                setPaymentMethods(updated);
-                                            }}
-                                            className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm transition-all focus:border-slate-900 focus:ring-2 focus:ring-slate-900/5 outline-none"
+                                            className={`w-full pl-11 pr-4 py-3 border rounded-xl text-sm transition-all outline-none ${
+                                                method.isLookingUp 
+                                                    ? 'bg-slate-50 border-slate-200 text-slate-400 animate-pulse' 
+                                                    : method.accountName && method.accountName !== 'Name not found' && method.accountName !== 'Verification failed'
+                                                        ? 'bg-emerald-50 border-emerald-200 text-emerald-900 font-bold'
+                                                        : 'bg-slate-100 border-slate-200 text-slate-500 cursor-not-allowed'
+                                            }`}
                                         />
                                     </div>
                                 </div>

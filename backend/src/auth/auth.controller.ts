@@ -57,8 +57,9 @@ export class AuthController {
       // throw new BadRequestException('Security verification is required.');
     }
 
-    // SECURITY: Force the role to 'customer' for public registration to prevent privilege escalation
-    return this.authService.register({ ...createUserDto, role: 'customer' });
+    // SECURITY: Prevent privilege escalation. Only 'customer' and 'vendor' are allowed via public registration.
+    const allowedRole = createUserDto.role === 'vendor' ? 'vendor' : 'customer';
+    return this.authService.register({ ...createUserDto, role: allowedRole });
   }
 
   @UseGuards(AuthGuard('jwt'))
