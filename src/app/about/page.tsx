@@ -1,146 +1,467 @@
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import Image from 'next/image';
-import { ShieldCheck, Target, Zap, Lightbulb, Eye, Goal, ArrowRight } from 'lucide-react';
+import { 
+    ShieldCheck, 
+    Globe, 
+    Users, 
+    Rocket, 
+    Lock, 
+    Scale, 
+    Flag, 
+    Briefcase, 
+    Code,
+    CheckCircle2,
+    ArrowRight,
+    TrendingUp,
+    Building2,
+    Zap,
+    X,
+    Quote
+} from 'lucide-react';
 import Link from 'next/link';
 
 export default function AboutPage() {
+    const [isFounderModalOpen, setIsFounderModalOpen] = useState(false);
+
     return (
-        <main className="min-h-screen bg-[#FDFCFB] pt-32 md:pt-36">
-            {/* Gallery Section - Moved to Top */}
-            <section className="pb-8 md:pb-12 max-w-7xl mx-auto px-4 md:px-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
-                    <div className="relative aspect-square md:aspect-[4/3] rounded-[32px] md:rounded-[40px] overflow-hidden shadow-2xl group">
-                        <Image
-                            src="/hero-new.png"
-                            alt="The Identity"
-                            fill
-                            unoptimized={true}
-                            className="object-cover group-hover:scale-105 transition-transform duration-700"
-                            priority
-                            onError={(e) => {
-                                const target = e.target as HTMLImageElement;
-                                target.src = '/product-1.jpg';
-                            }}
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 to-transparent" />
-                        <div className="absolute bottom-10 left-10">
-                            <h4 className="text-2xl font-black text-white uppercase tracking-tight">The Modern Creator</h4>
-                        </div>
-                    </div>
-                    <div className="relative aspect-square md:aspect-[4/3] rounded-[32px] md:rounded-[40px] overflow-hidden shadow-2xl group">
-                        <Image
-                            src="/image.png"
-                            alt="Bespoke Quality"
-                            fill
-                            unoptimized={true}
-                            className="object-cover group-hover:scale-105 transition-transform duration-700"
-                            priority
-                            onError={(e) => {
-                                const target = e.target as HTMLImageElement;
-                                target.src = '/product-1.jpg';
-                            }}
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 to-transparent" />
-                        <div className="absolute bottom-10 left-10">
-                            <h4 className="text-2xl font-black text-white uppercase tracking-tight">Bespoke Excellence</h4>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            {/* Inspiration Layout Section */}
-            <section className="py-24 px-6 relative">
-                <div className="max-w-5xl mx-auto text-center mb-16">
-                    <span className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-400 mb-4 block">About Us</span>
-                    <h2 className="font-heading text-3xl md:text-5xl font-black text-slate-900 mb-6 leading-tight">
-                        Unveiling Our Identity, <br /> Vision and Values
-                    </h2>
-                    <p className="max-w-2xl mx-auto text-slate-500 text-sm md:text-base font-medium leading-relaxed">
-                        We're passionate about fashion innovation. With years of experience in the industry, we've established ourselves as leaders in providing high-quality custom apparel solutions on a secure digital marketplace.
+        <main className="min-h-screen bg-white">
+            {/* --- Hero Section --- */}
+            <section className="relative h-[80vh] min-h-[600px] flex items-center justify-center overflow-hidden">
+                <div className="absolute inset-0 z-0 bg-slate-900" />
+                
+                <div className="relative z-10 max-w-5xl mx-auto px-6 text-center animate-in fade-in slide-in-from-bottom-8 duration-1000">
+                    <span className="inline-block px-4 py-1.5 bg-brand-lemon text-slate-900 text-[10px] font-black uppercase tracking-[0.3em] rounded-full mb-6">
+                        Established 2026
+                    </span>
+                    <h1 className="text-5xl md:text-7xl lg:text-8xl font-black text-white uppercase tracking-tighter mb-8 leading-[0.9]">
+                        Trust Built <br /> <span className="text-brand-lemon italic">into Trade.</span>
+                    </h1>
+                    <p className="max-w-2xl mx-auto text-slate-300 text-lg md:text-xl font-medium leading-relaxed mb-10">
+                        We are a nationwide marketplace built to make buying and selling simple, secure, and accessible—without the need for a physical storefront.
                     </p>
-                </div>
-
-                {/* Values Bar - Dark Card */}
-                <div className="max-w-4xl mx-auto -mb-16 relative z-20">
-                    <div className="bg-slate-900 rounded-[32px] md:rounded-[48px] p-8 md:p-12 shadow-2xl flex flex-wrap justify-between items-center gap-8 md:gap-4">
-                        <div className="flex flex-col items-center gap-3 flex-1 min-w-[120px]">
-                            <div className="w-12 h-12 rounded-full border border-white/20 flex items-center justify-center text-white">
-                                <ShieldCheck className="w-6 h-6" />
-                            </div>
-                            <span className="text-xs font-bold text-white uppercase tracking-widest">Escrow Safety</span>
-                        </div>
-                        <div className="flex flex-col items-center gap-3 flex-1 min-w-[120px]">
-                            <div className="w-12 h-12 rounded-full border border-white/20 flex items-center justify-center text-white">
-                                <Zap className="w-6 h-6" />
-                            </div>
-                            <span className="text-xs font-bold text-white uppercase tracking-widest">Efficient</span>
-                        </div>
-                        <div className="flex flex-col items-center gap-3 flex-1 min-w-[120px]">
-                            <div className="w-12 h-12 rounded-full border border-white/20 flex items-center justify-center text-white">
-                                <Target className="w-6 h-6" />
-                            </div>
-                            <span className="text-xs font-bold text-white uppercase tracking-widest">Precision</span>
-                        </div>
-                        <div className="flex flex-col items-center gap-3 flex-1 min-w-[120px]">
-                            <div className="w-12 h-12 rounded-full border border-white/20 flex items-center justify-center text-white">
-                                <Lightbulb className="w-6 h-6" />
-                            </div>
-                            <span className="text-xs font-bold text-white uppercase tracking-widest">Innovation</span>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Vision & Mission White Card */}
-                <div className="max-w-6xl mx-auto bg-white rounded-[48px] md:rounded-[64px] pt-32 pb-16 px-8 md:px-20 shadow-xl shadow-slate-200/50 border border-slate-100 flex flex-col items-center">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-16 md:gap-0 w-full relative">
-                        {/* Vertical Divider for MD+ */}
-                        <div className="hidden md:block absolute left-1/2 top-0 bottom-0 w-[1px] bg-slate-100 -translate-x-1/2" />
-
-                        {/* Vision */}
-                        <div className="md:pr-10 space-y-6">
-                            <div className="flex items-center gap-4">
-                                <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-900 border border-slate-100">
-                                    <Eye className="w-5 h-5" />
-                                </div>
-                                <h3 className="text-2xl font-black text-slate-900">Vision</h3>
-                            </div>
-                            <p className="text-slate-500 font-medium leading-relaxed">
-                                To lead the way in custom apparel manufacturing by delivering innovative, sustainable, and cost-effective solutions that empower creators and delight style enthusiasts globally.
-                            </p>
-                        </div>
-
-                        {/* Mission */}
-                        <div className="md:pl-10 space-y-6">
-                            <div className="flex items-center gap-4">
-                                <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-900 border border-slate-100">
-                                    <Goal className="w-5 h-5" />
-                                </div>
-                                <h3 className="text-2xl font-black text-slate-900">Mission</h3>
-                            </div>
-                            <p className="text-slate-500 font-medium leading-relaxed">
-                                To leverage our expertise, resources, and secure digital technology to manufacture bespoke clothing products that exceed industry standards, ensuring safety and trust at every stitch.
-                            </p>
-                        </div>
-                    </div>
-
-                    <div className="mt-20">
-                        <Link href="/shop" className="px-10 py-5 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-brand-lemon hover:text-slate-900 transition-all shadow-xl shadow-slate-200">
-                            Explore the collection
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                        <Link href="/shop" className="w-full sm:w-auto px-10 py-5 bg-white text-slate-900 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-brand-lemon transition-all shadow-2xl">
+                            Explore Marketplace
+                        </Link>
+                        <Link href="/auth?role=vendor" className="w-full sm:w-auto px-10 py-5 bg-transparent border-2 border-white/20 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-white/10 transition-all">
+                            Become a Vendor
                         </Link>
                     </div>
                 </div>
             </section>
-            {/* Platform Narrative Text Footer */}
-            <section className="py-24 bg-slate-50 text-center px-6">
-                <div className="max-w-4xl mx-auto">
-                    <p className="text-slate-500 italic text-lg leading-relaxed mb-10">
-                        "Our platform connects customers with creative clothing vendors on one secure digital platform. We empower fashion creators and clothing brands to reach more customers while giving shoppers access to personalized, high-quality apparel — all in one convenient platform."
-                    </p>
-                    <div className="w-12 h-1 bg-brand-lemon mx-auto" />
+
+            {/* --- Core Values Section --- */}
+            <section className="py-24 px-6 relative z-10 -mt-16">
+                <div className="max-w-7xl mx-auto">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                        <div className="bg-white p-10 rounded-[40px] shadow-xl shadow-slate-200/50 border border-slate-50 group hover:-translate-y-2 transition-all duration-500">
+                            <div className="w-14 h-14 bg-slate-900 rounded-[20px] flex items-center justify-center mb-6 group-hover:bg-brand-lemon transition-colors">
+                                <Globe className="w-6 h-6 text-white group-hover:text-slate-900" />
+                            </div>
+                            <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight mb-4">Nationwide Reach</h3>
+                            <p className="text-slate-500 text-sm leading-relaxed font-medium">
+                                Empowering vendors to reach customers across all of Ghana, breaking the boundaries of physical shop locations.
+                            </p>
+                        </div>
+                        <div className="bg-white p-10 rounded-[40px] shadow-xl shadow-slate-200/50 border border-slate-50 group hover:-translate-y-2 transition-all duration-500">
+                            <div className="w-14 h-14 bg-slate-900 rounded-[20px] flex items-center justify-center mb-6 group-hover:bg-brand-lemon transition-colors">
+                                <ShieldCheck className="w-6 h-6 text-white group-hover:text-slate-900" />
+                            </div>
+                            <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight mb-4">Fraud Protection</h3>
+                            <p className="text-slate-500 text-sm leading-relaxed font-medium">
+                                Confidence that every order is protected. From discovery to delivery, every step is transparent and secure.
+                            </p>
+                        </div>
+                        <div className="bg-white p-10 rounded-[40px] shadow-xl shadow-slate-200/50 border border-slate-50 group hover:-translate-y-2 transition-all duration-500">
+                            <div className="w-14 h-14 bg-slate-900 rounded-[20px] flex items-center justify-center mb-6 group-hover:bg-brand-lemon transition-colors">
+                                <TrendingUp className="w-6 h-6 text-white group-hover:text-slate-900" />
+                            </div>
+                            <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight mb-4">Scale with Ease</h3>
+                            <p className="text-slate-500 text-sm leading-relaxed font-medium">
+                                Structured and trackable processes that allow businesses to grow without the overhead of a physical storefront.
+                            </p>
+                        </div>
+                    </div>
                 </div>
             </section>
+
+            {/* --- What We Do Section --- */}
+            <section className="py-24 px-6 bg-slate-50">
+                <div className="max-w-7xl mx-auto flex flex-col lg:flex-row items-center gap-16">
+                    <div className="flex-1 space-y-8">
+                        <span className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-400 block">Our Purpose</span>
+                        <h2 className="text-4xl md:text-5xl lg:text-6xl font-black text-slate-900 uppercase tracking-tighter leading-[0.9]">
+                            Connecting Ghana <br /> Through <span className="text-slate-400">Trusted Trade.</span>
+                        </h2>
+                        <p className="text-slate-600 text-lg font-medium leading-relaxed">
+                            We connect vendors and customers on a single trusted platform, removing uncertainty from online buying and selling.
+                        </p>
+                        <div className="space-y-4">
+                            {[
+                                "Vendors sell nationwide without a physical shop",
+                                "Customers shop confidently from verified sellers",
+                                "Payments are secured through trusted systems",
+                                "Every order follows a trackable process"
+                            ].map((item, i) => (
+                                <div key={i} className="flex items-center gap-4 group">
+                                    <div className="w-6 h-6 rounded-full bg-brand-lemon flex items-center justify-center group-hover:scale-110 transition-transform">
+                                        <CheckCircle2 className="w-4 h-4 text-slate-900" />
+                                    </div>
+                                    <span className="text-slate-900 font-black uppercase text-xs tracking-widest">{item}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                    <div className="flex-1 w-full">
+                        <div className="relative aspect-[4/5] rounded-[60px] overflow-hidden shadow-2xl rotate-2 hover:rotate-0 transition-transform duration-700">
+                            <Image
+                                src="/image.png"
+                                alt="Modern Commerce"
+                                fill
+                                className="object-cover"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-slate-900/40 to-transparent" />
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* --- Our Mission Section --- */}
+            <section className="py-32 px-6 bg-slate-900 text-white relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-96 h-96 bg-brand-lemon/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+                <div className="absolute bottom-0 left-0 w-64 h-64 bg-brand-lemon/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
+                
+                <div className="max-w-4xl mx-auto text-center relative z-10">
+                    <span className="text-[10px] font-black uppercase tracking-[0.5em] text-brand-lemon mb-8 block">Our Mission</span>
+                    <h2 className="text-3xl md:text-5xl font-black uppercase tracking-tighter leading-tight mb-10">
+                        To build a trusted digital marketplace where anyone can trade safely, <span className="text-brand-lemon">anywhere in Ghana.</span>
+                    </h2>
+                    <p className="text-slate-400 text-lg font-medium leading-relaxed max-w-2xl mx-auto">
+                        We believe commerce should be simple, fair, and protected—no one should lose money because of lack of trust in a system.
+                    </p>
+                </div>
+            </section>
+
+            {/* --- How We Keep It Safe Section --- */}
+            <section className="py-32 px-6">
+                <div className="max-w-7xl mx-auto">
+                    <div className="text-center mb-20">
+                        <h2 className="text-4xl md:text-6xl font-black text-slate-900 uppercase tracking-tighter mb-4">Built on Trust</h2>
+                        <p className="text-slate-500 font-bold uppercase tracking-widest text-[10px]">Security is at the foundation of our platform</p>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        {[
+                            { icon: Lock, title: "Secure Payments", desc: "Processing via Hubtel for absolute financial safety." },
+                            { icon: Users, title: "Verified Vendors", desc: "Rigorous onboarding and verification checks for every shop." },
+                            { icon: Scale, title: "Accountability", desc: "Structured order flow with responsibility at every step." },
+                            { icon: Rocket, title: "Transparency", desc: "Full transaction history for both buyers and sellers." }
+                        ].map((item, i) => (
+                            <div key={i} className="p-8 bg-slate-50 rounded-[32px] border border-slate-100 hover:bg-white hover:shadow-2xl transition-all duration-500 group">
+                                <item.icon className="w-10 h-10 text-slate-300 group-hover:text-brand-lemon mb-6 transition-colors" />
+                                <h4 className="text-lg font-black text-slate-900 uppercase tracking-tight mb-2">{item.title}</h4>
+                                <p className="text-slate-500 text-xs leading-relaxed font-medium">{item.desc}</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </section>
+
+            {/* --- Ecosystem & Compliance --- */}
+            <section className="py-24 px-6 bg-slate-900 text-white overflow-hidden">
+                <div className="max-w-7xl mx-auto mb-16 text-center lg:text-left">
+                    <span className="text-[10px] font-black uppercase tracking-[0.4em] text-brand-lemon mb-4 block">Ecosystem & Compliance</span>
+                    <h2 className="text-3xl md:text-4xl font-black uppercase tracking-tighter mb-4">Regulated & Integrated.</h2>
+                    <p className="text-slate-400 text-sm font-medium">Operating under national legal frameworks and industry standards.</p>
+                </div>
+
+                {/* Infinite Logo Ticker */}
+                <div className="relative w-full py-10 bg-slate-900/50 rounded-[40px] border border-white/5">
+                    <div className="flex overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_20%,black_80%,transparent)]">
+                        <div className="flex animate-marquee whitespace-nowrap items-center gap-32 py-4">
+                            {[
+                                { src: "/hubtel.png", name: "Hubtel", width: 180 },
+                                { src: "/mtn.png", name: "MTN Ghana", width: 140 },
+                                { src: "/payment-logos/telecel.png", name: "Telecel", width: 180 },
+                                { src: "/airteltigo.png", name: "AirtelTigo", width: 180 },
+                                { src: "/visacard.png", name: "Visa / Mastercard", width: 160 },
+                                // Duplicated set for infinite loop
+                                { src: "/hubtel.png", name: "Hubtel", width: 180 },
+                                { src: "/mtn.png", name: "MTN Ghana", width: 140 },
+                                { src: "/payment-logos/telecel.png", name: "Telecel", width: 180 },
+                                { src: "/airteltigo.png", name: "AirtelTigo", width: 180 },
+                                { src: "/visacard.png", name: "Visa / Mastercard", width: 160 }
+                            ].map((logo, i) => (
+                                <div key={i} className="flex flex-col items-center gap-6 shrink-0 px-4">
+                                    <div className="relative h-20 md:h-24 transition-all duration-700 hover:scale-110">
+                                        <div style={{ width: `${logo.width}px`, height: '100%', position: 'relative' }}>
+                                            <Image
+                                                src={logo.src}
+                                                alt={logo.name}
+                                                fill
+                                                className="object-contain"
+                                            />
+                                        </div>
+                                    </div>
+                                    <span className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 hover:text-brand-lemon transition-colors duration-500">{logo.name}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mt-20 pt-20 border-t border-white/5 max-w-7xl mx-auto">
+                    <div className="text-center md:text-left">
+                        <h5 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">Statutory Compliance</h5>
+                        <div className="flex flex-col gap-3">
+                            <div className="flex items-center gap-3 justify-center md:justify-start">
+                                <Building2 className="w-4 h-4 text-brand-lemon" />
+                                <span className="text-[10px] font-bold text-white uppercase tracking-tight">Office of the Registrar of Companies</span>
+                            </div>
+                            <div className="flex items-center gap-3 justify-center md:justify-start">
+                                <Flag className="w-4 h-4 text-brand-lemon" />
+                                <span className="text-[10px] font-bold text-white uppercase tracking-tight">Republic of Ghana Framework</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <style jsx>{`
+                    @keyframes marquee {
+                        0% { transform: translateX(0); }
+                        100% { transform: translateX(-50%); }
+                    }
+                    .animate-marquee {
+                        animation: marquee 60s linear infinite;
+                    }
+                    .animate-marquee:hover {
+                        animation-play-state: paused;
+                    }
+                `}</style>
+            </section>
+
+            {/* --- Our Story Section --- */}
+            <section className="py-32 px-6">
+                <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
+                    <div className="relative aspect-square rounded-[60px] overflow-hidden shadow-2xl">
+                        <Image
+                            src="/hero-new.png"
+                            alt="The Vision"
+                            fill
+                            className="object-cover"
+                        />
+                        <div className="absolute inset-0 bg-slate-900/20" />
+                    </div>
+                    <div className="space-y-8">
+                        <span className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-400 block">Our Story</span>
+                        <h2 className="text-4xl md:text-5xl font-black text-slate-900 uppercase tracking-tighter leading-[0.9]">
+                            Solving the <br /> <span className="text-slate-400">Trust Problem.</span>
+                        </h2>
+                        <div className="space-y-6 text-slate-600 text-lg leading-relaxed font-medium">
+                            <p>
+                                This platform was created to solve a real problem in online commerce—lack of trust. Too many buyers lose money due to unreliable sellers, and many vendors struggle to reach customers beyond their physical location.
+                            </p>
+                            <p>
+                                We built a system that solves both sides of the problem by introducing structure, verification, and accountability. Every feature exists to make online trade safer and more reliable.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* --- Team Section --- */}
+            <section className="py-32 px-6 bg-slate-50">
+                <div className="max-w-7xl mx-auto">
+                    <div className="text-center mb-20">
+                        <span className="text-[10px] font-black uppercase tracking-[0.5em] text-slate-400 mb-4 block">Our Team</span>
+                        <h2 className="text-4xl md:text-6xl font-black text-slate-900 uppercase tracking-tighter">The People Behind the Vision</h2>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-12 lg:gap-20">
+                        {/* Founder */}
+                        <div className="flex flex-col items-center md:items-start group">
+                            <div className="relative w-full aspect-[4/5] rounded-[48px] overflow-hidden shadow-2xl mb-8 group-hover:-translate-y-4 transition-transform duration-700">
+                                <Image
+                                    src="/fadilan.png"
+                                    alt="Fadilan Salifu"
+                                    fill
+                                    className="object-cover transition-all duration-700"
+                                />
+                                <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 to-transparent" />
+                                <div className="absolute bottom-10 left-10 text-white">
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-brand-lemon mb-2">Founder & CEO</p>
+                                    <h3 className="text-3xl font-black uppercase tracking-tighter">Fadilan Salifu</h3>
+                                </div>
+                            </div>
+                            <div className="space-y-6">
+                                <p className="text-slate-500 font-medium leading-relaxed max-w-md">
+                                    Fadilan is the founder of the platform and leads the overall vision, strategy, and business direction.
+                                </p>
+                                <button 
+                                    onClick={() => setIsFounderModalOpen(true)}
+                                    className="flex items-center gap-3 text-slate-900 font-black uppercase tracking-widest text-[10px] group/btn"
+                                >
+                                    <span>Read Story</span>
+                                    <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-2 transition-transform" />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Tech Lead */}
+                        <div className="flex flex-col items-center md:items-start group pt-12 md:pt-24">
+                            <div className="relative w-full aspect-[4/5] rounded-[48px] overflow-hidden shadow-2xl mb-8 group-hover:-translate-y-4 transition-transform duration-700">
+                                <Image
+                                    src="/musah.jpeg"
+                                    alt="Musah Congo Adama"
+                                    fill
+                                    className="object-cover transition-all duration-700"
+                                />
+                                <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 to-transparent" />
+                                <div className="absolute bottom-10 left-10 text-white">
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-brand-lemon mb-2">Technical Lead & Product Strategist</p>
+                                    <h3 className="text-3xl font-black uppercase tracking-tighter">Musah Congo Adama</h3>
+                                </div>
+                            </div>
+                            <p className="text-slate-500 font-medium leading-relaxed max-w-md">
+                                Musah is the developer of the entire platform and leads all technical and product development. He built the system from the ground up—designing the architecture, developing the platform, and shaping the user experience.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* --- Why Trust Us Section --- */}
+            <section className="py-32 px-6 bg-slate-900 text-white">
+                <div className="max-w-7xl mx-auto flex flex-col lg:flex-row gap-20">
+                    <div className="flex-1">
+                        <h2 className="text-4xl md:text-5xl lg:text-6xl font-black uppercase tracking-tighter leading-[0.9] mb-8">
+                            Why People <br /> <span className="text-brand-lemon">Trust Us.</span>
+                        </h2>
+                        <p className="text-slate-400 text-lg font-medium leading-relaxed">
+                            We are building for long-term trust, not short-term gain. Every feature is designed with your safety in mind.
+                        </p>
+                    </div>
+                    <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {[
+                            "Transparent system design",
+                            "Real founders and team",
+                            "Verified integrations",
+                            "Fraud prevention mechanisms",
+                            "Structured delivery process",
+                            "Legal compliance"
+                        ].map((item, i) => (
+                            <div key={i} className="flex items-center gap-4 p-6 bg-white/5 rounded-2xl border border-white/5 hover:bg-white/10 transition-colors">
+                                <CheckCircle2 className="w-5 h-5 text-brand-lemon" />
+                                <span className="text-xs font-bold uppercase tracking-widest">{item}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </section>
+
+            {/* --- Closing Section --- */}
+            <section className="py-40 px-6 text-center bg-white relative overflow-hidden">
+                <div className="absolute inset-0 z-0 bg-slate-50" />
+                <div className="relative z-10 max-w-4xl mx-auto">
+                    <h2 className="text-5xl md:text-7xl font-black text-slate-900 uppercase tracking-tighter leading-[0.9] mb-12">
+                        We are not just <br /> <span className="text-slate-400">building a marketplace.</span>
+                    </h2>
+                    <div className="w-24 h-2 bg-brand-lemon mx-auto mb-12" />
+                    <p className="text-2xl md:text-3xl font-black text-slate-900 uppercase tracking-tighter italic">
+                        We are building trust into <br /> how people trade online.
+                    </p>
+                    <div className="mt-20">
+                        <Link href="/shop" className="group relative inline-flex items-center gap-4 px-12 py-6 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-xs overflow-hidden shadow-2xl">
+                            <div className="absolute inset-0 bg-brand-lemon translate-y-full group-hover:translate-y-0 transition-transform duration-500" />
+                            <span className="relative group-hover:text-slate-900 transition-colors">Start Shopping Now</span>
+                            <ArrowRight className="relative w-4 h-4 group-hover:text-slate-900 group-hover:translate-x-2 transition-all" />
+                        </Link>
+                    </div>
+                </div>
+            </section>
+
+            {/* --- Founder Modal --- */}
+            {isFounderModalOpen && (
+                <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 md:p-8 animate-in fade-in duration-300">
+                    <div className="absolute inset-0 bg-slate-900/90 backdrop-blur-md" onClick={() => setIsFounderModalOpen(false)} />
+                    <div className="relative bg-white w-full max-w-5xl max-h-[90vh] overflow-y-auto rounded-[40px] shadow-2xl flex flex-col lg:flex-row animate-in zoom-in-95 duration-500">
+                        <button 
+                            onClick={() => setIsFounderModalOpen(false)}
+                            className="absolute top-6 right-6 w-12 h-12 bg-slate-900 text-white rounded-full flex items-center justify-center z-10 hover:bg-brand-lemon hover:text-slate-900 transition-all"
+                        >
+                            <X className="w-6 h-6" />
+                        </button>
+
+                        <div className="lg:w-2/5 relative h-[400px] lg:h-auto">
+                            <Image
+                                src="/fadilan.png"
+                                alt="Fadilan Salifu"
+                                fill
+                                className="object-cover"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 via-transparent to-transparent" />
+                            <div className="absolute bottom-10 left-10 text-white">
+                                <p className="text-brand-lemon font-black uppercase tracking-widest text-xs mb-2">The Founder</p>
+                                <h3 className="text-4xl font-black uppercase tracking-tighter">Fadilan Salifu</h3>
+                            </div>
+                        </div>
+
+                        <div className="lg:w-3/5 p-10 md:p-16 space-y-10">
+                            <div className="space-y-4">
+                                <span className="text-[10px] font-black uppercase tracking-[0.5em] text-slate-400 block">About the CEO</span>
+                                <h2 className="text-4xl font-black text-slate-900 uppercase tracking-tighter leading-none">Visionary Leadership.</h2>
+                            </div>
+
+                            <div className="space-y-8 relative">
+                                <Quote className="absolute -top-10 -left-6 w-16 h-16 text-slate-100 -z-10" />
+                                <div className="space-y-6 text-slate-600 text-lg font-medium leading-relaxed italic border-l-4 border-brand-lemon pl-8">
+                                    <p>
+                                        "Fadilan is the founder of the platform and leads the overall vision, strategy, and business direction."
+                                    </p>
+                                </div>
+                                <div className="space-y-6 text-slate-500 text-base leading-relaxed">
+                                    <p>
+                                        He started this project with a clear goal: to create a trusted nationwide marketplace that allows anyone to sell without a storefront while protecting customers from fraud.
+                                    </p>
+                                    <p>
+                                        Under his leadership, the platform has grown from a visionary concept into a robust ecosystem that prioritizes security, transparency, and accountability at every step of the transaction.
+                                    </p>
+                                    <p>
+                                        He oversees growth, partnerships, and the long-term direction of the platform, ensuring that every feature exists to make online trade safer and more reliable for everyone in Ghana.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="pt-10 grid grid-cols-2 gap-4">
+                                <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100">
+                                    <Rocket className="w-6 h-6 text-slate-900 mb-4" />
+                                    <h5 className="font-black uppercase tracking-widest text-[10px] text-slate-900">Vision</h5>
+                                    <p className="text-slate-500 text-[10px] font-medium mt-1">Leading nationwide digital trade innovation.</p>
+                                </div>
+                                <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100">
+                                    <ShieldCheck className="w-6 h-6 text-slate-900 mb-4" />
+                                    <h5 className="font-black uppercase tracking-widest text-[10px] text-slate-900">Trust</h5>
+                                    <p className="text-slate-500 text-[10px] font-medium mt-1">Ensuring absolute safety for every customer.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* --- Footer / Legal --- */}
+            <footer className="py-12 bg-slate-50 border-t border-slate-100 px-6 text-center">
+                <div className="max-w-7xl mx-auto">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">
+                        © 2026 All Rights Reserved • FLA Purchase
+                    </p>
+                    <p className="text-[9px] text-slate-300 font-medium max-w-2xl mx-auto leading-relaxed uppercase tracking-wider">
+                        This platform operates in accordance with the laws of the Republic of Ghana. All trademarks, logos, and third-party names belong to their respective owners and are used strictly for identification and integration purposes.
+                    </p>
+                </div>
+            </footer>
         </main>
     );
 }

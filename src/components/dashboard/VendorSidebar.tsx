@@ -7,6 +7,7 @@ import {
   Settings, Wallet, MessageSquare, Bell, 
   ArrowLeft, LogOut, X, HelpCircle, Star
 } from 'lucide-react';
+import Image from 'next/image';
 import { useAuth } from '@/context/AuthContext';
 
 interface VendorSidebarProps {
@@ -24,7 +25,7 @@ export const VendorSidebar: React.FC<VendorSidebarProps> = ({
 
   const sidebarItems = [
     { id: 'dashboard', label: 'Overview', icon: LayoutDashboard },
-    { id: 'products', label: 'Shop Maintenance', icon: ShoppingBag },
+    { id: 'products', label: 'Manage Your Shop', icon: ShoppingBag },
     { id: 'orders', label: 'Order Ledger', icon: Eye },
     { id: 'wallet', label: 'Payouts & Ledger', icon: Wallet },
     { id: 'reviews', label: 'Customer Feedback', icon: Star },
@@ -36,8 +37,15 @@ export const VendorSidebar: React.FC<VendorSidebarProps> = ({
   return (
     <div className="h-full flex flex-col p-6 md:p-8 relative bg-slate-900 text-white">
       <div className="flex justify-between items-center mb-8 md:mb-10">
-        <Link href="/" className="font-heading text-2xl font-black tracking-tighter text-brand-lemon flex items-center gap-2">
-          FLA <span className="text-white">STUDIO</span>
+        <Link href="/" className="flex items-center gap-3">
+          <Image 
+            src="/logo.jpeg" 
+            alt="FLA Studio" 
+            width={40} 
+            height={40} 
+            className="h-10 w-auto object-contain rounded-xl shadow-lg shadow-brand-lemon/10"
+          />
+          <span className="font-heading text-xl font-black tracking-tighter text-brand-lemon">STUDIO</span>
         </Link>
       </div>
 

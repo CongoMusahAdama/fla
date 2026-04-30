@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 
 export default function Footer() {
     return (
@@ -6,7 +7,15 @@ export default function Footer() {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="grid md:grid-cols-4 gap-12 mb-12">
                     <div className="col-span-1 md:col-span-1">
-                        <h3 className="font-heading text-2xl font-bold text-white mb-4">FLA.</h3>
+                        <Link href="/" className="inline-block mb-4">
+                            <Image 
+                                src="/logo.jpeg" 
+                                alt="FLA Logo" 
+                                width={60} 
+                                height={60} 
+                                className="h-10 w-auto object-contain rounded-lg shadow-xl shadow-white/5"
+                            />
+                        </Link>
                         <p className="text-slate-400 text-sm leading-relaxed">
                             Exclusive lifestyle designs for the modern era. We combine authentic craftsmanship with real-time delivery and marketplace technology.
                         </p>

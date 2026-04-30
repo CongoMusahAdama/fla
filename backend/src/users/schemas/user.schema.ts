@@ -3,7 +3,7 @@ import { Document } from 'mongoose';
 
 export type UserDocument = User & Document;
 
-@Schema()
+@Schema({ timestamps: true })
 export class User {
     @Prop({ required: true, unique: true })
     email: string;
@@ -58,14 +58,14 @@ export class User {
     accountName?: string;
 
     @Prop()
-    paystackRecipientCode?: string;
+    hubtelRecipientCode?: string;
 
     @Prop({ type: [Object], default: [] })
     withdrawalHistory?: Array<{
         amount: number;
         status: string;
         createdAt: Date;
-        paystackTransferCode?: string;
+        hubtelTransferCode?: string;
     }>;
 
     @Prop({ default: 0 })
@@ -120,3 +120,9 @@ export class User {
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
+
+// Critical performance indexes
+UserSchema.index({ email: 1 }, { unique: true, collation: { locale: 'en', strength: 2 } });
+UserSchema.index({ role: 1, status: 1 });
+UserSchema.index({ uniqueVendorId: 1 }, { sparse: true });
+UserSchema.index({ shopName: 'text', name: 'text' });

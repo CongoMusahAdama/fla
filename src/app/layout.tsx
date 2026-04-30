@@ -20,6 +20,14 @@ const outfit = Outfit({
 export const metadata: Metadata = {
   title: "FLA Purchase | Exclusive Designs & Quality Brands",
   description: "Your Style, Curated and Delivered.",
+  icons: {
+    icon: [
+      { url: '/logo.jpeg' },
+      { url: '/logo.jpeg', sizes: '32x32', type: 'image/jpeg' },
+    ],
+    shortcut: '/logo.jpeg',
+    apple: '/logo.jpeg',
+  },
 };
 
 import { CartProvider } from "@/context/CartContext";

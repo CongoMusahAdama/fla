@@ -44,7 +44,7 @@ export class WithdrawalService {
         });
 
         // Deduct from wallet balance immediately (locked in request)
-        await this.usersService.update(vendor['_id'].toString(), {
+        await this.usersService.update(vendorId, {
             walletBalance: vendor.walletBalance - amount
         });
 
@@ -75,7 +75,7 @@ export class WithdrawalService {
         // Refund the amount back to vendor's wallet
         const vendor = await this.usersService.findOneById(withdrawal.vendorId.toString());
         if (vendor) {
-            await this.usersService.update(vendor['_id'].toString(), {
+            await this.usersService.update(withdrawal.vendorId.toString(), {
                 walletBalance: vendor.walletBalance + withdrawal.amount
             });
         }

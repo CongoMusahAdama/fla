@@ -26,40 +26,67 @@ function ShopContent() {
     const [openDropdown, setOpenDropdown] = useState<string | null>(null);
     const [activeFilters, setActiveFilters] = useState<Record<string, string>>({});
     const [localSearch, setLocalSearch] = useState('');
+    const [suggestions, setSuggestions] = useState<any[]>([]);
 
     useEffect(() => {
+        const fetchSuggestions = async () => {
+            if (localSearch.length < 2) {
+                setSuggestions([]);
+                return;
+            }
+
+            try {
+                const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+                const res = await fetch(`${api}/products/suggestions?search=${encodeURIComponent(localSearch)}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    setSuggestions(data);
+                }
+            } catch (err) {
+                console.error("Suggestions fetch error:", err);
+            }
+        };
+
+        const timer = setTimeout(fetchSuggestions, 300);
+        return () => clearTimeout(timer);
+    }, [localSearch]);
+
+    useEffect(() => {
+        const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+        const controller = new AbortController();
+
         const fetchProducts = async () => {
             setLoading(true);
             try {
-                let url = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/products?`;
-                if (activeCategory !== 'All Product') {
-                    url += `category=${activeCategory}&`;
-                }
-                if (localSearch) {
-                    url += `search=${localSearch}&`;
-                }
-                if (activeFilters.Region) {
-                    url += `region=${activeFilters.Region}&`;
-                }
+                let url = `${api}/products?`;
+                if (activeCategory !== 'All Product') url += `category=${encodeURIComponent(activeCategory)}&`;
+                if (localSearch) url += `search=${encodeURIComponent(localSearch)}&`;
+                if (activeFilters.Region) url += `region=${encodeURIComponent(activeFilters.Region)}&`;
 
-                const response = await fetch(url);
+                const response = await fetch(url, { signal: controller.signal });
                 if (response.ok) {
                     const data = await response.json();
                     setProducts(data);
                 }
-            } catch (error) {
-                console.error('Error fetching shop products:', error);
+            } catch (error: any) {
+                if (error.name !== 'AbortError') {
+                    console.error('Error fetching shop products:', error);
+                }
             } finally {
                 setLoading(false);
             }
         };
 
-        const timer = setTimeout(() => {
-            fetchProducts();
-        }, 500); // Debounce search
+        // Immediate load for category/filter changes; debounce only for search typing
+        const delay = localSearch ? 400 : 0;
+        const timer = setTimeout(fetchProducts, delay);
 
-        return () => clearTimeout(timer);
+        return () => {
+            clearTimeout(timer);
+            controller.abort();
+        };
     }, [activeCategory, localSearch, activeFilters.Region]);
+
 
     const searchParams = useSearchParams();
     const searchQuery = searchParams.get('search');
@@ -154,6 +181,25 @@ function ShopContent() {
                             <div className="absolute right-3 text-slate-400">
                                 <Search className="w-3.5 h-3.5" />
                             </div>
+
+                            {/* Shop Page Suggestions */}
+                            {localSearch.length >= 2 && suggestions.length > 0 && (
+                                <div className="absolute top-full left-0 right-0 mt-2 bg-white shadow-2xl rounded-2xl border border-slate-100 overflow-hidden z-[50] animate-in slide-in-from-top-2 duration-200 min-w-[200px]">
+                                    {suggestions.map((s: any, idx: number) => (
+                                        <button
+                                            key={idx}
+                                            onClick={() => {
+                                                setLocalSearch(s.text);
+                                                setSuggestions([]);
+                                            }}
+                                            className="w-full px-4 py-3 text-left hover:bg-slate-50 flex items-center justify-between border-b border-slate-50 last:border-0"
+                                        >
+                                            <span className="text-[10px] font-bold text-slate-900">{s.text}</span>
+                                            <span className="text-[8px] font-black uppercase text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-md">{s.type}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                         </div>
 
                         {/* Categories Dropdown */}
@@ -268,6 +314,9 @@ function ShopContent() {
                                     vendorName={product.vendorName}
                                     uniqueVendorId={product.uniqueVendorId}
                                     hasSizes={product.hasSizes}
+                                    hasColors={product.hasColors}
+                                    colors={product.colors}
+                                    duration={product.tailoringTime}
                                     vendorRegion={product.region}
                                 />
                             ))}

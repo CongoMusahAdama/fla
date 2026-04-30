@@ -20,28 +20,32 @@ export default function Home() {
   const fetchLatestProducts = async (cat: string, filt: string, region: string) => {
     setLoading(true);
     try {
-      let url = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/products?limit=12`;
+      const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+      let url = `${api}/products?limit=12`;
       if (cat !== 'All Product') url += `&category=${encodeURIComponent(cat)}`;
       if (filt) url += `&filter=${encodeURIComponent(filt)}`;
       if (region) url += `&region=${encodeURIComponent(region)}`;
       if (!filt) url += '&sort=latest';
 
-      const response = await fetch(url);
-      if (response.ok) {
-        const data = await response.json();
+      // Run product fetch and count in parallel (no more double sequential fetches)
+      const fetches: Promise<any>[] = [fetch(url)];
+      if (cat === 'All Product' && !filt && !region) {
+        fetches.push(fetch(`${api}/products/count`));
+      }
+
+      const results = await Promise.all(fetches);
+
+      if (results[0].ok) {
+        const data = await results[0].json();
         setProducts(data);
       }
 
-      // Fetch total count for "All Product" if not already set or whenever we need it
-      if (cat === 'All Product' && !filt && !region) {
-        const countRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/products`);
-        if (countRes.ok) {
-          const allData = await countRes.json();
-          setTotalCount(allData.length);
-        }
+      if (results[1] && results[1].ok) {
+        const count = await results[1].json();
+        setTotalCount(typeof count === 'number' ? count : count?.count ?? 0);
       }
     } catch (error) {
-      // Error handling here if needed, but silences the log for production
+      // silent — keeps existing products visible on network blip
     } finally {
       setLoading(false);
     }
@@ -223,6 +227,9 @@ export default function Home() {
                     index={index}
                     description={product.description}
                     hasSizes={product.hasSizes}
+                    hasColors={product.hasColors}
+                    colors={product.colors}
+                    duration={product.tailoringTime}
                     vendorRegion={product.region}
                   />
                 ))

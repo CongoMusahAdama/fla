@@ -16,6 +16,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { UploadModule } from './uploads/upload.module';
 import { PaymentsModule } from './payments/payments.module';
 import { SettingsModule } from './settings/settings.module';
+import { CommonModule } from './common/common.module';
 
 @Module({
   imports: [
@@ -23,7 +24,7 @@ import { SettingsModule } from './settings/settings.module';
     MongooseModule.forRoot(process.env.MONGO_URI || 'mongodb://localhost:27017/fla_fashion'),
     ThrottlerModule.forRoot([{
       ttl: 60000,
-      limit: 100,
+      limit: 300, // 300 req/minute — prevents blocking normal browsing
     }]),
     UsersModule,
     AuthModule,
@@ -35,7 +36,8 @@ import { SettingsModule } from './settings/settings.module';
     NotificationsModule,
     UploadModule,
     PaymentsModule,
-    SettingsModule
+    SettingsModule,
+    CommonModule
   ],
   controllers: [AppController],
   providers: [

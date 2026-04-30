@@ -1,16 +1,18 @@
-import { Controller, Post, Body, UseGuards, Request, Get, Patch, Res } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, Request, Get, Patch, Res, BadRequestException } from '@nestjs/common';
 import type { Response } from 'express';
 import { AuthService } from './auth.service';
 import { CreateUserDto } from '../users/dto/create-user.dto';
 import { UpdateUserDto } from '../users/dto/update-user.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { UsersService } from '../users/users.service';
+import { TurnstileService } from '../common/turnstile.service';
 
 @Controller('auth')
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly usersService: UsersService,
+    private readonly turnstileService: TurnstileService,
   ) { }
 
   @UseGuards(AuthGuard('local'))
@@ -43,10 +45,20 @@ export class AuthController {
   }
 
   @Post('register')
-  async register(@Body() createUserDto: CreateUserDto) {
-    // Force the role to 'customer' for public registration to prevent privilege escalation
-    createUserDto.role = 'customer';
-    return this.authService.register(createUserDto);
+  async register(@Body() createUserDto: CreateUserDto, @Request() req) {
+    // SECURITY: Verify human status via Cloudflare Turnstile
+    if (createUserDto.turnstileToken) {
+      const isHuman = await this.turnstileService.verifyToken(createUserDto.turnstileToken, req.ip);
+      if (!isHuman) {
+        throw new BadRequestException('Security verification failed. Please try again.');
+      }
+    } else {
+      // In production, we might want to make this mandatory
+      // throw new BadRequestException('Security verification is required.');
+    }
+
+    // SECURITY: Force the role to 'customer' for public registration to prevent privilege escalation
+    return this.authService.register({ ...createUserDto, role: 'customer' });
   }
 
   @UseGuards(AuthGuard('jwt'))

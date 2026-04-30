@@ -10,8 +10,8 @@ import {
     Store, Package, CreditCard, Upload, ArrowRight, MessageSquare, Check
 } from 'lucide-react';
 import Swal from 'sweetalert2';
-
 import { Suspense } from 'react';
+import { Turnstile } from '@marsidev/react-turnstile';
 
 // Memoized Input Component to prevent re-renders of the entire page on every keystroke
 const AuthInput = React.memo(({ label, type, placeholder, value, onChange, required, icon: Icon }: any) => {
@@ -203,6 +203,7 @@ const RegisterForm = ({ role, onSignup }: { role: UserRole, onSignup: (data: any
     const [location, setLocation] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
 
     // Password Validation Rules
     const hasMinLength = password.length >= 8;
@@ -232,7 +233,17 @@ const RegisterForm = ({ role, onSignup }: { role: UserRole, onSignup: (data: any
             return;
         }
 
-        onSignup({ name, email, phone, location, password, confirmPassword, shopName, productTypes, paymentMethods });
+        if (!turnstileToken) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Verification Required',
+                text: 'Please complete the security check to prove you are human.',
+                confirmButtonColor: '#0f172a'
+            });
+            return;
+        }
+
+        onSignup({ name, email, phone, location, password, confirmPassword, shopName, productTypes, paymentMethods, turnstileToken });
     };
 
     return (
@@ -361,6 +372,20 @@ const RegisterForm = ({ role, onSignup }: { role: UserRole, onSignup: (data: any
                 )}
 
                 <AuthInput label="Confirm Password" type="password" placeholder="••••••••" required value={confirmPassword} onChange={setConfirmPassword} icon={Lock} />
+
+                {/* Cloudflare Turnstile */}
+                <div className="pt-2 flex justify-center">
+                    <Turnstile
+                        siteKey={process.env.NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY || '1x00000000000000000000AA'}
+                        onSuccess={(token) => setTurnstileToken(token)}
+                        onExpire={() => setTurnstileToken(null)}
+                        onError={() => setTurnstileToken(null)}
+                        options={{
+                            theme: 'light',
+                            size: 'normal',
+                        }}
+                    />
+                </div>
             </div>
             <div className="pt-4">
                 <button type="submit" className="w-full py-4 bg-emerald-950 text-white rounded-full font-bold text-sm tracking-wide hover:bg-slate-800 transition-all shadow-xl shadow-emerald-900/10 active:scale-[0.98]">
@@ -515,7 +540,10 @@ function AuthContent() {
                 accountName: data.paymentMethods?.[0]?.accountName,
             } : {};
 
-            const registeredUser = await signup(data.name, data.email, data.phone, data.location, data.password, role, vendorData);
+            const registeredUser = await signup(
+                data.name, data.email, data.phone, data.location, data.password, 
+                role, vendorData, data.turnstileToken
+            );
             showSuccess(false, registeredUser.role);
         } catch (error: any) {
             showError(error.message);
@@ -724,11 +752,14 @@ function AuthContent() {
         <main className="min-h-screen bg-[#E5E7EB]/30 flex items-start md:items-center justify-center p-4 md:p-8 pt-28 md:pt-24">
             <div className="bg-white w-full max-w-6xl min-h-[85vh] rounded-[48px] shadow-2xl overflow-hidden flex flex-col md:flex-row border border-gray-100">
                 <div className="w-full md:w-[45%] p-8 md:p-16 flex flex-col justify-between relative bg-white">
-                    <Link href="/" className="inline-flex items-center gap-2 mb-8">
-                        <div className="w-8 h-8 bg-slate-900 rounded-full flex items-center justify-center">
-                            <div className="w-4 h-4 border-2 border-white rotate-45" />
-                        </div>
-                        <span className="font-heading font-black text-xl tracking-tighter text-slate-900 uppercase">FLA</span>
+                    <Link href="/" className="inline-flex items-center gap-3 mb-8">
+                        <Image 
+                            src="/logo.jpeg" 
+                            alt="FLA Logo" 
+                            width={40} 
+                            height={40} 
+                            className="h-10 w-auto object-contain rounded-xl shadow-lg shadow-slate-200/50"
+                        />
                     </Link>
 
                     <div className="flex-1 max-w-sm mx-auto w-full flex flex-col justify-center">

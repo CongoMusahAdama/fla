@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, Inject, forwardRef, Logger } from '@nestjs/common';
 import { InjectModel, InjectConnection } from '@nestjs/mongoose';
 import { Model, Types, Connection } from 'mongoose';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -6,7 +6,7 @@ import { UpdateOrderDto } from './dto/update-order.dto';
 import { Order, OrderDocument } from './schemas/order.schema';
 import { Product, ProductDocument } from '../products/schemas/product.schema';
 import { User, UserDocument } from '../users/schemas/user.schema';
-import { PaystackService } from '../payments/paystack.service';
+import { HubtelService } from '../payments/hubtel.service';
 import { FLA_CONSTANTS } from '../common/constants';
 
 import { NotificationsService } from '../notifications/notifications.service';
@@ -15,12 +15,14 @@ import { SettingsService } from '../settings/settings.service';
 
 @Injectable()
 export class OrdersService {
+  private readonly logger = new Logger(OrdersService.name);
+
   constructor(
     @InjectModel(Order.name) private orderModel: Model<OrderDocument>,
     @InjectModel(Product.name) private productModel: Model<ProductDocument>,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectConnection() private readonly connection: Connection,
-    private readonly paystackService: PaystackService,
+    private readonly hubtelService: HubtelService,
     private readonly notificationsService: NotificationsService,
     private readonly emailService: EmailService,
     private readonly settingsService: SettingsService,
@@ -72,13 +74,15 @@ export class OrdersService {
       });
       const savedOrder = await createdOrder.save();
 
-      // Initialize Paystack Payment
-      const paymentLink = await this.paystackService.initializePayment({
+      // Initialize Hubtel Payment
+      const paymentLink = await this.hubtelService.initializePayment({
         reference: orderId.toString(),
         amount: totalAmount,
-        currency: 'GHS',
+        description: `Order Payment for #ORD-${orderId.toString().slice(-6).toUpperCase()}`,
         callback_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard?order_id=${orderId}`,
-        email: createOrderDto.customerEmail || 'customer@example.com',
+        return_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard?order_id=${orderId}`,
+        customerName: createOrderDto.customerName,
+        customerEmail: createOrderDto.customerEmail,
         metadata: {
           orderId: orderId.toString(),
           customerName: createOrderDto.customerName,
@@ -144,8 +148,20 @@ export class OrdersService {
       await order.save({ session });
       await session.commitTransaction();
 
-      // Notifications (After transaction)
+      // Side Effects: Notifications & Emails (Outside transaction for performance)
       const customer = await this.userModel.findById(order.customerId).exec();
+      this.sendPaymentSuccessNotifications(order, customer);
+    } catch (error) {
+      await session.abortTransaction();
+      console.error('Error handling payment success:', error);
+      throw error;
+    } finally {
+      session.endSession();
+    }
+  }
+
+  private async sendPaymentSuccessNotifications(order: any, customer: any) {
+    try {
       if (customer && customer.email) {
         const message = `Payment for Order #ORD-${order._id.toString().slice(-6).toUpperCase()} verified! Your vendor has been notified to begin fulfillment.`;
         this.emailService.sendGenericNotification(customer.email, customer.name || 'Customer', 'Payment Verified ✅', message).catch(console.error);
@@ -162,12 +178,8 @@ export class OrdersService {
         ).catch(console.error));
       
       await Promise.all(adminEmails);
-    } catch (error) {
-      await session.abortTransaction();
-      console.error('Error handling payment success:', error);
-      throw error;
-    } finally {
-      session.endSession();
+    } catch (err) {
+      this.logger.error(`Notification failed for order ${order._id}: ${err.message}`);
     }
   }
 
@@ -218,11 +230,23 @@ export class OrdersService {
         throw new ForbiddenException('You do not have permission to update this order');
       }
 
-      // Special Handling for Cancellation (Vendor/Admin)
+      // Special Handling for Cancellation
       if (updateOrderDto.status === 'cancelled' && order.status !== 'cancelled') {
-        // If order was paid, we need to handle the refund to customer wallet
-        if (order.isPaid) {
-          // 1. Deduct from vendor's pending balance (if it was added)
+        // Enforce user's specific cancellation policy
+        if (user.role !== 'admin') {
+          if (user.userId === order.customerId.toString()) {
+            // Customer can only cancel if they don't accept delivery payment (for inter-regional)
+            const canCustomerCancel = order.deliveryType === 'inter-regional' && order.firstMileFee > 0 && !order.isFirstMileFeePaid;
+            if (!canCustomerCancel) {
+              throw new ForbiddenException('You can only withdraw an order if you do not accept the delivery quotation.');
+            }
+          }
+          // Vendor can cancel (e.g., if product is no more fit to sell), which is already covered by ownership check
+        }
+
+        // If order was paid, we handle the refund to customer wallet
+        if (order.isPaid && order.escrowStatus !== 'refunded') {
+          // 1. Deduct from vendor's pending balance (if it was added during payment verification)
           await this.userModel.findByIdAndUpdate(order.vendorId, {
             $inc: { pendingBalance: -order.vendorShare }
           }).session(session);
@@ -239,7 +263,7 @@ export class OrdersService {
         // Notify Customer
         await this.notificationsService.create(order.customerId.toString(), {
           title: 'Order Cancelled ⚠️',
-          message: `Your Order #ORD-${order._id.toString().slice(-6).toUpperCase()} has been cancelled by the vendor. ${order.isPaid ? 'A full refund has been credited to your FLA Wallet.' : ''}`,
+          message: `Your Order #ORD-${order._id.toString().slice(-6).toUpperCase()} has been cancelled. ${order.isPaid ? 'A full refund has been credited to your FLA Wallet.' : ''}`,
           type: 'order',
           orderId: order._id
         });
@@ -251,10 +275,11 @@ export class OrdersService {
             customer.email,
             customer.name || 'Customer',
             'Order Cancellation Update',
-            `We regret to inform you that Order #ORD-${order._id.toString().slice(-6).toUpperCase()} was cancelled by the vendor. ${order.isPaid ? 'The full amount has been refunded to your wallet balance.' : 'No funds were charged.'}`
+            `Order #ORD-${order._id.toString().slice(-6).toUpperCase()} was cancelled. ${order.isPaid ? 'The full amount has been refunded to your wallet balance.' : 'No funds were charged.'}`
           ).catch(console.error);
         }
       }
+
 
       const existingOrder = await this.orderModel
         .findByIdAndUpdate(id, updateOrderDto, { new: true })
@@ -550,12 +575,31 @@ export class OrdersService {
 
     const savedOrder = await order.save();
 
-    // Notify Admins
+    // Collect all parties for the transparency email thread
+    const recipients: string[] = [];
+    
+    // 1. Customer Email
+    const customer = await this.userModel.findById(customerId).exec();
+    if (customer?.email) recipients.push(customer.email);
+
+    // 2. Vendor Email
+    const vendor = await this.userModel.findById(order.vendorId).exec();
+    if (vendor?.email) recipients.push(vendor.email);
+
+    // 3. Admin Emails
     const admins = await this.userModel.find({ role: 'admin' }).exec();
-    for (const admin of admins) {
-      if (admin.email) {
-        await this.emailService.sendAdminDisputeNotification(admin.email, order._id.toString(), reason);
-      }
+    const adminEmails = admins.map(a => a.email).filter(Boolean) as string[];
+    recipients.push(...adminEmails);
+
+    // Send the multi-party transparency email if we have any recipients
+    if (recipients.length > 0) {
+      await this.emailService.sendDisputeNotification(
+        [...new Set(recipients)], // Ensure unique emails
+        order._id.toString(),
+        reason,
+        customer?.name || 'Customer',
+        vendor?.shopName || vendor?.name || 'Vendor'
+      );
     }
 
     return savedOrder;
@@ -676,12 +720,14 @@ export class OrdersService {
     if (order.customerId.toString() !== customerId) throw new ForbiddenException('Unauthorized');
     if (order.firstMileFee <= 0) throw new Error('Delivery fee not set yet');
 
-    const paymentLink = await this.paystackService.initializePayment({
+    const paymentLink = await this.hubtelService.initializePayment({
       reference: `FM_${order._id.toString()}_${Date.now()}`,
       amount: order.firstMileFee,
-      currency: 'GHS',
+      description: `Delivery Fee for #ORD-${order._id.toString().slice(-6).toUpperCase()}`,
       callback_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard?order_id=${order._id}`,
-      email: order.customerEmail || 'customer@example.com',
+      return_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard?order_id=${order._id}`,
+      customerName: order.customerName,
+      customerEmail: order.customerEmail,
       metadata: {
         orderId: order._id.toString(),
         paymentType: 'first_mile_fee'
@@ -698,39 +744,48 @@ export class OrdersService {
     order.isFirstMileFeePaid = true;
     order.firstMileFeePaidAt = new Date();
     order.firstMilePaymentId = transactionId;
-    order.firstMilePaymentVerifiedByVendor = true; // Auto-verify if paid via Paystack
+    order.firstMilePaymentVerifiedByVendor = true; // Auto-verify if paid via Hubtel
     order.firstMilePaymentVerifiedAt = new Date();
 
     await order.save();
 
-    // Notifications
-    await this.notificationsService.create(order.customerId.toString(), {
-      title: 'Delivery Payment Verified',
-      message: `Your payment for the delivery fee of Order #ORD-${order._id.toString().slice(-6).toUpperCase()} has been verified automatically.`,
-      type: 'payment',
-      orderId: order._id
-    });
+    // Side Effects: Notifications (Decoupled from main logic)
+    this.sendFirstMilePaymentNotifications(order);
+  }
 
-    // Notify Vendor
-    await this.notificationsService.create(order.vendorId.toString(), {
-      title: 'Delivery Fee Paid',
-      message: `The delivery fee for Order #ORD-${order._id.toString().slice(-6).toUpperCase()} has been paid via Paystack.`,
-      type: 'payment',
-      orderId: order._id
-    });
+  private async sendFirstMilePaymentNotifications(order: any) {
+    try {
+      // Notifications
+      await this.notificationsService.create(order.customerId.toString(), {
+        title: 'Delivery Payment Verified',
+        message: `Your payment for the delivery fee of Order #ORD-${order._id.toString().slice(-6).toUpperCase()} has been verified automatically.`,
+        type: 'payment',
+        orderId: order._id
+      });
 
-    // Email to Customer
-    const customer = await this.userModel.findById(order.customerId).exec();
-    if (customer && customer.email) {
-      const message = `Your delivery payment for Order #ORD-${order._id.toString().slice(-6).toUpperCase()} has been verified. Shipping in progress!`;
-      await this.emailService.sendGenericNotification(customer.email, customer.name || 'Customer', 'Delivery Payment Verified ✅', message);
-    }
+      // Notify Vendor
+      await this.notificationsService.create(order.vendorId.toString(), {
+        title: 'Delivery Fee Paid',
+        message: `The delivery fee for Order #ORD-${order._id.toString().slice(-6).toUpperCase()} has been paid via Hubtel.`,
+        type: 'payment',
+        orderId: order._id
+      });
 
-    // Email to Vendor
-    const vendor = await this.userModel.findById(order.vendorId).exec();
-    if (vendor && vendor.email) {
-      const message = `Delivery fee paid for #ORD-${order._id.toString().slice(-6).toUpperCase()}. You can now ship the item to the station.`;
-      await this.emailService.sendGenericNotification(vendor.email, vendor.shopName || vendor.name, 'Action Required: Ship Your Design 🚚', message);
+      // Email to Customer
+      const customer = await this.userModel.findById(order.customerId).exec();
+      if (customer && customer.email) {
+        const message = `Your delivery payment for Order #ORD-${order._id.toString().slice(-6).toUpperCase()} has been verified. Shipping in progress!`;
+        await this.emailService.sendGenericNotification(customer.email, customer.name || 'Customer', 'Delivery Payment Verified ✅', message);
+      }
+
+      // Email to Vendor
+      const vendor = await this.userModel.findById(order.vendorId).exec();
+      if (vendor && vendor.email) {
+        const message = `Delivery fee paid for #ORD-${order._id.toString().slice(-6).toUpperCase()}. You can now ship the item to the station.`;
+        await this.emailService.sendGenericNotification(vendor.email, vendor.shopName || vendor.name, 'Action Required: Ship Your Design 🚚', message);
+      }
+    } catch (err) {
+      this.logger.error(`First mile notification failed for order ${order._id}: ${err.message}`);
     }
   }
 

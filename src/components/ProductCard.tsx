@@ -80,36 +80,42 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
             const { vendor, stats } = data;
 
             const resolvedProfileImage = getImageUrl(vendor.profileImage);
+            const resolvedBannerImage = vendor.bannerImage ? getImageUrl(vendor.bannerImage) : null;
 
             Swal.fire({
                 html: `
                     <div class="flex flex-col -m-3 md:-m-6 overflow-hidden max-w-full">
                         <!-- Luxury Header -->
-                        <div class="bg-slate-900 pt-12 pb-10 px-6 text-center relative overflow-hidden">
-                            <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
-                                <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M 20 0 L 0 0 0 20" fill="none" stroke="white" stroke-width="0.5"/></pattern></defs><rect width="100%" height="100%" fill="url(#grid)" /></svg>
-                            </div>
+                        <div class="relative pt-12 pb-10 px-6 text-center overflow-hidden min-h-[180px] flex flex-col items-center justify-center">
+                            ${resolvedBannerImage 
+                                ? `<img src="${resolvedBannerImage}" class="absolute inset-0 w-full h-full object-cover" />
+                                   <div class="absolute inset-0 bg-slate-900/40"></div>`
+                                : `<div class="absolute inset-0 bg-slate-900"></div>
+                                   <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+                                       <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M 20 0 L 0 0 0 20" fill="none" stroke="white" stroke-width="0.5"/></pattern></defs><rect width="100%" height="100%" fill="url(#grid)" /></svg>
+                                   </div>`
+                            }
                             
                             <div class="relative inline-block mb-4">
                                 ${vendor.profileImage
-                        ? `<img src="${resolvedProfileImage}" class="w-24 h-24 md:w-28 md:h-28 rounded-[2rem] object-cover border-4 border-[#E5FF7F] shadow-2xl mx-auto">`
-                        : `<div class="w-24 h-24 md:w-28 md:h-28 rounded-[2rem] bg-slate-800 flex items-center justify-center text-[#E5FF7F] border-4 border-slate-700 shadow-2xl mx-auto">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                                    ? `<img src="${resolvedProfileImage}" class="w-24 h-24 md:w-28 md:h-28 rounded-[2rem] object-cover border-4 border-[#E5FF7F] shadow-2xl mx-auto relative z-10">`
+                                    : `<div class="w-24 h-24 md:w-28 md:h-28 rounded-[2rem] bg-slate-800 flex items-center justify-center text-[#E5FF7F] border-4 border-slate-700 shadow-2xl mx-auto relative z-10">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
                                        </div>`
-                    }
-                                <div class="absolute -bottom-1 -right-1 bg-[#E5FF7F] p-1.5 rounded-xl shadow-lg border-2 border-slate-900">
+                                }
+                                <div class="absolute -bottom-1 -right-1 bg-[#E5FF7F] p-1.5 rounded-xl shadow-lg border-2 border-slate-900 z-20">
                                     <svg class="w-4 h-4 text-slate-900" viewBox="0 0 24 24" fill="currentColor"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                 </div>
                             </div>
                             
-                            <div class="flex flex-col items-center gap-1.5">
+                            <div class="flex flex-col items-center gap-1.5 relative z-10">
                                 <h2 class="text-2xl md:text-3xl font-black text-white uppercase tracking-tighter">${vendor.shopName || vendor.name}</h2>
-                                <span class="bg-[#E5FF7F]/10 text-[#E5FF7F] text-[8px] font-black uppercase tracking-[0.2em] px-3 py-1 rounded-full border border-[#E5FF7F]/20">
+                                <span class="bg-[#E5FF7F]/10 text-[#E5FF7F] text-[8px] font-black uppercase tracking-[0.2em] px-3 py-1 rounded-full border border-[#E5FF7F]/20 backdrop-blur-md">
                                     ID: ${vendor.uniqueVendorId}
                                 </span>
                             </div>
 
-                            <div class="flex items-center justify-center gap-1.5 text-[#E5FF7F] text-[10px] font-black uppercase tracking-[0.2em] opacity-80 mt-3">
+                            <div class="flex items-center justify-center gap-1.5 text-[#E5FF7F] text-[10px] font-black uppercase tracking-[0.2em] opacity-80 mt-3 relative z-10">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
                                 ${vendor.location || 'Accra, Ghana'}
                             </div>
@@ -437,11 +443,11 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
         });
 
         if (isConfirmed && formValues) {
-            handlePaystackFlow(formValues);
+            handleCheckoutFlow(formValues);
         }
     };
 
-    const handlePaystackFlow = async (deliveryDetails: { deliveryAddress: string, deliveryCity: string, deliveryRegion: string }) => {
+    const handleCheckoutFlow = async (deliveryDetails: { deliveryAddress: string, deliveryCity: string, deliveryRegion: string }) => {
         try {
 
             Swal.fire({
@@ -470,8 +476,8 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                 customerName: user?.name,
                 customerEmail: user?.email,
                 customerPhone: user?.phone,
-                paymentMethod: 'paystack',
-                notes: 'Quick Buy Checkout (Paystack)'
+                paymentMethod: 'hubtel',
+                notes: 'Quick Buy Checkout (Hubtel)'
             };
 
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders`, {
@@ -594,13 +600,21 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                         </div>
                     )}
 
-                    {/* Region Badge */}
-                    {vendorRegion && (
-                        <div className="flex items-center gap-1.5 text-slate-400">
-                            <MapPin className="w-3 h-3 text-brand-lemon" />
-                            <span className="text-[10px] font-black uppercase tracking-widest">{vendorRegion}</span>
-                        </div>
-                    )}
+                    {/* Region & Shipping Info Badge */}
+                    <div className="flex items-center gap-4 text-slate-400">
+                        {vendorRegion && (
+                            <div className="flex items-center gap-1.5">
+                                <MapPin className="w-3 h-3 text-brand-lemon" />
+                                <span className="text-[10px] font-black uppercase tracking-widest">{vendorRegion}</span>
+                            </div>
+                        )}
+                        {duration && (
+                            <div className="flex items-center gap-1.5">
+                                <Clock className="w-3.5 h-3.5 text-brand-lemon" />
+                                <span className="text-[10px] font-black uppercase tracking-widest">{duration}</span>
+                            </div>
+                        )}
+                    </div>
 
                     {/* Feature Highlights */}
                     <div className="space-y-2 pb-3 border-b border-slate-100">

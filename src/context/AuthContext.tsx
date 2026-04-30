@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
@@ -35,7 +35,7 @@ type AuthContextType = {
     user: User | null;
     token: string | null;
     login: (identifier: string, password: string) => Promise<User>;
-    signup: (name: string, email: string, phone: string, location: string, password: string, role?: UserRole, vendorData?: Partial<User>) => Promise<User>;
+    signup: (name: string, email: string, phone: string, location: string, password: string, role?: UserRole, vendorData?: Partial<User>, turnstileToken?: string) => Promise<User>;
     logout: () => void;
     updateUser: (updatedData: Partial<User>) => void;
     isAuthenticated: boolean;
@@ -44,132 +44,159 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+function parseStoredUser(): User | null {
+    try {
+        const raw = localStorage.getItem('fla_user');
+        if (!raw) return null;
+        return JSON.parse(raw) as User;
+    } catch {
+        return null;
+    }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
     const [token, setToken] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
-    // Load user from localStorage on mount
+    // Initialize from localStorage on mount
     useEffect(() => {
-        const savedUser = localStorage.getItem('fla_user');
-        const savedToken = localStorage.getItem('fla_token');
-        if (savedUser) {
-            try {
-                setUser(JSON.parse(savedUser));
-            } catch (e) {
-                console.error('Failed to parse saved user', e);
-            }
-        }
-        if (savedToken) {
-            setToken(savedToken);
+        const storedUser = parseStoredUser();
+        const storedToken = localStorage.getItem('fla_token');
+        
+        if (storedUser && storedToken) {
+            setUser(storedUser);
+            setToken(storedToken);
         }
         setIsLoading(false);
     }, []);
 
-    const login = async (identifier: string, password: string): Promise<User> => {
-        try {
-            const response = await fetch(`${API_URL}/auth/login`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                credentials: 'include',
-                body: JSON.stringify({ email: identifier, password }),
-            });
+    // Validate token silently in the background — if invalid, clear session
+    useEffect(() => {
+        const storedToken = localStorage.getItem('fla_token');
+        if (!storedToken) return;
 
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.message || 'Invalid credentials');
+        // Non-blocking background token validation
+        const controller = new AbortController();
+        const timer = setTimeout(async () => {
+            try {
+                const res = await fetch(`${API_URL}/auth/profile`, {
+                    headers: { Authorization: `Bearer ${storedToken}` },
+                    credentials: 'include',
+                    signal: controller.signal,
+                });
+                if (!res.ok) {
+                    // Token expired — clear silently
+                    setUser(null);
+                    setToken(null);
+                    localStorage.removeItem('fla_user');
+                    localStorage.removeItem('fla_token');
+                }
+            } catch (e) {
+                // Network error — keep local session, don't log out
             }
+        }, 2000); // Check after 2s so page loads first
 
-            const data = await response.json();
+        return () => {
+            clearTimeout(timer);
+            controller.abort();
+        };
+    }, []);
 
-            const loggedInUser: User = {
-                id: data.user.id || data.user._id,
-                name: data.user.name,
-                email: data.user.email,
-                phone: data.user.phone,
-                location: data.user.location,
-                address: data.user.address,
-                role: data.user.role || 'customer',
-                profileImage: data.user.profileImage,
-                bannerImage: data.user.bannerImage,
-                shopName: data.user.shopName,
-                momoNumber: data.user.momoNumber,
-                accountName: data.user.accountName,
-                bio: data.user.bio,
-                productTypes: data.user.productTypes,
-                status: data.user.status,
-                uniqueVendorId: data.user.uniqueVendorId,
-                walletBalance: data.user.walletBalance,
-                pendingBalance: data.user.pendingBalance,
-                region: data.user.region,
-            };
+    const login = useCallback(async (identifier: string, password: string): Promise<User> => {
+        const response = await fetch(`${API_URL}/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+                // Always send lowercase email to match backend storage
+                email: identifier.toLowerCase().trim(),
+                password
+            }),
+        });
 
-
-            setUser(loggedInUser);
-            setToken(data.access_token);
-            localStorage.setItem('fla_user', JSON.stringify(loggedInUser));
-            localStorage.setItem('fla_token', data.access_token);
-            return loggedInUser;
-        } catch (error) {
-            console.error('Login error:', error);
-            throw error;
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.message || 'Invalid credentials');
         }
-    };
 
-    const signup = async (name: string, email: string, phone: string, location: string, password: string, role: UserRole = 'customer', vendorData?: Partial<User>): Promise<User> => {
-        try {
-            const response = await fetch(`${API_URL}/auth/register`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                credentials: 'include',
-                body: JSON.stringify({
-                    email,
-                    password,
-                    name,
-                    phone,
-                    location,
-                    role,
-                    ...vendorData
-                }),
-            });
+        const data = await response.json();
 
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.message || 'Registration failed');
-            }
+        const loggedInUser: User = {
+            id: data.user.id || data.user._id,
+            name: data.user.name,
+            email: data.user.email,
+            phone: data.user.phone,
+            location: data.user.location,
+            address: data.user.address,
+            role: data.user.role || 'customer',
+            profileImage: data.user.profileImage,
+            bannerImage: data.user.bannerImage,
+            shopName: data.user.shopName,
+            momoNumber: data.user.momoNumber,
+            accountName: data.user.accountName,
+            bio: data.user.bio,
+            productTypes: data.user.productTypes,
+            status: data.user.status,
+            uniqueVendorId: data.user.uniqueVendorId,
+            walletBalance: data.user.walletBalance,
+            pendingBalance: data.user.pendingBalance,
+            region: data.user.region,
+        };
 
-            // Auto-login after successful registration
-            return await login(email, password);
-        } catch (error) {
-            throw error;
+        setUser(loggedInUser);
+        setToken(data.access_token);
+        localStorage.setItem('fla_user', JSON.stringify(loggedInUser));
+        localStorage.setItem('fla_token', data.access_token);
+        return loggedInUser;
+    }, []);
+
+    const signup = useCallback(async (
+        name: string, email: string, phone: string, location: string,
+        password: string, role: UserRole = 'customer', vendorData?: Partial<User>,
+        turnstileToken?: string
+    ): Promise<User> => {
+        const response = await fetch(`${API_URL}/auth/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+                email: email.toLowerCase().trim(),
+                password, name, phone, location, role,
+                turnstileToken,
+                ...vendorData
+            }),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.message || 'Registration failed');
         }
-    };
 
-    const logout = async () => {
+        return await login(email, password);
+    }, [login]);
+
+    const logout = useCallback(async () => {
         try {
-            await fetch(`${API_URL}/auth/logout`, { 
+            await fetch(`${API_URL}/auth/logout`, {
                 method: 'POST',
                 credentials: 'include'
             });
-        } catch (error) {
-            console.error('Logout error:', error);
-        }
+        } catch { /* ignore */ }
         setUser(null);
         setToken(null);
         localStorage.removeItem('fla_user');
         localStorage.removeItem('fla_token');
-    };
+    }, []);
 
-    const updateUser = (updatedData: Partial<User>) => {
-        if (!user) return;
-        const newUser = { ...user, ...updatedData };
-        setUser(newUser);
-        localStorage.setItem('fla_user', JSON.stringify(newUser));
-    };
+    const updateUser = useCallback((updatedData: Partial<User>) => {
+        setUser(prev => {
+            if (!prev) return null;
+            const newUser = { ...prev, ...updatedData };
+            localStorage.setItem('fla_user', JSON.stringify(newUser));
+            return newUser;
+        });
+    }, []);
 
     return (
         <AuthContext.Provider value={{

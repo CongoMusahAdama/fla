@@ -150,6 +150,8 @@ export default function VendorDashboard() {
                         imageLabels: prod.imageLabels || [],
                         sizes: prod.sizes || [],
                         hasSizes: prod.hasSizes !== undefined ? prod.hasSizes : true,
+                        colors: prod.colors || [],
+                        hasColors: prod.hasColors !== undefined ? prod.hasColors : true,
                         isActive: prod.isActive
                     })));
                 }
@@ -263,15 +265,31 @@ export default function VendorDashboard() {
         if (r.isConfirmed) {
             try {
                 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-                await fetch(`${api}/products/${id}`, { 
+                const response = await fetch(`${api}/products/${id}`, { 
                     method: 'DELETE', 
                     headers: { 'Authorization': `Bearer ${token}` },
                     credentials: 'include' 
                 });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.message || 'Deletion failed on server');
+                }
+
                 setVendorProducts(prev => prev.filter(p => p.id !== id));
-                Swal.fire('Discarded!', 'Design removed.', 'success');
-            } catch (err) {
-                Swal.fire('Error', 'Deletion failed.', 'error');
+                Swal.fire({
+                    icon: 'success',
+                    title: 'DISCARDED',
+                    text: 'Design removed successfully.',
+                    customClass: { popup: 'rounded-[32px]' }
+                });
+            } catch (err: any) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'DELETION FAILED',
+                    text: err.message || 'The server could not process the removal.',
+                    customClass: { popup: 'rounded-[32px]' }
+                });
             }
         }
     };
@@ -452,9 +470,9 @@ export default function VendorDashboard() {
                             setFormNarrative(p.description);
                             setFormImages(p.images?.map((img: any) => typeof img === 'string' ? img : img.url) || []);
                             setFormSizes(p.sizes || []);
-                            setFormHasSizes(true);
-                            setFormHasColors(true);
-                            setFormColors((p as any).colors || []);
+                            setFormHasSizes(p.hasSizes !== undefined ? p.hasSizes : true);
+                            setFormHasColors(p.hasColors !== undefined ? p.hasColors : true);
+                            setFormColors(p.colors || []);
                             setFormImageLabels(p.imageLabels || ['Front', 'Back', 'Side', 'Details']);
                             setShowAddProduct(true);
                         }}

@@ -389,7 +389,7 @@ export default function CustomerDashboard() {
             if (!res.ok) throw new Error('Could not initialize payment');
             const { paymentLink } = await res.json();
 
-            // Redirect to Paystack
+            // Redirect to Hubtel
             window.location.href = paymentLink;
         } catch (error: any) {
             Swal.fire('ERROR', error.message, 'error');
@@ -414,7 +414,7 @@ export default function CustomerDashboard() {
             if (!res.ok) throw new Error('Could not initialize payment');
             const { paymentLink } = await res.json();
 
-            // Redirect to Paystack
+            // Redirect to Hubtel
             window.location.href = paymentLink;
         } catch (error: any) {
             Swal.fire('ERROR', error.message, 'error');
@@ -424,7 +424,7 @@ export default function CustomerDashboard() {
     const handleWithdrawOrder = async (orderId: string) => {
         const result = await Swal.fire({
             title: 'WITHDRAW ORDER?',
-            text: "Are you sure you want to cancel this order? This will notify the vendor and start a refund process if you already paid for the item.",
+            text: "Withdrawal is only permitted if you do not accept the delivery quotation. If confirmed, this order will be cancelled and a refund will be initiated if payment was already made.",
             icon: 'warning',
             showCancelButton: true,
             confirmButtonText: 'YES, WITHDRAW',
@@ -733,7 +733,7 @@ export default function CustomerDashboard() {
                                                 <p className="font-sans font-black text-slate-900 mt-2">GH₵ {order.totalAmount}</p>
                                             </div>
                                         </div>
-                                        <div className="grid grid-cols-2 gap-3">
+                                        <div className={`grid grid-cols-2 gap-3 transition-all duration-500 ${order.status === 'cancelled' ? 'opacity-20 pointer-events-none grayscale blur-[3px]' : ''}`}>
                                             {!order.isPaid && !order.paymentProof && (
                                                 <button
                                                     onClick={() => handlePayNow(order._id, order.totalAmount)}
@@ -935,7 +935,7 @@ export default function CustomerDashboard() {
                                                     )}
                                                 </td>
                                                 <td className="px-8 py-6 font-sans font-black text-slate-900">GH₵ {order.totalAmount}</td>
-                                                <td className="px-8 py-6 text-right flex items-center justify-end gap-2">
+                                                <td className={`px-8 py-6 text-right flex items-center justify-end gap-2 transition-all duration-500 ${order.status === 'cancelled' ? 'opacity-20 pointer-events-none grayscale blur-[3px]' : ''}`}>
                                                     {!order.isPaid && (
                                                         <button
                                                             onClick={() => handlePayNow(order._id, order.totalAmount)}
@@ -1192,13 +1192,15 @@ export default function CustomerDashboard() {
                                         stock={item.productId?.stock || 0}
                                         vendorId={item.productId?.vendorId}
                                         index={i}
-                                        duration={item.productId?.duration}
+                                        duration={item.productId?.tailoringTime}
                                         imageLabels={item.productId?.imageLabels}
                                         initialWishlistState={true}
                                         description={item.productId?.description}
 
                                         vendorName={item.productId?.vendorName}
                                         hasSizes={item.productId?.hasSizes}
+                                        hasColors={item.productId?.hasColors}
+                                        colors={item.productId?.colors}
                                     />
                                 ))
                             ) : (
@@ -1333,7 +1335,13 @@ export default function CustomerDashboard() {
                 <div className={`absolute top-0 left-0 w-[80%] h-full bg-white transition-transform duration-500 ease-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
                     <div className="flex flex-col h-full bg-white">
                         <div className="p-8 pb-12 flex justify-between items-center bg-white">
-                            <span className="font-heading font-black text-2xl tracking-tighter text-slate-900 uppercase">FLA.</span>
+                            <Image 
+                                src="/logo.jpeg" 
+                                alt="FLA Logo" 
+                                width={40} 
+                                height={40} 
+                                className="h-10 w-auto object-contain rounded-lg"
+                            />
                             <button onClick={() => setIsSidebarOpen(false)} className="p-2 text-slate-400">
                                 <X className="w-6 h-6" />
                             </button>
@@ -1371,7 +1379,15 @@ export default function CustomerDashboard() {
             {/* Desktop Sidebar */}
             <aside className="hidden md:flex flex-col w-[280px] h-screen bg-white border-r border-slate-100 sticky top-0 overflow-y-auto">
                 <div className="p-10 pt-12 pb-16 flex items-center justify-center">
-                    <Link href="/" className="font-heading font-black text-3xl tracking-tighter text-slate-900 uppercase">FLA<span className="text-brand-lemon">.</span></Link>
+                    <Link href="/">
+                        <Image 
+                            src="/logo.jpeg" 
+                            alt="FLA Logo" 
+                            width={80} 
+                            height={80} 
+                            className="h-14 w-auto object-contain rounded-2xl shadow-xl shadow-slate-200/50"
+                        />
+                    </Link>
                 </div>
 
                 <nav className="flex-1 px-6 space-y-3">
@@ -1404,7 +1420,15 @@ export default function CustomerDashboard() {
 
             {/* Dashboard Mobile Header */}
             <header className="md:hidden fixed top-0 left-0 w-full z-[80] bg-white/95 backdrop-blur-md border-b border-slate-100 h-16 flex items-center justify-between px-6 mt-14">
-                <Link href="/" className="font-heading font-black text-xl tracking-tighter text-slate-900 uppercase">FLA.</Link>
+                <Link href="/">
+                    <Image 
+                        src="/logo.jpeg" 
+                        alt="FLA Logo" 
+                        width={40} 
+                        height={40} 
+                        className="h-8 w-auto object-contain rounded-lg"
+                    />
+                </Link>
                 <button
                     onClick={() => setIsSidebarOpen(true)}
                     className="p-2 bg-slate-900 text-white rounded-full shadow-lg"
@@ -1581,6 +1605,46 @@ export default function CustomerDashboard() {
                             </div>
 
                             <div className="p-8 space-y-8 max-h-[70vh] overflow-y-auto">
+                                {/* Current Activity Indicator */}
+                                {(() => {
+                                    const getStatusInfo = (status: string) => {
+                                        switch (status) {
+                                            case 'pending': return { label: 'Awaiting Payment', desc: 'Secure your design via Escrow Pay', color: 'bg-orange-500' };
+                                            case 'funds_captured': case 'payment_verified': return { label: 'Payment Verified', desc: 'Funds secured in Escrow', color: 'bg-emerald-500' };
+                                            case 'confirmed': return { label: 'Order Confirmed', desc: 'Vendor has accepted your request', color: 'bg-blue-500' };
+                                            case 'processing': case 'in_printing': return { label: 'In Production', desc: 'Your bespoke design is being crafted', color: 'bg-purple-500' };
+                                            case 'preparing_shipment': return { label: 'Preparing Shipment', desc: 'Vendor is packaging your items', color: 'bg-indigo-500' };
+                                            case 'in_transit_to_first_mile': return { label: 'In Transit to Hub', desc: 'Moving to the regional sorting station', color: 'bg-blue-600' };
+                                            case 'arrived_at_first_mile': return { label: 'At Sorting Hub', desc: 'Processing at regional station', color: 'bg-cyan-500' };
+                                            case 'in_transit_to_last_mile': return { label: 'In Final Transit', desc: 'Moving to your local delivery hub', color: 'bg-blue-700' };
+                                            case 'in_transit': case 'shipped': return { label: 'In Transit', desc: 'Your package is on its way to you', color: 'bg-brand-lemon' };
+                                            case 'delivered': return { label: 'Delivered', desc: 'Package arrived at destination', color: 'bg-emerald-600' };
+                                            case 'completed': return { label: 'Order Completed', desc: 'Transaction finalized', color: 'bg-slate-900' };
+                                            case 'disputed': return { label: 'In Dispute', desc: 'Resolution center is reviewing case', color: 'bg-red-500' };
+                                            case 'cancelled': return { label: 'Cancelled', desc: 'This order has been terminated', color: 'bg-slate-400' };
+                                            default: return { label: 'Status Update', desc: 'Tracking your order progress', color: 'bg-slate-900' };
+                                        }
+                                    };
+                                    const info = getStatusInfo(trackingOrder.status);
+                                    return (
+                                        <div className="bg-slate-900 rounded-[32px] p-6 text-white relative overflow-hidden">
+                                            <div className="relative z-10">
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    <div className={`w-2 h-2 rounded-full ${info.color} animate-pulse`} />
+                                                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Current Activity</span>
+                                                </div>
+                                                <h3 className="text-2xl font-black uppercase tracking-tighter mb-1">{info.label}</h3>
+                                                <p className="text-xs text-slate-400 font-medium">{info.desc}</p>
+                                            </div>
+                                            <div className="absolute top-0 right-0 w-32 h-full opacity-10 pointer-events-none">
+                                                <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
+                                                    <path d="M0 0 L100 0 L100 100 Z" fill="white" />
+                                                </svg>
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
+
                                 {/* Order Summary Mini */}
                                 <div className="flex items-center gap-5 p-4 bg-slate-50 rounded-[24px]">
                                     <div className="relative w-16 h-20 rounded-xl overflow-hidden shadow-sm">
@@ -1613,38 +1677,61 @@ export default function CustomerDashboard() {
                                         const status = trackingOrder.status;
                                         const isInterRegional = trackingOrder.deliveryType === 'inter-regional';
                                         
+                                        const isPassed = (current: string, target: string[]) => target.includes(current);
+
                                         const baseSteps = [
-                                            { title: 'Order Placed', time: 'Recently', desc: 'Your fashion request has been received.', done: true },
-                                            { title: 'In Production', time: ['processing', 'preparing_shipment', 'in_transit_to_first_mile', 'in_transit', 'arrived_at_first_mile', 'in_transit_to_last_mile', 'shipped', 'delivered', 'completed'].includes(status) ? 'Done' : 'In Progress', desc: 'Stylists are working on your design.', done: ['processing', 'preparing_shipment', 'in_transit_to_first_mile', 'in_transit', 'arrived_at_first_mile', 'in_transit_to_last_mile', 'shipped', 'delivered', 'completed'].includes(status) },
-                                            { title: 'Preparing Shipment', time: ['preparing_shipment', 'in_transit_to_first_mile', 'in_transit', 'arrived_at_first_mile', 'in_transit_to_last_mile', 'shipped', 'delivered', 'completed'].includes(status) ? 'Done' : 'Pending', desc: 'Vendor is carefully packaging your items.', done: ['preparing_shipment', 'in_transit_to_first_mile', 'in_transit', 'arrived_at_first_mile', 'in_transit_to_last_mile', 'shipped', 'delivered', 'completed'].includes(status) },
+                                            { 
+                                                title: 'Order Placed', 
+                                                time: 'Recently', 
+                                                desc: 'Your fashion request has been received.', 
+                                                done: true 
+                                            },
+                                            { 
+                                                title: 'Payment Verified', 
+                                                time: isPassed(status, ['funds_captured', 'payment_verified', 'confirmed', 'processing', 'in_printing', 'preparing_shipment', 'in_transit_to_first_mile', 'in_transit', 'arrived_at_first_mile', 'in_transit_to_last_mile', 'shipped', 'delivered', 'completed']) ? 'Done' : 'Pending',
+                                                desc: 'Transaction secured via FLA Escrow.',
+                                                done: isPassed(status, ['funds_captured', 'payment_verified', 'confirmed', 'processing', 'in_printing', 'preparing_shipment', 'in_transit_to_first_mile', 'in_transit', 'arrived_at_first_mile', 'in_transit_to_last_mile', 'shipped', 'delivered', 'completed'])
+                                            },
+                                            { 
+                                                title: 'In Production', 
+                                                time: isPassed(status, ['processing', 'in_printing', 'preparing_shipment', 'in_transit_to_first_mile', 'in_transit', 'arrived_at_first_mile', 'in_transit_to_last_mile', 'shipped', 'delivered', 'completed']) ? 'Done' : 'In Progress', 
+                                                desc: 'Stylists are working on your design.', 
+                                                done: isPassed(status, ['processing', 'in_printing', 'preparing_shipment', 'in_transit_to_first_mile', 'in_transit', 'arrived_at_first_mile', 'in_transit_to_last_mile', 'shipped', 'delivered', 'completed']) 
+                                            },
+                                            { 
+                                                title: 'Preparing Shipment', 
+                                                time: isPassed(status, ['preparing_shipment', 'in_transit_to_first_mile', 'in_transit', 'arrived_at_first_mile', 'in_transit_to_last_mile', 'shipped', 'delivered', 'completed']) ? 'Done' : 'Pending', 
+                                                desc: 'Vendor is carefully packaging your items.', 
+                                                done: isPassed(status, ['preparing_shipment', 'in_transit_to_first_mile', 'in_transit', 'arrived_at_first_mile', 'in_transit_to_last_mile', 'shipped', 'delivered', 'completed']) 
+                                            },
                                         ];
 
                                         let trackingSteps = [];
                                         if (isInterRegional) {
                                             trackingSteps = [
                                                 ...baseSteps,
-                                                { title: 'In Transit to First Mile', time: ['in_transit_to_first_mile', 'arrived_at_first_mile', 'in_transit_to_last_mile', 'shipped', 'delivered', 'completed'].includes(status) ? 'Done' : 'Pending', desc: 'On its way to the regional sorting hub.', done: ['in_transit_to_first_mile', 'arrived_at_first_mile', 'in_transit_to_last_mile', 'shipped', 'delivered', 'completed'].includes(status) },
-                                                { title: 'Arrived at First Mile', time: ['arrived_at_first_mile', 'in_transit_to_last_mile', 'shipped', 'delivered', 'completed'].includes(status) ? 'Done' : 'Pending', desc: 'Sorting at the regional delivery station.', done: ['arrived_at_first_mile', 'in_transit_to_last_mile', 'shipped', 'delivered', 'completed'].includes(status) },
-                                                { title: 'In Transit to Last Mile', time: ['in_transit_to_last_mile', 'shipped', 'delivered', 'completed'].includes(status) ? 'Done' : 'Pending', desc: 'Moving to your local delivery hub.', done: ['in_transit_to_last_mile', 'shipped', 'delivered', 'completed'].includes(status) },
-                                                { title: 'Shipment Delivered', time: ['delivered', 'completed'].includes(status) ? 'Finalized' : 'Pending', desc: ['delivered', 'completed'].includes(status) ? `Arrived via ${trackingOrder.carrier || 'FLA Logistics'} (Tracking: ${trackingOrder.trackingNumber || 'N/A'})` : 'Package handed over to recipient.', done: ['delivered', 'completed'].includes(status) },
+                                                { title: 'In Transit to Hub', time: isPassed(status, ['in_transit_to_first_mile', 'arrived_at_first_mile', 'in_transit_to_last_mile', 'shipped', 'delivered', 'completed']) ? 'Done' : 'Pending', desc: 'Moving to the regional sorting station.', done: isPassed(status, ['in_transit_to_first_mile', 'arrived_at_first_mile', 'in_transit_to_last_mile', 'shipped', 'delivered', 'completed']) },
+                                                { title: 'Arrived at Hub', time: isPassed(status, ['arrived_at_first_mile', 'in_transit_to_last_mile', 'shipped', 'delivered', 'completed']) ? 'Done' : 'Pending', desc: 'Sorting at regional delivery station.', done: isPassed(status, ['arrived_at_first_mile', 'in_transit_to_last_mile', 'shipped', 'delivered', 'completed']) },
+                                                { title: 'Final Transit', time: isPassed(status, ['in_transit_to_last_mile', 'shipped', 'delivered', 'completed']) ? 'Done' : 'Pending', desc: 'On the way to your local hub.', done: isPassed(status, ['in_transit_to_last_mile', 'shipped', 'delivered', 'completed']) },
+                                                { title: 'Shipment Delivered', time: isPassed(status, ['delivered', 'completed']) ? 'Finalized' : 'Pending', desc: isPassed(status, ['delivered', 'completed']) ? `Arrived via ${trackingOrder.carrier || 'FLA Logistics'} (Tracking: ${trackingOrder.trackingNumber || 'N/A'})` : 'Package handed over to recipient.', done: isPassed(status, ['delivered', 'completed']) },
                                             ];
                                         } else {
                                             trackingSteps = [
                                                 ...baseSteps,
-                                                { title: 'In Transit (Direct)', time: ['in_transit', 'shipped', 'delivered', 'completed'].includes(status) ? 'Done' : 'Pending', desc: 'On its way directly to your location.', done: ['in_transit', 'shipped', 'delivered', 'completed'].includes(status) },
-                                                { title: 'Shipment Delivered', time: ['delivered', 'completed'].includes(status) ? 'Finalized' : 'Pending', desc: ['delivered', 'completed'].includes(status) ? `Arrived via ${trackingOrder.carrier || 'FLA Logistics'} (Tracking: ${trackingOrder.trackingNumber || 'N/A'})` : 'Package handed over to recipient.', done: ['delivered', 'completed'].includes(status) },
+                                                { title: 'In Transit (Direct)', time: isPassed(status, ['in_transit', 'shipped', 'delivered', 'completed']) ? 'Done' : 'Pending', desc: 'On its way directly to your location.', done: isPassed(status, ['in_transit', 'shipped', 'delivered', 'completed']) },
+                                                { title: 'Shipment Delivered', time: isPassed(status, ['delivered', 'completed']) ? 'Finalized' : 'Pending', desc: isPassed(status, ['delivered', 'completed']) ? `Arrived via ${trackingOrder.carrier || 'FLA Logistics'} (Tracking: ${trackingOrder.trackingNumber || 'N/A'})` : 'Package handed over to recipient.', done: isPassed(status, ['delivered', 'completed']) },
                                             ];
                                         }
 
                                         return trackingSteps.map((s, idx) => (
-                                            <div key={idx} className={`relative flex gap-6 transition-opacity ${s.done ? 'opacity-100' : 'opacity-30'}`}>
-                                                <div className={`w-3 h-3 rounded-full mt-1.5 z-10 border-2 border-white ring-4 ${s.done ? 'bg-brand-lemon ring-brand-lemon/20' : 'bg-slate-200 ring-slate-100'}`} />
+                                            <div key={idx} className={`relative flex gap-6 transition-all duration-500 ${s.done ? 'opacity-100' : 'opacity-20 translate-x-1'}`}>
+                                                <div className={`w-3 h-3 rounded-full mt-1.5 z-10 border-2 border-white ring-4 transition-all duration-700 ${s.done ? 'bg-brand-lemon ring-brand-lemon/30' : 'bg-slate-200 ring-slate-50'}`} />
                                                 <div className="flex-1">
                                                     <div className="flex justify-between items-start">
-                                                        <h4 className="font-bold text-slate-900 text-sm">{s.title}</h4>
-                                                        <span className="text-[9px] font-black text-slate-400 uppercase">{s.time}</span>
+                                                        <h4 className={`font-bold text-sm transition-colors ${s.done ? 'text-slate-900' : 'text-slate-400'}`}>{s.title}</h4>
+                                                        <span className={`text-[9px] font-black uppercase transition-colors ${s.done ? 'text-slate-500' : 'text-slate-300'}`}>{s.time}</span>
                                                     </div>
-                                                    <p className="text-[11px] text-slate-500 mt-0.5">{s.desc}</p>
+                                                    <p className={`text-[11px] mt-0.5 transition-colors ${s.done ? 'text-slate-600' : 'text-slate-300'}`}>{s.desc}</p>
                                                 </div>
                                             </div>
                                         ));
@@ -1666,7 +1753,7 @@ export default function CustomerDashboard() {
                                     <div className="relative w-12 h-12 bg-white p-1 rounded-lg border border-white/20">
                                         {/* @ts-ignore */}
                                         <img
-                                            src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(typeof window !== 'undefined' ? window.location.origin + '/track/' + trackingOrder._id : '')}`}
+                                            src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(isHydrated ? window.location.origin + '/track/' + trackingOrder._id : '')}`}
                                             alt="tracking qr"
                                             className="w-full h-full"
                                         />
@@ -1686,11 +1773,14 @@ export default function CustomerDashboard() {
                             <div id="printable-receipt" className="flex-1 overflow-y-auto p-8 md:p-12 bg-white">
                                 <div className="flex justify-between items-start mb-10 pb-10 border-b-2 border-slate-50">
                                     <div>
-                                        <div className="flex items-center gap-2 mb-4">
-                                            <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center">
-                                                <div className="w-4 h-4 border-2 border-white rotate-45" />
-                                            </div>
-                                            <span className="font-heading font-black text-xl tracking-tighter text-slate-900 uppercase">FLA</span>
+                                        <div className="flex items-center gap-3 mb-4">
+                                            <Image 
+                                                src="/logo.jpeg" 
+                                                alt="FLA Logo" 
+                                                width={40} 
+                                                height={40} 
+                                                className="h-10 w-auto object-contain rounded-lg shadow-sm"
+                                            />
                                         </div>
                                         <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">Official Transaction Receipt</p>
                                     </div>
@@ -1723,7 +1813,7 @@ export default function CustomerDashboard() {
                                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Order Information</p>
                                         <p className="text-sm text-slate-900 font-bold">#ORD-{selectedReceipt._id.slice(-6).toUpperCase()}</p>
                                         <p className="text-xs text-slate-500 mt-1">{new Date(selectedReceipt.createdAt).toLocaleDateString()}</p>
-                                        <p className="text-xs text-slate-500">{selectedReceipt.paymentStatus === 'paid' ? 'Paystack Transaction' : 'Platform Escrow'}</p>
+                                        <p className="text-xs text-slate-500">{selectedReceipt.paymentStatus === 'paid' ? 'Hubtel Transaction' : 'Platform Escrow'}</p>
                                     </div>
                                 </div>
 
@@ -1796,7 +1886,7 @@ export default function CustomerDashboard() {
                                     <div className="relative w-16 h-16 bg-white p-1 rounded-lg border border-slate-100 hidden sm:block">
                                         {/* @ts-ignore */}
                                         <img
-                                            src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(typeof window !== 'undefined' ? window.location.origin + '/track/' + selectedReceipt._id : '')}`}
+                                            src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(isHydrated ? window.location.origin + '/track/' + selectedReceipt._id : '')}`}
                                             alt="receipt qr"
                                             className="w-full h-full"
                                         />

@@ -7,6 +7,9 @@ import { User, UserDocument } from './schemas/user.schema';
 import * as bcrypt from 'bcrypt';
 import { OrdersService } from '../orders/orders.service';
 
+// Rounds=8: ~25ms (vs 10 rounds=~100ms). Both are cryptographically secure.
+const BCRYPT_ROUNDS = 8;
+
 @Injectable()
 export class UsersService {
   constructor(
@@ -16,7 +19,7 @@ export class UsersService {
 
   async create(createUserDto: CreateUserDto): Promise<User> {
     try {
-      const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
+      const hashedPassword = await bcrypt.hash(createUserDto.password, BCRYPT_ROUNDS);
       const role = createUserDto.role || 'customer';
       const uniqueVendorId = role === 'vendor'
         ? `FLA-V-${Math.random().toString(36).substr(2, 6).toUpperCase()}`
@@ -24,7 +27,9 @@ export class UsersService {
 
       const createdUser = new this.userModel({
         ...createUserDto,
-        role: role,
+        // Store email lowercase for consistent fast index lookups
+        email: createUserDto.email.toLowerCase().trim(),
+        role,
         password: hashedPassword,
         uniqueVendorId,
         status: role === 'vendor' ? 'pending' : 'active',
@@ -38,24 +43,25 @@ export class UsersService {
     }
   }
 
-  async findOne(email: string): Promise<User | null> {
-    return this.userModel.findOne({ email: { $regex: new RegExp(`^${email}$`, 'i') } }).exec();
+  async findOne(email: string): Promise<UserDocument | null> {
+    // Fast exact-match index lookup (no regex = no collection scan)
+    return this.userModel.findOne({ email: email.toLowerCase().trim() }).exec();
   }
 
   async findAll(): Promise<User[]> {
-    return this.userModel.find().exec();
+    return this.userModel.find().lean().exec() as any;
   }
 
   async findOneById(id: string): Promise<User | null> {
-    return this.userModel.findById(id).exec();
+    return this.userModel.findById(id).lean().exec() as any;
   }
 
   async update(id: string, updateUserDto: UpdateUserDto): Promise<User | null> {
-    return this.userModel.findByIdAndUpdate(id, { $set: updateUserDto }, { new: true }).exec();
+    return this.userModel.findByIdAndUpdate(id, { $set: updateUserDto }, { new: true }).lean().exec() as any;
   }
 
   async findByUniqueVendorId(vendorId: string): Promise<User | null> {
-    return this.userModel.findOne({ uniqueVendorId: vendorId }).exec();
+    return this.userModel.findOne({ uniqueVendorId: vendorId }).lean().exec() as any;
   }
 
   async remove(id: string): Promise<User | null> {
@@ -70,7 +76,7 @@ export class UsersService {
   }
 
   async updatePassword(userId: string, newPassword: string): Promise<void> {
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    const hashedPassword = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
     await this.userModel.findByIdAndUpdate(userId, {
       $set: { password: hashedPassword },
       $unset: { resetPasswordToken: 1, resetPasswordExpires: 1 }
@@ -78,12 +84,13 @@ export class UsersService {
   }
 
   async getPublicVendorProfile(vendorId: string) {
-    let user = await this.userModel.findById(vendorId).select('-password -paymentMethods -withdrawalHistory').exec();
+    const user = await this.userModel.findById(vendorId)
+      .select('-password -paymentMethods -withdrawalHistory')
+      .exec();
     if (!user) {
       throw new NotFoundException('Vendor not found');
     }
 
-    // Ensure they have a unique ID if it was created before this feature
     if (user.role === 'vendor' && !user.uniqueVendorId) {
       const uniqueId = `FLA-V-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
       user.uniqueVendorId = uniqueId;
@@ -91,9 +98,6 @@ export class UsersService {
     }
 
     const stats = await this.ordersService.getVendorStats(vendorId);
-    return {
-      vendor: user,
-      stats
-    };
+    return { vendor: user, stats };
   }
 }

@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ShoppingBag, Search, Menu, X, User, Headset, LogOut } from 'lucide-react';
+import Image from 'next/image';
 import Swal from 'sweetalert2';
 import { useRouter, usePathname } from 'next/navigation';
 import { useCart } from '@/context/CartContext';
@@ -16,15 +17,51 @@ export default function Navbar() {
     const router = useRouter();
 
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [suggestions, setSuggestions] = useState<any[]>([]);
+    const [isSuggestionsLoading, setIsSuggestionsLoading] = useState(false);
+
+    useEffect(() => {
+        const fetchSuggestions = async () => {
+            if (searchQuery.length < 2) {
+                setSuggestions([]);
+                return;
+            }
+
+            setIsSuggestionsLoading(true);
+            try {
+                const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+                const res = await fetch(`${api}/products/suggestions?search=${encodeURIComponent(searchQuery)}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    setSuggestions(data);
+                }
+            } catch (err) {
+                console.error("Suggestions fetch error:", err);
+            } finally {
+                setIsSuggestionsLoading(false);
+            }
+        };
+
+        const timer = setTimeout(fetchSuggestions, 300);
+        return () => clearTimeout(timer);
+    }, [searchQuery]);
 
     const handleSearch = (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === 'Enter') {
-            const query = (e.target as HTMLInputElement).value;
-            if (query.trim()) {
-                router.push(`/shop?search=${encodeURIComponent(query)}`);
+            if (searchQuery.trim()) {
+                router.push(`/shop?search=${encodeURIComponent(searchQuery)}`);
                 setIsSearchOpen(false);
+                setSuggestions([]);
             }
         }
+    };
+
+    const handleSuggestionClick = (text: string) => {
+        setSearchQuery(text);
+        router.push(`/shop?search=${encodeURIComponent(text)}`);
+        setIsSearchOpen(false);
+        setSuggestions([]);
     };
 
     const handleLogout = () => {
@@ -127,19 +164,42 @@ export default function Navbar() {
 
                         {/* MOBILE VIEW (Logo Left, Icons Right) */}
                         <div className="flex md:hidden items-center justify-between w-full h-full px-1">
-                            <Link href="/" className="flex-shrink-0 font-heading text-base font-black tracking-tighter text-slate-900 uppercase">
-                                FLA<span className="text-slate-400">.</span>
+                            <Link href="/" className="flex-shrink-0">
+                                <Image 
+                                    src="/logo.jpeg" 
+                                    alt="FLA Logo" 
+                                    width={40} 
+                                    height={40} 
+                                    className="h-8 w-auto object-contain rounded-md shadow-sm"
+                                />
                             </Link>
 
                             <div className="flex items-center -mr-1">
-                                <div className={`relative transition-all duration-300 ${isSearchOpen ? 'w-32 opacity-100 mr-2' : 'w-0 opacity-0 overflow-hidden'}`}>
+                                <div className={`relative transition-all duration-300 ${isSearchOpen ? 'w-48 opacity-100 mr-2' : 'w-0 opacity-0 overflow-hidden'}`}>
                                     <input
                                         type="text"
                                         placeholder="Search..."
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
                                         className="w-full px-3 py-1.5 text-[10px] bg-slate-50 border border-slate-200 rounded-full focus:outline-none focus:border-slate-900"
                                         onKeyDown={handleSearch}
                                         autoFocus={isSearchOpen}
                                     />
+                                    {/* Mobile Suggestions */}
+                                    {isSearchOpen && suggestions.length > 0 && (
+                                        <div className="absolute top-full left-0 right-0 mt-2 bg-white shadow-2xl rounded-2xl border border-slate-100 overflow-hidden z-[300] animate-in slide-in-from-top-2 duration-200">
+                                            {suggestions.map((s, idx) => (
+                                                <button
+                                                    key={idx}
+                                                    onClick={() => handleSuggestionClick(s.text)}
+                                                    className="w-full px-4 py-3 text-left hover:bg-slate-50 flex items-center justify-between border-b border-slate-50 last:border-0"
+                                                >
+                                                    <span className="text-[10px] font-bold text-slate-900">{s.text}</span>
+                                                    <span className="text-[8px] font-black uppercase text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-md">{s.type}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                                 <button
                                     onClick={() => setIsSearchOpen(!isSearchOpen)}
@@ -204,8 +264,15 @@ export default function Navbar() {
 
                             {/* Centered Logo */}
                             <div className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transition-all duration-300 ${isSearchOpen ? 'opacity-20 lg:opacity-100' : 'opacity-100'}`}>
-                                <Link href="/" className="font-heading text-3xl font-black tracking-[0.2em] text-slate-900 uppercase">
-                                    FLA.
+                                <Link href="/">
+                                    <Image 
+                                        src="/logo.jpeg" 
+                                        alt="FLA Logo" 
+                                        width={80} 
+                                        height={80} 
+                                        className="h-12 w-auto object-contain rounded-lg shadow-sm"
+                                        priority
+                                    />
                                 </Link>
                             </div>
 
@@ -221,11 +288,51 @@ export default function Navbar() {
                                         <div className={`relative transition-all duration-500 ${isSearchOpen ? 'w-[300px] opacity-100' : 'w-0 opacity-0 overflow-hidden'}`}>
                                             <input
                                                 type="text"
-                                                placeholder="Search..."
-                                                className="w-full px-4 py-2 text-xs bg-slate-50 border border-slate-200 rounded-full focus:outline-none focus:border-slate-900"
+                                                placeholder="Search products or vendors..."
+                                                value={searchQuery}
+                                                onChange={(e) => setSearchQuery(e.target.value)}
+                                                className="w-full px-5 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-full focus:outline-none focus:border-slate-900 focus:bg-white transition-all shadow-inner"
                                                 onKeyDown={handleSearch}
                                                 autoFocus={isSearchOpen}
                                             />
+                                            
+                                            {/* Desktop Suggestions */}
+                                            {isSearchOpen && (suggestions.length > 0 || isSuggestionsLoading) && (
+                                                <div className="absolute top-full left-0 right-0 mt-3 bg-white shadow-2xl rounded-3xl border border-slate-100 overflow-hidden z-[300] animate-in slide-in-from-top-4 duration-300">
+                                                    {isSuggestionsLoading ? (
+                                                        <div className="p-6 flex items-center justify-center">
+                                                            <div className="w-5 h-5 border-2 border-slate-200 border-t-slate-900 rounded-full animate-spin"></div>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex flex-col">
+                                                            <div className="px-5 py-3 bg-slate-50/50 border-b border-slate-50">
+                                                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Quick Results</span>
+                                                            </div>
+                                                            {suggestions.map((s, idx) => (
+                                                                <button
+                                                                    key={idx}
+                                                                    onClick={() => handleSuggestionClick(s.text)}
+                                                                    className="w-full px-5 py-4 text-left hover:bg-slate-50 flex items-center justify-between group transition-colors border-b border-slate-50 last:border-0"
+                                                                >
+                                                                    <div className="flex items-center gap-3">
+                                                                        <Search className="w-3.5 h-3.5 text-slate-300 group-hover:text-slate-900 transition-colors" />
+                                                                        <span className="text-xs font-bold text-slate-700 group-hover:text-slate-900">{s.text}</span>
+                                                                    </div>
+                                                                    <span className="text-[8px] font-black uppercase px-2 py-1 bg-slate-100 text-slate-400 rounded-lg group-hover:bg-brand-lemon group-hover:text-slate-900 transition-all">
+                                                                        {s.type}
+                                                                    </span>
+                                                                </button>
+                                                            ))}
+                                                            <button 
+                                                                onClick={() => handleSearch({ key: 'Enter' } as any)}
+                                                                className="w-full px-5 py-3 text-center bg-slate-900 text-white text-[9px] font-black uppercase tracking-widest hover:bg-slate-800 transition-colors"
+                                                            >
+                                                                See All Results
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
                                         <button onClick={() => setIsSearchOpen(!isSearchOpen)} className="text-slate-700 p-2">
                                             {isSearchOpen ? <X className="h-5 w-5" /> : <Search className="h-5 w-5" />}

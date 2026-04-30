@@ -32,9 +32,10 @@ export default function Hero() {
                 {/* Content - Inspired by Pura Design */}
                 <div className={`absolute bottom-12 md:bottom-24 left-8 md:left-16 z-10 transition-all duration-1000 ease-out ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
                     }`}>
-                    <h1 className="font-heading text-4xl md:text-7xl font-bold text-white tracking-tight leading-tight mb-8">
-                        SHOP WITH CONFIDENCE <br />
-                        <span className="text-[#E5FF7F]">BY FLA PURCHASE</span>
+                    <h1 className="font-heading text-4xl md:text-7xl font-black text-white tracking-tighter leading-[0.95] mb-10 max-w-2xl">
+                        THE FASTEST WAY <br />
+                        TO GET <span className="text-[#E5FF7F]">EXACTLY</span> WHAT <br />
+                        YOU'VE ORDERED.
                     </h1>
 
                     <div className="flex flex-wrap gap-4">

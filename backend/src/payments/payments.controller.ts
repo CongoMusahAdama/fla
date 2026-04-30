@@ -1,56 +1,50 @@
-import { Controller, Post, Body, Headers, Logger, Get, UseGuards, Request, Param } from '@nestjs/common';
-import { PaystackService } from './paystack.service';
+import { Controller, Post, Body, Logger, Get, UseGuards, Request, Param } from '@nestjs/common';
+import { HubtelService } from './hubtel.service';
 import { OrdersService } from '../orders/orders.service';
 import { ConfigService } from '@nestjs/config';
-import * as crypto from 'crypto';
 import { AuthGuard } from '@nestjs/passport';
 import { WithdrawalService } from './withdrawal.service';
+import { RequestWithdrawalDto } from './dto/request-withdrawal.dto';
+import { HubtelWebhookDto } from './dto/hubtel-webhook.dto';
 
 @Controller('payments')
 export class PaymentsController {
     private readonly logger = new Logger(PaymentsController.name);
 
     constructor(
-        private readonly paystackService: PaystackService,
+        private readonly hubtelService: HubtelService,
         private readonly ordersService: OrdersService,
         private readonly configService: ConfigService,
         private readonly withdrawalService: WithdrawalService,
     ) { }
 
-    @Post('webhook')
-    async handleWebhook(@Body() payload: any, @Headers('x-paystack-signature') signature: string) {
-        const secret = this.configService.get<string>('PAYSTACK_SECRET_KEY') || '';
+    @Post('webhook/hubtel')
+    async handleHubtelWebhook(@Body() payload: HubtelWebhookDto) {
+        // Business Rule: treat webhook as trigger, always verify with Hubtel API
+        const clientReference = payload.Data?.ClientReference || payload.clientReference;
+        const status = payload.Status || payload.status;
+        const transactionId = payload.Data?.TransactionId || payload.transactionId;
+        const metadata = payload.Data?.Metadata || payload.metadata;
 
-        // Verify the webhook signature
-        const hash = crypto.createHmac('sha512', secret).update(JSON.stringify(payload)).digest('hex');
+        this.logger.log(`Hubtel Webhook received for ref: ${clientReference}`);
 
-        if (hash !== signature) {
-            this.logger.warn('Unauthorized Paystack webhook attempt');
-            return { status: 'error', message: 'Unauthorized' };
-        }
+        if (status === 'Success') {
+            // SECURITY: Double verify with Hubtel API to be absolutely sure
+            const verification = await this.hubtelService.verifyTransaction(clientReference as string);
+            
+            if (verification.responseCode === '00' && (verification.data.status === 'Success' || verification.data.status === 'Paid')) {
+                const orderId = metadata?.orderId || clientReference;
+                const paymentType = metadata?.paymentType;
 
-        this.logger.log(`Paystack Webhook received: ${payload.event}`);
-
-        if (payload.event === 'charge.success') {
-            const { reference, id: transactionId, amount, status, metadata } = payload.data;
-
-            if (status === 'success') {
-                // Double verify with Paystack API to be absolutely sure
-                const verification = await this.paystackService.verifyTransaction(reference);
-
-                if (verification.status === true && verification.data.status === 'success' && verification.data.amount >= amount) {
-                    const orderId = metadata?.orderId || reference;
-                    const paymentType = metadata?.paymentType;
-
-                    if (paymentType === 'first_mile_fee') {
-                        this.logger.log(`First-mile delivery fee payment successful for order: ${orderId}`);
-                        await this.ordersService.handleFirstMilePaymentSuccess(orderId, transactionId.toString());
-                    } else {
-                        // Default to main order payment
-                        this.logger.log(`Main order payment successful for order: ${orderId}`);
-                        await this.ordersService.handlePaymentSuccess(orderId, transactionId.toString());
-                    }
+                if (paymentType === 'first_mile_fee') {
+                    this.logger.log(`Hubtel: First-mile delivery fee payment successful for order: ${orderId}`);
+                    await this.ordersService.handleFirstMilePaymentSuccess(orderId, transactionId as string);
+                } else {
+                    this.logger.log(`Hubtel: Main order payment successful for order: ${orderId}`);
+                    await this.ordersService.handlePaymentSuccess(orderId, transactionId as string);
                 }
+            } else {
+                this.logger.warn(`Hubtel Webhook verification failed for ref: ${clientReference}`);
             }
         }
 
@@ -60,7 +54,8 @@ export class PaymentsController {
     // Withdrawal Endpoints
     @UseGuards(AuthGuard('jwt'))
     @Post('withdrawals/request')
-    async requestWithdrawal(@Request() req, @Body() body: { amount: number, paymentMethod?: string, momoNumber?: string, accountName?: string, notes?: string }) {
+    async requestWithdrawal(@Request() req, @Body() body: RequestWithdrawalDto) {
+        // Security: Authorization handled by Guard, logic by Service
         if (req.user.role !== 'vendor') throw new Error('Only vendors can request withdrawals');
         return this.withdrawalService.requestWithdrawal(req.user.userId, body.amount, body);
     }

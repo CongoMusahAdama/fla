@@ -9,8 +9,10 @@ async function bootstrap() {
   });
 
   // Enable security headers with Helmet
+  const compression = require('compression');
   const helmet = require('helmet');
   const cookieParser = require('cookie-parser');
+  app.use(compression()); // Gzip all responses — reduces payload by 60-80%
   app.use(cookieParser());
   app.use(helmet({
     crossOriginResourcePolicy: { policy: "cross-origin" },

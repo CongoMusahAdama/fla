@@ -45,7 +45,7 @@ export const VendorProducts: React.FC<VendorProductsProps> = ({
     <div className="space-y-12 animate-in fade-in duration-700">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-3xl font-black text-slate-900 uppercase tracking-tighter">Shop Maintenance</h1>
+          <h1 className="text-3xl font-black text-slate-900 uppercase tracking-tighter">Manage Your Shop</h1>
           <p className="text-slate-500 font-medium text-sm mt-1">Refine your heritage designs and track global stock levels.</p>
         </div>
         <button
@@ -73,20 +73,6 @@ export const VendorProducts: React.FC<VendorProductsProps> = ({
                   target.src = '/product-1.jpg';
                 }}
               />
-              <div className="absolute inset-x-0 bottom-0 p-4 translate-y-full group-hover:translate-y-0 transition-transform duration-500 bg-gradient-to-t from-slate-900/60 to-transparent flex justify-center gap-3">
-                <button
-                  onClick={() => onEdit(product)}
-                  className="w-11 h-11 bg-white text-slate-900 rounded-2xl flex items-center justify-center hover:bg-brand-lemon transition-all shadow-xl active:scale-90"
-                >
-                  <Edit2 className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => onDelete(product.id)}
-                  className="w-11 h-11 bg-white text-red-500 rounded-2xl flex items-center justify-center hover:bg-red-50 transition-all shadow-xl active:scale-90"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
               
               {product.isActive === false && (
                 <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-[2px] flex items-center justify-center">
@@ -128,6 +114,24 @@ export const VendorProducts: React.FC<VendorProductsProps> = ({
                       <div className="h-full bg-brand-lemon" style={{ width: `${Math.min((product.sales || 0) * 10, 100)}%` }} />
                   </div>
                   <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">{(product.sales || 0)} Sales</span>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="pt-4 flex gap-2 border-t border-slate-50 mt-1">
+                  <button
+                    onClick={() => onEdit(product)}
+                    className="flex-1 py-3 bg-slate-900 text-white rounded-2xl text-[9px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all active:scale-95 flex items-center justify-center gap-2"
+                  >
+                    <Edit2 className="w-3 h-3" />
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => onDelete(product.id)}
+                    className="flex-1 py-3 bg-red-50 text-red-500 rounded-2xl text-[9px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all active:scale-95 flex items-center justify-center gap-2"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    Delete
+                  </button>
               </div>
             </div>
 

@@ -52,31 +52,44 @@ export const VendorSettings: React.FC<VendorSettingsProps> = ({
         </div>
         <div className="bg-white rounded-[40px] border border-slate-100 p-8 md:p-12 space-y-10">
             {/* Banner Upload */}
-            <div className="relative h-48 bg-slate-100 rounded-[32px] overflow-hidden group border border-slate-100">
-                {bannerImage ? (
-                    <Image
-                        src={getImageUrl(bannerImage)}
-                        alt="Banner"
-                        fill
-                        sizes="(max-width: 768px) 100vw, 800px"
-                        unoptimized={true}
-                        className="object-cover"
-                        onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.src = '/product-1.jpg';
-                        }}
-                    />
-                ) : (
-                    <UploadCloud className="w-12 h-12 text-slate-300 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 group-hover:scale-110 transition-transform" />
-                )}
-                <label className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
-                    <p className="text-[10px] font-black text-white uppercase tracking-[0.2em] bg-black/40 px-6 py-2 rounded-full backdrop-blur-md">Change Banner</p>
-                    <input type="file" className="hidden" accept="image/*" onChange={(e) => e.target.files?.[0] && handleImageUpload(e.target.files[0], 'banner')} />
-                </label>
+            <div className="space-y-4">
+                <div className="flex items-center justify-between px-1">
+                    <label className="text-[11px] font-black text-slate-900 uppercase tracking-widest">Studio Banner (Background)</label>
+                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Recommended: 1200 x 400px</span>
+                </div>
+                <div className="relative h-48 bg-slate-50 rounded-[32px] overflow-hidden group border-2 border-dashed border-slate-200 hover:border-brand-lemon transition-all">
+                    {bannerImage ? (
+                        <Image
+                            src={getImageUrl(bannerImage)}
+                            alt="Banner"
+                            fill
+                            sizes="(max-width: 768px) 100vw, 800px"
+                            unoptimized={true}
+                            className="object-cover"
+                            onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.src = '/product-1.jpg';
+                            }}
+                        />
+                    ) : (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+                            <UploadCloud className="w-10 h-10 text-slate-300 group-hover:scale-110 transition-transform" />
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Upload Landscape Background</p>
+                        </div>
+                    )}
+                    <label className="absolute inset-0 bg-slate-900/40 opacity-0 md:group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
+                        <p className="text-[10px] font-black text-white uppercase tracking-[0.2em] bg-white/20 backdrop-blur-md px-6 py-2 rounded-full border border-white/30">Replace Background</p>
+                        <input id="banner-upload" type="file" className="hidden" accept="image/*" onChange={(e) => e.target.files?.[0] && handleImageUpload(e.target.files[0], 'banner')} />
+                    </label>
+                    {/* Mobile-only upload button */}
+                    <label htmlFor="banner-upload" className="absolute bottom-4 right-4 md:hidden w-10 h-10 bg-white shadow-xl rounded-full flex items-center justify-center text-slate-900 cursor-pointer active:scale-90 transition-all">
+                        <Camera className="w-4 h-4" />
+                    </label>
+                </div>
             </div>
 
             <div className="flex items-end gap-6 -mt-20 relative px-6">
-                <div className="w-32 h-32 rounded-[32px] bg-white p-2 shadow-2xl">
+                <div className="w-32 h-32 rounded-[32px] bg-white p-2 shadow-2xl relative">
                     <div className="w-full h-full bg-slate-900 rounded-[24px] flex items-center justify-center text-white relative group overflow-hidden">
                         {profileImage ? (
                             <Image
@@ -94,15 +107,22 @@ export const VendorSettings: React.FC<VendorSettingsProps> = ({
                         ) : (
                             <ImageIcon className="w-8 h-8 text-white/20 group-hover:scale-110 transition-transform" />
                         )}
-                        <label className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
+                        <label className="absolute inset-0 bg-slate-900/60 opacity-0 md:group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
                             <Camera className="w-6 h-6 text-white" />
-                            <input type="file" className="hidden" accept="image/*" onChange={(e) => e.target.files?.[0] && handleImageUpload(e.target.files[0], 'avatar')} />
+                            <input id="avatar-upload" type="file" className="hidden" accept="image/*" onChange={(e) => e.target.files?.[0] && handleImageUpload(e.target.files[0], 'avatar')} />
                         </label>
                     </div>
+                    {/* Mobile-only avatar camera button */}
+                    <label htmlFor="avatar-upload" className="absolute -bottom-1 -right-1 md:hidden w-8 h-8 bg-brand-lemon text-slate-900 rounded-xl shadow-lg flex items-center justify-center cursor-pointer active:scale-90 transition-all">
+                        <Camera className="w-3.5 h-3.5" />
+                    </label>
                 </div>
                 <div className="pb-2">
-                    <h3 className="text-xl font-black text-slate-900 uppercase">{user?.shopName || 'Your Brand'}</h3>
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Premium Vendor Since 2024</p>
+                    <h3 className="text-xl font-black text-slate-900 uppercase leading-none mb-1">{shopName || 'Your Brand'}</h3>
+                    <div className="flex items-center gap-2">
+                        <span className="text-[8px] font-black bg-slate-900 text-white px-2 py-0.5 rounded-md uppercase tracking-widest">Premium Vendor</span>
+                        <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Established 2024</p>
+                    </div>
                 </div>
             </div>
 

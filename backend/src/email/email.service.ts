@@ -339,4 +339,43 @@ export class EmailService {
             console.error('Error sending customer dispute resolution email:', error);
         }
     }
+
+    async sendDisputeNotification(recipients: string[], orderId: string, reason: string, customerName: string, vendorName: string): Promise<void> {
+        try {
+            const content = `
+                <p class="greeting">Dispute Resolution Case Opened</p>
+                <p class="message">A formal dispute has been filed for Order <strong>#ORD-${orderId.slice(-6).toUpperCase()}</strong>. This email serves as a transparent communication channel between the <strong>Customer</strong>, the <strong>Vendor</strong>, and the <strong>Admin Team</strong>.</p>
+                
+                <div style="background: #fef2f2; border-left: 4px solid #dc2626; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                    <p style="margin: 0; color: #991b1b; font-weight: 700;">Dispute Details:</p>
+                    <p style="margin: 10px 0 0 0; color: #1e293b;"><strong>Reason:</strong> ${reason}</p>
+                    <p style="margin: 5px 0 0 0; color: #1e293b;"><strong>Customer:</strong> ${customerName}</p>
+                    <p style="margin: 5px 0 0 0; color: #1e293b;"><strong>Vendor:</strong> ${vendorName}</p>
+                </div>
+
+                <p class="message" style="font-weight: 600; color: #0f172a;">Next Steps for Evidence Submission:</p>
+                <ul style="color: #64748b; font-size: 14px; line-height: 1.8;">
+                    <li><strong>Vendor:</strong> Please provide proof of shipment, delivery notes, or any communication with the customer regarding this order.</li>
+                    <li><strong>Customer:</strong> Please provide photos of the received item (if applicable) or any other evidence supporting your claim.</li>
+                    <li><strong>Admin:</strong> Will review all provided evidence and make a final judgment within 48-72 hours.</li>
+                </ul>
+
+                <p class="message">Please respond directly to this thread or log in to the resolution center to upload your evidence files.</p>
+                
+                <div style="display: flex; gap: 10px; margin-top: 30px;">
+                    <a href="${this.configService.get('FRONTEND_URL') || 'http://localhost:3000'}/dashboard" class="cta-button" style="margin: 0;">Resolution Center</a>
+                </div>
+            `;
+
+            await this.resend.emails.send({
+                from: this.sender,
+                to: recipients,
+                subject: `⚠️ DISPUTE CASE OPENED: #ORD-${orderId.slice(-6).toUpperCase()} (Transparency Thread)`,
+                html: this.wrapLayout('DISPUTE INVESTIGATION 🔍', content),
+            });
+        } catch (error) {
+            console.error('Error sending multi-party dispute notification:', error);
+        }
+    }
 }
+

@@ -77,9 +77,14 @@ export class Product {
 
 export const ProductSchema = SchemaFactory.createForClass(Product);
 
-// Indexes for performance
+// Single-field indexes
 ProductSchema.index({ vendorId: 1 });
 ProductSchema.index({ category: 1 });
-ProductSchema.index({ isActive: 1 });
-ProductSchema.index({ createdAt: -1 }); // For sorting by newest
-ProductSchema.index({ name: 'text', description: 'text' }); // Text search
+ProductSchema.index({ region: 1 });
+
+// Compound indexes for most-common queries (eliminates collection scans)
+ProductSchema.index({ isActive: 1, createdAt: -1 });       // Homepage latest
+ProductSchema.index({ isActive: 1, category: 1 });         // Shop category filter
+ProductSchema.index({ isActive: 1, region: 1 });           // Region filter
+ProductSchema.index({ isActive: 1, rating: -1 });          // Best seller sort
+ProductSchema.index({ name: 'text', description: 'text', vendorName: 'text' }); // Text search

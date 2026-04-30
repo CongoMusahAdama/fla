@@ -23,10 +23,6 @@ export class CreateUserDto {
 
     @IsString()
     @IsOptional()
-    role?: string;
-
-    @IsString()
-    @IsOptional()
     shopName?: string;
 
     @IsOptional()
@@ -74,11 +70,5 @@ export class CreateUserDto {
 
     @IsString()
     @IsOptional()
-    status?: string;
-
-    @IsOptional()
-    walletBalance?: number;
-
-    @IsOptional()
-    pendingBalance?: number;
+    turnstileToken?: string;
 }

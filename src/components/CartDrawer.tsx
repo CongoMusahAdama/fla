@@ -198,8 +198,8 @@ export default function CartDrawer() {
                     customerEmail: user?.email,
                     customerPhone: user?.phone,
                     pickupPoint: 'Direct Delivery',
-                    paymentMethod: 'paystack',
-                    notes: 'Order via Paystack'
+                    paymentMethod: 'hubtel',
+                    notes: 'Order via Hubtel'
                 };
 
                 const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders`, {
@@ -223,7 +223,7 @@ export default function CartDrawer() {
                 cartItems.forEach(item => removeFromCart(item.id, item.size, item.color));
                 setIsCartOpen(false);
 
-                // Redirect to Flutterwave
+                // Redirect to Hubtel
                 window.location.href = paymentLink;
 
             } catch (error: any) {

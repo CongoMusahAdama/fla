@@ -38,6 +38,25 @@ export function CartProvider({ children }: { children: ReactNode }) {
     const [isCartOpen, setIsCartOpen] = useState(false);
     const [isSupportOpen, setIsSupportOpen] = useState(false);
 
+    // Load from localStorage on mount
+    useEffect(() => {
+        const stored = localStorage.getItem('fla_cart');
+        if (stored) {
+            try {
+                setCartItems(JSON.parse(stored));
+            } catch (e) {
+                console.error('Failed to parse cart', e);
+            }
+        }
+    }, []);
+
+    // Save to localStorage when items change
+    useEffect(() => {
+        if (cartItems.length > 0 || localStorage.getItem('fla_cart')) {
+            localStorage.setItem('fla_cart', JSON.stringify(cartItems));
+        }
+    }, [cartItems]);
+
     const contextValue = React.useMemo(() => ({
         cartItems,
         cartCount: cartItems.reduce((acc, item) => acc + item.quantity, 0),

@@ -158,14 +158,22 @@ export const VendorOrders: React.FC<VendorOrdersProps> = ({
                     <p className="text-[9px] font-bold text-slate-400 uppercase mt-1">
                       {order.items?.[0]?.size || 'Standard'} • Qty: {order.items?.[0]?.quantity || 1}
                     </p>
-                    <div className="flex items-center gap-1.5 mt-2 text-slate-900 font-black text-[9px] uppercase">
-                      <MapPin className="w-3 h-3 text-brand-black" />
-                      {order.shippingCity || 'Global Base'}
+                    <div className="flex items-center justify-between mt-2">
+                        <div className="flex items-center gap-1.5 text-slate-900 font-black text-[9px] uppercase">
+                            <MapPin className="w-3 h-3 text-brand-black" />
+                            {order.shippingCity || 'Global Base'}
+                        </div>
+                        <span className={`text-[7px] font-black px-2 py-0.5 rounded-md uppercase tracking-tighter ${order.deliveryType === 'inter-regional' ? 'bg-slate-900 text-white' : 'bg-brand-lemon text-slate-900'}`}>
+                            {order.deliveryType === 'inter-regional' ? 'Inter-Region' : 'Intra-Region'}
+                        </span>
                     </div>
+                    <p className="text-[9px] text-slate-400 font-medium italic mt-2 line-clamp-3 leading-snug">
+                        {order.shippingAddress}
+                    </p>
                   </div>
                 </div>
 
-                <div className="pt-2 flex flex-wrap gap-2">
+                <div className={`pt-2 flex flex-wrap gap-2 transition-all duration-500 ${order.status === 'cancelled' ? 'opacity-20 pointer-events-none grayscale blur-[3px]' : ''}`}>
                   {order.paymentProof && (
                     <button
                       onClick={() => onViewProof(order.paymentProof!)}
@@ -258,13 +266,22 @@ export const VendorOrders: React.FC<VendorOrdersProps> = ({
                           )}
                       </div>
                     </td>
-                    <td className="px-10 py-8 border-r border-slate-50 min-w-[240px]">
-                      <div className="flex flex-col gap-2">
-                        <div className="flex items-center gap-2 text-slate-900 font-black text-[10px] uppercase">
-                          <MapPin className="w-3.5 h-3.5 text-brand-black" />
-                          {order.shippingCity || 'Global Base'}, {order.shippingRegion}
+                    <td className="px-10 py-8 border-r border-slate-50 min-w-[320px]">
+                      <div className="flex flex-col gap-3">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 text-slate-900 font-black text-[10px] uppercase">
+                                <MapPin className="w-3.5 h-3.5 text-brand-black" />
+                                {order.shippingCity || 'Global Base'}, {order.shippingRegion}
+                            </div>
+                            <span className={`text-[8px] font-black px-2 py-0.5 rounded-lg uppercase tracking-tighter shadow-sm ${order.deliveryType === 'inter-regional' ? 'bg-slate-900 text-white' : 'bg-brand-lemon text-slate-900'}`}>
+                                {order.deliveryType === 'inter-regional' ? 'Inter-Region' : 'Intra-Region'}
+                            </span>
                         </div>
-                        <p className="text-[10px] text-slate-400 font-medium leading-relaxed line-clamp-2 italic">{order.shippingAddress || 'Awaiting Details'}</p>
+                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                            <p className="text-[11px] text-slate-600 font-medium leading-relaxed italic whitespace-pre-wrap">
+                                {order.shippingAddress || 'Awaiting Detailed Explanation/Address...'}
+                            </p>
+                        </div>
                       </div>
                     </td>
                     <td className="px-10 py-8 border-r border-slate-50">
@@ -283,7 +300,7 @@ export const VendorOrders: React.FC<VendorOrdersProps> = ({
                           <div className="flex items-center justify-between">
                             <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Logistics Tier</p>
                             <span className="text-[8px] font-black bg-slate-900 text-white px-2 py-0.5 rounded-lg uppercase tracking-tighter shadow-xl shadow-slate-900/10">
-                              {order.deliveryType === 'inter-regional' ? 'Inter-Region' : 'Local Channel'}
+                              {order.deliveryType === 'inter-regional' ? 'Inter-Region' : 'Intra-Region'}
                             </span>
                           </div>
                           
@@ -344,7 +361,7 @@ export const VendorOrders: React.FC<VendorOrdersProps> = ({
                       </div>
                     </td>
                     <td className="px-10 py-8 text-right">
-                      <div className="flex justify-end gap-3">
+                      <div className={`flex justify-end gap-3 transition-all duration-500 ${order.status === 'cancelled' ? 'opacity-20 pointer-events-none grayscale blur-[3px]' : ''}`}>
                         {order.paymentProof && (
                           <button
                             onClick={() => onViewProof(order.paymentProof!)}
