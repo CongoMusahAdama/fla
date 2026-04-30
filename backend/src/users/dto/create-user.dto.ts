@@ -71,4 +71,8 @@ export class CreateUserDto {
     @IsString()
     @IsOptional()
     turnstileToken?: string;
+
+    @IsString()
+    @IsOptional()
+    role?: string;
 }

@@ -8,7 +8,7 @@ export class TurnstileService {
     private readonly verifyUrl = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
 
     constructor(private configService: ConfigService) {
-        this.secretKey = this.configService.get<string>('CLOUDFLARE_TURNSTILE_SECRET_KEY');
+        this.secretKey = this.configService.get<string>('CLOUDFLARE_TURNSTILE_SECRET_KEY') || '';
     }
 
     async verifyToken(token: string, remoteIp?: string): Promise<boolean> {
