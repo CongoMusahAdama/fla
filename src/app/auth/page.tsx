@@ -449,7 +449,7 @@ const RegisterForm = ({ role, onSignup }: { role: UserRole, onSignup: (data: any
                             </div>
                             <div className="pt-4 flex justify-center">
                                 <Turnstile
-                                    siteKey={process.env.NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY || '1x00000000000000000000AA'}
+                                    siteKey={process.env.NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY || ''}
                                     onSuccess={(token) => setTurnstileToken(token)}
                                     onExpire={() => setTurnstileToken(null)}
                                     onError={() => setTurnstileToken(null)}
@@ -621,7 +621,7 @@ const RegisterForm = ({ role, onSignup }: { role: UserRole, onSignup: (data: any
                             <FileInput label="Business Registration" value={businessRegistration} onChange={setBusinessRegistration} icon={Briefcase} description="Certificate of registration" />
                             <div className="pt-4 flex justify-center">
                                 <Turnstile
-                                    siteKey={process.env.NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY || '1x00000000000000000000AA'}
+                                    siteKey={process.env.NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY || ''}
                                     onSuccess={(token) => setTurnstileToken(token)}
                                     onExpire={() => setTurnstileToken(null)}
                                     onError={() => setTurnstileToken(null)}
