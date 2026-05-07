@@ -30,11 +30,11 @@ export default function Hero() {
                         The Fastest Way <br /> To Get <span className="text-brand-lemon">Exactly</span> <br /> What You've Ordered
                     </h1>
 
-                    <div className="flex flex-row justify-center gap-4 mt-12 w-full px-6">
-                        <Link href="/shop" className="flex-1 bg-slate-900 text-white py-4 rounded-full text-[11px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-xl flex items-center justify-center">
+                    <div className="flex flex-row justify-center gap-4 mt-12 w-full px-6 md:px-0">
+                        <Link href="/shop" className="flex-1 md:flex-none md:w-36 bg-slate-900 text-white py-4 rounded-full text-[11px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-xl hover:scale-105 active:scale-95 flex items-center justify-center">
                             Shop Now
                         </Link>
-                        <Link href="/auth?role=vendor" className="flex-1 bg-white text-slate-900 border-2 border-slate-900 py-4 rounded-full text-[11px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all shadow-lg flex items-center justify-center">
+                        <Link href="/auth?role=vendor" className="flex-1 md:flex-none md:w-36 bg-white text-slate-900 border-2 border-slate-900 py-4 rounded-full text-[11px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all shadow-lg hover:scale-105 active:scale-95 flex items-center justify-center">
                             Sell Now
                         </Link>
                     </div>
