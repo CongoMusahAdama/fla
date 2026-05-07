@@ -112,6 +112,43 @@ export class User {
     @Prop({ unique: true, sparse: true })
     uniqueVendorId?: string;
 
+    // KYC Data
+    @Prop()
+    ghanaCardFront?: string;
+
+    @Prop()
+    ghanaCardBack?: string;
+
+    @Prop()
+    ghanaCardNumber?: string;
+
+    @Prop()
+    selfie?: string;
+
+    @Prop()
+    digitalAddress?: string;
+
+    @Prop()
+    dob?: string;
+
+    @Prop()
+    utilityBill?: string;
+
+    @Prop()
+    businessRegistration?: string;
+
+    @Prop()
+    employeeCount?: string;
+
+    @Prop()
+    yearsOfExistence?: string;
+
+    @Prop()
+    utilityType?: string;
+
+    @Prop({ default: false })
+    isIdentityVerified: boolean;
+
     @Prop()
     resetPasswordToken?: string;
 

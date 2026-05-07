@@ -54,9 +54,14 @@ export default function Footer() {
                     </div>
                 </div>
                 <div className="border-t border-white/10 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
-                    <p className="text-slate-500 text-[10px] uppercase tracking-widest font-bold">
-                        &copy; {new Date().getFullYear()} FLA Purchase Marketplace. All rights reserved.
-                    </p>
+                    <div className="flex flex-col gap-1">
+                        <p className="text-slate-500 text-[10px] uppercase tracking-widest font-bold">
+                            &copy; {new Date().getFullYear()} FLA Purchase Marketplace. All rights reserved.
+                        </p>
+                        <p className="text-slate-700 text-[8px] uppercase tracking-[0.2em] font-black">
+                            All brand images and visual assets are copyright to their respective owners.
+                        </p>
+                    </div>
                     <div className="flex gap-6">
                         {/* Social Icons Placeholder */}
                         <div className="w-4 h-4 bg-slate-800 rounded-full hover:bg-white transition-colors cursor-pointer"></div>

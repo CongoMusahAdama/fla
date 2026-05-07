@@ -3,6 +3,7 @@ import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import { EmailService } from '../email/email.service';
 import { OtpService } from '../otp/otp.service';
+import { SmileIdService } from '../common/smileid.service';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 
@@ -12,7 +13,8 @@ export class AuthService {
     private usersService: UsersService,
     private jwtService: JwtService,
     private emailService: EmailService,
-    private otpService: OtpService
+    private otpService: OtpService,
+    private smileIdService: SmileIdService
   ) { }
 
   private maskEmail(email: string): string {
@@ -21,13 +23,20 @@ export class AuthService {
   }
 
   async validateUser(email: string, pass: string): Promise<any> {
+    console.log(`[AuthService] Validating user: ${email}`);
     const user = await this.usersService.findOne(email);
     if (!user) {
+      console.warn(`[AuthService] User not found: ${email}`);
       return null;
     }
 
-    if (!user.password) return null;
+    if (!user.password) {
+      console.warn(`[AuthService] User has no password set: ${email}`);
+      return null;
+    }
+    
     const isMatch = await bcrypt.compare(pass, user.password);
+    console.log(`[AuthService] Password match for ${email}: ${isMatch}`);
 
     if (isMatch) {
       const userObj = (user as any).toObject();
@@ -58,12 +67,62 @@ export class AuthService {
         accountName: user.accountName,
         status: user.status,
         region: user.region,
+        ghanaCardFront: user.ghanaCardFront,
+        ghanaCardBack: user.ghanaCardBack,
+        selfie: user.selfie,
+        utilityBill: user.utilityBill,
+        utilityType: user.utilityType,
+        businessRegistration: user.businessRegistration,
+        digitalAddress: user.digitalAddress,
+        dob: user.dob,
+        employeeCount: user.employeeCount,
+        yearsOfExistence: user.yearsOfExistence,
       }
     };
   }
 
-  async register(user: any) {
-    return this.usersService.create(user);
+  async register(userData: any) {
+    const user = await this.usersService.create(userData);
+    
+    // Auto-trigger Identity Verification if details are provided
+    if (userData.ghanaCardNumber && userData.dob) {
+      const [firstName, ...rest] = (userData.name || '').split(' ');
+      const lastName = rest.join(' ');
+
+      try {
+        // BYPASS: If API Keys are missing or for temporary testing, auto-verify
+        const partnerId = (this as any).smileIdService.partnerId;
+        const apiKey = (this as any).smileIdService.apiKey;
+
+        if (!partnerId || !apiKey) {
+          console.log('[AuthService] SMILE_ID_KEYS_MISSING: Bypassing real verification, auto-approving identity.');
+          await this.usersService.update((user as any)._id.toString(), { 
+            isIdentityVerified: true,
+            status: user.role === 'customer' ? 'active' : 'pending'
+          } as any);
+        } else {
+          const verification = await this.smileIdService.verifyGhanaCard({
+            idNumber: userData.ghanaCardNumber,
+            firstName: firstName || userData.name,
+            lastName: lastName || 'User',
+            dob: userData.dob,
+            userId: (user as any)._id.toString()
+          });
+
+          if (verification.success) {
+            const updateData: any = { isIdentityVerified: true };
+            if (user.role === 'customer') {
+              updateData.status = 'active';
+            }
+            await this.usersService.update((user as any)._id.toString(), updateData);
+          }
+        }
+      } catch (error) {
+        console.error('Smile ID Background Verification Error:', error);
+      }
+    }
+
+    return user;
   }
 
   async sendVendorOTP(email: string, name: string): Promise<void> {

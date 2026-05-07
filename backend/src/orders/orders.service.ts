@@ -351,6 +351,60 @@ export class OrdersService {
     };
   }
 
+  async getRevenueChartData() {
+    try {
+      const twelveMonthsAgo = new Date();
+      twelveMonthsAgo.setDate(1); // Start of current month
+      twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 11);
+      twelveMonthsAgo.setHours(0, 0, 0, 0);
+
+      const stats = await this.orderModel.aggregate([
+        {
+          $match: {
+            createdAt: { $gte: twelveMonthsAgo },
+            isPaid: true,
+            status: { $nin: ['cancelled', 'refunded'] }
+          }
+        },
+        {
+          $group: {
+            _id: {
+              month: { $month: "$createdAt" },
+              year: { $year: "$createdAt" }
+            },
+            gross: { $sum: "$totalAmount" },
+            net: { $sum: { $ifNull: ["$adminCommission", { $multiply: ["$totalAmount", 0.1] }] } }
+          }
+        },
+        { $sort: { "_id.year": 1, "_id.month": 1 } }
+      ]);
+
+      const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      
+      // Fill in missing months to ensure a continuous 12-month graph
+      const fullData: { name: string; gross: number; net: number }[] = [];
+      const now = new Date();
+      
+      for (let i = 11; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const month = d.getMonth() + 1;
+        const year = d.getFullYear();
+        
+        const found = stats.find(s => s._id.month === month && s._id.year === year);
+        fullData.push({
+          name: monthNames[month - 1],
+          gross: found ? found.gross : 0,
+          net: found ? found.net : 0
+        });
+      }
+
+      return fullData;
+    } catch (error) {
+      this.logger.error(`Failed to aggregate revenue chart data: ${error.message}`);
+      return []; // Return empty array instead of crashing
+    }
+  }
+
   async getRecentOrders(limit: number): Promise<Order[]> {
     return this.orderModel.find().sort({ createdAt: -1 }).limit(limit).exec();
   }

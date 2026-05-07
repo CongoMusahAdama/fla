@@ -109,6 +109,9 @@ export class DashboardService {
         // Recent limit
         const recentOrders = await this.ordersService.getRecentOrders(10);
 
+        // Chart Data
+        const chartData = await this.ordersService.getRevenueChartData();
+
         return {
             totalRevenue: stats.totalRevenue,
             totalCommission: stats.totalCommission,
@@ -119,7 +122,8 @@ export class DashboardService {
             totalOrders: stats.totalOrders,
             completedTransactions: stats.completedTransactions,
             pendingOrders: stats.pendingOrders,
-            recentOrders
+            recentOrders,
+            chartData
         };
     }
 }

@@ -321,7 +321,10 @@ export default function CustomerDashboard() {
 
         setIsSubmittingDispute(true);
         try {
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders/${disputeOrderId}/dispute`, {
+            // Find the order to get the vendorId
+            const order = orders.find(o => o._id === disputeOrderId);
+            
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/support/dispute`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -329,7 +332,10 @@ export default function CustomerDashboard() {
                 },
                 credentials: 'include',
                 body: JSON.stringify({
-                    reason: `${disputeCategory}: ${disputeDescription}`
+                    orderId: disputeOrderId,
+                    vendorId: order?.vendorId,
+                    category: disputeCategory,
+                    description: disputeDescription
                 })
             });
 
@@ -338,8 +344,8 @@ export default function CustomerDashboard() {
             Swal.fire({
                 icon: 'success',
                 title: 'DISPUTE SUBMITTED',
-                text: 'Our team will review your case and contact you soon.',
-                confirmButtonText: 'UNDERSTOOD',
+                text: 'Your dispute has been recorded in the ledger. You can now chat with the vendor and admin in the Dispute Center.',
+                confirmButtonText: 'OPEN LEDGER',
                 buttonsStyling: false,
                 customClass: {
                     popup: 'rounded-[32px] border-none shadow-2xl p-10 bg-white',
@@ -347,6 +353,8 @@ export default function CustomerDashboard() {
                     htmlContainer: 'text-slate-500 font-medium text-sm mb-6',
                     confirmButton: 'bg-slate-900 text-white rounded-full px-10 py-4 text-[11px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all'
                 }
+            }).then(() => {
+                setActiveSection('help'); // Or a new 'disputes' section
             });
             setShowDisputeForm(false);
             setDisputeDescription('');
@@ -1277,11 +1285,11 @@ export default function CustomerDashboard() {
                                 <div className="bg-white rounded-[32px] border border-slate-100 shadow-sm overflow-hidden">
                                     {disputes.map((dispute) => (
                                         <div key={dispute._id} className="p-6 border-b border-slate-50 last:border-none flex flex-col md:flex-row gap-4 justify-between items-start md:items-center hover:bg-slate-50/50 transition-colors">
-                                            <div>
-                                                <div className="flex items-center gap-3 mb-2">
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-2 mb-1">
                                                     <span className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${dispute.status === 'resolved' ? 'bg-emerald-50 text-emerald-600' :
                                                         dispute.status === 'closed' ? 'bg-slate-100 text-slate-500' :
-                                                            'bg-yellow-50 text-yellow-600'
+                                                            'bg-orange-50 text-orange-600'
                                                         }`}>
                                                         {dispute.status}
                                                     </span>
@@ -1294,9 +1302,12 @@ export default function CustomerDashboard() {
                                                     <span className="font-bold text-slate-400">Order #{dispute.orderId.slice(-6).toUpperCase()}</span> — {dispute.description}
                                                 </p>
                                             </div>
-                                            <button className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-900 transition-colors bg-white border border-slate-100 px-4 py-2 rounded-full hover:border-slate-300">
-                                                View Details
-                                            </button>
+                                            <Link 
+                                                href={`/dispute/${dispute._id}`}
+                                                className="px-6 py-2.5 bg-slate-900 text-white rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all text-center"
+                                            >
+                                                Enter Ledger
+                                            </Link>
                                         </div>
                                     ))}
                                 </div>

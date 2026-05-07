@@ -36,4 +36,14 @@ export class UsersController {
   getVendorProfile(@Param('id') id: string) {
     return this.usersService.getPublicVendorProfile(id);
   }
+
+  @Get('admin/pending')
+  findPending() {
+    return this.usersService.findPendingVendors();
+  }
+
+  @Patch('admin/:id/status')
+  updateStatus(@Param('id') id: string, @Body() body: { status: 'active' | 'rejected' | 'pending' }) {
+    return this.usersService.updateStatus(id, body.status);
+  }
 }

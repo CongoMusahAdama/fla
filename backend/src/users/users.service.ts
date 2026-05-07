@@ -100,4 +100,16 @@ export class UsersService {
     const stats = await this.ordersService.getVendorStats(vendorId);
     return { vendor: user, stats };
   }
+
+  async findPendingVendors(): Promise<User[]> {
+    return this.userModel.find({ role: 'vendor', status: 'pending' }).lean().exec() as any;
+  }
+
+  async updateStatus(id: string, status: 'active' | 'rejected' | 'pending'): Promise<User | null> {
+    const update: any = { status };
+    if (status === 'active') {
+      update.isIdentityVerified = true;
+    }
+    return this.userModel.findByIdAndUpdate(id, { $set: update }, { new: true }).lean().exec() as any;
+  }
 }

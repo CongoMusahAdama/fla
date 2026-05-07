@@ -148,13 +148,6 @@ export default function Navbar() {
 
     return (
         <header className="fixed w-full z-[100] transition-all duration-300 pointer-events-none">
-            {/* Announcement Bar */}
-            <div className="bg-black text-white py-2 px-4 transition-all duration-300 h-9 flex items-center justify-center relative pointer-events-auto">
-                <p className="text-[10px] md:text-xs font-bold uppercase tracking-[0.2em]">
-                    AUTHENTIC CLOTHING LINE
-                </p>
-            </div>
-
             <nav className={`transition-all duration-300 border-b pointer-events-auto ${isScrolled
                 ? 'bg-white shadow-md border-gray-100 h-16 md:h-20'
                 : 'bg-white/95 backdrop-blur-sm border-gray-200 h-20 md:h-24'
@@ -203,38 +196,38 @@ export default function Navbar() {
                                 </div>
                                 <button
                                     onClick={() => setIsSearchOpen(!isSearchOpen)}
-                                    className="text-slate-700 p-1.5"
+                                    className="text-slate-700 p-2 hover:bg-slate-50 rounded-full transition-colors"
                                     aria-label="Search"
                                 >
-                                    {isSearchOpen ? <X className="h-4 w-4" /> : <Search className="h-4 w-4" />}
+                                    {isSearchOpen ? <X className="h-5 w-5" /> : <Search className="h-5 w-5" />}
                                 </button>
-
+ 
                                 {isAuthenticated ? (
-                                    <Link href={user?.role === 'vendor' || user?.role === 'admin' ? '/admin' : '/dashboard'} className="text-slate-700 p-1.5">
-                                        <User className="h-4 w-4" />
+                                    <Link href={user?.role === 'vendor' || user?.role === 'admin' ? '/admin' : '/dashboard'} className="text-slate-700 p-2 hover:bg-slate-50 rounded-full transition-colors">
+                                        <User className="h-5 w-5" />
                                     </Link>
                                 ) : (
-                                    <Link href="/auth" className="text-slate-700 p-1.5">
-                                        <User className="h-4 w-4" />
+                                    <Link href="/auth" className="text-slate-700 p-2 hover:bg-slate-50 rounded-full transition-colors">
+                                        <User className="h-5 w-5" />
                                     </Link>
                                 )}
-
+ 
                                 <button
                                     onClick={() => setIsCartOpen(!isCartOpen)}
-                                    className="relative text-slate-700 p-1.5"
+                                    className="relative text-slate-700 p-2 hover:bg-slate-50 rounded-full transition-colors"
                                 >
-                                    <ShoppingBag className="h-4 w-4" />
-                                    <span className="absolute top-1 right-1 bg-black text-white text-[6px] font-bold h-3 w-3 rounded-full flex items-center justify-center">
+                                    <ShoppingBag className="h-5 w-5" />
+                                    <span className="absolute top-1.5 right-1.5 bg-black text-white text-[7px] font-bold h-3.5 w-3.5 rounded-full flex items-center justify-center border-2 border-white">
                                         {cartCount}
                                     </span>
                                 </button>
-
+ 
                                 <button
                                     onClick={() => setIsMenuOpen(true)}
-                                    className="ml-0.5 flex items-center gap-1 bg-slate-900 text-white px-2.5 py-1.5 rounded-full shadow-lg"
+                                    className="ml-2 flex items-center gap-1.5 bg-slate-900 text-white px-3.5 py-2 rounded-full shadow-lg active:scale-95 transition-all"
                                 >
-                                    <span className="text-[8px] font-black uppercase tracking-tight">Menu</span>
-                                    <Menu className="h-3 w-3" />
+                                    <span className="text-[9px] font-black uppercase tracking-widest">Menu</span>
+                                    <Menu className="h-4 w-4" />
                                 </button>
                             </div>
                         </div>

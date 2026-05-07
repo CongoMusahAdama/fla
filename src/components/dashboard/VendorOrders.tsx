@@ -3,6 +3,7 @@
 import React from 'react';
 import { ShoppingBag, User, MapPin, Eye, Printer, Trash2 } from 'lucide-react';
 import { getImageUrl } from '@/lib/utils';
+import Link from 'next/link';
 import Swal from 'sweetalert2';
 
 interface Order {
@@ -183,6 +184,14 @@ export const VendorOrders: React.FC<VendorOrdersProps> = ({
                     </button>
                   )}
                   
+                  {order.status === 'disputed' && (
+                    <Link
+                      href={`/dispute/find?orderId=${order._id}`}
+                      className="flex-1 h-11 bg-orange-500 text-white rounded-2xl flex items-center justify-center gap-2 text-[9px] font-black uppercase tracking-widest"
+                    >
+                      Dispute Ledger
+                    </Link>
+                  )}
                   <button
                     onClick={() => onUpdateStatus(order._id, order.status)}
                     className="flex-1 h-11 bg-slate-900 text-white rounded-2xl flex items-center justify-center gap-2 text-[9px] font-black uppercase tracking-widest shadow-lg shadow-slate-900/10"
@@ -396,6 +405,14 @@ export const VendorOrders: React.FC<VendorOrdersProps> = ({
                           Phase Update
                         </button>
                         
+                        {order.status === 'disputed' && (
+                          <Link
+                            href={`/dispute/find?orderId=${order._id}`}
+                            className="px-6 py-3 bg-orange-500 text-white rounded-[18px] text-[10px] font-black uppercase tracking-[0.2em] hover:bg-orange-600 transition-all shadow-xl shadow-orange-500/10 active:scale-95 border border-white/10"
+                          >
+                            Dispute Ledger
+                          </Link>
+                        )}
                         <button
                           onClick={() => onDelete(order._id)}
                           className="w-11 h-11 bg-white text-red-400 border border-slate-100 rounded-2xl flex items-center justify-center hover:bg-red-50 hover:text-red-600 transition-all active:scale-90"

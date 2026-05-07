@@ -70,6 +70,50 @@ export class CreateUserDto {
 
     @IsString()
     @IsOptional()
+    ghanaCardFront?: string;
+
+    @IsString()
+    @IsOptional()
+    ghanaCardBack?: string;
+
+    @IsString()
+    @IsOptional()
+    ghanaCardNumber?: string;
+
+    @IsString()
+    @IsOptional()
+    selfie?: string;
+
+    @IsString()
+    @IsOptional()
+    digitalAddress?: string;
+
+    @IsString()
+    @IsOptional()
+    dob?: string;
+
+    @IsString()
+    @IsOptional()
+    utilityBill?: string;
+
+    @IsString()
+    @IsOptional()
+    businessRegistration?: string;
+
+    @IsString()
+    @IsOptional()
+    utilityType?: string;
+
+    @IsString()
+    @IsOptional()
+    employeeCount?: string;
+
+    @IsString()
+    @IsOptional()
+    yearsOfExistence?: string;
+
+    @IsString()
+    @IsOptional()
     turnstileToken?: string;
 
     @IsString()

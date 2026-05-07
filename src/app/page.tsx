@@ -69,7 +69,7 @@ export default function Home() {
         <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-8 md:gap-12">
 
           {/* Sidebar - Hidden on Mobile */}
-          <aside className="hidden md:block w-64 flex-shrink-0 space-y-8">
+          <aside className="hidden md:block w-64 flex-shrink-0 space-y-8 sticky top-32 h-fit self-start max-h-[calc(100vh-160px)] overflow-y-auto no-scrollbar">
             {/* Region Filter */}
             <div className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm">
               <h3 className="font-heading font-bold text-slate-900 mb-4 text-sm uppercase tracking-widest flex items-center gap-2">

@@ -54,22 +54,24 @@ export class PaymentsController {
     @Get('lookup-name/:network/:number')
     async lookupAccountName(@Param('network') network: string, @Param('number') number: string) {
         // Mock name inquiry for now. In production, this should integrate with Hubtel/Paystack Name Enquiry API
-        this.logger.log(`Looking up name for ${network} - ${number}`);
+        console.log(`[PAYMENT_LOOKUP] Network: ${network}, Number: ${number}`);
         
         // Basic validation
         if (!number || number.length < 9) {
-            return { success: false, message: 'Invalid number' };
+            return { success: false, message: 'Invalid number length' };
         }
 
         // Mock response
         // Using a slight delay to simulate network request
         await new Promise(resolve => setTimeout(resolve, 800));
 
-        let mockName = 'Verified User';
+        let mockName = 'Verified Merchant';
         if (number.endsWith('1')) mockName = 'Fadilan Salifu';
         else if (number.endsWith('2')) mockName = 'Musah Congo Adama';
         else if (number.endsWith('3')) mockName = 'John Doe';
-        else mockName = 'FLA Verified Merchant';
+        else if (number.endsWith('307') || number.endsWith('068')) mockName = 'Musah Congo Adama';
+        else if (number.endsWith('00')) mockName = 'FLA System Admin';
+        else mockName = 'Verified Payout Account';
 
         return { success: true, name: mockName };
     }

@@ -5,8 +5,9 @@ const nextConfig: NextConfig = {
   compress: true, // Enable gzip compression
   poweredByHeader: false, // Remove X-Powered-By header for security
   images: {
+    unoptimized: true,
     formats: ['image/avif', 'image/webp'],
-    qualities: [100, 75],
+    qualities: [75, 100],
     remotePatterns: [
       {
         protocol: 'https',
@@ -20,11 +21,13 @@ const nextConfig: NextConfig = {
         protocol: 'http',
         hostname: 'localhost',
         port: '3001',
+        pathname: '/uploads/**',
       },
       {
         protocol: 'http',
         hostname: '127.0.0.1',
         port: '3001',
+        pathname: '/uploads/**',
       },
       {
         protocol: 'https',

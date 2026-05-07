@@ -9,12 +9,15 @@ import {
     LayoutDashboard, Users, ShoppingBag, Settings, LogOut, ArrowLeft,
     Wallet, Package, Truck, MessageSquare, BarChart3, ShieldCheck, ShieldAlert,
     CheckCircle2, XCircle, Eye, EyeOff, Search,
-    ArrowUpRight, Download, Menu, X, Trash2, Shield, Clock, TrendingUp, Phone, Plus, User
+    ArrowUpRight, Download, Menu, X, Trash2, Shield, Clock, TrendingUp, Phone, Plus, User, Store,
+    CreditCard, Camera, FileText
 } from 'lucide-react';
 import Image from 'next/image';
 import Swal from 'sweetalert2';
+import { RevenueChart } from '@/components/admin/RevenueChart';
+import { RecentTransactionsTable } from '@/components/admin/RecentTransactionsTable';
 
-type AdminSection = 'dashboard' | 'vendors' | 'customers' | 'orders' | 'escrow' | 'products' | 'disputes' | 'delivery' | 'settings' | 'reports';
+type AdminSection = 'dashboard' | 'vendors' | 'customers' | 'orders' | 'escrow' | 'products' | 'disputes' | 'delivery' | 'settings' | 'reports' | 'kyc';
 
 export default function AdminDashboard() {
     const { user, token, isAuthenticated, logout, isLoading: isAuthLoading } = useAuth();
@@ -27,6 +30,8 @@ export default function AdminDashboard() {
     const [selectedOrder, setSelectedOrder] = useState<any>(null);
     const [allUsers, setAllUsers] = useState<any[]>([]);
     const [allProducts, setAllProducts] = useState<any[]>([]);
+    const [allDisputes, setAllDisputes] = useState<any[]>([]);
+    const [pendingVendors, setPendingVendors] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [showAddVendorModal, setShowAddVendorModal] = useState(false);
@@ -114,11 +119,12 @@ export default function AdminDashboard() {
                 'Authorization': `Bearer ${token}`
             };
 
-            const [statsRes, ordersRes, usersRes, productsRes, settingsRes] = await Promise.all([
+            const [statsRes, ordersRes, usersRes, productsRes, allDisputesRes, settingsRes] = await Promise.all([
                 fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/dashboard/admin/stats`, { headers, credentials: 'include' }),
                 fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders`, { headers, credentials: 'include' }),
                 fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/users`, { headers, credentials: 'include' }),
                 fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/products`, { headers, credentials: 'include' }),
+                fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/support/my-disputes`, { headers, credentials: 'include' }),
                 fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/settings`, { headers, credentials: 'include' })
             ]);
 
@@ -126,6 +132,7 @@ export default function AdminDashboard() {
             if (ordersRes.ok) setAllOrders(await ordersRes.json());
             if (usersRes.ok) setAllUsers(await usersRes.json());
             if (productsRes.ok) setAllProducts(await productsRes.json());
+            if (allDisputesRes.ok) setAllDisputes(await allDisputesRes.json());
             if (settingsRes.ok) {
                 const fetchedSettings = await settingsRes.json();
                 setSettings(prev => ({
@@ -137,6 +144,10 @@ export default function AdminDashboard() {
                     vendorAutoApproval: fetchedSettings.vendor_auto_approval ?? prev.vendorAutoApproval
                 }));
             }
+
+            // Fetch Pending Vendors
+            const pendingRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/users/admin/pending`, { headers, credentials: 'include' });
+            if (pendingRes.ok) setPendingVendors(await pendingRes.json());
         } catch (error) {
             console.error('Error fetching admin data:', error);
         } finally {
@@ -255,6 +266,35 @@ export default function AdminDashboard() {
             });
         } catch (error: any) {
             Swal.fire({ icon: 'error', title: 'Update Failed', text: error.message });
+        }
+    };
+
+    const handleKYCAction = async (userId: string, status: 'active' | 'rejected') => {
+        try {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/users/admin/${userId}/status`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                credentials: 'include',
+                body: JSON.stringify({ status })
+            });
+
+            if (!response.ok) throw new Error('Failed to update KYC status');
+
+            Swal.fire({
+                icon: 'success',
+                title: status === 'active' ? 'VENDOR APPROVED' : 'KYC REJECTED',
+                text: status === 'active' ? 'The vendor has been granted full access to the platform.' : 'The registration has been declined.',
+                timer: 2000,
+                showConfirmButton: false,
+                customClass: { popup: 'rounded-[32px]' }
+            });
+
+            await refreshData();
+        } catch (error: any) {
+            Swal.fire({ icon: 'error', title: 'Action Failed', text: error.message });
         }
     };
 
@@ -433,7 +473,8 @@ export default function AdminDashboard() {
 
     const sidebarItems = [
         { id: 'dashboard', label: 'Overview', icon: LayoutDashboard },
-        { id: 'vendors', label: 'Vendors', icon: ShieldCheck },
+        { id: 'kyc', label: 'KYC Approvals', icon: ShieldCheck },
+        { id: 'vendors', label: 'Vendors', icon: Store },
         { id: 'customers', label: 'Customers', icon: Users },
         { id: 'orders', label: 'Orders', icon: ShoppingBag },
         { id: 'escrow', label: 'Escrow & Payments', icon: Wallet },
@@ -452,74 +493,191 @@ export default function AdminDashboard() {
         { id: 'products' as const, label: 'Total Products', value: adminData?.totalProducts?.toString() || '0', icon: Package, color: 'text-white', bg: 'bg-gradient-to-br from-rose-500 to-pink-600', pattern: 'opacity-10' },
     ];
 
+    const [dashboardTab, setDashboardTab] = useState<'graph' | 'transactions' | 'activity'>('graph');
+
     const renderSection = () => {
         switch (activeSection) {
             case 'dashboard':
                 return (
                     <div className="space-y-8 animate-in fade-in duration-500">
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6 gap-6">
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 md:gap-6">
                             {statsCards.map((stat, i) => (
                                 <button
                                     key={i}
                                     onClick={() => setActiveSection(stat.id)}
-                                    className={`${stat.bg} p-8 rounded-[32px] shadow-xl shadow-slate-200/50 relative overflow-hidden group hover:-translate-y-1 transition-all duration-500 text-left border-none outline-none focus:ring-4 focus:ring-brand-lemon/20`}
+                                    className={`${stat.bg} p-4 md:p-8 rounded-none shadow-xl shadow-slate-200/50 relative overflow-hidden group hover:-translate-y-1 transition-all duration-500 text-left border-none outline-none focus:ring-4 focus:ring-brand-lemon/20`}
                                 >
                                     {/* Decorative Pattern */}
-                                    <div className={`absolute -right-6 -bottom-6 w-32 h-32 ${stat.pattern} transform rotate-12 pointer-events-none group-hover:scale-110 transition-transform duration-700`}>
+                                    <div className={`absolute -right-4 -bottom-4 w-20 h-20 md:w-32 md:h-32 ${stat.pattern} transform rotate-12 pointer-events-none group-hover:scale-110 transition-transform duration-700`}>
                                         <stat.icon className="w-full h-full text-white" />
                                     </div>
 
-                                    <div className={`w-12 h-12 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center mb-6 shadow-sm border border-white/30 group-hover:rotate-6 transition-transform`}>
-                                        <stat.icon className={`w-6 h-6 text-white`} />
+                                    <div className={`w-8 h-8 md:w-12 md:h-12 bg-white/20 backdrop-blur-md rounded-lg md:rounded-2xl flex items-center justify-center mb-3 md:mb-6 shadow-sm border border-white/30 group-hover:rotate-6 transition-transform`}>
+                                        <stat.icon className={`w-4 h-4 md:w-6 md:h-6 text-white`} />
                                     </div>
-                                    <p className="text-white/70 text-[10px] font-black uppercase tracking-widest leading-none mb-2">{stat.label}</p>
-                                    <p className="text-3xl font-black text-white tracking-tighter">{stat.value}</p>
+                                    <p className="text-white/70 text-[8px] md:text-[10px] font-black uppercase tracking-widest leading-none mb-1 md:mb-2">{stat.label}</p>
+                                    <p className="text-xl md:text-3xl font-black text-white tracking-tighter">{stat.value}</p>
                                 </button>
                             ))}
                         </div>
 
-                        <div className="grid lg:grid-cols-2 xl:grid-cols-3 gap-8">
-                            <div className="bg-white rounded-[40px] border border-slate-100 shadow-sm overflow-hidden min-h-[400px]">
-                                <div className="p-8 border-b border-slate-50 flex justify-between items-center">
-                                    <h2 className="font-black text-slate-900 uppercase text-sm tracking-widest">Recent Transactions</h2>
-                                    <button onClick={() => setActiveSection('escrow')} className="text-[10px] font-black text-brand-lemon bg-slate-900 px-4 py-1.5 rounded-full uppercase tracking-tighter">View All</button>
-                                </div>
-                                <div className="divide-y divide-slate-50">
-                                    {allOrders.slice(0, 5).map((order) => (
-                                        <div
-                                            key={order._id}
-                                            onClick={() => setSelectedOrder(order)}
-                                            className="p-6 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer group"
-                                        >
-                                            <div className="flex items-center gap-4">
-                                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${order.isPaid ? 'bg-emerald-50 text-emerald-500' : 'bg-orange-50 text-orange-500'}`}>
-                                                    <Wallet className="w-5 h-5" />
-                                                </div>
-                                                <div>
-                                                    <p className="font-black text-slate-900 text-sm">GH₵ {order.totalAmount.toLocaleString()}</p>
-                                                    <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">{order.customerName}</p>
-                                                </div>
-                                            </div>
-                                            <span className={`text-[9px] font-black px-3 py-1 rounded-full uppercase ${order.isPaid ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'}`}>
-                                                {order.isPaid ? 'Verified' : 'Pending'}
-                                            </span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
+                        {/* Tab Switcher */}
+                        <div className="flex border-b border-slate-100 gap-8">
+                            <button 
+                                onClick={() => setDashboardTab('graph')}
+                                className={`pb-4 text-[10px] font-black uppercase tracking-widest transition-all relative ${dashboardTab === 'graph' ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}
+                            >
+                                Revenue Analytics
+                                {dashboardTab === 'graph' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-900 animate-in fade-in slide-in-from-bottom-1" />}
+                            </button>
+                            <button 
+                                onClick={() => setDashboardTab('transactions')}
+                                className={`pb-4 text-[10px] font-black uppercase tracking-widest transition-all relative ${dashboardTab === 'transactions' ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}
+                            >
+                                Recent Transactions
+                                {dashboardTab === 'transactions' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-900 animate-in fade-in slide-in-from-bottom-1" />}
+                            </button>
+                            <button 
+                                onClick={() => setDashboardTab('activity')}
+                                className={`pb-4 text-[10px] font-black uppercase tracking-widest transition-all relative ${dashboardTab === 'activity' ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}
+                            >
+                                Platform Activity
+                                {dashboardTab === 'activity' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-900 animate-in fade-in slide-in-from-bottom-1" />}
+                            </button>
+                        </div>
 
-                            <div className="bg-white rounded-[40px] border border-slate-100 shadow-sm overflow-hidden min-h-[400px]">
-                                <div className="p-8 border-b border-slate-50 flex justify-between items-center">
-                                    <h2 className="font-black text-slate-900 uppercase text-sm tracking-widest">Platform Activity</h2>
-                                    <BarChart3 className="w-4 h-4 text-slate-300" />
+                        {/* Tab Content */}
+                        <div className="animate-in fade-in duration-500">
+                            {dashboardTab === 'graph' && <RevenueChart initialData={adminData?.chartData || []} />}
+                            
+                            {dashboardTab === 'transactions' && (
+                                <RecentTransactionsTable orders={allOrders} />
+                            )}
+
+                            {dashboardTab === 'activity' && (
+                                <div className="bg-white border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
+                                    <div className="p-8 border-b border-slate-50 flex justify-between items-center">
+                                        <h2 className="font-black text-slate-900 uppercase text-sm tracking-widest">System Audit Log</h2>
+                                        <BarChart3 className="w-4 h-4 text-slate-300" />
+                                    </div>
+                                    <div className="flex-1 p-12 text-center text-slate-300 flex flex-col items-center justify-center">
+                                        <Shield className="w-16 h-16 mb-4 opacity-10" />
+                                        <p className="text-xs font-black uppercase tracking-widest">Activity Audit Logs</p>
+                                        <p className="text-[10px] mt-1">Real-time system events will appear here.</p>
+                                    </div>
                                 </div>
-                                <div className="p-12 text-center text-slate-300">
-                                    <Shield className="w-16 h-16 mx-auto mb-4 opacity-10" />
-                                    <p className="text-xs font-black uppercase tracking-widest">Activity Audit Logs</p>
-                                    <p className="text-[10px] mt-1">Real-time system events will appear here.</p>
+                            )}
+                        </div>
+                    </div>
+                );
+            case 'kyc':
+                return (
+                    <div className="space-y-8 animate-in fade-in duration-500">
+                        <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-6">
+                            <div>
+                                <h1 className="text-2xl md:text-3xl font-black text-slate-900 uppercase tracking-tighter">KYC & Compliance Hub</h1>
+                                <p className="text-slate-500 text-xs md:text-sm mt-1">Review and authorize new vendor applications and identity documentation.</p>
+                            </div>
+                            <div className="bg-white px-6 py-3 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
+                                <div className="text-right">
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Pending Review</p>
+                                    <p className="text-xl font-black text-slate-900 leading-none mt-1">{pendingVendors.length}</p>
+                                </div>
+                                <div className="w-10 h-10 bg-orange-50 text-orange-500 rounded-xl flex items-center justify-center">
+                                    <Clock className="w-5 h-5" />
                                 </div>
                             </div>
                         </div>
+
+                        {pendingVendors.length === 0 ? (
+                            <div className="bg-white rounded-[40px] border border-slate-100 p-20 text-center">
+                                <ShieldCheck className="w-16 h-16 text-emerald-100 mx-auto mb-6" />
+                                <h3 className="text-lg font-black text-slate-900 uppercase tracking-tighter">All Caught Up!</h3>
+                                <p className="text-slate-400 text-sm mt-1">There are no pending vendor registrations at this time.</p>
+                            </div>
+                        ) : (
+                            <div className="grid gap-6">
+                                {pendingVendors.map((v) => (
+                                    <div key={v._id} className="bg-white rounded-[32px] border border-slate-100 shadow-sm overflow-hidden group hover:border-slate-200 transition-all">
+                                        <div className="p-8 flex flex-col lg:flex-row gap-8">
+                                            {/* Vendor Info */}
+                                            <div className="lg:w-1/4 space-y-4">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="w-16 h-16 bg-slate-900 rounded-2xl flex items-center justify-center text-white font-black text-xl shadow-lg">
+                                                        {v.shopName?.[0] || v.name?.[0]}
+                                                    </div>
+                                                    <div>
+                                                        <h3 className="font-black text-slate-900 uppercase tracking-tight">{v.shopName || v.name}</h3>
+                                                        <p className="text-xs text-slate-500 font-medium">{v.email}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="pt-4 border-t border-slate-50 space-y-2">
+                                                    <div className="flex justify-between items-center">
+                                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</span>
+                                                        <span className="bg-orange-50 text-orange-600 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest">Pending</span>
+                                                    </div>
+                                                    <div className="flex justify-between items-center">
+                                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Identity</span>
+                                                        {v.isIdentityVerified ? (
+                                                            <span className="bg-emerald-50 text-emerald-600 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest flex items-center gap-1">
+                                                                <CheckCircle2 className="w-3 h-3" /> Smile ID Verified
+                                                            </span>
+                                                        ) : (
+                                                            <span className="bg-slate-50 text-slate-400 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest">Unverified</span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Documentation */}
+                                            <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-4">
+                                                {[
+                                                    { label: 'Ghana Card (F)', value: v.ghanaCardFront, icon: CreditCard },
+                                                    { label: 'Ghana Card (B)', value: v.ghanaCardBack, icon: CreditCard },
+                                                    { label: 'Selfie', value: v.selfie, icon: Camera },
+                                                    { label: 'Utility Bill', value: v.utilityBill, icon: FileText },
+                                                ].map((doc, i) => (
+                                                    <div key={i} className="space-y-2">
+                                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{doc.label}</p>
+                                                        {doc.value ? (
+                                                            <div 
+                                                                className="relative aspect-[4/3] bg-slate-50 rounded-2xl overflow-hidden border border-slate-100 group/thumb cursor-pointer"
+                                                                onClick={() => window.open(getImageUrl(doc.value), '_blank')}
+                                                            >
+                                                                <Image src={getImageUrl(doc.value)} alt={doc.label} fill className="object-cover group-hover/thumb:scale-110 transition-transform" />
+                                                                <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/thumb:opacity-100 transition-opacity flex items-center justify-center">
+                                                                    <Eye className="w-6 h-6 text-white" />
+                                                                </div>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="aspect-[4/3] bg-slate-50 rounded-2xl border-2 border-dashed border-slate-100 flex items-center justify-center">
+                                                                <doc.icon className="w-6 h-6 text-slate-200" />
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+
+                                            {/* Actions */}
+                                            <div className="lg:w-1/5 flex lg:flex-col gap-3 justify-center">
+                                                <button 
+                                                    onClick={() => handleKYCAction(v._id, 'active')}
+                                                    className="flex-1 py-4 bg-slate-900 text-brand-lemon rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/10 flex items-center justify-center gap-2"
+                                                >
+                                                    <CheckCircle2 className="w-4 h-4" /> Approve Shop
+                                                </button>
+                                                <button 
+                                                    onClick={() => handleKYCAction(v._id, 'rejected')}
+                                                    className="flex-1 py-4 bg-rose-50 text-rose-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-100 transition-all flex items-center justify-center gap-2"
+                                                >
+                                                    <XCircle className="w-4 h-4" /> Reject KYC
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 );
             case 'vendors':
@@ -623,19 +781,21 @@ export default function AdminDashboard() {
                         <div className="hidden md:flex flex-col bg-white rounded-[40px] border border-slate-100 shadow-sm overflow-hidden">
                             <div className="overflow-x-auto">
                                 <table className="w-full text-left border-collapse">
-                                    <thead className="bg-slate-900">
-                                        <tr>
-                                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Studio / Profile</th>
-                                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Location & Contacts</th>
-                                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Products</th>
-                                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Payment (MOMO)</th>
-                                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Actions</th>
+                                    <thead>
+                                        <tr className="bg-slate-900">
+                                            <th className="px-8 py-5 text-[10px] font-black text-white/60 uppercase tracking-widest border-b border-white/5">S/N</th>
+                                            <th className="px-8 py-5 text-[10px] font-black text-white/60 uppercase tracking-widest border-b border-white/5">Studio Profile</th>
+                                            <th className="px-8 py-5 text-[10px] font-black text-white/60 uppercase tracking-widest border-b border-white/5">Contact & Location</th>
+                                            <th className="px-8 py-5 text-[10px] font-black text-white/60 uppercase tracking-widest border-b border-white/5">Inventory</th>
+                                            <th className="px-8 py-5 text-[10px] font-black text-white/60 uppercase tracking-widest border-b border-white/5">Settlement Channel</th>
+                                            <th className="px-8 py-5 text-[10px] font-black text-white/60 uppercase tracking-widest border-b border-white/5 text-right">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-50">
-                                        {paginatedVendors.map((u) => (
-                                        <tr key={u._id} className="hover:bg-slate-50/50 transition-colors">
-                                            <td className="px-8 py-6 border-r border-slate-50">
+                                        {paginatedVendors.map((u, i) => (
+                                            <tr key={u._id} className="hover:bg-slate-50/50 transition-colors">
+                                                <td className="px-8 py-6 text-xs font-black text-slate-400 tabular-nums">{(vendorsPage - 1) * itemsPerPage + i + 1}</td>
+                                                <td className="px-8 py-6 border-r border-slate-50">
                                                 <div className="flex items-center gap-6">
                                                     <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center text-white overflow-hidden relative border border-slate-100/10">
                                                         {u.profileImage ? <Image src={getImageUrl(u.profileImage)} alt={u.name} fill sizes="40px" className="object-cover" unoptimized={true} /> : u.name?.[0] || 'U'}
@@ -690,22 +850,26 @@ export default function AdminDashboard() {
                                                     {u.status === 'pending' ? (
                                                         <button
                                                             onClick={() => handleUpdateUserStatus(u._id, 'active')}
-                                                            className="flex items-center gap-2 px-4 py-2 bg-brand-lemon text-slate-900 rounded-xl text-[10px] font-black uppercase tracking-widest hover:shadow-lg transition-all active:scale-95"
+                                                            className="flex items-center gap-2 px-4 py-2.5 bg-brand-lemon text-slate-900 rounded-xl text-[10px] font-black uppercase tracking-widest hover:shadow-lg transition-all active:scale-95"
                                                         >
-                                                            <ShieldCheck className="w-3 h-3" /> Approve Studio
+                                                            <ShieldCheck className="w-4 h-4" /> Approve Studio
                                                         </button>
                                                     ) : (
                                                         <button
                                                             onClick={() => handleUpdateUserStatus(u._id, u.status === 'suspended' ? 'active' : 'suspended')}
-                                                            className={`p-2.5 rounded-xl transition-all ${u.status === 'suspended' ? 'bg-emerald-50 text-emerald-500 hover:bg-emerald-500 hover:text-white' : 'bg-red-50 text-red-500 hover:bg-red-500 hover:text-white'}`}
-                                                            title={u.status === 'suspended' ? 'Activate' : 'Suspend'}
+                                                            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl transition-all text-[10px] font-black uppercase tracking-widest ${u.status === 'suspended' ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white' : 'bg-red-50 text-red-600 hover:bg-red-600 hover:text-white'}`}
                                                         >
                                                             {u.status === 'suspended' ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+                                                            {u.status === 'suspended' ? 'Activate' : 'Suspend'}
                                                         </button>
                                                     )}
 
-                                                    <button onClick={() => handleDeleteUser(u._id)} className="p-2.5 bg-slate-50 text-slate-400 hover:bg-slate-900 hover:text-white rounded-xl transition-all" title="Delete">
+                                                    <button 
+                                                        onClick={() => handleDeleteUser(u._id)} 
+                                                        className="flex items-center gap-2 px-5 py-2.5 bg-slate-50 text-slate-400 hover:bg-slate-900 hover:text-white rounded-xl transition-all text-[10px] font-black uppercase tracking-widest"
+                                                    >
                                                         <Trash2 className="w-4 h-4" />
+                                                        Delete
                                                     </button>
                                                 </div>
                                             </td>
@@ -824,15 +988,17 @@ export default function AdminDashboard() {
                             <table className="w-full text-left border-collapse">
                                 <thead className="bg-slate-900">
                                     <tr>
-                                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Customer Profile</th>
-                                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Contact & Location</th>
-                                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Status</th>
-                                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Actions</th>
+                                        <th className="px-8 py-5 text-[10px] font-black text-white/60 uppercase tracking-widest border-b border-white/5">S/N</th>
+                                        <th className="px-8 py-5 text-[10px] font-black text-white/60 uppercase tracking-widest border-b border-white/5">Customer Profile</th>
+                                        <th className="px-8 py-5 text-[10px] font-black text-white/60 uppercase tracking-widest border-b border-white/5">Contact & Location</th>
+                                        <th className="px-8 py-5 text-[10px] font-black text-white/60 uppercase tracking-widest border-b border-white/5">Status</th>
+                                        <th className="px-8 py-5 text-[10px] font-black text-white/60 uppercase tracking-widest border-b border-white/5 text-right">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-50">
-                                    {paginatedPatrons.map((u) => (
+                                    {paginatedPatrons.map((u, i) => (
                                         <tr key={u._id} className="hover:bg-slate-50/50 transition-colors">
+                                            <td className="px-8 py-6 text-xs font-black text-slate-400 tabular-nums">{(customersPage - 1) * itemsPerPage + i + 1}</td>
                                             <td className="px-8 py-6 border-r border-slate-50">
                                                 <div className="flex items-center gap-4">
                                                     <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center text-white overflow-hidden relative border border-slate-100/10">
@@ -858,11 +1024,20 @@ export default function AdminDashboard() {
                                             </td>
                                             <td className="px-8 py-6 text-right">
                                                 <div className="flex justify-end gap-2">
-                                                    <button onClick={() => handleUpdateUserStatus(u._id, u.status === 'suspended' ? 'active' : 'suspended')} className={`p-2.5 rounded-xl transition-all ${u.status === 'suspended' ? 'bg-emerald-50 text-emerald-500 hover:bg-emerald-500 hover:text-white' : 'bg-red-50 text-red-500 hover:bg-red-500 hover:text-white'}`} title={u.status === 'suspended' ? 'Activate' : 'Suspend'}>
+                                                    <button 
+                                                        onClick={() => handleUpdateUserStatus(u._id, u.status === 'suspended' ? 'active' : 'suspended')} 
+                                                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl transition-all text-[10px] font-black uppercase tracking-widest ${u.status === 'suspended' ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white' : 'bg-red-50 text-red-600 hover:bg-red-600 hover:text-white'}`}
+                                                    >
                                                         {u.status === 'suspended' ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+                                                        {u.status === 'suspended' ? 'Activate' : 'Suspend'}
                                                     </button>
-                                                    <button onClick={() => handleDeleteUser(u._id)} className="p-2.5 bg-slate-50 text-slate-400 hover:bg-slate-900 hover:text-white rounded-xl transition-all" title="Delete">
+
+                                                    <button 
+                                                        onClick={() => handleDeleteUser(u._id)} 
+                                                        className="flex items-center gap-2 px-5 py-2.5 bg-slate-50 text-slate-400 hover:bg-slate-900 hover:text-white rounded-xl transition-all text-[10px] font-black uppercase tracking-widest"
+                                                    >
                                                         <Trash2 className="w-4 h-4" />
+                                                        Delete
                                                     </button>
                                                 </div>
                                             </td>
@@ -942,12 +1117,25 @@ export default function AdminDashboard() {
                                     <div className="relative aspect-[3/4] bg-slate-50 rounded-[28px] overflow-hidden mb-4">
                                         <Image src={getImageUrl(p.images?.[0])} alt={p.name} fill sizes="(max-width: 768px) 50vw, 200px" className="object-cover group-hover:scale-110 transition-transform duration-700" />
                                         <div className="absolute top-4 right-4 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button onClick={() => handleToggleProductStatus(p._id, p.isActive)} className={`p-3 rounded-2xl shadow-xl transition-all ${p.isActive ? 'bg-white text-slate-900 hover:bg-slate-900 hover:text-white' : 'bg-emerald-500 text-white'}`}>
-                                                {p.isActive ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                            </button>
-                                            <button onClick={() => handleDeleteProduct(p._id)} className="p-3 bg-red-500 text-white rounded-2xl shadow-xl hover:bg-red-600 transition-all">
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
+                                            <div className="relative group/tooltip">
+                                                <button onClick={() => handleToggleProductStatus(p._id, p.isActive)} className={`p-3 rounded-2xl shadow-xl transition-all ${p.isActive ? 'bg-white text-slate-900 hover:bg-slate-900 hover:text-white' : 'bg-emerald-500 text-white'}`}>
+                                                    {p.isActive ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                                </button>
+                                                <div className="absolute right-full top-1/2 -translate-y-1/2 mr-3 px-3 py-1.5 bg-slate-900 text-white text-[9px] font-black uppercase tracking-widest rounded-lg opacity-0 group-hover/tooltip:opacity-100 transition-opacity pointer-events-none whitespace-nowrap shadow-xl z-50">
+                                                    {p.isActive ? 'Hide Listing' : 'Show Listing'}
+                                                    <div className="absolute left-full top-1/2 -translate-y-1/2 border-8 border-transparent border-l-slate-900" />
+                                                </div>
+                                            </div>
+
+                                            <div className="relative group/tooltip">
+                                                <button onClick={() => handleDeleteProduct(p._id)} className="p-3 bg-red-500 text-white rounded-2xl shadow-xl hover:bg-red-600 transition-all">
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                                <div className="absolute right-full top-1/2 -translate-y-1/2 mr-3 px-3 py-1.5 bg-slate-900 text-white text-[9px] font-black uppercase tracking-widest rounded-lg opacity-0 group-hover/tooltip:opacity-100 transition-opacity pointer-events-none whitespace-nowrap shadow-xl z-50">
+                                                    Purge Item
+                                                    <div className="absolute left-full top-1/2 -translate-y-1/2 border-8 border-transparent border-l-slate-900" />
+                                                </div>
+                                            </div>
                                         </div>
                                         {!p.isActive && <div className="absolute inset-0 bg-red-500/5 backdrop-blur-[2px] flex items-center justify-center"><span className="bg-red-500 text-white px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest">Hidden</span></div>}
                                     </div>
@@ -1036,6 +1224,7 @@ export default function AdminDashboard() {
                                 <input
                                     type="text"
                                     placeholder="Search orders..."
+                                    value={searchQuery}
                                     onChange={(e) => { setSearchQuery(e.target.value); setOrdersPage(1); }}
                                     className="pl-11 pr-6 py-3.5 bg-white border border-slate-200 rounded-2xl text-xs font-bold focus:outline-none focus:ring-4 focus:ring-brand-lemon/10 min-w-[340px] shadow-sm"
                                 />
@@ -1049,7 +1238,7 @@ export default function AdminDashboard() {
                                     <div className="flex justify-between items-start">
                                         <div className="flex items-center gap-3">
                                             {o.items?.[0] && (
-                                                <div className="w-12 h-12 bg-slate-50 rounded-xl overflow-hidden border border-slate-100 flex-shrink-0">
+                                                <div className="relative w-12 h-12 bg-slate-50 rounded-xl overflow-hidden border border-slate-100 flex-shrink-0">
                                                     <Image src={getImageUrl(o.items[0].image)} alt="Product" fill sizes="48px" className="object-cover" />
                                                 </div>
                                             )}
@@ -1538,6 +1727,86 @@ export default function AdminDashboard() {
                         </div>
                     </div>
                 );
+            case 'disputes':
+                return (
+                    <div className="space-y-8 animate-in fade-in duration-500">
+                        <div className="flex justify-between items-end">
+                            <div>
+                                <h1 className="text-3xl font-black text-slate-900 uppercase tracking-tighter">Resolution Center</h1>
+                                <p className="text-slate-500 text-sm">Monitor multi-party disputes and issue binding resolutions.</p>
+                            </div>
+                            <div className="flex gap-4">
+                                <div className="bg-white px-6 py-3 rounded-2xl border border-slate-100 shadow-sm">
+                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Open Cases</p>
+                                    <p className="text-xl font-black text-slate-900">{allDisputes.filter(d => d.status === 'pending').length}</p>
+                                </div>
+                                <div className="bg-emerald-50 px-6 py-3 rounded-2xl border border-emerald-100 shadow-sm">
+                                    <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest mb-1">Resolved</p>
+                                    <p className="text-xl font-black text-emerald-600">{allDisputes.filter(d => d.status === 'resolved').length}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="bg-white rounded-[40px] border border-slate-100 shadow-sm overflow-hidden">
+                            <table className="w-full text-left border-collapse">
+                                <thead className="bg-slate-900">
+                                    <tr>
+                                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Order Ref</th>
+                                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Category</th>
+                                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Participants</th>
+                                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Status</th>
+                                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-50">
+                                    {allDisputes.length > 0 ? (
+                                        allDisputes.map((dispute) => (
+                                            <tr key={dispute._id} className="hover:bg-slate-50/50 transition-colors group">
+                                                <td className="px-8 py-6 border-r border-slate-50">
+                                                    <p className="font-black text-slate-900 text-sm uppercase">#ORD-{dispute.orderId.slice(-8).toUpperCase()}</p>
+                                                    <p className="text-[10px] text-slate-400 font-bold mt-1">Opened {new Date(dispute.createdAt).toLocaleDateString()}</p>
+                                                </td>
+                                                <td className="px-8 py-6 border-r border-slate-50">
+                                                    <p className="font-black text-slate-900 text-xs uppercase tracking-tight">{dispute.category}</p>
+                                                    <p className="text-[10px] text-slate-400 font-medium line-clamp-1 mt-1">{dispute.description}</p>
+                                                </td>
+                                                <td className="px-8 py-6 border-r border-slate-50">
+                                                    <div className="flex -space-x-2">
+                                                        <div className="w-8 h-8 rounded-full bg-slate-100 border-2 border-white flex items-center justify-center text-[10px] font-black" title="Customer">C</div>
+                                                        <div className="w-8 h-8 rounded-full bg-brand-lemon border-2 border-white flex items-center justify-center text-[10px] font-black" title="Vendor">V</div>
+                                                        <div className="w-8 h-8 rounded-full bg-slate-900 text-white border-2 border-white flex items-center justify-center text-[10px] font-black" title="Admin">A</div>
+                                                    </div>
+                                                </td>
+                                                <td className="px-8 py-6 border-r border-slate-50">
+                                                    <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
+                                                        dispute.status === 'resolved' ? 'bg-emerald-50 text-emerald-600' : 'bg-orange-50 text-orange-600'
+                                                    }`}>
+                                                        {dispute.status}
+                                                    </span>
+                                                </td>
+                                                <td className="px-8 py-6 text-right">
+                                                    <Link 
+                                                        href={`/dispute/${dispute._id}`}
+                                                        className="px-6 py-2.5 bg-slate-900 text-brand-lemon rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/10"
+                                                    >
+                                                        Enter Ledger
+                                                    </Link>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    ) : (
+                                        <tr>
+                                            <td colSpan={5} className="py-20 text-center bg-white">
+                                                <MessageSquare className="w-12 h-12 text-slate-100 mx-auto mb-4" />
+                                                <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">No disputes on file</p>
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                );
             case 'settings':
                 return (
                     <div className="space-y-8 animate-in fade-in duration-500 max-w-4xl">
@@ -1719,7 +1988,8 @@ export default function AdminDashboard() {
                                 alt="FLA HQ" 
                                 width={40} 
                                 height={40} 
-                                className="h-10 w-auto object-contain rounded-xl shadow-lg shadow-brand-lemon/10"
+                                className="object-contain rounded-xl shadow-lg shadow-brand-lemon/10"
+                                style={{ width: 'auto', height: '40px' }}
                             />
                             <span className="font-heading text-xl font-black tracking-tighter text-brand-lemon">HQ</span>
                         </Link>
@@ -1829,7 +2099,7 @@ export default function AdminDashboard() {
                                 {sidebarItems.find(i => i.id === activeSection)?.label}
                             </h1>
                         </div>
-                        <div className="flex gap-4">
+                        <div className="hidden md:flex gap-4">
                             <button className="p-4 bg-white border border-slate-100 rounded-2xl shadow-sm text-slate-400 hover:text-slate-900 hover:shadow-md transition-all">
                                 <BarChart3 className="w-4 h-4" />
                             </button>
@@ -1985,6 +2255,7 @@ export default function AdminDashboard() {
                                 <label htmlFor="ov-bio" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 cursor-pointer">Brand Bio / Story</label>
                                 <textarea
                                     id="ov-bio"
+                                    required
                                     rows={2}
                                     placeholder="Short description of the brand..."
                                     value={newVendorData.bio}

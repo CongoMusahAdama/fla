@@ -13,7 +13,7 @@ export class UploadController {
     @UseInterceptors(
         FileInterceptor('file', {
             storage: memoryStorage(),
-            limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+            limits: { fileSize: 50 * 1024 * 1024 }, // Increased to 50MB
             fileFilter: (req, file, callback) => {
                 const allowedMimes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp', 'application/pdf', 'image/gif', 'image/svg+xml'];
                 if (allowedMimes.includes(file.mimetype)) {
@@ -25,6 +25,29 @@ export class UploadController {
         }),
     )
     async uploadFile(@UploadedFile() file: Express.Multer.File) {
+        return this.handleUpload(file);
+    }
+
+    @Post('public')
+    @UseInterceptors(
+        FileInterceptor('file', {
+            storage: memoryStorage(),
+            limits: { fileSize: 50 * 1024 * 1024 }, // Increased to 50MB
+            fileFilter: (req, file, callback) => {
+                const allowedMimes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp', 'application/pdf', 'image/gif', 'image/svg+xml'];
+                if (allowedMimes.includes(file.mimetype)) {
+                    callback(null, true);
+                } else {
+                    callback(new Error('Invalid file type. Only JPEG, PNG, WEBP, and PDF are allowed.'), false);
+                }
+            },
+        }),
+    )
+    async uploadPublicFile(@UploadedFile() file: Express.Multer.File) {
+        return this.handleUpload(file);
+    }
+
+    private async handleUpload(file: Express.Multer.File) {
         if (!file) {
             throw new BadRequestException('UPLOAD_MISSING: No file part found in request. Use "file" as the key.');
         }
