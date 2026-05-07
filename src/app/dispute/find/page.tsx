@@ -1,9 +1,9 @@
 "use client";
-import React, { useEffect } from 'react';
+import React, { Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 
-export default function FindDispute() {
+function FindDisputeContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { token } = useAuth();
@@ -44,5 +44,17 @@ export default function FindDispute() {
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Locating Ledger...</p>
             </div>
         </div>
+    );
+}
+
+export default function FindDispute() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+                <div className="w-12 h-12 border-4 border-slate-100 border-t-slate-900 rounded-full animate-spin" />
+            </div>
+        }>
+            <FindDisputeContent />
+        </Suspense>
     );
 }

@@ -29,6 +29,19 @@ export type User = {
     walletBalance?: number;
     pendingBalance?: number;
     region?: string;
+    // KYC / Identity fields
+    ghanaCardNumber?: string;
+    ghanaCardFront?: string;
+    ghanaCardBack?: string;
+    selfie?: string;
+    utilityBill?: string;
+    utilityType?: string;
+    businessRegistration?: string;
+    digitalAddress?: string;
+    dob?: string;
+    employeeCount?: string;
+    yearsOfExistence?: string;
+    paymentMethods?: any[];
 };
 
 type AuthContextType = {
