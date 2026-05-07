@@ -275,6 +275,7 @@ const RegisterForm = ({ role, onSignup }: { role: UserRole, onSignup: (data: any
     const [utilityType, setUtilityType] = useState('');
     const [customUtilityName, setCustomUtilityName] = useState('');
     const [businessRegistration, setBusinessRegistration] = useState<File | null>(null);
+    const [businessDescription, setBusinessDescription] = useState('');
     const [employeeCount, setEmployeeCount] = useState('1-5');
     const [yearsOfExistence, setYearsOfExistence] = useState('0-1');
 
@@ -350,7 +351,8 @@ const RegisterForm = ({ role, onSignup }: { role: UserRole, onSignup: (data: any
             kyc: {
                 ghanaCardFront, ghanaCardBack, ghanaCardNumber, selfie, digitalAddress, 
                 dob, utilityBill, utilityType: utilityType === 'Other' ? customUtilityName : utilityType,
-                businessRegistration, employeeCount, yearsOfExistence
+                businessRegistration, employeeCount, yearsOfExistence,
+                bio: businessDescription
             }
         });
     };
@@ -405,6 +407,15 @@ const RegisterForm = ({ role, onSignup }: { role: UserRole, onSignup: (data: any
                             </div>
                             <div className="space-y-4">
                                 <AuthInput label="Shop Name" type="text" placeholder="Eg. FLA Boutique" required value={shopName} onChange={setShopName} icon={Store} />
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-bold text-slate-700 ml-1">Business Description</label>
+                                    <textarea 
+                                        placeholder="Tell us about your fashion business, specialties, and experience..."
+                                        value={businessDescription}
+                                        onChange={(e) => setBusinessDescription(e.target.value)}
+                                        className="w-full px-4 py-3 bg-white border-2 border-slate-100 rounded-2xl text-sm focus:border-slate-900 outline-none transition-all min-h-[100px] resize-none"
+                                    />
+                                </div>
                                 <AuthInput label="Digital Address" type="text" placeholder="GA-123-4567" required value={digitalAddress} onChange={setDigitalAddress} icon={MapPin} />
                                 <AuthInput label="Date of Birth" type="date" required value={dob} onChange={setDob} icon={Calendar} />
                                 <div className="grid grid-cols-2 gap-4">
@@ -613,12 +624,12 @@ const RegisterForm = ({ role, onSignup }: { role: UserRole, onSignup: (data: any
                                             value={utilityBill} 
                                             onChange={setUtilityBill} 
                                             icon={FileText} 
-                                            description={`Recent proof of ${utilityType.toLowerCase()}`} 
+                                            description={`Proof of ${utilityType.toLowerCase()} (less than 4 months)`} 
                                         />
                                     </div>
                                 </React.Fragment>
                             )}
-                            <FileInput label="Business Registration" value={businessRegistration} onChange={setBusinessRegistration} icon={Briefcase} description="Certificate of registration" />
+                            <FileInput label="Business Registration" value={businessRegistration} onChange={setBusinessRegistration} icon={Briefcase} description="Certificate of registration (Optional)" />
                             <div className="pt-4 flex justify-center">
                                 <Turnstile
                                     siteKey={process.env.NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY || ''}
@@ -884,9 +895,10 @@ function AuthContent() {
                     businessRegistration: kycUrls.businessRegistration,
                     digitalAddress: data.kyc.digitalAddress,
                     dob: data.kyc.dob,
-                    utilityType: data.kyc.utilityType,
+                     utilityType: data.kyc.utilityType,
                     employeeCount: data.kyc.employeeCount,
                     yearsOfExistence: data.kyc.yearsOfExistence,
+                    bio: data.kyc.bio,
                 } : {
                     ghanaCardNumber: data.kyc.ghanaCardNumber,
                     dob: data.kyc.dob,
