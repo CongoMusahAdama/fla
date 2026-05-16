@@ -43,7 +43,7 @@ export class UsersController {
   }
 
   @Patch('admin/:id/status')
-  updateStatus(@Param('id') id: string, @Body() body: { status: 'active' | 'rejected' | 'pending' }) {
+  updateStatus(@Param('id') id: string, @Body() body: { status: 'active' | 'rejected' | 'pending' | 'banned' }) {
     return this.usersService.updateStatus(id, body.status);
   }
 }

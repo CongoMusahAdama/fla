@@ -68,7 +68,7 @@ export class ProductsService {
     }
 
     let q = this.productModel.find(filters)
-      .populate('vendorId', 'uniqueVendorId region')
+      .populate('vendorId', 'uniqueVendorId region bio shopName')
       .lean(); // ← lean() makes this 3-5x faster
 
     if (query.sort === 'latest' || query.filter === 'New Arrival') {
@@ -90,6 +90,12 @@ export class ProductsService {
       if (!p.region && p.vendorId && (p.vendorId as any).region) {
         p.region = (p.vendorId as any).region;
       }
+      if (!p.vendorBio && p.vendorId && (p.vendorId as any).bio) {
+        p.vendorBio = (p.vendorId as any).bio;
+      }
+      if (!p.vendorName && p.vendorId && (p.vendorId as any).shopName) {
+        p.vendorName = (p.vendorId as any).shopName;
+      }
       return p;
     });
   }
@@ -102,7 +108,7 @@ export class ProductsService {
   }
 
   async findByVendor(vendorId: string): Promise<Product[]> {
-    const products = await this.productModel.find({ vendorId: vendorId }).populate('vendorId', 'uniqueVendorId region').exec();
+    const products = await this.productModel.find({ vendorId: vendorId }).populate('vendorId', 'uniqueVendorId region bio shopName').exec();
     return products.map(p => {
       const productObj = p.toObject();
       if (!productObj.uniqueVendorId && productObj.vendorId && (productObj.vendorId as any).uniqueVendorId) {
@@ -111,12 +117,18 @@ export class ProductsService {
       if (!productObj.region && productObj.vendorId && (productObj.vendorId as any).region) {
         productObj.region = (productObj.vendorId as any).region;
       }
+      if (!productObj.vendorBio && productObj.vendorId && (productObj.vendorId as any).bio) {
+        productObj.vendorBio = (productObj.vendorId as any).bio;
+      }
+      if (!productObj.vendorName && productObj.vendorId && (productObj.vendorId as any).shopName) {
+        productObj.vendorName = (productObj.vendorId as any).shopName;
+      }
       return productObj;
     });
   }
 
   async findOne(id: string): Promise<Product> {
-    const product = await this.productModel.findById(id).populate('vendorId', 'uniqueVendorId').exec();
+    const product = await this.productModel.findById(id).populate('vendorId', 'uniqueVendorId region bio shopName').exec();
     if (!product) {
       throw new NotFoundException(`Product with ID ${id} not found`);
     }
@@ -126,6 +138,12 @@ export class ProductsService {
     }
     if (!productObj.region && productObj.vendorId && (productObj.vendorId as any).region) {
       productObj.region = (productObj.vendorId as any).region;
+    }
+    if (!productObj.vendorBio && productObj.vendorId && (productObj.vendorId as any).bio) {
+      productObj.vendorBio = (productObj.vendorId as any).bio;
+    }
+    if (!productObj.vendorName && productObj.vendorId && (productObj.vendorId as any).shopName) {
+      productObj.vendorName = (productObj.vendorId as any).shopName;
     }
     return productObj as any;
   }
@@ -194,5 +212,31 @@ export class ProductsService {
       .map(text => suggestions.find(s => s.text === text));
 
     return uniqueSuggestions;
+  }
+
+  async findGroupedByVendor(): Promise<any[]> {
+    return this.productModel.aggregate([
+      { $match: { isActive: true } },
+      { $sort: { createdAt: -1 } },
+      {
+        $group: {
+          _id: '$vendorId',
+          vendorName: { $first: '$vendorName' },
+          uniqueVendorId: { $first: '$uniqueVendorId' },
+          region: { $first: '$region' },
+          products: { $push: '$$ROOT' }
+        }
+      },
+      {
+        $project: {
+          vendorId: '$_id',
+          vendorName: 1,
+          uniqueVendorId: 1,
+          region: 1,
+          products: { $slice: ['$products', 9] }
+        }
+      },
+      { $limit: 20 }
+    ]).exec();
   }
 }

@@ -17,6 +17,7 @@ package-lock.json
 # Environment variables
 .env
 .env*.local
+mnotify_api_key_FLA.txt
 
 # Debug
 npm-debug.log*
@@ -39,3 +40,22 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+
+# Internal docs
+INTEGRATIONS.md
+PRODUCTION_CHECKLIST.md
+
+# Helper scripts and tests
+*.js
+!next.config.js
+!eslint.config.js
+!postcss.config.js
+!next.config.ts
+!eslint.config.mjs
+!postcss.config.mjs
+
+# Logs
+*.log
+
+# Temp
+tmp/

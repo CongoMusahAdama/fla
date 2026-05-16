@@ -11,6 +11,7 @@ yarn.lock
 .env.test
 .env.*.local
 *.env
+mnotify_api_key_FLA.txt
 
 # Build output
 dist/

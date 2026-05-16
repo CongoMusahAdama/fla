@@ -58,4 +58,24 @@ export class UpdateUserDto {
 
     @IsOptional()
     pendingBalance?: number;
+
+    @IsString()
+    @IsOptional()
+    businessRegistration?: string;
+
+    @IsString()
+    @IsOptional()
+    vendorTier?: string;
+
+    @IsOptional()
+    isVerified?: boolean;
+
+    @IsOptional()
+    verificationStatus?: string;
+
+    @IsOptional()
+    verificationDate?: Date;
+
+    @IsOptional()
+    verificationDeclineReason?: string;
 }

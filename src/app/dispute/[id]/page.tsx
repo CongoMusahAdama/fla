@@ -10,6 +10,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Swal from 'sweetalert2';
+import { DisputeChat } from '@/components/dashboard/DisputeChat';
 
 export default function DisputeCenter() {
     const { id } = useParams();
@@ -188,6 +189,41 @@ export default function DisputeCenter() {
                     {isAdmin && dispute.status !== 'resolved' && (
                         <div className="flex gap-2">
                             <button 
+                                onClick={async () => {
+                                    const result = await Swal.fire({
+                                        title: 'BAN VENDOR?',
+                                        text: 'Are you sure you want to PERMANENTLY BAN this vendor? They will lose access to their account and products.',
+                                        icon: 'warning',
+                                        showCancelButton: true,
+                                        confirmButtonText: 'YES, BAN VENDOR',
+                                        confirmButtonColor: '#ef4444',
+                                        customClass: { popup: 'rounded-[32px]' }
+                                    });
+                                    if (result.isConfirmed) {
+                                        try {
+                                            const res = await fetch(`${apiBase}/users/admin/${dispute.vendorId}/status`, {
+                                                method: 'PATCH',
+                                                headers: {
+                                                    'Content-Type': 'application/json',
+                                                    'Authorization': `Bearer ${token}`
+                                                },
+                                                body: JSON.stringify({ status: 'banned' })
+                                            });
+                                            if (res.ok) {
+                                                Swal.fire('Banned', 'Vendor has been banned successfully.', 'success');
+                                            } else {
+                                                throw new Error('Ban failed');
+                                            }
+                                        } catch (err: any) {
+                                            Swal.fire('Error', err.message, 'error');
+                                        }
+                                    }
+                                }}
+                                className="px-4 py-2 bg-slate-900 text-white rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-red-600 transition-all"
+                            >
+                                Ban Vendor
+                            </button>
+                            <button 
                                 onClick={() => handleResolve('refund')}
                                 className="px-4 py-2 bg-red-50 text-red-600 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-red-100 transition-all"
                             >
@@ -205,93 +241,20 @@ export default function DisputeCenter() {
             </header>
 
             <main className="flex-1 max-w-5xl w-full mx-auto p-4 md:p-6 grid md:grid-cols-3 gap-6">
-                {/* Chat Section */}
-                <div className="md:col-span-2 flex flex-col bg-white rounded-[32px] border border-slate-100 shadow-sm overflow-hidden h-[calc(100vh-180px)]">
-                    <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                        {/* Initial Description */}
-                        <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
-                            <div className="flex items-center gap-2 mb-2">
-                                <AlertCircle className="w-4 h-4 text-orange-500" />
-                                <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Dispute Initiated</span>
-                            </div>
-                            <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">{dispute.category}</p>
-                            <p className="text-sm text-slate-600 font-medium leading-relaxed">{dispute.description}</p>
+                {/* Real-time Stream Chat Section */}
+                <div className="md:col-span-2 flex flex-col h-[calc(100vh-180px)]">
+                    <div className="bg-slate-50 rounded-3xl p-4 border border-slate-100 mb-6">
+                        <div className="flex items-center gap-2 mb-2">
+                            <AlertCircle className="w-4 h-4 text-orange-500" />
+                            <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Case Summary</span>
                         </div>
-
-                        {/* Messages */}
-                        {dispute.messages?.map((msg: any, i: number) => (
-                            <div key={i} className={`flex ${String(msg.senderId) === String(user?.id) ? 'justify-end' : 'justify-start'}`}>
-                                <div className={`max-w-[85%] ${String(msg.senderId) === String(user?.id) ? 'items-end' : 'items-start'} flex flex-col gap-1`}>
-                                    <div className="flex items-center gap-2 px-1">
-                                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                                            {msg.senderRole === 'admin' ? '🛡️ SYSTEM ADMIN' : msg.senderRole === 'vendor' ? '👨‍💼 VENDOR' : '👤 CUSTOMER'}
-                                        </span>
-                                        <span className="text-[9px] text-slate-300 font-bold">{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                                    </div>
-                                    <div className={`p-4 rounded-2xl text-sm font-medium ${
-                                        String(msg.senderId) === String(user?.id)
-                                            ? 'bg-slate-900 text-white rounded-tr-none' 
-                                            : msg.senderRole === 'admin'
-                                                ? 'bg-brand-lemon text-slate-900 rounded-tl-none'
-                                                : 'bg-slate-100 text-slate-600 rounded-tl-none'
-                                    }`}>
-                                        {msg.message}
-                                        {msg.attachments?.length > 0 && (
-                                            <div className="mt-3 grid grid-cols-1 gap-2">
-                                                {msg.attachments.map((att: string, j: number) => (
-                                                    <div key={j} className="relative aspect-video rounded-lg overflow-hidden border border-white/10">
-                                                        <Image src={att} alt="Evidence" fill className="object-cover" unoptimized />
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                        <div ref={chatEndRef} />
+                        <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">{dispute.category}</p>
+                        <p className="text-sm text-slate-600 font-medium leading-relaxed">{dispute.description}</p>
                     </div>
 
-                    {/* Chat Input */}
-                    {dispute.status !== 'resolved' && (
-                        <div className="p-4 bg-white border-t border-slate-50">
-                            {attachments.length > 0 && (
-                                <div className="flex flex-wrap gap-2 mb-3">
-                                    {attachments.map((att, i) => (
-                                        <div key={i} className="relative w-16 h-16 rounded-xl overflow-hidden group">
-                                            <Image src={att} alt="Attachment" fill className="object-cover" unoptimized />
-                                            <button 
-                                                onClick={() => setAttachments(prev => prev.filter((_, idx) => idx !== i))}
-                                                className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"
-                                            >
-                                                <XCircle className="w-5 h-5 text-white" />
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                            <form onSubmit={handleSendMessage} className="flex items-center gap-2">
-                                <label className="p-3 bg-slate-50 rounded-full cursor-pointer hover:bg-slate-100 transition-colors">
-                                    <ImageIcon className="w-5 h-5 text-slate-400" />
-                                    <input type="file" className="hidden" accept="image/*" onChange={handleFileUpload} />
-                                </label>
-                                <input 
-                                    type="text" 
-                                    value={message}
-                                    onChange={(e) => setMessage(e.target.value)}
-                                    placeholder="Type your message or evidence details..."
-                                    className="flex-1 bg-slate-50 rounded-full px-6 py-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-slate-900/5 transition-all"
-                                />
-                                <button 
-                                    type="submit"
-                                    disabled={(!message.trim() && attachments.length === 0) || isSending}
-                                    className="p-3 bg-slate-900 text-white rounded-full hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:scale-100"
-                                >
-                                    <Send className="w-5 h-5" />
-                                </button>
-                            </form>
-                        </div>
-                    )}
+                    <div className="flex-1">
+                        <DisputeChat disputeId={id as string} />
+                    </div>
                 </div>
 
                 {/* Sidebar Info */}

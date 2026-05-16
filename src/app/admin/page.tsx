@@ -729,17 +729,19 @@ export default function AdminDashboard() {
                                             <div className="w-14 h-14 bg-slate-900 rounded-2xl flex items-center justify-center text-white overflow-hidden relative shadow-md">
                                                 {u.profileImage ? <Image src={getImageUrl(u.profileImage)} alt={u.name} fill sizes="56px" className="object-cover" unoptimized={true} /> : u.name?.[0] || 'U'}
                                             </div>
-                                            <div>
-                                                <p className="font-black text-slate-900 text-sm">{u.shopName || u.name}</p>
-                                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">{u.location || 'Location Not Set'}</p>
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-2">
+                                                    <p className="font-black text-slate-900 text-sm uppercase tracking-tight">{u.shopName || u.name}</p>
+                                                    <span className={`text-[8px] font-black px-2 py-0.5 rounded-md uppercase tracking-widest ${u.vendorTier === 'high' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                                                        {u.vendorTier === 'high' ? 'High Tier' : 'Low Tier'}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center gap-2 mt-1">
+                                                    <span className={`w-1.5 h-1.5 rounded-full ${u.status === 'active' ? 'bg-emerald-500' : u.status === 'pending' ? 'bg-orange-500' : 'bg-red-500'}`} />
+                                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{u.status || 'Active'}</p>
+                                                </div>
                                             </div>
                                         </div>
-                                        <span className={`text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-tighter ${u.status === 'suspended' ? 'bg-red-50 text-red-600' :
-                                            u.status === 'pending' ? 'bg-orange-50 text-orange-600' :
-                                                'bg-emerald-50 text-emerald-600'
-                                            }`}>
-                                            {u.status || 'active'}
-                                        </span>
                                     </div>
 
                                     <div className="flex justify-between items-center py-3 border-y border-slate-50">
@@ -800,9 +802,17 @@ export default function AdminDashboard() {
                                                     <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center text-white overflow-hidden relative border border-slate-100/10">
                                                         {u.profileImage ? <Image src={getImageUrl(u.profileImage)} alt={u.name} fill sizes="40px" className="object-cover" unoptimized={true} /> : u.name?.[0] || 'U'}
                                                     </div>
-                                                    <div>
-                                                        <p className="font-black text-slate-900 text-base mb-1">{u.shopName || u.name}</p>
-                                                        <p className="text-[10px] font-bold text-brand-lemon bg-slate-900 px-3 py-1 rounded-full inline-block uppercase tracking-widest shadow-sm">Studio Partner</p>
+                                                    <div className="flex-1">
+                                                        <div className="flex items-center gap-2">
+                                                            <p className="font-black text-slate-900 text-base mb-1">{u.shopName || u.name}</p>
+                                                            <span className={`text-[8px] font-black px-2 py-0.5 rounded-md uppercase tracking-widest ${u.vendorTier === 'high' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                                                                {u.vendorTier === 'high' ? 'High Tier' : 'Low Tier'}
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex items-center gap-2 mt-1">
+                                                            <span className={`w-1.5 h-1.5 rounded-full ${u.status === 'active' ? 'bg-emerald-500' : u.status === 'pending' ? 'bg-orange-500' : 'bg-red-500'}`} />
+                                                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{u.status || 'Active'}</p>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </td>

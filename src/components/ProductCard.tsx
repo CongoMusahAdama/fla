@@ -29,9 +29,10 @@ interface ProductCardProps {
     hasColors?: boolean;
     colors?: string[];
     vendorRegion?: string;
+    vendorBio?: string;
 }
 
-export default function ProductCard({ id, name, price, images, sizes = [], imageLabels, duration = '6-7 working days', stock, index, vendorId, initialWishlistState = false, description, vendorName, uniqueVendorId, hasSizes = true, hasColors = true, colors = [], vendorRegion }: ProductCardProps) {
+export default function ProductCard({ id, name, price, images, sizes = [], imageLabels, duration = '6-7 working days', stock, index, vendorId, initialWishlistState = false, description, vendorName, uniqueVendorId, hasSizes = true, hasColors = true, colors = [], vendorRegion, vendorBio }: ProductCardProps) {
     const isBatch = false;
     const currentPrice = price;
 
@@ -89,7 +90,7 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                         <div class="relative pt-12 pb-10 px-6 text-center overflow-hidden min-h-[180px] flex flex-col items-center justify-center">
                             ${resolvedBannerImage 
                                 ? `<img src="${resolvedBannerImage}" class="absolute inset-0 w-full h-full object-cover" />
-                                   <div class="absolute inset-0 bg-slate-900/40"></div>`
+                                   <div class="absolute inset-0 bg-slate-900/60"></div>`
                                 : `<div class="absolute inset-0 bg-slate-900"></div>
                                    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
                                        <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M 20 0 L 0 0 0 20" fill="none" stroke="white" stroke-width="0.5"/></pattern></defs><rect width="100%" height="100%" fill="url(#grid)" /></svg>
@@ -98,19 +99,19 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                             
                             <div class="relative inline-block mb-4">
                                 ${vendor.profileImage
-                                    ? `<img src="${resolvedProfileImage}" class="w-24 h-24 md:w-28 md:h-28 rounded-[2rem] object-cover border-4 border-[#E5FF7F] shadow-2xl mx-auto relative z-10">`
-                                    : `<div class="w-24 h-24 md:w-28 md:h-28 rounded-[2rem] bg-slate-800 flex items-center justify-center text-[#E5FF7F] border-4 border-slate-700 shadow-2xl mx-auto relative z-10">
+                                    ? `<img src="${resolvedProfileImage}" class="w-24 h-24 md:w-28 md:h-28 rounded-none object-cover border-2 border-[#E5FF7F] shadow-2xl mx-auto relative z-10">`
+                                    : `<div class="w-24 h-24 md:w-28 md:h-28 rounded-none bg-slate-800 flex items-center justify-center text-[#E5FF7F] border-2 border-slate-700 shadow-2xl mx-auto relative z-10">
                                             <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
                                        </div>`
                                 }
-                                <div class="absolute -bottom-1 -right-1 bg-[#E5FF7F] p-1.5 rounded-xl shadow-lg border-2 border-slate-900 z-20">
+                                <div class="absolute -bottom-1 -right-1 bg-[#E5FF7F] p-1.5 rounded-none shadow-lg border-2 border-slate-900 z-20">
                                     <svg class="w-4 h-4 text-slate-900" viewBox="0 0 24 24" fill="currentColor"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                 </div>
                             </div>
                             
                             <div class="flex flex-col items-center gap-1.5 relative z-10">
                                 <h2 class="text-2xl md:text-3xl font-black text-white uppercase tracking-tighter">${vendor.shopName || vendor.name}</h2>
-                                <span class="bg-[#E5FF7F]/10 text-[#E5FF7F] text-[8px] font-black uppercase tracking-[0.2em] px-3 py-1 rounded-full border border-[#E5FF7F]/20 backdrop-blur-md">
+                                <span class="bg-[#E5FF7F]/10 text-[#E5FF7F] text-[8px] font-black uppercase tracking-[0.2em] px-3 py-1 rounded-none border border-[#E5FF7F]/20 backdrop-blur-md">
                                     ID: ${vendor.uniqueVendorId}
                                 </span>
                             </div>
@@ -122,7 +123,7 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                         </div>
 
                         <!-- Content Area -->
-                        <div class="bg-white px-4 md:px-6 py-8 -mt-6 rounded-t-[3rem] relative z-10 flex flex-col gap-6 md:gap-8">
+                        <div class="bg-white px-4 md:px-6 py-8 -mt-6 rounded-none relative z-10 flex flex-col gap-6 md:gap-8 border-x border-slate-100">
                             <div class="text-center">
                                 <p class="text-slate-500 text-xs md:text-sm font-medium leading-relaxed italic px-2">
                                     "${vendor.bio || "Your studio's narrative is shared here with patrons in the marketplace."}"
@@ -133,11 +134,11 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                             <div class="flex flex-col gap-4">
                                 <h4 class="text-[9px] font-black text-slate-400 uppercase tracking-widest text-center">Contact Designer</h4>
                                 <div class="grid grid-cols-2 gap-3">
-                                    <a href="https://wa.me/${vendor.phone}" target="_blank" class="flex flex-col items-center justify-center gap-1 bg-emerald-500 text-white p-3 md:p-4 rounded-2xl md:rounded-3xl shadow-xl shadow-emerald-500/10 hover:shadow-emerald-500/20 active:scale-95 transition-all text-[10px] md:text-xs font-black uppercase tracking-widest">
+                                    <a href="https://wa.me/${vendor.phone}" target="_blank" class="flex flex-col items-center justify-center gap-1 bg-emerald-500 text-white p-3 md:p-4 rounded-none shadow-xl shadow-emerald-500/10 hover:shadow-emerald-500/20 active:scale-95 transition-all text-[10px] md:text-xs font-black uppercase tracking-widest">
                                         <span>WhatsApp</span>
                                         <span class="text-[8px] opacity-80">${vendor.phone || 'Contact'}</span>
                                     </a>
-                                    <a href="tel:${vendor.phone}" class="flex flex-col items-center justify-center gap-1 bg-slate-900 text-white p-3 md:p-4 rounded-2xl md:rounded-3xl shadow-xl shadow-slate-900/10 hover:shadow-slate-900/20 active:scale-95 transition-all text-[10px] md:text-xs font-black uppercase tracking-widest text-center">
+                                    <a href="tel:${vendor.phone}" class="flex flex-col items-center justify-center gap-1 bg-slate-900 text-white p-3 md:p-4 rounded-none shadow-xl shadow-slate-900/10 hover:shadow-slate-900/20 active:scale-95 transition-all text-[10px] md:text-xs font-black uppercase tracking-widest text-center">
                                         <span>Call Store</span>
                                         <span class="text-[8px] opacity-80">${vendor.phone || 'Contact'}</span>
                                     </a>
@@ -146,11 +147,11 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
 
                             <!-- Performance Grid -->
                             <div class="flex justify-center">
-                                <div class="bg-slate-50 px-10 py-5 rounded-[2.5rem] border border-slate-100 flex flex-col items-center shadow-sm">
+                                <div class="bg-slate-50 w-full px-10 py-5 rounded-none border border-slate-100 flex flex-col items-center shadow-sm">
                                     <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Shipping Time</span>
                                     <div class="flex items-center gap-2">
                                         <span class="text-xl font-black text-slate-900">${duration || '6-7 Days'}</span>
-                                        <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
+                                        <div class="w-1.5 h-1.5 rounded-none bg-emerald-500 animate-pulse"></div>
                                     </div>
                                     <span class="text-[8px] font-black text-slate-400 uppercase tracking-widest mt-1 opacity-60 italic">Escrow Protected</span>
                                 </div>
@@ -164,7 +165,7 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                 background: 'white',
                 padding: '0',
                 customClass: {
-                    popup: 'rounded-[3rem] overflow-hidden border-none mx-2',
+                    popup: 'rounded-none overflow-hidden border border-slate-100 mx-2 shadow-2xl',
                 }
             });
         } catch (error) {
@@ -401,22 +402,47 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
 
 
     const handleDeliveryDetails = async () => {
+        let selectedDeliveryFee = 0;
+        let selectedLocationName = '';
+
         const { value: formValues, isConfirmed } = await Swal.fire({
             title: 'DELIVERY DETAILS',
             html: `
                 <div class="text-left space-y-4 py-4">
                     <div class="space-y-2">
                         <label class="text-[10px] text-slate-400 font-black uppercase tracking-widest ml-1">Delivery Address</label>
-                        <input id="quick-delivery-address" type="text" placeholder="e.g. 123 Main St, East Legon" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20" value="${user?.address || ''}" />
+                        <input id="quick-delivery-address" type="text" placeholder="e.g. 123 Main St, East Legon" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-none text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20" value="${user?.address || ''}" />
                     </div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div class="space-y-2">
-                            <label class="text-[10px] text-slate-400 font-black uppercase tracking-widest ml-1">City</label>
-                            <input id="quick-delivery-city" type="text" placeholder="e.g. Accra" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20" value="${user?.location || ''}" />
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="space-y-2 relative">
+                            <label class="text-[10px] text-slate-400 font-black uppercase tracking-widest ml-1">Search Location (Skynet)</label>
+                            <input id="quick-delivery-city" type="text" placeholder="Start typing your area..." class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-none text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20" value="${user?.location || ''}" autocomplete="off" />
+                            <div id="location-suggestions" class="absolute left-0 right-0 top-full mt-2 bg-white shadow-2xl rounded-none border border-slate-100 overflow-hidden z-[100] hidden">
+                                <!-- Suggestions will appear here -->
+                            </div>
                         </div>
                         <div class="space-y-2">
                             <label class="text-[10px] text-slate-400 font-black uppercase tracking-widest ml-1">Region</label>
-                            <input id="quick-delivery-region" type="text" placeholder="e.g. Greater Accra" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20" value="${user?.region || ''}" />
+                            <input id="quick-delivery-region" type="text" placeholder="e.g. Greater Accra" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-none text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20" value="${user?.region || ''}" />
+                        </div>
+                    </div>
+                    
+                    <!-- Fee Summary -->
+                    <div id="delivery-fee-summary" class="mt-6 p-4 rounded-none bg-slate-50 border border-slate-100 space-y-2">
+                        <div class="flex justify-between items-center text-xs font-bold text-slate-500 uppercase tracking-wider">
+                            <span>Item Price</span>
+                            <span>GH₵ ${currentPrice.toLocaleString()}</span>
+                        </div>
+                        <div class="flex justify-between items-center text-xs font-bold text-slate-500 uppercase tracking-wider">
+                            <span class="flex items-center gap-1">Delivery Fee <span class="text-[8px] bg-slate-900 text-white px-1.5 py-0.5 rounded-none ml-1">Pay on Delivery</span></span>
+                            <span id="display-delivery-fee">GH₵ 0.00</span>
+                        </div>
+                        <div class="pt-2 border-t border-slate-200 flex justify-between items-center">
+                            <div class="flex flex-col">
+                                <span class="text-sm font-black text-slate-900 uppercase">Payable Now</span>
+                                <span class="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Digital Payment for Item Only</span>
+                            </div>
+                            <span id="display-total-amount" class="text-lg font-black text-slate-900">GH₵ ${currentPrice.toLocaleString()}</span>
                         </div>
                     </div>
                 </div>
@@ -424,21 +450,99 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
             showCancelButton: true,
             confirmButtonText: 'Proceed to Payment',
             cancelButtonText: 'Cancel',
+            didOpen: () => {
+                const cityInput = document.getElementById('quick-delivery-city') as HTMLInputElement;
+                const suggestionsBox = document.getElementById('location-suggestions') as HTMLDivElement;
+                const regionInput = document.getElementById('quick-delivery-region') as HTMLInputElement;
+                const feeDisplay = document.getElementById('display-delivery-fee') as HTMLSpanElement;
+                const totalDisplay = document.getElementById('display-total-amount') as HTMLSpanElement;
+
+                let timeout: NodeJS.Timeout;
+
+                cityInput.addEventListener('input', (e) => {
+                    const query = (e.target as HTMLInputElement).value;
+                    clearTimeout(timeout);
+                    if (query.length < 2) {
+                        suggestionsBox.classList.add('hidden');
+                        return;
+                    }
+
+                    timeout = setTimeout(async () => {
+                        try {
+                            const apiBase = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api');
+                            const response = await fetch(`${apiBase}/logistics/locations/search?q=${encodeURIComponent(query)}`);
+                            const locations = await response.json();
+
+                            if (locations.length > 0) {
+                                suggestionsBox.innerHTML = locations.map((loc: any) => `
+                                    <button class="w-full px-5 py-3 text-left hover:bg-slate-50 flex items-center justify-between border-b border-slate-50 last:border-0 transition-colors" data-name="${loc.name}" data-fee="${loc.deliveryFee}" data-zone="${loc.zone}">
+                                        <div class="flex flex-col">
+                                            <span class="text-sm font-black text-slate-900">${loc.name}</span>
+                                            <span class="text-[9px] text-slate-400 font-bold uppercase tracking-wider">${loc.zone} ${loc.cluster ? `(${loc.cluster})` : ''}</span>
+                                        </div>
+                                        <span class="text-xs font-black text-brand-lemon bg-slate-900 px-2 py-1 rounded-lg">GH₵ ${loc.deliveryFee}</span>
+                                    </button>
+                                `).join('');
+                                suggestionsBox.classList.remove('hidden');
+
+                                // Attach click events to suggestions
+                                suggestionsBox.querySelectorAll('button').forEach(btn => {
+                                    btn.addEventListener('click', (ev) => {
+                                        const name = btn.getAttribute('data-name') || '';
+                                        const fee = parseInt(btn.getAttribute('data-fee') || '0');
+                                        const zone = btn.getAttribute('data-zone') || '';
+
+                                        cityInput.value = name;
+                                        selectedLocationName = name;
+                                        selectedDeliveryFee = fee;
+                                        
+                                        // Auto-fill region if we can infer it or just leave for user
+                                        // Update displays
+                                        feeDisplay.textContent = `GH₵ ${fee.toLocaleString()}.00`;
+                                        totalDisplay.textContent = `GH₵ ${currentPrice.toLocaleString()}.00`;
+                                        
+                                        suggestionsBox.classList.add('hidden');
+                                    });
+                                });
+                            } else {
+                                suggestionsBox.classList.add('hidden');
+                            }
+                        } catch (err) {
+                            console.error('Search error:', err);
+                        }
+                    }, 300);
+                });
+
+                // Close suggestions on outside click
+                document.addEventListener('click', (e) => {
+                    if (!cityInput.contains(e.target as Node) && !suggestionsBox.contains(e.target as Node)) {
+                        suggestionsBox.classList.add('hidden');
+                    }
+                });
+            },
             preConfirm: () => {
                 const deliveryAddress = (document.getElementById('quick-delivery-address') as HTMLInputElement).value;
                 const deliveryCity = (document.getElementById('quick-delivery-city') as HTMLInputElement).value;
                 const deliveryRegion = (document.getElementById('quick-delivery-region') as HTMLInputElement).value;
+                
                 if (!deliveryAddress || !deliveryCity || !deliveryRegion) {
                     Swal.showValidationMessage('Please provide your complete delivery location');
                     return false;
                 }
-                return { deliveryAddress, deliveryCity, deliveryRegion };
+                
+                return { 
+                    deliveryAddress, 
+                    deliveryCity, 
+                    deliveryRegion, 
+                    deliveryFee: selectedDeliveryFee,
+                    totalProductAmount: currentPrice
+                };
             },
             customClass: {
-                popup: 'rounded-[40px] border-none shadow-2xl p-10 bg-white',
+                popup: 'rounded-none border border-slate-100 shadow-2xl p-10 bg-white',
                 title: 'text-2xl font-black text-slate-900 tracking-tighter uppercase mb-6',
-                confirmButton: 'bg-slate-900 text-white rounded-full px-10 py-4 text-[11px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all mx-2 shadow-lg',
-                cancelButton: 'bg-slate-100 text-slate-500 rounded-full px-10 py-4 text-[11px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all mx-2'
+                confirmButton: 'bg-slate-900 text-white rounded-none px-10 py-4 text-[11px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all mx-2 shadow-lg',
+                cancelButton: 'bg-slate-100 text-slate-500 rounded-none px-10 py-4 text-[11px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all mx-2'
             },
         });
 
@@ -447,7 +551,7 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
         }
     };
 
-    const handleCheckoutFlow = async (deliveryDetails: { deliveryAddress: string, deliveryCity: string, deliveryRegion: string }) => {
+    const handleCheckoutFlow = async (deliveryDetails: { deliveryAddress: string, deliveryCity: string, deliveryRegion: string, deliveryFee: number, totalProductAmount: number }) => {
         try {
 
             Swal.fire({
@@ -467,7 +571,9 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                     color: selectedColor || 'Universal',
                     image: images[0]
                 }],
-                totalAmount: currentPrice,
+                totalProductAmount: deliveryDetails.totalProductAmount,
+                deliveryFee: deliveryDetails.deliveryFee,
+                totalAmount: deliveryDetails.totalProductAmount + deliveryDetails.deliveryFee,
                 vendorId: (typeof vendorId === 'object' && vendorId !== null) ? (vendorId._id || vendorId.id) : vendorId,
                 vendorName: vendorName,
                 shippingAddress: deliveryDetails.deliveryAddress,
@@ -476,8 +582,8 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                 customerName: user?.name,
                 customerEmail: user?.email,
                 customerPhone: user?.phone,
-                paymentMethod: 'hubtel',
-                notes: 'Quick Buy Checkout (Hubtel)'
+                paymentMethod: 'paystack',
+                notes: 'Quick Buy Checkout (Skynet Express)'
             };
 
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders`, {
@@ -540,19 +646,19 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                 onMouseEnter={handleMouseEnter}
                 onMouseLeave={handleMouseLeave}
                 onClick={() => setIsDetailModalOpen(true)}
-                className={`bg-white p-4 rounded-3xl group hover:shadow-xl transition-all duration-700 ease-out border border-transparent hover:border-gray-100 cursor-pointer ${isVisible ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-10 scale-95'
+                className={`bg-white p-4 rounded-none group hover:shadow-2xl transition-all duration-700 ease-out border border-slate-100 hover:border-slate-300 cursor-pointer ${isVisible ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-10 scale-95'
                     }`}>
                 {/* Image Container */}
-                <div className="relative w-full aspect-[4/5] bg-[#F7F7F7] rounded-3xl overflow-hidden mb-5 group/image transition-all duration-500 hover:shadow-inner">
+                <div className="relative w-full aspect-[4/5] bg-[#F7F7F7] rounded-none overflow-hidden mb-5 group/image transition-all duration-500 hover:shadow-inner">
                     {/* New Arrival Badge & Sold Out Overlay */}
                     <div className="absolute top-4 left-4 z-20 flex flex-col gap-2">
                         {!isSoldOut && (
-                            <div className="bg-[#DFEA73] text-[#2C3E02] text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-tighter shadow-sm w-fit">
+                            <div className="bg-[#DFEA73] text-[#2C3E02] text-[10px] font-black px-3 py-1.5 rounded-none uppercase tracking-tighter shadow-sm w-fit">
                                 New Arrival
                             </div>
                         )}
                         {isSoldOut && (
-                            <div className="bg-slate-900/90 backdrop-blur-md text-white text-[10px] font-black px-4 py-2 rounded-full uppercase tracking-[0.2em] border border-white/20 w-fit shadow-xl">
+                            <div className="bg-slate-900/90 backdrop-blur-md text-white text-[10px] font-black px-4 py-2 rounded-none uppercase tracking-[0.2em] border border-white/20 w-fit shadow-xl">
                                 Sold Out
                             </div>
                         )}
@@ -590,13 +696,13 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                     {vendorName && (
                         <div
                             onClick={handleVendorProfile}
-                            className="flex items-center gap-2 w-fit cursor-pointer group/vendor relative z-30 -ml-1 p-2 rounded-xl hover:bg-slate-50 transition-all border border-transparent hover:border-slate-100"
+                            className="flex items-center gap-2 w-fit cursor-pointer group/vendor relative z-30 -ml-1 p-2 rounded-none hover:bg-slate-50 transition-all border border-transparent hover:border-slate-100"
                         >
                             <span className="text-[11px] font-black text-slate-400 uppercase tracking-[0.15em] group-hover/vendor:text-slate-900 transition-colors">
                                 by <span className="underline decoration-brand-lemon decoration-2 underline-offset-2">{vendorName}</span>
-                                {uniqueVendorId && <span className="text-slate-900 ml-2 bg-brand-lemon px-2 py-0.5 rounded-full text-[8px] font-black shadow-sm">{uniqueVendorId}</span>}
+                                {uniqueVendorId && <span className="text-slate-900 ml-2 bg-brand-lemon px-2 py-0.5 rounded-none text-[8px] font-black shadow-sm">{uniqueVendorId}</span>}
                             </span>
-                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)] group-hover/vendor:animate-pulse"></div>
+                            <div className="w-1.5 h-1.5 rounded-none bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)] group-hover/vendor:animate-pulse"></div>
                         </div>
                     )}
 
@@ -654,7 +760,7 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                                     key={size}
                                     onClick={() => !isSoldOut && setSelectedSize(size)}
                                     disabled={isSoldOut}
-                                    className={`flex-none w-8 h-8 rounded-lg text-[10px] font-black border transition-all active:scale-90
+                                    className={`flex-none w-8 h-8 rounded-none text-[10px] font-black border transition-all active:scale-90
                                         ${selectedSize === size
                                             ? 'bg-brand-lemon text-slate-900 border-brand-lemon shadow-sm'
                                             : 'bg-white text-slate-400 border-slate-100 hover:border-slate-200'
@@ -671,13 +777,13 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                     <div className="flex flex-col md:grid md:grid-cols-2 gap-2 mt-4 relative z-20" onClick={(e) => e.stopPropagation()}>
                         <button
                             onClick={() => setIsDetailModalOpen(true)}
-                            className="flex items-center justify-center py-3.5 px-6 rounded-full border border-slate-900 text-[11px] font-bold text-slate-900 bg-white hover:bg-slate-50 transition-all active:scale-[0.98] whitespace-nowrap touch-manipulation relative z-50 !cursor-pointer !pointer-events-auto"
+                            className="flex items-center justify-center py-3.5 px-6 rounded-none border border-slate-900 text-[11px] font-bold text-slate-900 bg-white hover:bg-slate-50 transition-all active:scale-[0.98] whitespace-nowrap touch-manipulation relative z-50 !cursor-pointer !pointer-events-auto"
                         >
                             Learn More
                         </button>
                         <button
                             onClick={handleBuyNow}
-                            className="flex items-center justify-center py-3.5 px-6 rounded-full bg-brand-lemon text-slate-900 text-[11px] font-bold transition-all active:scale-[0.98] whitespace-nowrap touch-manipulation relative z-50 !cursor-pointer !pointer-events-auto"
+                            className="flex items-center justify-center py-3.5 px-6 rounded-none bg-brand-lemon text-slate-900 text-[11px] font-bold transition-all active:scale-[0.98] whitespace-nowrap touch-manipulation relative z-50 !cursor-pointer !pointer-events-auto"
                         >
                             Quick Checkout
                         </button>
@@ -692,21 +798,18 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                         className="absolute inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity duration-500"
                         onClick={() => setIsDetailModalOpen(false)}
                     />
-                    <div className="relative bg-white w-full max-w-4xl h-[92vh] md:h-[85vh] rounded-t-[40px] md:rounded-[40px] shadow-2xl flex flex-col md:flex-row animate-in slide-in-from-bottom md:zoom-in-95 duration-500 pointer-events-auto overflow-hidden">
-                        {/* Mobile Handle */}
-                        <div className="md:hidden absolute top-3 left-1/2 -translate-x-1/2 w-12 h-1 bg-slate-200 rounded-full z-50" />
-
+                    <div className="relative bg-white w-full max-w-4xl h-[92vh] md:h-[85vh] rounded-none shadow-2xl flex flex-col md:flex-row animate-in slide-in-from-bottom md:zoom-in-95 duration-500 pointer-events-auto overflow-hidden border border-slate-100">
                         {/* Top Actions - Absolute */}
-                        <div className="absolute top-4 right-4 z-[60] flex items-center gap-2">
+                        <div className="absolute top-6 right-6 z-[60] flex items-center gap-3">
                             <button
                                 onClick={toggleWishlist}
-                                className={`bg-white/90 backdrop-blur-md p-2.5 rounded-full shadow-sm border border-slate-100 transition-all active:scale-90 ${isWishlisted ? 'text-red-500' : 'text-slate-400 hover:text-red-500'}`}
+                                className={`w-12 h-12 bg-white/95 backdrop-blur-xl flex items-center justify-center rounded-none shadow-2xl border border-slate-100 transition-all hover:scale-110 active:scale-90 ${isWishlisted ? 'text-red-500' : 'text-slate-400 hover:text-red-500'}`}
                             >
                                 <Heart className={`w-5 h-5 ${isWishlisted ? 'fill-current' : ''}`} />
                             </button>
                             <button
                                 onClick={() => setIsDetailModalOpen(false)}
-                                className="bg-white/90 backdrop-blur-md hover:bg-white text-slate-900 rounded-full p-2.5 shadow-sm transition-all active:scale-95 border border-slate-100"
+                                className="w-12 h-12 bg-white/95 backdrop-blur-xl flex items-center justify-center text-slate-900 rounded-none shadow-2xl transition-all hover:scale-110 active:scale-90 border border-slate-100"
                             >
                                 <X className="w-5 h-5" />
                             </button>
@@ -757,7 +860,7 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                                     <button
                                         key={idx}
                                         onClick={() => setCurrentImageIndex(idx)}
-                                        className={`relative flex-shrink-0 w-12 h-16 md:w-14 md:h-20 rounded-xl overflow-hidden border-2 transition-all duration-300 ${idx === currentImageIndex
+                                        className={`relative flex-shrink-0 w-12 h-16 md:w-14 md:h-20 rounded-none overflow-hidden border-2 transition-all duration-300 ${idx === currentImageIndex
                                             ? 'border-brand-lemon shadow-lg shadow-brand-lemon/20 scale-105 opacity-100 ring-2 ring-brand-lemon/20'
                                             : 'border-transparent opacity-60 hover:opacity-100 hover:scale-105 bg-slate-100'
                                             }`}
@@ -789,24 +892,32 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
 
                         {/* Right: Info */}
                         <div className="flex-1 flex flex-col relative overflow-y-auto overscroll-contain bg-white">
-                            <div className="p-6 md:p-10 pb-32 space-y-8">
+                            <div className="p-6 md:p-10 pb-32">
                                 <div className="space-y-4">
-                                    <div className="flex flex-wrap items-center gap-2">
-                                        <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-white bg-slate-900 px-3 py-1 rounded-full shadow-sm">Verified Design</span>
-                                        <div className="flex items-center gap-1.5 text-blue-500 text-[10px] font-black uppercase tracking-widest">
-                                            <Zap className="w-3 h-3 fill-current" />
+                                    <div className="flex flex-wrap items-center gap-3">
+                                        <div className="px-4 py-1.5 bg-slate-900 text-[9px] font-black uppercase tracking-[0.2em] text-brand-lemon rounded-none shadow-xl shadow-slate-900/10 border border-slate-800">
+                                            Verified Design
+                                        </div>
+                                        <div className="flex items-center gap-1.5 text-blue-500 text-[10px] font-black uppercase tracking-[0.2em]">
+                                            <Zap className="w-3.5 h-3.5 fill-current" />
                                             Marketplace Choice
                                         </div>
                                     </div>
 
-                                    <div>
-                                        <h2 className="font-heading text-2xl md:text-4xl font-black text-slate-900 mb-2 leading-tight tracking-tighter uppercase">{name}</h2>
-                                        <div className="flex items-center justify-between">
-                                            <p className="text-xl md:text-3xl font-black text-slate-900 tracking-tighter">GH₵{price}</p>
-                                            <div className="flex flex-col items-end">
-                                                <span className={`text-[11px] font-black uppercase tracking-widest ${stock > 5 ? 'text-emerald-500' : 'text-orange-500'}`}>
-                                                    Availability: {stock > 0 ? `${stock} Pieces in Stock` : 'Out of Stock'}
-                                                </span>
+                                    <div className="space-y-2">
+                                        <h2 className="font-heading text-3xl md:text-5xl font-black text-slate-900 leading-[0.9] tracking-tighter uppercase">{name}</h2>
+                                        <div className="flex items-end justify-between border-b border-slate-100 pb-4">
+                                            <div className="flex flex-col">
+                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Price Point</span>
+                                                <p className="text-3xl md:text-4xl font-black text-slate-900 tracking-tighter">GH₵{price}</p>
+                                            </div>
+                                            <div className="text-right">
+                                                <div className={`px-4 py-1.5 rounded-none inline-flex items-center gap-2 ${stock > 5 ? 'bg-emerald-50 text-emerald-600' : 'bg-orange-50 text-orange-600'}`}>
+                                                    <div className={`w-1.5 h-1.5 rounded-none ${stock > 5 ? 'bg-emerald-500' : 'bg-orange-500'} animate-pulse`} />
+                                                    <span className="text-[10px] font-black uppercase tracking-widest">
+                                                        {stock > 0 ? `${stock} PIECES IN STOCK` : 'SOLD OUT'}
+                                                    </span>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -832,7 +943,7 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                                                     <button
                                                         key={size}
                                                         onClick={() => setSelectedSize(size)}
-                                                        className={`min-w-[3.5rem] h-12 md:h-14 px-4 rounded-2xl font-black border-2 transition-all text-xs md:text-sm
+                                                        className={`min-w-[3.5rem] h-12 md:h-14 px-4 rounded-none font-black border-2 transition-all text-xs md:text-sm
                                                             ${selectedSize === size
                                                                 ? 'border-slate-900 bg-slate-900 text-white shadow-xl shadow-slate-900/20 scale-105'
                                                                 : 'border-slate-100 text-slate-400 hover:border-slate-200 bg-white hover:scale-105'
@@ -863,14 +974,14 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                                                     <button
                                                         key={color}
                                                         onClick={() => setSelectedColor(color)}
-                                                        className={`h-12 md:h-14 px-5 rounded-2xl font-black border-2 transition-all text-xs flex items-center gap-2
+                                                        className={`h-12 md:h-14 px-5 rounded-none font-black border-2 transition-all text-xs flex items-center gap-2
                                                             ${selectedColor === color
                                                                 ? 'border-slate-900 bg-slate-900 text-white shadow-xl shadow-slate-900/20 scale-105'
                                                                 : 'border-slate-100 text-slate-400 hover:border-slate-200 bg-white hover:scale-105'
                                                             }
                                                         `}
                                                     >
-                                                        <div className={`w-3 h-3 rounded-full border border-black/10`} style={{ 
+                                                        <div className={`w-3 h-3 rounded-none border border-black/10`} style={{ 
                                                             backgroundColor: color.toLowerCase() === 'pattern' ? 'transparent' : color.toLowerCase(),
                                                             backgroundImage: color.toLowerCase() === 'pattern' ? 'conic-gradient(from 0deg,#ff0000,#ffff00,#00ff00,#00ffff,#0000ff,#ff00ff,#ff0000)' : 'none'
                                                         }} />
@@ -883,29 +994,39 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                                 )}
 
                                 <div className="space-y-8">
-                                    {/* Description Section */}
-                                    <div className="space-y-6">
+                                    <div className="space-y-6 relative">
                                         <div className="flex items-center justify-between">
-                                            <h3 className="font-heading font-black text-xl text-slate-900 uppercase tracking-tighter">The Narrative</h3>
-                                            <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 rounded-full border border-emerald-100">
-                                                <div className="w-1 h-1 rounded-full bg-emerald-500"></div>
-                                                <span className="text-[9px] font-black text-emerald-600 uppercase">Ethically Crafted</span>
+                                            <div className="flex flex-col">
+                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-1">Storytelling</span>
+                                                <h3 className="font-heading font-black text-2xl text-slate-900 uppercase tracking-tighter">The Narrative</h3>
+                                            </div>
+                                            <div className="flex items-center gap-1.5 px-4 py-2 bg-emerald-50 rounded-none border border-emerald-100 shadow-sm">
+                                                <div className="w-1.5 h-1.5 rounded-none bg-emerald-500 animate-pulse"></div>
+                                                <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Ethically Crafted</span>
                                             </div>
                                         </div>
-                                        <p className="text-slate-600 text-sm md:text-base leading-relaxed text-left font-medium opacity-90">
-                                            {description || `Crafted with precision using premium heritage craftsmanship techniques. This piece features our signature ${name.toLowerCase()} design, combining traditional aesthetics with modern comfort. Every detail is a testament to our commitment to excellence.`}
-                                        </p>
+                                        
+                                        <div className="relative p-6 bg-slate-50/50 rounded-none border border-slate-100 overflow-hidden">
+                                            {/* Luxury Pattern */}
+                                            <div className="absolute inset-0 opacity-[0.03] pointer-events-none">
+                                                <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="narrativeGrid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M 40 0 L 0 0 0 40" fill="none" stroke="black" stroke-width="1"/></pattern></defs><rect width="100%" height="100%" fill="url(#narrativeGrid)" /></svg>
+                                            </div>
+                                            
+                                            <p className="relative z-10 text-slate-600 text-sm md:text-base leading-relaxed text-left font-medium">
+                                                {description || `Crafted with precision using premium heritage craftsmanship techniques. This piece features our signature ${name.toLowerCase()} design, combining traditional aesthetics with modern comfort. Every detail is a testament to our commitment to excellence.`}
+                                            </p>
+                                        </div>
 
                                         {/* Trust Badges */}
                                         <div className="flex flex-wrap gap-4 py-2">
                                             <div className="flex items-center gap-2 text-slate-500">
-                                                <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center">
+                                                <div className="w-8 h-8 rounded-none bg-slate-50 flex items-center justify-center">
                                                     <Shield className="w-4 h-4 text-slate-900" />
                                                 </div>
                                                 <span className="text-[10px] font-bold uppercase tracking-tight">Authentic FLA</span>
                                             </div>
                                             <div className="flex items-center gap-2 text-slate-500">
-                                                <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center">
+                                                <div className="w-8 h-8 rounded-none bg-slate-50 flex items-center justify-center">
                                                     <Zap className="w-4 h-4 text-slate-900" />
                                                 </div>
                                                 <span className="text-[10px] font-bold uppercase tracking-tight">Fast Customization</span>
@@ -914,27 +1035,53 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
 
                                         {/* Vendor Info Section - Luxury Card */}
                                         {vendorName && (
-                                            <div
-                                                onClick={handleVendorProfile}
-                                                className="mt-4 flex items-center gap-4 p-5 bg-slate-900 text-white rounded-[2.5rem] cursor-pointer hover:bg-slate-800 active:scale-[0.98] transition-all shadow-xl shadow-slate-900/10 group/vendor"
-                                            >
-                                                <div className="relative">
-                                                    <div className="w-14 h-14 rounded-[1.5rem] bg-brand-lemon flex items-center justify-center text-slate-900 font-black text-2xl group-hover/vendor:scale-105 transition-transform">
-                                                        {vendorName.charAt(0)}
+                                            <div className="space-y-4">
+                                                <div
+                                                    onClick={handleVendorProfile}
+                                                    className="mt-6 flex items-center gap-5 p-6 bg-slate-900 text-white rounded-none cursor-pointer hover:bg-black active:scale-[0.98] transition-all shadow-2xl shadow-slate-900/20 group/vendor relative overflow-hidden"
+                                                >
+                                                    {/* Subtle Pattern Background */}
+                                                    <div className="absolute inset-0 opacity-5 pointer-events-none">
+                                                        <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="vendorGrid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M 20 0 L 0 0 0 20" fill="none" stroke="white" stroke-width="0.5"/></pattern></defs><rect width="100%" height="100%" fill="url(#vendorGrid)" /></svg>
                                                     </div>
-                                                    <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-emerald-500 rounded-full border-2 border-slate-900 flex items-center justify-center">
-                                                        <Check className="w-3 h-3 text-white" />
+
+                                                    <div className="relative">
+                                                        <div className="w-16 h-16 rounded-none bg-brand-lemon flex items-center justify-center text-slate-900 font-black text-3xl group-hover/vendor:scale-105 transition-transform duration-500">
+                                                            {vendorName.charAt(0)}
+                                                        </div>
+                                                        <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-emerald-500 rounded-none border-[3px] border-slate-900 flex items-center justify-center">
+                                                            <Check className="w-3.5 h-3.5 text-white" />
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex-1 relative z-10">
+                                                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-1">Studio Partner</p>
+                                                        <p className="text-xl font-black group-hover:text-brand-lemon transition-colors leading-none tracking-tight uppercase">
+                                                            {vendorName}
+                                                        </p>
+                                                        {uniqueVendorId && <span className="text-[9px] text-brand-lemon/40 font-black tracking-widest mt-1 inline-block">#{uniqueVendorId}</span>}
+                                                    </div>
+                                                    <div className="bg-white/10 w-12 h-12 flex items-center justify-center rounded-none group-hover/vendor:bg-brand-lemon group-hover/vendor:text-slate-900 transition-all duration-500">
+                                                        <ChevronRight className="w-5 h-5" />
                                                     </div>
                                                 </div>
-                                                <div className="flex-1">
-                                                    <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mb-0.5">Studio Partner</p>
-                                                    <p className="text-lg font-black group-hover:text-brand-lemon transition-colors leading-none tracking-tight">
-                                                        {vendorName}
-                                                        {uniqueVendorId && <span className="text-[10px] text-brand-lemon/50 ml-2 font-black">#{uniqueVendorId}</span>}
-                                                    </p>
-                                                </div>
-                                                <div className="bg-white/10 p-3 rounded-2xl group-hover/vendor:translate-x-1 transition-transform">
-                                                    <ChevronRight className="w-5 h-5 text-brand-lemon" />
+
+                                                {/* Refund & Store Policy Section (Transparent for Paystack Compliance) */}
+                                                <div className="bg-slate-50 rounded-none p-6 border border-slate-100 space-y-4">
+                                                    <div className="flex items-center justify-between">
+                                                        <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-900">Store & Refund Policy</h4>
+                                                        <div className="px-2 py-1 bg-brand-lemon text-slate-900 text-[8px] font-black rounded-md uppercase tracking-widest">Mediator Protected</div>
+                                                    </div>
+                                                    <div className="space-y-3">
+                                                        <p className="text-slate-600 text-xs leading-relaxed font-medium">
+                                                            {vendorBio || "The vendor has not specified a detailed policy yet. By purchasing, you agree to the standard FLA mediation terms."}
+                                                        </p>
+                                                        <div className="pt-2 flex items-start gap-2 border-t border-slate-200/50">
+                                                            <Shield className="w-3.5 h-3.5 text-slate-400 mt-0.5" />
+                                                            <p className="text-[9px] text-slate-400 italic leading-tight">
+                                                                Funds are split directly to vendors. FLA acts as a mediator to assist in dispute resolution and fund retrieval if needed.
+                                                            </p>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </div>
                                         )}
@@ -942,14 +1089,14 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
 
                                     {/* Details Grid */}
                                     <div className="grid grid-cols-2 gap-4">
-                                        <div className="flex items-center gap-3 p-4 rounded-2xl bg-white border border-slate-100 shadow-sm">
+                                        <div className="flex items-center gap-3 p-4 rounded-none bg-white border border-slate-100 shadow-sm">
                                             <Clock className="w-5 h-5 text-slate-900" />
                                             <div className="flex flex-col">
                                                 <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Prep Time</span>
                                                 <span className="text-[11px] font-black text-slate-900">{duration}</span>
                                             </div>
                                         </div>
-                                        <div className="flex items-center gap-3 p-4 rounded-2xl bg-white border border-slate-100 shadow-sm">
+                                        <div className="flex items-center gap-3 p-4 rounded-none bg-white border border-slate-100 shadow-sm">
                                             <Shield className="w-5 h-5 text-slate-900" />
                                             <div className="flex flex-col">
                                                 <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Quality</span>
@@ -965,16 +1112,18 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                                 <button
                                     onClick={handleAddToCart}
                                     disabled={isAdding}
-                                    className="flex-1 py-5 rounded-3xl bg-slate-50 border border-slate-200 font-black text-[10px] uppercase tracking-[0.2em] text-slate-900 hover:bg-slate-100 transition-all flex items-center justify-center gap-3 active:scale-95"
+                                    className="flex-1 py-5 rounded-none bg-slate-50 border border-slate-200 font-black text-[10px] uppercase tracking-[0.2em] text-slate-900 hover:bg-slate-100 transition-all flex items-center justify-center gap-3 active:scale-95"
                                 >
                                     <ShoppingBag className="w-4 h-4" />
                                     {isAdding ? 'Adding...' : 'Add to Bag'}
                                 </button>
                                 <button
                                     onClick={handleBuyNow}
-                                    className="flex-[1.5] py-5 rounded-3xl bg-brand-lemon text-slate-900 font-black text-[10px] uppercase tracking-[0.2em] shadow-xl hover:scale-[1.02] transition-all active:scale-95"
+                                    className="flex-[1.5] py-5 rounded-none bg-brand-lemon text-slate-900 font-black text-[10px] uppercase tracking-[0.2em] shadow-xl hover:shadow-brand-lemon/20 hover:scale-[1.02] transition-all active:scale-95 relative overflow-hidden group/btn"
                                 >
-                                    Quick Checkout
+                                    <span className="relative z-10">Quick Checkout</span>
+                                    <div className="absolute inset-0 bg-white opacity-0 group-hover/btn:opacity-20 transition-opacity" />
+                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover/btn:translate-x-full transition-transform duration-1000" />
                                 </button>
                             </div>
                         </div>

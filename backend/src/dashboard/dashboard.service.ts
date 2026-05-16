@@ -15,7 +15,7 @@ export class DashboardService {
     ) { }
 
     async getCustomerStats(userId: string) {
-        const orders = await this.ordersService.findByUser(userId);
+        const { orders } = await this.ordersService.findByUser(userId, 1, 100); // Fetch last 100 for stats
         const wishlist = await this.wishlistService.findByUser(userId);
 
         const totalSpent = orders
@@ -41,7 +41,7 @@ export class DashboardService {
     }
 
     async getVendorStats(userId: string) {
-        const orders = await this.ordersService.findByVendor(userId);
+        const { orders } = await this.ordersService.findByVendor(userId, 1, 100); // Fetch last 100 for stats
         const products = await this.productsService.findByVendor(userId);
 
         const totalRevenue = orders

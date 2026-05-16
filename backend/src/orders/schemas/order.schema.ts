@@ -139,6 +139,9 @@ export class Order {
     @Prop()
     pickupPoint?: string;
 
+    @Prop({ type: Types.ObjectId, ref: 'LogisticsBranch' })
+    pickupBranchId?: Types.ObjectId;
+
     @Prop({ default: 0 })
     adminCommission: number;
 
@@ -174,6 +177,9 @@ export class Order {
     firstMilePaymentProof?: string;
 
     @Prop()
+    firstMilePaymentId?: string;
+
+    @Prop()
     firstMilePaymentSubmittedAt?: Date;
 
     @Prop({ default: false })
@@ -182,8 +188,11 @@ export class Order {
     @Prop()
     firstMilePaymentVerifiedAt?: Date;
 
-    @Prop()
-    firstMilePaymentId?: string;
+    @Prop({ default: 0 })
+    deliveryFee: number;
+
+    @Prop({ default: 0 })
+    totalProductAmount: number;
 }
 
 export const OrderSchema = SchemaFactory.createForClass(Order);

@@ -231,6 +231,7 @@ export default function Home() {
                     colors={product.colors}
                     duration={product.tailoringTime}
                     vendorRegion={product.region}
+                    vendorBio={product.vendorBio}
                   />
                 ))
               ) : (

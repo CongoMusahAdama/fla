@@ -22,20 +22,20 @@ For **Inter-Regional** orders, vendors manage the "First-Mile" costs through the
 ### Key Features for Vendors:
 *   **Set Delivery Fee:** Vendors can enter the specific cost required to get the item to the transport station.
 *   **Automated Verification:** Once a customer pays, the system automatically marks the fee as PAID. Vendors no longer need to manually verify screenshots.
-*   **Shipping Control:** The "Mark Shipped" action is only enabled once both the order payment and the delivery fee have been successfully processed via Hubtel.
+*   **Shipping Control:** The "Mark Shipped" action is only enabled once both the order payment and the delivery fee have been successfully processed via Paystack.
 
 ---
 
 ## 🛍️ 2. Customer Workflow: Secure Payments
 
-Customers pay transport costs directly on the platform using Hubtel, ensuring speed and security.
+Customers pay transport costs directly on the platform using Paystack, ensuring speed and security.
 
 ### Key Features for Customers:
 *   **Itemized Delivery Costs:** Delivery fees are listed separately from the product price for full transparency.
-*   **Instant Hubtel Checkout:** Customers click **"Pay Delivery Fee"** to pay via MoMo, Card, or Bank Transfer. No screenshots required!
+*   **Instant Paystack Checkout:** Customers click **"Pay Delivery Fee"** to pay via MoMo, Card, or Bank Transfer. No screenshots required!
 *   **Real-time Notifications:**
     *   **SMS/Email Alert:** Received when a vendor sets the delivery fee.
-    *   **Instant Confirmation:** Received immediately after a successful Hubtel transaction.
+    *   **Instant Confirmation:** Received immediately after a successful Paystack transaction.
 
 ---
 
@@ -44,7 +44,7 @@ Customers pay transport costs directly on the platform using Hubtel, ensuring sp
 Administrators have a high-level view of all delivery transactions to ensure fairness.
 
 ### Key Features for Admins:
-*   **Automated Tracking:** The Admin HQ tracks the **First Mile Payment ID** from Hubtel for every delivery fee.
+*   **Automated Tracking:** The Admin HQ tracks the **First Mile Payment ID** from Paystack for every delivery fee.
 *   **Financial Accuracy:** Delivery fees are handled as direct pass-throughs, ensuring platform commissions are only calculated on product prices.
 
 ---
@@ -54,9 +54,9 @@ Administrators have a high-level view of all delivery transactions to ensure fai
 | Component | Changes Implemented |
 | :--- | :--- |
 | **Database** | Added `deliveryType`, `firstMileFee`, `isFirstMileFeePaid`, and `firstMilePaymentId` to the `Order` schema. |
-| **Backend API** | Integrated Hubtel webhooks to automatically verify delivery fee payments via `paymentType: 'first_mile_fee'` metadata. |
+| **Backend API** | Integrated Paystack webhooks to automatically verify delivery fee payments via `paymentType: 'first_mile_fee'` metadata. |
 | **Vendor UI** | Logic to prevent "Mark Shipped" until delivery fees are cleared via the gateway. |
-| **Customer UI** | Redirect flow to Hubtel for delivery fee payments, replacing the old manual upload system. |
+| **Customer UI** | Redirect flow to Paystack for delivery fee payments, replacing the old manual upload system. |
 | **Notifications** | Automated SMS and Email triggers via `SmsService` and `EmailService` (Resend). |
 
 ---

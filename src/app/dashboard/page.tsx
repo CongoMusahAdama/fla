@@ -397,7 +397,7 @@ export default function CustomerDashboard() {
             if (!res.ok) throw new Error('Could not initialize payment');
             const { paymentLink } = await res.json();
 
-            // Redirect to Hubtel
+            // Redirect to Paystack
             window.location.href = paymentLink;
         } catch (error: any) {
             Swal.fire('ERROR', error.message, 'error');
@@ -422,7 +422,7 @@ export default function CustomerDashboard() {
             if (!res.ok) throw new Error('Could not initialize payment');
             const { paymentLink } = await res.json();
 
-            // Redirect to Hubtel
+            // Redirect to Paystack
             window.location.href = paymentLink;
         } catch (error: any) {
             Swal.fire('ERROR', error.message, 'error');
@@ -1824,7 +1824,7 @@ export default function CustomerDashboard() {
                                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Order Information</p>
                                         <p className="text-sm text-slate-900 font-bold">#ORD-{selectedReceipt._id.slice(-6).toUpperCase()}</p>
                                         <p className="text-xs text-slate-500 mt-1">{new Date(selectedReceipt.createdAt).toLocaleDateString()}</p>
-                                        <p className="text-xs text-slate-500">{selectedReceipt.paymentStatus === 'paid' ? 'Hubtel Transaction' : 'Platform Escrow'}</p>
+                                        <p className="text-xs text-slate-500">{selectedReceipt.paymentStatus === 'paid' ? 'Paystack Transaction' : 'Platform Escrow'}</p>
                                     </div>
                                 </div>
 

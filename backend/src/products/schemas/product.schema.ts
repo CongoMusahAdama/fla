@@ -32,6 +32,9 @@ export class Product {
     @Prop()
     vendorName: string;
 
+    @Prop()
+    vendorBio?: string;
+
     @Prop({ default: 0 })
     stock: number;
 
@@ -53,7 +56,7 @@ export class Product {
     @Prop({ default: true })
     isActive: boolean;
 
-    @Prop({ default: 10 })
+    @Prop({ default: 6 })
     commissionPercentage: number;
 
     @Prop({ default: 0 })

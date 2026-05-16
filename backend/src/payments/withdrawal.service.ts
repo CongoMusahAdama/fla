@@ -27,7 +27,7 @@ export class WithdrawalService {
         }
 
         // Commission Logic: Use dynamic commission setting (default 10%)
-        const commissionRate = (await this.settingsService.getSetting('platform_commission')) || 10;
+        const commissionRate = (await this.settingsService.getSetting('platform_commission')) || 6;
         const adminCommission = amount * (commissionRate / 100);
         const netAmount = amount - adminCommission;
 

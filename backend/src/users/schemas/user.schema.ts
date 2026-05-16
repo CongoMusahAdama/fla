@@ -58,14 +58,16 @@ export class User {
     accountName?: string;
 
     @Prop()
-    hubtelRecipientCode?: string;
+    paystackSubaccountCode?: string;
+
+    @Prop()
+    paystackBankCode?: string;
 
     @Prop({ type: [Object], default: [] })
     withdrawalHistory?: Array<{
         amount: number;
         status: string;
         createdAt: Date;
-        hubtelTransferCode?: string;
     }>;
 
     @Prop({ default: 0 })
@@ -105,6 +107,9 @@ export class User {
 
     @Prop({ default: 'active' })
     status: string;
+
+    @Prop({ default: 'low', enum: ['low', 'high'] })
+    vendorTier: string;
 
     @Prop({ default: Date.now, index: true })
     createdAt: Date;
@@ -158,8 +163,6 @@ export class User {
 
 export const UserSchema = SchemaFactory.createForClass(User);
 
-// Critical performance indexes
-UserSchema.index({ email: 1 }, { unique: true, collation: { locale: 'en', strength: 2 } });
+// Performance indexes (email and uniqueVendorId indexed via schema prop unique/sparse flags)
 UserSchema.index({ role: 1, status: 1 });
-UserSchema.index({ uniqueVendorId: 1 }, { sparse: true });
 UserSchema.index({ shopName: 'text', name: 'text' });

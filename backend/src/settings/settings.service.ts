@@ -11,7 +11,7 @@ export class SettingsService implements OnModuleInit {
 
     async onModuleInit() {
         // Initialize default settings if they don't exist
-        await this.ensureSetting('platform_commission', 10, 'Default platform commission percentage');
+        await this.ensureSetting('platform_commission', 6, 'Default platform commission percentage');
         await this.ensureSetting('withdrawal_minimum', 50, 'Minimum amount allowed for withdrawal');
         await this.ensureSetting('maintenance_mode', false, 'Whether the platform is in maintenance mode');
         await this.ensureSetting('automated_payouts', true, 'Whether payouts are automatically processed');

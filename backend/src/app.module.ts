@@ -17,6 +17,7 @@ import { UploadModule } from './uploads/upload.module';
 import { PaymentsModule } from './payments/payments.module';
 import { SettingsModule } from './settings/settings.module';
 import { CommonModule } from './common/common.module';
+import { LogisticsModule } from './logistics/logistics.module';
 
 @Module({
   imports: [
@@ -37,7 +38,8 @@ import { CommonModule } from './common/common.module';
     UploadModule,
     PaymentsModule,
     SettingsModule,
-    CommonModule
+    CommonModule,
+    LogisticsModule
   ],
   controllers: [AppController],
   providers: [

@@ -8,7 +8,7 @@ import Image from 'next/image';
 import {
     User, Mail, Lock, ChevronRight, ArrowLeft, Phone, MapPin,
     Store, Package, CreditCard, Upload, ArrowRight, MessageSquare, Check,
-    Camera, Calendar, Users, Briefcase, FileText, ShieldCheck, Hash
+    Camera, Calendar, Users, Briefcase, FileText, ShieldCheck, Hash, Shield
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { Suspense } from 'react';
@@ -259,6 +259,7 @@ const RegisterForm = ({ role, onSignup }: { role: UserRole, onSignup: (data: any
     const [email, setEmail] = useState('');
     const [phone, setPhone] = useState('');
     const [location, setLocation] = useState('');
+    const [region, setRegion] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
@@ -288,7 +289,8 @@ const RegisterForm = ({ role, onSignup }: { role: UserRole, onSignup: (data: any
     // Vendor Specific
     const [shopName, setShopName] = useState('');
     const [productTypes, setProductTypes] = useState('');
-    const [paymentMethods, setPaymentMethods] = useState([{
+    const [paymentMethods, setPaymentMethods] = useState<any[]>([{
+        type: 'momo',
         network: 'MTN',
         accountNumber: '',
         accountName: '',
@@ -346,7 +348,7 @@ const RegisterForm = ({ role, onSignup }: { role: UserRole, onSignup: (data: any
         }
 
         onSignup({ 
-            name, email, phone, location, password, confirmPassword, 
+            name, email, phone, location, region, password, confirmPassword, 
             shopName, productTypes, paymentMethods, turnstileToken,
             kyc: {
                 ghanaCardFront, ghanaCardBack, ghanaCardNumber, selfie, digitalAddress, 
@@ -357,10 +359,10 @@ const RegisterForm = ({ role, onSignup }: { role: UserRole, onSignup: (data: any
         });
     };
 
-    const nextStep = () => setStep(prev => Math.min(prev + 1, role === 'vendor' ? 6 : 3));
+    const nextStep = () => setStep(prev => Math.min(prev + 1, role === 'vendor' ? 6 : 2));
     const prevStep = () => setStep(prev => Math.max(prev - 1, 1));
 
-    const totalSteps = role === 'vendor' ? 6 : 3;
+    const totalSteps = role === 'vendor' ? 6 : 2;
 
     const renderStepContent = () => {
         switch (step) {
@@ -375,6 +377,40 @@ const RegisterForm = ({ role, onSignup }: { role: UserRole, onSignup: (data: any
                             <AuthInput label="Full Name" type="text" placeholder="Eg. Yasir Noori" required value={name} onChange={setName} icon={User} />
                             <AuthInput label="Email Address" type="email" placeholder="you@email.com" required value={email} onChange={setEmail} icon={Mail} />
                             <AuthInput label="Phone Number" type="tel" placeholder="024XXXXXXX" required value={phone} onChange={setPhone} icon={Phone} />
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-bold text-slate-700 ml-1">Region</label>
+                                <div className="relative">
+                                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                                    <select 
+                                        value={region} 
+                                        onChange={(e) => setRegion(e.target.value)} 
+                                        required
+                                        className="w-full pl-11 pr-4 py-4 bg-white border-2 border-slate-100 rounded-2xl text-base md:text-sm transition-all focus:border-slate-900 outline-none appearance-none cursor-pointer"
+                                    >
+                                        <option value="" disabled>Select your region</option>
+                                        <option value="Greater Accra">Greater Accra</option>
+                                        <option value="Ashanti">Ashanti</option>
+                                        <option value="Western">Western</option>
+                                        <option value="Western North">Western North</option>
+                                        <option value="Central">Central</option>
+                                        <option value="Eastern">Eastern</option>
+                                        <option value="Volta">Volta</option>
+                                        <option value="Oti">Oti</option>
+                                        <option value="Northern">Northern</option>
+                                        <option value="North East">North East</option>
+                                        <option value="Savannah">Savannah</option>
+                                        <option value="Upper East">Upper East</option>
+                                        <option value="Upper West">Upper West</option>
+                                        <option value="Bono">Bono</option>
+                                        <option value="Bono East">Bono East</option>
+                                        <option value="Ahafo">Ahafo</option>
+                                    </select>
+                                    <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 rotate-90 pointer-events-none" />
+                                </div>
+                            </div>
+                            {role === 'customer' && (
+                                <AuthInput label="Location" type="text" placeholder="Eg. East Legon, Accra" required value={location} onChange={setLocation} icon={MapPin} />
+                            )}
                         </div>
                     </div>
                 );
@@ -394,6 +430,18 @@ const RegisterForm = ({ role, onSignup }: { role: UserRole, onSignup: (data: any
                                 <div className={`flex-1 h-1 rounded-full transition-all ${hasSpecialChar ? 'bg-emerald-500' : 'bg-slate-100'}`} />
                             </div>
                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">8+ Characters • 1 Number • 1 Special</p>
+                            
+                            {role === 'customer' && (
+                                <div className="pt-4 flex justify-center">
+                                    <Turnstile
+                                        siteKey={process.env.NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY || ''}
+                                        onSuccess={(token) => setTurnstileToken(token)}
+                                        onExpire={() => setTurnstileToken(null)}
+                                        onError={() => setTurnstileToken(null)}
+                                        options={{ theme: 'light', size: 'normal' }}
+                                    />
+                                </div>
+                            )}
                         </div>
                     </div>
                 );
@@ -503,7 +551,23 @@ const RegisterForm = ({ role, onSignup }: { role: UserRole, onSignup: (data: any
                                     
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div className="space-y-1.5">
-                                            <label className="text-xs font-bold text-slate-700 ml-1">Network Provider</label>
+                                            <label className="text-xs font-bold text-slate-700 ml-1">Payout Method Type</label>
+                                            <select 
+                                                value={pm.type || 'momo'} 
+                                                onChange={(e) => {
+                                                    const updated = [...paymentMethods];
+                                                    (updated[index] as any).type = e.target.value;
+                                                    updated[index].network = e.target.value === 'momo' ? 'MTN' : 'GCB';
+                                                    setPaymentMethods(updated);
+                                                }}
+                                                className="w-full px-4 py-3 bg-white border-2 border-slate-100 rounded-2xl text-sm focus:border-slate-900 outline-none transition-all appearance-none cursor-pointer"
+                                            >
+                                                <option value="momo">Mobile Money</option>
+                                                <option value="bank">Bank Account</option>
+                                            </select>
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <label className="text-xs font-bold text-slate-700 ml-1">{pm.type === 'bank' ? 'Select Bank' : 'Network Provider'}</label>
                                             <select 
                                                 value={pm.network} 
                                                 onChange={(e) => {
@@ -513,19 +577,39 @@ const RegisterForm = ({ role, onSignup }: { role: UserRole, onSignup: (data: any
                                                 }}
                                                 className="w-full px-4 py-3 bg-white border-2 border-slate-100 rounded-2xl text-sm focus:border-slate-900 outline-none transition-all appearance-none cursor-pointer"
                                             >
-                                                <option value="MTN">MTN Mobile Money</option>
-                                                <option value="Vodafone">Vodafone Cash</option>
-                                                <option value="AirtelTigo">AirtelTigo Money</option>
+                                                {pm.type === 'bank' ? (
+                                                    <>
+                                                        <option value="GCB">GCB Bank</option>
+                                                        <option value="ECO">Ecobank Ghana</option>
+                                                        <option value="ZEN">Zenith Bank</option>
+                                                        <option value="ABS">Absa Bank</option>
+                                                        <option value="FID">Fidelity Bank</option>
+                                                        <option value="STA">Standard Chartered</option>
+                                                        <option value="CAL">CalBank</option>
+                                                        <option value="ACC">Access Bank</option>
+                                                        <option value="GTB">GTBank</option>
+                                                        <option value="UBA">UBA Ghana</option>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <option value="MTN">MTN Mobile Money</option>
+                                                        <option value="Vodafone">Vodafone Cash</option>
+                                                        <option value="AirtelTigo">AirtelTigo Money</option>
+                                                    </>
+                                                )}
                                             </select>
                                         </div>
+                                    </div>
+                                    
+                                    <div className="grid grid-cols-1 gap-4">
                                         <AuthInput 
-                                            label="Mobile Number" 
+                                            label={pm.type === 'bank' ? "Account Number" : "Mobile Number"} 
                                             type="tel" 
-                                            placeholder="024XXXXXXX" 
+                                            placeholder={pm.type === 'bank' ? "XXXXXXXXXX" : "024XXXXXXX"} 
                                             required 
                                             value={pm.accountNumber} 
                                             onChange={(val: string) => handleAccountNumberChange(index, val, pm.network)} 
-                                            icon={Phone} 
+                                            icon={pm.type === 'bank' ? CreditCard : Phone} 
                                         />
                                     </div>
 
@@ -533,26 +617,23 @@ const RegisterForm = ({ role, onSignup }: { role: UserRole, onSignup: (data: any
                                         <AuthInput 
                                             label="Account Holder Name" 
                                             type="text" 
-                                            placeholder="Automatically verified..." 
+                                            placeholder="Eg. Yasir Noori" 
                                             required 
                                             value={pm.accountName} 
-                                            onChange={() => {}} 
+                                            onChange={(val: string) => {
+                                                const updated = [...paymentMethods];
+                                                updated[index].accountName = val;
+                                                setPaymentMethods(updated);
+                                            }} 
                                             icon={User}
-                                            readOnly 
                                         />
-                                        {pm.isLookingUp && (
-                                            <div className="absolute right-4 bottom-3 flex items-center gap-2">
-                                                <div className="w-4 h-4 border-2 border-slate-900 border-t-transparent rounded-full animate-spin" />
-                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Verifying...</span>
-                                            </div>
-                                        )}
                                     </div>
                                 </div>
                             ))}
                             
                             <button 
                                 type="button"
-                                onClick={() => setPaymentMethods([...paymentMethods, { network: 'MTN', accountNumber: '', accountName: '', isLookingUp: false }])}
+                                onClick={() => setPaymentMethods([...paymentMethods, { type: 'momo', network: 'MTN', accountNumber: '', accountName: '', isLookingUp: false }])}
                                 className="w-full py-4 border-2 border-dashed border-slate-200 rounded-[32px] text-slate-400 text-[10px] font-black uppercase tracking-widest hover:border-slate-900 hover:text-slate-900 transition-all flex items-center justify-center gap-2"
                             >
                                 <Check className="w-4 h-4 rotate-45" /> Add Another Payout Method
@@ -586,6 +667,18 @@ const RegisterForm = ({ role, onSignup }: { role: UserRole, onSignup: (data: any
                             <h3 className="text-2xl font-black text-slate-900 mb-2">Final Documents</h3>
                             <p className="text-sm text-slate-500">Submit your business registration and address proof.</p>
                         </div>
+
+                        {/* Compliance Notice for GHS 100 Policy */}
+                        <div className="p-5 bg-amber-50 border-2 border-amber-100 rounded-[24px] space-y-2 animate-in zoom-in-95 duration-500">
+                            <div className="flex items-center gap-2 text-amber-900">
+                                <ShieldCheck className="w-5 h-5" />
+                                <span className="text-xs font-black uppercase tracking-widest">Pricing Compliance Policy</span>
+                            </div>
+                            <p className="text-[11px] text-amber-800 font-medium leading-relaxed">
+                                <strong className="font-bold">Attention:</strong> Vendors intending to sell products priced <strong className="font-bold underline">above GHS 100</strong> are required to upload a Business Registration Certificate. Accounts found selling high-value items without documentation are subject to immediate termination.
+                            </p>
+                        </div>
+
                         <div className="space-y-4">
                             <div className="space-y-1.5">
                                 <label className="text-xs font-bold text-slate-700 ml-1">Utility Document Type</label>
@@ -865,7 +958,7 @@ function AuthContent() {
                         method: 'POST',
                         body: formData
                     });
-                    if (!res.ok) throw new Error('Identity document upload failed. Please try again.');
+                    if (!res.ok) throw new Error('Document upload failed. Please try again.');
                     const result = await res.json();
                     return result.url;
                 };
@@ -906,7 +999,7 @@ function AuthContent() {
             };
 
             const registeredUser = await signup(
-                data.name, data.email, data.phone, data.location, data.password, 
+                data.name, data.email, data.phone, data.location, data.region, data.password, 
                 role, kycData, data.turnstileToken
             );
             showSuccess(false, registeredUser.role);

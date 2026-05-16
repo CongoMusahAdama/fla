@@ -42,13 +42,14 @@ export type User = {
     employeeCount?: string;
     yearsOfExistence?: string;
     paymentMethods?: any[];
+    vendorTier?: 'low' | 'high';
 };
 
 type AuthContextType = {
     user: User | null;
     token: string | null;
     login: (identifier: string, password: string) => Promise<User>;
-    signup: (name: string, email: string, phone: string, location: string, password: string, role?: UserRole, vendorData?: Partial<User>, turnstileToken?: string) => Promise<User>;
+    signup: (name: string, email: string, phone: string, location: string, region: string, password: string, role?: UserRole, vendorData?: Partial<User>, turnstileToken?: string) => Promise<User>;
     logout: () => void;
     updateUser: (updatedData: Partial<User>) => void;
     isAuthenticated: boolean;
@@ -155,6 +156,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             walletBalance: data.user.walletBalance,
             pendingBalance: data.user.pendingBalance,
             region: data.user.region,
+            vendorTier: data.user.vendorTier,
         };
 
         setUser(loggedInUser);
@@ -165,7 +167,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, []);
 
     const signup = useCallback(async (
-        name: string, email: string, phone: string, location: string,
+        name: string, email: string, phone: string, location: string, region: string,
         password: string, role: UserRole = 'customer', vendorData?: Partial<User>,
         turnstileToken?: string
     ): Promise<User> => {
@@ -175,7 +177,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             credentials: 'include',
             body: JSON.stringify({
                 email: email.toLowerCase().trim(),
-                password, name, phone, location, role,
+                password, name, phone, location, region, role,
                 turnstileToken,
                 ...vendorData
             }),

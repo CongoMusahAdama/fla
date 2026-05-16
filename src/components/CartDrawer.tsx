@@ -54,7 +54,7 @@ export default function CartDrawer() {
         if (cartItems.length === 0 || isProcessingCheckout) return;
 
         if (!isAuthenticated) {
-            setIsCartOpen(false); // Close cart before showing modal
+            setIsCartOpen(false);
             Swal.fire({
                 title: 'SIGN IN REQUIRED',
                 text: 'Please log in to proceed with your bag checkout.',
@@ -79,27 +79,28 @@ export default function CartDrawer() {
             return;
         }
 
-        setIsCartOpen(false); // Close cart before showing modal
+        setIsCartOpen(false);
 
+        let selectedDeliveryFee = 0;
         const { value: formValues, isConfirmed } = await Swal.fire({
             title: 'CONFIRM YOUR ORDER',
             html: `
-                <div class="text-left space-y-6 py-4">
+                <div class="text-left space-y-5 py-4">
                     <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
                         <p class="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-3">Order Summary</p>
-                        <div class="space-y-2.5 max-h-48 overflow-y-auto">
+                        <div class="space-y-2 max-h-40 overflow-y-auto">
                             ${cartItems.map(item => `
                                 <div class="flex justify-between items-center text-sm bg-white p-3 rounded-xl">
                                     <div class="flex flex-col">
                                         <span class="font-bold text-slate-900">${item.name}</span>
                                         <span class="text-slate-400 text-[10px] uppercase font-black tracking-widest">
-                                            ${item.size !== 'N/A' ? `Size: ${item.size}` : ''} 
+                                            ${item.size !== 'N/A' ? `Size: ${item.size}` : ''}
                                             ${item.color !== 'N/A' ? ` | Color: ${item.color}` : ''}
                                         </span>
                                     </div>
-                                    <div class="text-right flex flex-col">
-                                        <span class="text-brand-lemon text-xs font-black">×${item.quantity}</span>
-                                        <span class="text-slate-900 font-black">GH₵${item.price * item.quantity}</span>
+                                    <div class="text-right">
+                                        <span class="text-[10px] font-black text-slate-400">×${item.quantity}</span>
+                                        <p class="font-black text-slate-900">GH₵${item.price * item.quantity}</p>
                                     </div>
                                 </div>
                             `).join('')}
@@ -111,26 +112,38 @@ export default function CartDrawer() {
                             <label class="text-[10px] text-slate-400 font-black uppercase tracking-widest ml-1">Delivery Address</label>
                             <input id="delivery-address" type="text" placeholder="e.g. 123 Main St, East Legon" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20" value="${user?.address || ''}" />
                         </div>
-                        <div class="grid grid-cols-2 gap-4">
-                            <div class="space-y-2">
-                                <label class="text-[10px] text-slate-400 font-black uppercase tracking-widest ml-1">City</label>
-                                <input id="delivery-city" type="text" placeholder="e.g. Accra" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20" value="${user?.location || ''}" />
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="space-y-2 relative">
+                                <label class="text-[10px] text-slate-400 font-black uppercase tracking-widest ml-1">Search Location (Skynet)</label>
+                                <input id="delivery-city" type="text" placeholder="Start typing your area..." class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20" value="${user?.location || ''}" autocomplete="off" />
+                                <div id="location-suggestions-cart" class="absolute left-0 right-0 top-full mt-2 bg-white shadow-2xl rounded-2xl border border-slate-100 overflow-hidden z-[100] hidden">
+                                    <!-- Suggestions -->
+                                </div>
                             </div>
                             <div class="space-y-2">
                                 <label class="text-[10px] text-slate-400 font-black uppercase tracking-widest ml-1">Region</label>
-                                <select id="delivery-region" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20">
-                                    <option value="">Select Region</option>
-                                    ${['Greater Accra', 'Ashanti', 'Western', 'Central', 'Eastern', 'Volta', 'Northern', 'Upper East', 'Upper West', 'Bono', 'Bono East', 'Ahafo', 'Savannah', 'North East', 'Oti', 'Western North'].map(r => `
-                                        <option value="${r}" ${user?.region === r ? 'selected' : ''}>${r}</option>
-                                    `).join('')}
-                                </select>
+                                <input id="delivery-region" type="text" placeholder="e.g. Greater Accra" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20" value="${user?.region || ''}" />
                             </div>
                         </div>
                     </div>
 
-                    <div class="border-t-2 border-dashed border-slate-200 pt-4 flex justify-between items-center">
-                        <span class="font-black text-slate-900 uppercase tracking-wider text-sm">Total Payable:</span>
-                        <span class="text-2xl font-black text-slate-900 bg-brand-lemon px-4 py-2 rounded-xl shadow-sm">GH₵${subtotal}</span>
+                    <!-- Fee Summary -->
+                    <div id="cart-fee-summary" class="mt-6 p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-2">
+                        <div class="flex justify-between items-center text-xs font-bold text-slate-500 uppercase tracking-wider">
+                            <span>Subtotal</span>
+                            <span>GH₵ ${subtotal.toLocaleString()}</span>
+                        </div>
+                        <div class="flex justify-between items-center text-xs font-bold text-slate-500 uppercase tracking-wider">
+                            <span class="flex items-center gap-1">Delivery Fee <span class="text-[8px] bg-slate-900 text-white px-1.5 py-0.5 rounded ml-1">Pay on Delivery</span></span>
+                            <span id="cart-display-delivery-fee">GH₵ 0.00</span>
+                        </div>
+                        <div class="pt-2 border-t border-slate-200 flex justify-between items-center">
+                            <div class="flex flex-col">
+                                <span class="text-sm font-black text-slate-900 uppercase">Payable Now</span>
+                                <span class="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Item(s) Total via Digital Payment</span>
+                            </div>
+                            <span id="cart-display-total-amount" class="text-lg font-black text-slate-900">GH₵ ${subtotal.toLocaleString()}</span>
+                        </div>
                     </div>
                 </div>
             `,
@@ -138,33 +151,103 @@ export default function CartDrawer() {
             confirmButtonText: 'Pay with MoMo / Card',
             cancelButtonText: 'Continue Shopping',
             buttonsStyling: false,
+            didOpen: () => {
+                const cityInput = document.getElementById('delivery-city') as HTMLInputElement;
+                const suggestionsBox = document.getElementById('location-suggestions-cart') as HTMLDivElement;
+                const feeDisplay = document.getElementById('cart-display-delivery-fee') as HTMLSpanElement;
+                const totalDisplay = document.getElementById('cart-display-total-amount') as HTMLSpanElement;
+
+                let timeout: NodeJS.Timeout;
+
+                cityInput.addEventListener('input', (e) => {
+                    const query = (e.target as HTMLInputElement).value;
+                    clearTimeout(timeout);
+                    if (query.length < 2) {
+                        suggestionsBox.classList.add('hidden');
+                        return;
+                    }
+
+                    timeout = setTimeout(async () => {
+                        try {
+                            const apiBase = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api');
+                            const response = await fetch(`${apiBase}/logistics/locations/search?q=${encodeURIComponent(query)}`);
+                            const locations = await response.json();
+
+                            if (locations.length > 0) {
+                                suggestionsBox.innerHTML = locations.map((loc: any) => `
+                                    <button class="w-full px-5 py-3 text-left hover:bg-slate-50 flex items-center justify-between border-b border-slate-50 last:border-0 transition-colors" data-name="${loc.name}" data-fee="${loc.deliveryFee}" data-zone="${loc.zone}">
+                                        <div class="flex flex-col">
+                                            <span class="text-sm font-black text-slate-900">${loc.name}</span>
+                                            <span class="text-[9px] text-slate-400 font-bold uppercase tracking-wider">${loc.zone} ${loc.cluster ? `(${loc.cluster})` : ''}</span>
+                                        </div>
+                                        <span class="text-xs font-black text-brand-lemon bg-slate-900 px-2 py-1 rounded-lg">GH₵ ${loc.deliveryFee}</span>
+                                    </button>
+                                `).join('');
+                                suggestionsBox.classList.remove('hidden');
+
+                                suggestionsBox.querySelectorAll('button').forEach(btn => {
+                                    btn.addEventListener('click', () => {
+                                        const name = btn.getAttribute('data-name') || '';
+                                        const fee = parseInt(btn.getAttribute('data-fee') || '0');
+                                        
+                                        cityInput.value = name;
+                                        selectedDeliveryFee = fee;
+                                        
+                                        feeDisplay.textContent = `GH₵ ${fee.toLocaleString()}.00`;
+                                        totalDisplay.textContent = `GH₵ ${subtotal.toLocaleString()}.00`;
+                                        
+                                        suggestionsBox.classList.add('hidden');
+                                    });
+                                });
+                            } else {
+                                suggestionsBox.classList.add('hidden');
+                            }
+                        } catch (err) {
+                            console.error('Search error:', err);
+                        }
+                    }, 300);
+                });
+
+                document.addEventListener('click', (e) => {
+                    if (!cityInput.contains(e.target as Node) && !suggestionsBox.contains(e.target as Node)) {
+                        suggestionsBox.classList.add('hidden');
+                    }
+                });
+            },
             preConfirm: () => {
                 const deliveryAddress = (document.getElementById('delivery-address') as HTMLInputElement).value;
                 const deliveryCity = (document.getElementById('delivery-city') as HTMLInputElement).value;
-                const deliveryRegion = (document.getElementById('delivery-region') as HTMLSelectElement).value;
+                const deliveryRegion = (document.getElementById('delivery-region') as HTMLInputElement).value;
+                
                 if (!deliveryAddress || !deliveryCity || !deliveryRegion) {
-                    Swal.showValidationMessage('Please provide your complete delivery location');
+                    Swal.showValidationMessage('Please fill in your complete delivery details');
                     return false;
                 }
-                return { deliveryAddress, deliveryCity, deliveryRegion };
+                return { 
+                    deliveryAddress, 
+                    deliveryCity, 
+                    deliveryRegion, 
+                    deliveryFee: selectedDeliveryFee,
+                    totalProductAmount: subtotal
+                };
             },
             customClass: {
-                popup: 'rounded-[40px] border-none shadow-2xl p-10 bg-white',
-                title: 'text-2xl font-black text-slate-900 tracking-tighter uppercase mb-6',
+                popup: 'rounded-[40px] border-none shadow-2xl p-8 bg-white',
+                title: 'text-2xl font-black text-slate-900 tracking-tighter uppercase mb-4',
                 htmlContainer: 'text-slate-600',
-                confirmButton: 'bg-slate-900 text-white rounded-full px-10 py-4 text-[11px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all mx-2 shadow-lg',
-                cancelButton: 'bg-slate-100 text-slate-500 rounded-full px-10 py-4 text-[11px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all mx-2'
+                confirmButton: 'bg-slate-900 text-white rounded-full px-8 py-4 text-[11px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all mx-2 shadow-lg',
+                cancelButton: 'bg-slate-100 text-slate-500 rounded-full px-8 py-4 text-[11px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all mx-2'
             },
             width: '90%',
             backdrop: 'rgba(15, 23, 42, 0.7)'
         });
 
-            if (isConfirmed) {
-                setIsProcessingCheckout(true);
-                try {
-                    Swal.fire({
+        if (isConfirmed && formValues) {
+            setIsProcessingCheckout(true);
+            try {
+                Swal.fire({
                     title: 'PREPARING PAYMENT...',
-                    text: 'Connecting to secure MoMo gateway...',
+                    text: 'Connecting to secure gateway...',
                     allowOutsideClick: false,
                     didOpen: () => Swal.showLoading(),
                     customClass: {
@@ -183,7 +266,9 @@ export default function CartDrawer() {
                         color: item.color,
                         image: item.image
                     })),
-                    totalAmount: subtotal,
+                    totalProductAmount: formValues.totalProductAmount,
+                    deliveryFee: formValues.deliveryFee,
+                    totalAmount: formValues.totalProductAmount + formValues.deliveryFee,
                     vendorId: (typeof cartItems[0]?.vendorId === 'object' && cartItems[0]?.vendorId !== null)
                         ? (cartItems[0].vendorId as any)._id || (cartItems[0].vendorId as any).id
                         : cartItems[0]?.vendorId,
@@ -191,15 +276,12 @@ export default function CartDrawer() {
                     shippingAddress: formValues.deliveryAddress,
                     shippingCity: formValues.deliveryCity,
                     shippingRegion: formValues.deliveryRegion,
-                    deliveryType: cartItems[0]?.vendorRegion && cartItems[0].vendorRegion === formValues.deliveryRegion 
-                        ? 'intra-regional' 
-                        : 'inter-regional',
+                    deliveryType: 'skynet-express',
                     customerName: user?.name,
                     customerEmail: user?.email,
                     customerPhone: user?.phone,
-                    pickupPoint: 'Direct Delivery',
-                    paymentMethod: 'hubtel',
-                    notes: 'Order via Hubtel'
+                    paymentMethod: 'paystack',
+                    notes: `Skynet Delivery to ${formValues.deliveryCity}`
                 };
 
                 const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders`, {
@@ -218,12 +300,8 @@ export default function CartDrawer() {
                 }
 
                 const { paymentLink } = await response.json();
-
-                // Clear cart locally before redirect
                 cartItems.forEach(item => removeFromCart(item.id, item.size, item.color));
                 setIsCartOpen(false);
-
-                // Redirect to Hubtel
                 window.location.href = paymentLink;
 
             } catch (error: any) {

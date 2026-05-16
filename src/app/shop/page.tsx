@@ -21,12 +21,33 @@ const GHANA_REGIONS = [
 function ShopContent() {
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const [products, setProducts] = useState<any[]>([]);
+    const [groupedProducts, setGroupedProducts] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [activeCategory, setActiveCategory] = useState('All Product');
     const [openDropdown, setOpenDropdown] = useState<string | null>(null);
     const [activeFilters, setActiveFilters] = useState<Record<string, string>>({});
     const [localSearch, setLocalSearch] = useState('');
     const [suggestions, setSuggestions] = useState<any[]>([]);
+
+    useEffect(() => {
+        const fetchGroupedProducts = async () => {
+            if (activeCategory !== 'All Product' || localSearch || activeFilters.Region) {
+                setGroupedProducts([]);
+                return;
+            }
+            try {
+                const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+                const res = await fetch(`${api}/products/grouped`);
+                if (res.ok) {
+                    const data = await res.json();
+                    setGroupedProducts(data);
+                }
+            } catch (err) {
+                console.error("Grouped fetch error:", err);
+            }
+        };
+        fetchGroupedProducts();
+    }, [activeCategory, localSearch, activeFilters.Region]);
 
     useEffect(() => {
         const fetchSuggestions = async () => {
@@ -287,16 +308,79 @@ function ShopContent() {
                 </div>
             </section>
 
-            {/* Product Grid */}
-            <section className="px-4 md:px-8 py-12 md:py-16 min-h-[600px] overflow-x-hidden">
+            {/* Product Grid / Grouped View */}
+            <section className="px-4 md:px-8 py-12 md:py-24 min-h-[800px] bg-slate-50/30">
                 <div className="max-w-7xl mx-auto">
                     {loading ? (
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
                             {Array(8).fill(0).map((_, i) => (
-                                <div key={i} className="aspect-[3/4] bg-slate-50 animate-pulse rounded-2xl" />
+                                <div key={i} className="aspect-[3/4] bg-white animate-pulse rounded-[32px] border border-slate-100 shadow-sm" />
+                            ))}
+                        </div>
+                    ) : groupedProducts.length > 0 && activeCategory === 'All Product' && !localSearch && !activeFilters.Region ? (
+                        /* Grouped View - 9 Products Per Vendor */
+                        <div className="space-y-32">
+                            {groupedProducts.map((group, idx) => (
+                                <div key={group.vendorId} className="animate-in fade-in slide-in-from-bottom-10 duration-1000" style={{ animationDelay: `${idx * 150}ms` }}>
+                                    {/* Vendor Header */}
+                                    <div className="flex flex-col md:flex-row justify-between items-end gap-6 mb-12 px-2">
+                                        <div className="space-y-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-[2px] bg-brand-lemon" />
+                                                <span className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-400">Merchant Collection</span>
+                                            </div>
+                                            <h2 className="text-4xl md:text-5xl font-black text-slate-900 uppercase tracking-tighter leading-none">
+                                                {group.vendorName || "Premium Vendor"} <br />
+                                                <span className="text-slate-300">Catalog.</span>
+                                            </h2>
+                                            <div className="flex items-center gap-4">
+                                                <div className="px-4 py-1.5 bg-white border border-slate-100 rounded-full shadow-sm flex items-center gap-2">
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                                    <span className="text-[9px] font-black text-slate-900 uppercase tracking-widest">{group.region || "Ghana"}</span>
+                                                </div>
+                                                <Link href={`/vendor/${group.uniqueVendorId}`} className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] hover:text-slate-900 transition-colors">
+                                                    Visit Storefront →
+                                                </Link>
+                                            </div>
+                                        </div>
+                                        <div className="hidden lg:block h-[1px] flex-1 bg-slate-100 mx-12 mb-4" />
+                                        <div className="text-right pb-1">
+                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Stock Status</p>
+                                            <p className="text-xs font-black text-slate-900 uppercase">Latest 9 Arrivals</p>
+                                        </div>
+                                    </div>
+
+                                    {/* Vendor Product Grid */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-8">
+                                        {group.products.map((product: any, pIdx: number) => (
+                                            <ProductCard
+                                                key={product._id}
+                                                id={product._id}
+                                                name={product.name}
+                                                price={product.price}
+                                                images={product.images || ['/product-1.jpg']}
+                                                imageLabels={product.imageLabels}
+                                                sizes={product.sizes}
+                                                stock={product.stock}
+                                                vendorId={product.vendorId}
+                                                index={pIdx}
+                                                description={product.description}
+                                                vendorName={group.vendorName}
+                                                uniqueVendorId={group.uniqueVendorId}
+                                                hasSizes={product.hasSizes}
+                                                hasColors={product.hasColors}
+                                                colors={product.colors}
+                                                duration={product.tailoringTime}
+                                                vendorRegion={group.region}
+                                                vendorBio={product.vendorBio}
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
                             ))}
                         </div>
                     ) : products.length > 0 ? (
+                        /* Standard Filter View */
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-12">
                             {products.map((product, index) => (
                                 <ProductCard
@@ -318,25 +402,35 @@ function ShopContent() {
                                     colors={product.colors}
                                     duration={product.tailoringTime}
                                     vendorRegion={product.region}
+                                    vendorBio={product.vendorBio}
                                 />
                             ))}
                         </div>
                     ) : (
-                        <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-                            <p className="text-lg font-medium">No products found in this category.</p>
-                            <button onClick={() => setActiveCategory('All Product')} className="mt-4 text-slate-900 bg-brand-lemon px-6 py-2 rounded-full font-bold hover:opacity-90 transition-all cursor-pointer">
-                                Clear Filters
+                        <div className="flex flex-col items-center justify-center py-32 text-slate-400">
+                            <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-6">
+                                <Search className="w-8 h-8 opacity-20" />
+                            </div>
+                            <p className="text-xl font-bold text-slate-900 uppercase tracking-tighter">No items found</p>
+                            <p className="text-sm font-medium mt-2">Try adjusting your filters or search terms.</p>
+                            <button onClick={() => {
+                                setActiveCategory('All Product');
+                                setLocalSearch('');
+                                setActiveFilters({});
+                            }} className="mt-8 text-[10px] font-black text-slate-900 bg-brand-lemon px-10 py-4 rounded-full uppercase tracking-widest hover:shadow-xl transition-all cursor-pointer">
+                                Clear All Filters
                             </button>
                         </div>
                     )}
 
-                    {/* Pagination */}
-                    <div className="flex justify-center mt-20 gap-3">
-                        <button className="w-10 h-10 rounded-full bg-slate-900 text-white flex items-center justify-center text-sm font-bold cursor-pointer">1</button>
-                        <button className="w-10 h-10 rounded-full text-slate-500 hover:bg-slate-100 flex items-center justify-center text-sm font-medium cursor-pointer transition-colors">2</button>
-                        <button className="w-10 h-10 rounded-full text-slate-500 hover:bg-slate-100 flex items-center justify-center text-sm font-medium cursor-pointer transition-colors">3</button>
-                        <button className="w-10 h-10 rounded-full text-slate-500 hover:bg-slate-100 flex items-center justify-center text-sm font-medium cursor-pointer transition-colors">→</button>
-                    </div>
+                    {/* Pagination - Only show if not in grouped mode */}
+                    {(!groupedProducts.length || activeCategory !== 'All Product' || localSearch || activeFilters.Region) && products.length > 0 && (
+                        <div className="flex justify-center mt-32 gap-3">
+                            <button className="w-12 h-12 rounded-2xl bg-slate-900 text-white flex items-center justify-center text-sm font-bold cursor-pointer hover:bg-black transition-colors shadow-lg">1</button>
+                            <button className="w-12 h-12 rounded-2xl bg-white border border-slate-100 text-slate-500 hover:bg-slate-50 flex items-center justify-center text-sm font-medium cursor-pointer transition-colors">2</button>
+                            <button className="w-12 h-12 rounded-2xl bg-white border border-slate-100 text-slate-500 hover:bg-slate-50 flex items-center justify-center text-sm font-medium cursor-pointer transition-colors">→</button>
+                        </div>
+                    )}
                 </div>
             </section>
 

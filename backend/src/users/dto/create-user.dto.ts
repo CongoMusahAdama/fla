@@ -119,4 +119,8 @@ export class CreateUserDto {
     @IsString()
     @IsOptional()
     role?: string;
+
+    @IsString()
+    @IsOptional()
+    vendorTier?: string;
 }

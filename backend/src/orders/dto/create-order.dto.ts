@@ -109,7 +109,11 @@ export class CreateOrderDto {
     @IsOptional()
     carrier?: string;
 
-    @IsString()
+    @IsNumber()
     @IsOptional()
-    deliveryType?: string;
+    deliveryFee?: number;
+
+    @IsNumber()
+    @IsOptional()
+    totalProductAmount?: number;
 }

@@ -15,7 +15,10 @@
     "next": "16.1.6",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "react-to-print": "^3.3.0",
     "recharts": "^3.8.1",
+    "stream-chat": "^9.43.2",
+    "stream-chat-react": "^14.1.0",
     "sweetalert2": "^11.26.17",
     "tailwind-merge": "^3.4.0"
   },

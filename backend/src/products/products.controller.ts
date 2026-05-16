@@ -19,6 +19,11 @@ export class ProductsController {
     return this.productsService.getSuggestions(search);
   }
 
+  @Get('grouped')
+  findGroupedByVendor() {
+    return this.productsService.findGroupedByVendor();
+  }
+
   @UseGuards(AuthGuard('jwt'))
   @Post()
   create(@Body() createProductDto: CreateProductDto, @Request() req) {

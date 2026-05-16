@@ -18,7 +18,8 @@ import {
     Building2,
     Zap,
     X,
-    Quote
+    Quote,
+    MapPin
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -32,9 +33,6 @@ export default function AboutPage() {
                 <div className="absolute inset-0 z-0 bg-slate-900" />
                 
                 <div className="relative z-10 max-w-5xl mx-auto px-6 text-center animate-in fade-in slide-in-from-bottom-8 duration-1000">
-                    <span className="inline-block px-4 py-1.5 bg-brand-lemon text-slate-900 text-[10px] font-black uppercase tracking-[0.3em] rounded-full mb-6">
-                        Established 2026
-                    </span>
                     <h1 className="text-5xl md:text-7xl lg:text-8xl font-black text-white uppercase tracking-tighter mb-8 leading-[0.9]">
                         Trust Built <br /> <span className="text-brand-lemon italic">into Trade.</span>
                     </h1>
@@ -154,7 +152,7 @@ export default function AboutPage() {
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                         {[
-                            { icon: Lock, title: "Secure Payments", desc: "Processing via Hubtel for absolute financial safety." },
+                            { icon: Lock, title: "Secure Payments", desc: "Processing via Paystack for absolute financial safety." },
                             { icon: Users, title: "Verified Vendors", desc: "Rigorous onboarding and verification checks for every shop." },
                             { icon: Scale, title: "Accountability", desc: "Structured order flow with responsibility at every step." },
                             { icon: Rocket, title: "Transparency", desc: "Full transaction history for both buyers and sellers." }
@@ -163,6 +161,110 @@ export default function AboutPage() {
                                 <item.icon className="w-10 h-10 text-slate-300 group-hover:text-brand-lemon mb-6 transition-colors" />
                                 <h4 className="text-lg font-black text-slate-900 uppercase tracking-tight mb-2">{item.title}</h4>
                                 <p className="text-slate-500 text-xs leading-relaxed font-medium">{item.desc}</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </section>
+
+            {/* --- Skynet Logistics Network (Premium Redesign) --- */}
+            <section className="py-40 px-6 bg-[#f8fafc] relative overflow-hidden">
+                {/* Decorative background elements */}
+                <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-slate-200/20 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/3" />
+                <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-brand-lemon/5 rounded-full blur-[100px] translate-y-1/3 -translate-x-1/4" />
+                
+                <div className="max-w-7xl mx-auto relative z-10">
+                    <div className="flex flex-col lg:flex-row items-start justify-between gap-16 mb-24">
+                        <div className="max-w-3xl">
+                            <div className="flex items-center gap-3 mb-6">
+                                <div className="w-10 h-[2px] bg-brand-lemon" />
+                                <span className="text-[11px] font-black uppercase tracking-[0.5em] text-slate-400">Strategic Logistics</span>
+                            </div>
+                            <h2 className="text-5xl md:text-7xl font-black text-slate-900 uppercase tracking-tighter leading-[0.85] mb-10">
+                                Nationwide <br />
+                                <span className="text-transparent bg-clip-text bg-gradient-to-r from-slate-400 to-slate-200">Infrastructure.</span>
+                            </h2>
+                            <p className="text-slate-500 text-xl font-medium leading-relaxed max-w-2xl">
+                                Our partnership with <span className="text-slate-900 font-black border-b-2 border-brand-lemon pb-1">Skynet Express</span> transforms the entire map of Ghana into your personal storefront window.
+                            </p>
+                        </div>
+                        
+                        <div className="flex flex-col items-end gap-6">
+                            <div className="bg-white p-10 rounded-[48px] shadow-2xl shadow-slate-200/50 border border-slate-100 flex items-center gap-10">
+                                <div className="text-right">
+                                    <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1">Global Network</p>
+                                    <p className="text-base font-black text-emerald-500 uppercase flex items-center gap-2 justify-end">
+                                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                                        Operational
+                                    </p>
+                                </div>
+                                <div className="h-16 w-[1px] bg-slate-100" />
+                                <div className="relative h-24 w-72">
+                                    <Image 
+                                        src="/skynet.png" 
+                                        alt="Skynet Express" 
+                                        fill 
+                                        className="object-contain hover:scale-110 transition-transform duration-500" 
+                                    />
+                                </div>
+                            </div>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mr-4">Trusted by 500+ Local Vendors</p>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                        {[
+                            { city: "Accra", name: "Head Office", address: "Adabla Plaza, Kokomlemle", tel: "0302230516", email: "p.norteye@skynetgh.com", region: "Greater Accra" },
+                            { city: "Kumasi", name: "Kumasi Branch", address: "297 Hudson Road, Asokwa", tel: "0322005717", email: "e.barimah@skynetgh.com", region: "Ashanti" },
+                            { city: "Takoradi", name: "Takoradi Branch", address: "Opp. Takoradi Airport", tel: "0558151515", email: "e.darkwa@skynetgh.com", region: "Western" },
+                            { city: "Tamale", name: "Tamale Branch", address: "Yamusah Building, Tamale", tel: "0558161616", email: "t.damte@skynetgh.com", region: "Northern" },
+                            { city: "Tema", name: "Tema Branch", address: "Community one, Tema", tel: "0362195280", email: "a.paintsil@skynetgh.com", region: "Greater Accra" },
+                            { city: "Sunyani", name: "Sunyani Branch", address: "SSNIT Building, Sunyani", tel: "0551004444", email: "j.sanbir@skynetgh.com", region: "Bono" },
+                            { city: "Koforidua", name: "Koforidua Branch", address: "SSNIT Office Complex", tel: "0352291442", email: "e.safoa@skynetgh.com", region: "Eastern" },
+                            { city: "Wa", name: "Wa Branch", address: "Stanbic Bank Building", tel: "0303966467", email: "s.bulla@skynetgh.com", region: "Upper West" },
+                            { city: "Cape Coast", name: "Cape Coast Branch", address: "SSNIT Office Complex", tel: "0302230516", email: "j.osei@skynetgh.com", region: "Central" },
+                            { city: "Ho", name: "Ho Branch", address: "SSNIT Office Complex", tel: "0551002222", email: "s.nartey@skynetgh.com", region: "Volta" },
+                            { city: "Bolgatanga", name: "Bolga Branch", address: "SSNIT Office Complex", tel: "0541674712", email: "z.issahaku@skynetgh.com", region: "Upper East" },
+                            { city: "Tarkwa", name: "Tarkwa Branch", address: "SSNIT Building", tel: "0553906496", email: "p.tibil@skynetgh.com", region: "Western" }
+                        ].map((branch, i) => (
+                            <div key={i} className="group relative bg-white p-10 rounded-[48px] border border-slate-100 shadow-xl shadow-slate-200/40 hover:shadow-2xl hover:shadow-slate-300/50 hover:-translate-y-3 transition-all duration-700 overflow-hidden">
+                                {/* Interactive background accent */}
+                                <div className="absolute top-0 right-0 w-32 h-32 bg-slate-50 rounded-full translate-x-16 -translate-y-16 group-hover:bg-brand-lemon transition-colors duration-700" />
+                                
+                                <div className="relative z-10">
+                                    <div className="flex justify-between items-start mb-10">
+                                        <div className="w-14 h-14 bg-slate-900 rounded-3xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-500">
+                                            <Building2 className="w-6 h-6 text-brand-lemon" />
+                                        </div>
+                                        <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 bg-slate-50 px-4 py-1.5 rounded-full border border-slate-100 group-hover:bg-slate-900 group-hover:text-white group-hover:border-slate-900 transition-all duration-500">
+                                            {branch.region}
+                                        </span>
+                                    </div>
+
+                                    <h4 className="text-2xl font-black text-slate-900 uppercase tracking-tighter mb-2 group-hover:text-slate-900">{branch.city}</h4>
+                                    <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] mb-10">{branch.name}</p>
+                                    
+                                    <div className="space-y-6 pt-8 border-t border-slate-50">
+                                        <div className="flex items-start gap-4">
+                                            <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center shrink-0">
+                                                <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                                            </div>
+                                            <p className="text-[13px] font-medium text-slate-500 leading-relaxed">{branch.address}</p>
+                                        </div>
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center shrink-0">
+                                                <Zap className="w-3.5 h-3.5 text-slate-400" />
+                                            </div>
+                                            <p className="text-sm font-black text-slate-900">{branch.tel}</p>
+                                        </div>
+                                        <div className="flex items-center gap-4 group/mail">
+                                            <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center shrink-0 group-hover/mail:bg-slate-900 transition-colors">
+                                                <Code className="w-3.5 h-3.5 text-slate-400 group-hover/mail:text-brand-lemon" />
+                                            </div>
+                                            <p className="text-[11px] font-bold text-slate-400 lowercase truncate">{branch.email}</p>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         ))}
                     </div>
@@ -182,30 +284,32 @@ export default function AboutPage() {
                     <div className="flex overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_20%,black_80%,transparent)]">
                         <div className="flex animate-marquee whitespace-nowrap items-center gap-32 py-4">
                             {[
-                                { src: "/hubtel.png", name: "Hubtel", width: 180 },
+                                { src: "/paystack.png", name: "Paystack", width: 180 },
+                                { src: "/skynet.png", name: "Skynet Express", width: 160 },
                                 { src: "/mtn.png", name: "MTN Ghana", width: 140 },
                                 { src: "/payment-logos/telecel.png", name: "Telecel", width: 180 },
                                 { src: "/airteltigo.png", name: "AirtelTigo", width: 180 },
                                 { src: "/visacard.png", name: "Visa / Mastercard", width: 160 },
                                 // Duplicated set for infinite loop
-                                { src: "/hubtel.png", name: "Hubtel", width: 180 },
+                                { src: "/paystack.png", name: "Paystack", width: 180 },
+                                { src: "/skynet.png", name: "Skynet Express", width: 160 },
                                 { src: "/mtn.png", name: "MTN Ghana", width: 140 },
                                 { src: "/payment-logos/telecel.png", name: "Telecel", width: 180 },
                                 { src: "/airteltigo.png", name: "AirtelTigo", width: 180 },
                                 { src: "/visacard.png", name: "Visa / Mastercard", width: 160 }
                             ].map((logo, i) => (
-                                <div key={i} className="flex flex-col items-center gap-6 shrink-0 px-4">
-                                    <div className="relative h-20 md:h-24 transition-all duration-700 hover:scale-110">
-                                        <div style={{ width: `${logo.width}px`, height: '100%', position: 'relative' }}>
-                                            <Image
-                                                src={logo.src}
-                                                alt={logo.name}
-                                                fill
-                                                className="object-contain"
-                                            />
-                                        </div>
+                                <div key={i} className="flex flex-col items-center gap-8 shrink-0 px-10 group">
+                                    <div className="relative w-32 h-32 md:w-36 md:h-36 bg-white rounded-full overflow-hidden shadow-2xl transition-all duration-700 group-hover:scale-110 group-hover:shadow-[0_20px_60px_rgba(235,255,0,0.2)]">
+                                        <Image
+                                            src={logo.src}
+                                            alt={logo.name}
+                                            fill
+                                            className="object-contain p-6 transition-transform duration-700 group-hover:scale-110"
+                                        />
                                     </div>
-                                    <span className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 hover:text-brand-lemon transition-colors duration-500">{logo.name}</span>
+                                    <div className="text-center">
+                                        <span className="text-[10px] font-black uppercase tracking-[0.5em] text-slate-500 group-hover:text-brand-lemon transition-colors duration-500">{logo.name}</span>
+                                    </div>
                                 </div>
                             ))}
                         </div>

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException, Inject, forwardRef, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, Inject, forwardRef, Logger, BadRequestException } from '@nestjs/common';
 import { InjectModel, InjectConnection } from '@nestjs/mongoose';
 import { Model, Types, Connection } from 'mongoose';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -6,12 +6,13 @@ import { UpdateOrderDto } from './dto/update-order.dto';
 import { Order, OrderDocument } from './schemas/order.schema';
 import { Product, ProductDocument } from '../products/schemas/product.schema';
 import { User, UserDocument } from '../users/schemas/user.schema';
-import { HubtelService } from '../payments/hubtel.service';
+import { PaystackService } from '../common/paystack.service';
 import { FLA_CONSTANTS } from '../common/constants';
 
 import { NotificationsService } from '../notifications/notifications.service';
 import { EmailService } from '../email/email.service';
 import { SettingsService } from '../settings/settings.service';
+import { SmsService } from '../common/sms.service';
 
 @Injectable()
 export class OrdersService {
@@ -22,26 +23,38 @@ export class OrdersService {
     @InjectModel(Product.name) private productModel: Model<ProductDocument>,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectConnection() private readonly connection: Connection,
-    private readonly hubtelService: HubtelService,
+    private readonly paystackService: PaystackService,
     private readonly notificationsService: NotificationsService,
     private readonly emailService: EmailService,
     private readonly settingsService: SettingsService,
+    private readonly smsService: SmsService,
   ) { }
 
-  async create(createOrderDto: CreateOrderDto): Promise<any> {
+  async create(createOrderDto: CreateOrderDto): Promise<{ order: Order; paymentLink: string }> {
     try {
       const orderId = new Types.ObjectId();
 
-      // Commission Logic: User wants it deducted immediately.
-      const totalAmount = createOrderDto.totalAmount;
+      // Delivery Fee Logic
+      const deliveryFee = createOrderDto.deliveryFee || 0;
+      const totalProductAmount = createOrderDto.totalProductAmount || createOrderDto.totalAmount;
+      const totalAmount = totalProductAmount + deliveryFee;
+
+      // Commission Logic (Based on Product Amount only)
       const fetchedRate = await this.settingsService.getSetting('platform_commission');
-      const commissionRate = fetchedRate !== null && fetchedRate !== undefined ? fetchedRate : FLA_CONSTANTS.DEFAULT_COMMISSION_RATE;
-      const adminCommission = totalAmount * (commissionRate / 100);
-      const vendorShare = totalAmount - adminCommission;
+      const commissionRate = fetchedRate !== null && fetchedRate !== undefined ? Number(fetchedRate) : FLA_CONSTANTS.DEFAULT_COMMISSION_RATE;
+      const adminCommission = totalProductAmount * (commissionRate / 100);
+      const vendorShare = totalProductAmount - adminCommission;
+
+      const vendor = await this.userModel.findById(createOrderDto.vendorId).exec();
+
+      const { customerId, vendorId, items, ...remainingDto } = createOrderDto;
 
       const orderData: any = {
-        ...createOrderDto,
-        customerId: new Types.ObjectId(createOrderDto.customerId),
+        ...remainingDto,
+        customerId: new Types.ObjectId(customerId),
+        totalAmount,
+        deliveryFee,
+        totalProductAmount,
         status: 'pending',
         isPaid: false,
         adminCommission,
@@ -50,14 +63,10 @@ export class OrdersService {
         paymentRef: orderId.toString()
       };
 
-      if (createOrderDto.vendorId) {
-        orderData.vendorId = new Types.ObjectId(createOrderDto.vendorId);
-        // Auto-populate vendor name if missing
-        if (!createOrderDto.vendorName) {
-          const vendor = await this.userModel.findById(createOrderDto.vendorId).exec();
-          if (vendor) {
-            orderData.vendorName = vendor.shopName || vendor.name;
-          }
+      if (vendorId) {
+        orderData.vendorId = new Types.ObjectId(vendorId);
+        if (vendor) {
+          orderData.vendorName = vendor.shopName || vendor.name;
         }
       }
 
@@ -74,20 +83,22 @@ export class OrdersService {
       });
       const savedOrder = await createdOrder.save();
 
-      // Initialize Hubtel Payment
-      const paymentLink = await this.hubtelService.initializePayment({
+      // Initialize Paystack Payment with Split (Subaccount)
+      const paymentLinkData: any = await this.paystackService.initializePayment({
         reference: orderId.toString(),
-        amount: totalAmount,
-        description: `Order Payment for #ORD-${orderId.toString().slice(-6).toUpperCase()}`,
+        amount: totalProductAmount,
+        email: createOrderDto.customerEmail || 'customer@fla.com',
         callback_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard?order_id=${orderId}`,
-        return_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard?order_id=${orderId}`,
-        customerName: createOrderDto.customerName,
-        customerEmail: createOrderDto.customerEmail,
+        subaccount: vendor?.paystackSubaccountCode,
+        transaction_charge: Math.round(adminCommission * 100),
         metadata: {
           orderId: orderId.toString(),
           customerName: createOrderDto.customerName,
+          deliveryFee: deliveryFee,
+          paymentNotes: 'Delivery fee to be paid on arrival'
         }
       });
+
 
       // Notify vendor via Email
       if (createOrderDto.vendorId) {
@@ -107,9 +118,25 @@ export class OrdersService {
         );
       }
 
-      return { order: savedOrder, paymentLink };
+      // --- SMS Notifications ---
+      const orderShortId = orderId.toString().slice(-6).toUpperCase();
+      
+      // Notify vendor via SMS
+      if (createOrderDto.vendorId) {
+        const vendor = await this.userModel.findById(createOrderDto.vendorId).exec();
+        if (vendor && vendor.phone) {
+          const vendorMsg = `Hello ${vendor.shopName || vendor.name}, you have a new order #ORD-${orderShortId} on FLA. Total: GHS ${totalAmount}. Please check your dashboard to begin fulfillment.`;
+          this.smsService.sendSms(vendor.phone, vendorMsg).catch(err => this.logger.error(`Vendor SMS failed: ${err.message}`));
+        }
+      }
+
+      // Notify Admin via SMS
+      const adminMsg = `New Order #ORD-${orderShortId} placed by ${createOrderDto.customerName || 'Customer'}. Amount: GHS ${totalAmount}.`;
+      this.smsService.sendAdminNotification(adminMsg).catch(err => this.logger.error(`Admin SMS failed: ${err.message}`));
+
+      return { order: savedOrder, paymentLink: paymentLinkData.authorization_url };
     } catch (error) {
-      console.error('Error creating order:', error);
+      this.logger.error(`Error creating order: ${error.message}`, error.stack);
       throw error;
     }
   }
@@ -127,13 +154,8 @@ export class OrdersService {
       order.isPaid = true;
       order.paidAt = new Date();
       order.status = 'payment_verified';
-      order.escrowStatus = 'held';
+      order.escrowStatus = 'completed'; // Direct split means it's effectively completed
       order.paymentId = transactionId;
-
-      // Update vendor's pending balance
-      await this.userModel.findByIdAndUpdate(order.vendorId, {
-        $inc: { pendingBalance: order.vendorShare }
-      }).session(session);
 
       // Decrement stock for each item in parallel
       if (order.items && order.items.length > 0) {
@@ -150,52 +172,70 @@ export class OrdersService {
 
       // Side Effects: Notifications & Emails (Outside transaction for performance)
       const customer = await this.userModel.findById(order.customerId).exec();
-      this.sendPaymentSuccessNotifications(order, customer);
+      if (customer) {
+        this.sendPaymentSuccessNotifications(order, customer);
+      }
     } catch (error) {
       await session.abortTransaction();
-      console.error('Error handling payment success:', error);
+      this.logger.error(`Error handling payment success: ${error.message}`, error.stack);
       throw error;
     } finally {
       session.endSession();
     }
   }
 
-  private async sendPaymentSuccessNotifications(order: any, customer: any) {
+  private async sendPaymentSuccessNotifications(order: OrderDocument, customer: UserDocument) {
     try {
       if (customer && customer.email) {
         const message = `Payment for Order #ORD-${order._id.toString().slice(-6).toUpperCase()} verified! Your vendor has been notified to begin fulfillment.`;
-        this.emailService.sendGenericNotification(customer.email, customer.name || 'Customer', 'Payment Verified ✅', message).catch(console.error);
+        this.emailService.sendGenericNotification(customer.email, customer.name || 'Customer', 'Payment Verified ✅', message).catch(err => this.logger.error(`Payment notification email failed: ${err.message}`));
       }
 
-      const admins = await this.userModel.find({ role: 'admin' }).exec();
-      const adminEmails = admins
-        .filter(admin => admin.email)
-        .map(admin => this.emailService.sendAdminOrderNotification(
-          admin.email,
-          order._id.toString(),
-          order.totalAmount,
-          customer?.name || 'Customer'
-        ).catch(console.error));
-      
-      await Promise.all(adminEmails);
+
+      // --- SMS Notifications ---
+      const orderShortId = order._id.toString().slice(-6).toUpperCase();
+
+      // Notify Customer via SMS
+      if (customer && customer.phone) {
+        const customerMsg = `Payment for Order #ORD-${orderShortId} verified! Your vendor has been notified to begin fulfillment. Thank you for shopping on FLA.`;
+        this.smsService.sendSms(customer.phone, customerMsg).catch(console.error);
+      }
+
+      // Notify Admin via SMS
+      const adminMsg = `Payment Verified for Order #ORD-${orderShortId}. Amount: GHS ${order.totalAmount}.`;
+      this.smsService.sendAdminNotification(adminMsg).catch(err => this.logger.error(`Admin payment SMS failed: ${err.message}`));
     } catch (err) {
       this.logger.error(`Notification failed for order ${order._id}: ${err.message}`);
     }
   }
 
-  async findAll(): Promise<Order[]> {
-    return this.orderModel.find().sort({ createdAt: -1 }).exec();
+  async findAll(page: number = 1, limit: number = 10): Promise<{ orders: Order[]; total: number }> {
+    const [orders, total] = await Promise.all([
+      this.orderModel.find().sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).exec(),
+      this.orderModel.countDocuments()
+    ]);
+    return { orders, total };
   }
 
-  async findByUser(userId: string): Promise<Order[]> {
-    return this.orderModel.find({ customerId: new Types.ObjectId(userId) }).sort({ createdAt: -1 }).exec();
+  async findByUser(userId: string, page: number = 1, limit: number = 10): Promise<{ orders: Order[]; total: number }> {
+    const query = { customerId: new Types.ObjectId(userId) };
+    const [orders, total] = await Promise.all([
+      this.orderModel.find(query).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).exec(),
+      this.orderModel.countDocuments(query)
+    ]);
+    return { orders, total };
   }
 
-  async findByVendor(vendorId: string): Promise<Order[]> {
-    return this.orderModel.find({ vendorId: new Types.ObjectId(vendorId) }).sort({ createdAt: -1 }).exec();
+  async findByVendor(vendorId: string, page: number = 1, limit: number = 10): Promise<{ orders: Order[]; total: number }> {
+    const query = { vendorId: new Types.ObjectId(vendorId) };
+    const [orders, total] = await Promise.all([
+      this.orderModel.find(query).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).exec(),
+      this.orderModel.countDocuments(query)
+    ]);
+    return { orders, total };
   }
 
-  async findOne(id: string, user: any): Promise<Order> {
+  async findOne(id: string, user: { role: string; userId: string }): Promise<Order> {
     const order = await this.orderModel.findById(id).exec();
     if (!order) throw new NotFoundException(`Order with ID ${id} not found`);
 
@@ -208,7 +248,7 @@ export class OrdersService {
     return order;
   }
 
-  async trackOrder(id: string): Promise<any> {
+  async trackOrder(id: string): Promise<Partial<Order>> {
     const order = await this.orderModel.findById(id)
       .select('status items trackingNumber carrier createdAt updatedAt vendorName escrowStatus shippingCity shippingRegion')
       .exec();
@@ -322,7 +362,7 @@ export class OrdersService {
               $group: {
                 _id: null,
                 total: { $sum: '$totalAmount' },
-                commission: { $sum: { $ifNull: ['$adminCommission', { $multiply: ['$totalAmount', 0.1] }] } }
+                commission: { $sum: { $ifNull: ['$adminCommission', { $multiply: ['$totalAmount', FLA_CONSTANTS.DEFAULT_COMMISSION_RATE / 100] }] } }
               }
             }
           ],
@@ -373,7 +413,7 @@ export class OrdersService {
               year: { $year: "$createdAt" }
             },
             gross: { $sum: "$totalAmount" },
-            net: { $sum: { $ifNull: ["$adminCommission", { $multiply: ["$totalAmount", 0.1] }] } }
+            net: { $sum: { $ifNull: ["$adminCommission", { $multiply: ["$totalAmount", FLA_CONSTANTS.DEFAULT_COMMISSION_RATE / 100] }] } }
           }
         },
         { $sort: { "_id.year": 1, "_id.month": 1 } }
@@ -499,7 +539,43 @@ export class OrdersService {
     autoReleaseDate.setDate(autoReleaseDate.getDate() + autoReleaseDays);
     order.autoReleaseDate = autoReleaseDate;
 
-    return order.save();
+    const savedOrder = await order.save();
+
+    // --- Skynet Handover Logic ---
+    // If carrier is Skynet, trigger specialized branded notifications
+    if (carrier && carrier.toLowerCase().includes('skynet')) {
+      const customer = await this.userModel.findById(order.customerId).exec();
+      const orderShortId = order._id.toString().slice(-6).toUpperCase();
+      const trackId = trackingNumber || 'TBA';
+
+      if (customer) {
+        // 1. Send Branded Skynet Email
+        if (customer.email) {
+          this.emailService.sendSkynetHandoverEmail(
+            customer.email,
+            customer.name || 'Customer',
+            order._id.toString(),
+            trackId
+          ).catch(err => this.logger.error(`Skynet Email Failed: ${err.message}`));
+        }
+
+        // 2. Send Skynet SMS
+        if (customer.phone) {
+          const smsMsg = `Handover Success! Your Order #ORD-${orderShortId} has been received by Skynet Express. Tracking: ${trackId}. Track on your FLA dashboard.`;
+          this.smsService.sendSms(customer.phone, smsMsg).catch(err => this.logger.error(`Skynet SMS Failed: ${err.message}`));
+        }
+
+        // 3. In-App Notification
+        this.notificationsService.create(customer._id.toString(), {
+          title: 'Skynet Handover Complete 🚚',
+          message: `Your Order #ORD-${orderShortId} is now with Skynet Express (Tracking: ${trackId}).`,
+          type: 'order',
+          orderId: order._id
+        }).catch(err => this.logger.error(`Skynet In-App Notification Failed: ${err.message}`));
+      }
+    }
+
+    return savedOrder;
   }
 
   async releaseEscrow(orderId: string): Promise<Order> {
@@ -608,14 +684,19 @@ export class OrdersService {
       autoReleaseDate: { $lte: now }
     }).exec();
 
-    const releasePromises = ordersToRelease.map(order => 
-      this.releaseEscrow(order._id.toString()).catch(err => {
-        console.error(`Failed to auto-release order ${order._id}:`, err);
-      })
-    );
+    this.logger.log(`Found ${ordersToRelease.length} orders for auto-release.`);
 
-    await Promise.all(releasePromises);
-    return ordersToRelease.length;
+    let releasedCount = 0;
+    for (const order of ordersToRelease) {
+      try {
+        await this.releaseEscrow(order._id.toString());
+        releasedCount++;
+      } catch (err) {
+        this.logger.error(`Failed to auto-release order ${order._id}: ${err.message}`);
+      }
+    }
+
+    return releasedCount;
   }
 
   async fileDispute(orderId: string, customerId: string, reason: string): Promise<Order> {
@@ -655,6 +736,10 @@ export class OrdersService {
         vendor?.shopName || vendor?.name || 'Vendor'
       );
     }
+
+    // --- SMS Notification ---
+    const orderShortId = order._id.toString().slice(-6).toUpperCase();
+    this.smsService.sendAdminNotification(`Dispute filed for Order #ORD-${orderShortId} by ${customer?.name || 'Customer'}. Reason: ${reason}`).catch(console.error);
 
     return savedOrder;
   }
@@ -752,17 +837,12 @@ export class OrdersService {
       orderId: order._id
     });
 
-
-
-    // Notify customer via Email
+    // --- SMS Notification ---
     const customer = await this.userModel.findById(order.customerId).exec();
-    if (customer && customer.email) {
-      await this.emailService.sendDeliveryFeeEmail(
-        customer.email,
-        customer.name || 'Customer',
-        order._id.toString(),
-        fee
-      );
+    if (customer && customer.phone) {
+      const orderShortId = order._id.toString().slice(-6).toUpperCase();
+      const smsMsg = `Vendor ${order.vendorName} has added a delivery fee of GHS ${fee} for Order #ORD-${orderShortId}. Please pay on the platform to proceed with delivery.`;
+      this.smsService.sendSms(customer.phone, smsMsg).catch(console.error);
     }
 
     return order;
@@ -774,21 +854,18 @@ export class OrdersService {
     if (order.customerId.toString() !== customerId) throw new ForbiddenException('Unauthorized');
     if (order.firstMileFee <= 0) throw new Error('Delivery fee not set yet');
 
-    const paymentLink = await this.hubtelService.initializePayment({
+    const paymentLinkData = await this.paystackService.initializePayment({
       reference: `FM_${order._id.toString()}_${Date.now()}`,
       amount: order.firstMileFee,
-      description: `Delivery Fee for #ORD-${order._id.toString().slice(-6).toUpperCase()}`,
+      email: order.customerEmail || 'customer@fla.com',
       callback_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard?order_id=${order._id}`,
-      return_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard?order_id=${order._id}`,
-      customerName: order.customerName,
-      customerEmail: order.customerEmail,
       metadata: {
         orderId: order._id.toString(),
         paymentType: 'first_mile_fee'
       }
     });
 
-    return { paymentLink };
+    return { paymentLink: paymentLinkData.authorization_url };
   }
 
   async handleFirstMilePaymentSuccess(orderId: string, transactionId: string) {
@@ -798,7 +875,7 @@ export class OrdersService {
     order.isFirstMileFeePaid = true;
     order.firstMileFeePaidAt = new Date();
     order.firstMilePaymentId = transactionId;
-    order.firstMilePaymentVerifiedByVendor = true; // Auto-verify if paid via Hubtel
+    order.firstMilePaymentVerifiedByVendor = true; // Auto-verify if paid via Paystack
     order.firstMilePaymentVerifiedAt = new Date();
 
     await order.save();
@@ -820,7 +897,7 @@ export class OrdersService {
       // Notify Vendor
       await this.notificationsService.create(order.vendorId.toString(), {
         title: 'Delivery Fee Paid',
-        message: `The delivery fee for Order #ORD-${order._id.toString().slice(-6).toUpperCase()} has been paid via Hubtel.`,
+        message: `The delivery fee for Order #ORD-${order._id.toString().slice(-6).toUpperCase()} has been paid via Paystack.`,
         type: 'payment',
         orderId: order._id
       });

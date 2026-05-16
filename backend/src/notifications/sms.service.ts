@@ -1,65 +1,77 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class SmsService {
+    private readonly logger = new Logger(SmsService.name);
     private apiKey: string;
     private apiEndpoint: string;
     private senderId: string;
 
     constructor(private configService: ConfigService) {
-        this.apiKey = this.configService.get<string>('SMS_API_KEY') || '';
+        this.apiKey = this.configService.get<string>('MNOTIFY_API_KEY') || '';
         this.apiEndpoint = this.configService.get<string>('SMS_API_ENDPOINT') || 'https://api.mnotify.com/api/sms/quick';
-        this.senderId = this.configService.get<string>('SMS_SENDER_ID') || 'FLA';
+        this.senderId = this.configService.get<string>('MNOTIFY_SENDER_ID') || 'FLA';
     }
 
     async sendSms(phone: string, message: string): Promise<boolean> {
         if (!this.apiKey || !phone) {
-            console.warn('[SmsService] SMS not sent: Missing API key or phone number');
+            this.logger.warn('SMS not sent: Missing API key or phone number');
             return false;
         }
 
+        // Clean phone number (ensure it starts with 233)
+        let formattedPhone = phone.replace(/\s+/g, '').replace('+', '');
+        if (formattedPhone.startsWith('0')) {
+            formattedPhone = '233' + formattedPhone.substring(1);
+        } else if (!formattedPhone.startsWith('233')) {
+            formattedPhone = '233' + formattedPhone;
+        }
+
         try {
-            // Logic for mNotify or similar provider
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s timeout
+
             const response = await fetch(`${this.apiEndpoint}?key=${this.apiKey}`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    recipient: [phone],
+                    recipient: [formattedPhone],
                     sender: this.senderId,
                     message: message,
                     is_schedule: false,
                 }),
+                signal: controller.signal
             });
 
+            clearTimeout(timeoutId);
+
             const result = await response.json();
-            if (result.status === 'success') {
-                console.log(`[SmsService] SMS sent to ${phone} successfully`);
+            if (result.status === 'success' || result.code === '1000') {
+                this.logger.log(`SMS sent to ${formattedPhone} successfully`);
                 return true;
             } else {
-                console.error('[SmsService] SMS failed:', result.message);
+                this.logger.error(`SMS failed: ${result.message || JSON.stringify(result)}`);
                 return false;
             }
-        } catch (error) {
-            console.error('[SmsService] SMS error:', error.message);
+        } catch (error: any) {
+            this.logger.error(`SMS error for ${formattedPhone}: ${error.message}`);
             return false;
         }
     }
 
     async sendOrderNotification(phone: string, orderId: string, amount: number): Promise<boolean> {
-        const message = `FLA: New Order #ORD-${orderId.slice(-6).toUpperCase()} received! Amount: GHS ${amount.toLocaleString()}. Log in to your dashboard to process.`;
+        const message = `FLA: New Order #ORD-${orderId.slice(-6).toUpperCase()} received! Amount: GHS ${amount.toLocaleString()}. Log in to process.`;
         return this.sendSms(phone, message);
     }
 
     async sendDeliveryNotification(phone: string, orderId: string, fee: number): Promise<boolean> {
-        const message = `FLA: Delivery fee of GHS ${fee} added to Order #ORD-${orderId.slice(-6).toUpperCase()}. Please pay on the platform to proceed.`;
+        const message = `FLA: Delivery fee of GHS ${fee} added to Order #ORD-${orderId.slice(-6).toUpperCase()}. Please pay on the platform.`;
         return this.sendSms(phone, message);
     }
 
     async sendAdminOrderSms(phone: string, orderId: string, amount: number): Promise<boolean> {
-        const message = `FLA ADMIN ALERT: New Order #ORD-${orderId.slice(-6).toUpperCase()} placed. GH₵ ${amount.toLocaleString()} escrowed. Go to HQ to review.`;
+        const message = `FLA ADMIN: New Order #ORD-${orderId.slice(-6).toUpperCase()} - GH₵ ${amount.toLocaleString()}. Check HQ.`;
         return this.sendSms(phone, message);
     }
 }

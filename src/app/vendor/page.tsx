@@ -25,6 +25,8 @@ import { VendorFinances } from '@/components/dashboard/VendorFinances';
 import { VendorSettings } from '@/components/dashboard/VendorSettings';
 import { VendorNotifications } from '@/components/dashboard/VendorNotifications';
 import { VendorHelp } from '@/components/dashboard/VendorHelp';
+import { WaybillModal } from '@/components/dashboard/WaybillModal';
+
 
 const GHANA_REGIONS = [
     'Ahafo', 'Ashanti', 'Bono', 'Bono East', 'Central', 'Eastern', 
@@ -76,11 +78,13 @@ export default function VendorDashboard() {
     const [shopName, setShopName] = useState('');
     const [phone, setPhone] = useState('');
     const [momoNumber, setMomoNumber] = useState('');
+    const [momoNetwork, setMomoNetwork] = useState('MTN');
     const [accountName, setAccountName] = useState('');
     const [shopLocation, setShopLocation] = useState('');
     const [bio, setBio] = useState('');
     const [profileImage, setProfileImage] = useState('');
     const [bannerImage, setBannerImage] = useState('');
+    const [businessRegistration, setBusinessRegistration] = useState('');
 
     useEffect(() => {
         setIsHydrated(true);
@@ -92,10 +96,12 @@ export default function VendorDashboard() {
             setPhone(user.phone || '');
             setMomoNumber(user.momoNumber || '');
             setAccountName(user.accountName || '');
+            setMomoNetwork(user.paymentMethods?.[0]?.network || 'MTN');
             setShopLocation(user.location || '');
             setBio(user.bio || '');
             setProfileImage(user.profileImage || '');
             setBannerImage(user.bannerImage || '');
+            setBusinessRegistration(user.businessRegistration || '');
         }
     }, [user]);
 
@@ -340,7 +346,22 @@ export default function VendorDashboard() {
                     'Authorization': `Bearer ${token}`
                 },
                 credentials: 'include',
-                body: JSON.stringify({ shopName, phone, momoNumber, accountName, location: shopLocation, bio, profileImage, bannerImage })
+                body: JSON.stringify({ 
+                    shopName, 
+                    phone, 
+                    momoNumber, 
+                    accountName, 
+                    location: shopLocation, 
+                    bio, 
+                    profileImage, 
+                    bannerImage, 
+                    businessRegistration,
+                    paymentMethods: [{
+                        network: momoNetwork,
+                        accountNumber: momoNumber,
+                        accountName: accountName
+                    }]
+                })
             });
 
             if (!res.ok) throw new Error("Sync failed");
@@ -352,7 +373,7 @@ export default function VendorDashboard() {
         }
     };
 
-    const handleImageUpload = async (file: File, type: 'avatar' | 'banner') => {
+    const handleImageUpload = async (file: File, type: 'avatar' | 'banner' | 'doc') => {
         try {
             if (!token) {
                 Swal.fire('Authentication Required', 'Please log in again to upload images.', 'warning');
@@ -375,7 +396,8 @@ export default function VendorDashboard() {
 
             const data = await res.json();
             if (type === 'avatar') setProfileImage(data.url);
-            else setBannerImage(data.url);
+            else if (type === 'banner') setBannerImage(data.url);
+            else if (type === 'doc') setBusinessRegistration(data.url);
         } catch (err: any) {
             Swal.fire('Upload Failed', err.message || 'Visual asset could not be stored.', 'error');
         }
@@ -563,7 +585,7 @@ export default function VendorDashboard() {
                     />
                 );
             case 'wallet': return <VendorFinances user={user} dashboardData={dashboardData} commissionRate={commissionRate} handleWithdrawal={handleWithdrawal} />;
-            case 'settings': return <VendorSettings user={user} shopName={shopName} setShopName={setShopName} phone={phone} setPhone={setPhone} momoNumber={momoNumber} setMomoNumber={setMomoNumber} accountName={accountName} setAccountName={setAccountName} shopLocation={shopLocation} setShopLocation={setShopLocation} bio={bio} setBio={setBio} bannerImage={bannerImage} profileImage={profileImage} handleImageUpload={handleImageUpload} handleUpdateVendorProfile={handleUpdateVendorProfile} />;
+            case 'settings': return <VendorSettings user={user} shopName={shopName} setShopName={setShopName} phone={phone} setPhone={setPhone} momoNumber={momoNumber} setMomoNumber={setMomoNumber} momoNetwork={momoNetwork} setMomoNetwork={setMomoNetwork} accountName={accountName} setAccountName={setAccountName} shopLocation={shopLocation} setShopLocation={setShopLocation} bio={bio} setBio={setBio} bannerImage={bannerImage} profileImage={profileImage} businessRegistration={businessRegistration} handleImageUpload={handleImageUpload} handleUpdateVendorProfile={handleUpdateVendorProfile} />;
             case 'notifications': return <VendorNotifications notifications={notifications} />;
             case 'help': return <VendorHelp />;
             default: return null;
@@ -707,8 +729,19 @@ export default function VendorDashboard() {
                                             placeholder="0.00" 
                                             value={formPrice} 
                                             onChange={(e) => setFormPrice(e.target.value)} 
-                                            className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-slate-900/10 h-14" 
+                                            className={`w-full px-6 py-4 bg-slate-50 border rounded-2xl text-sm font-bold focus:ring-2 focus:ring-slate-900/10 h-14 ${parseFloat(formPrice) > 100 && !businessRegistration ? 'border-red-300 ring-4 ring-red-50' : 'border-slate-100'}`} 
                                         />
+                                        {parseFloat(formPrice) > 100 && !businessRegistration && (
+                                            <div className="mt-4 p-4 bg-red-50 border border-red-100 rounded-2xl flex items-start gap-3 animate-in slide-in-from-top-2 duration-300">
+                                                <ShieldAlert className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                                                <div>
+                                                    <p className="text-[10px] font-black text-red-600 uppercase tracking-widest mb-1">Compliance Alert</p>
+                                                    <p className="text-[11px] font-bold text-red-500 leading-relaxed">
+                                                        Products priced above GH₵ 100 require a <span className="underline">Business Registration Certificate</span>. Please upload yours in Settings to avoid account termination.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        )}
                                         {formPrice && (
                                             <div className="absolute right-4 top-[68px] bg-slate-900 text-white p-4 rounded-2xl shadow-2xl border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none w-48">
                                                 <div className="flex justify-between text-[8px] font-black uppercase tracking-widest mb-2 border-b border-white/10 pb-1">
@@ -866,7 +899,7 @@ export default function VendorDashboard() {
                                                         if (customColorInput.trim()) {
                                                             if (!formColors.includes(customColorInput.trim())) {
                                                                 setFormColors((prev) => [...prev, customColorInput.trim()]);
-                                                            }
+                                                                }
                                                             setCustomColorInput('');
                                                         }
                                                     }}
@@ -891,6 +924,15 @@ export default function VendorDashboard() {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Waybill Generator (Modal) */}
+            {printingOrder && (
+                <WaybillModal 
+                    order={printingOrder} 
+                    vendor={user} 
+                    onClose={() => setPrintingOrder(null)} 
+                />
             )}
         </div>
     );

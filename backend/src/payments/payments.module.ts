@@ -1,5 +1,4 @@
 import { Module, forwardRef } from '@nestjs/common';
-import { HubtelService } from './hubtel.service';
 import { PaymentsController } from './payments.controller';
 import { OrdersModule } from '../orders/orders.module';
 import { MongooseModule } from '@nestjs/mongoose';
@@ -16,7 +15,7 @@ import { SettingsModule } from '../settings/settings.module';
         SettingsModule
     ],
     controllers: [PaymentsController],
-    providers: [HubtelService, WithdrawalService],
-    exports: [HubtelService, WithdrawalService],
+    providers: [WithdrawalService],
+    exports: [WithdrawalService],
 })
 export class PaymentsModule { }

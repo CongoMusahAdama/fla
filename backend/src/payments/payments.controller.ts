@@ -1,79 +1,141 @@
-import { Controller, Post, Body, Logger, Get, UseGuards, Request, Param } from '@nestjs/common';
-import { HubtelService } from './hubtel.service';
+import { Controller, Post, Body, Logger, Get, UseGuards, Request, Param, Headers } from '@nestjs/common';
+import { PaystackService } from '../common/paystack.service';
+import { ShuftiService } from '../common/shufti.service';
 import { OrdersService } from '../orders/orders.service';
+import { UsersService } from '../users/users.service';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { TempVerification } from '../common/schemas/temp-verification.schema';
+import { UserDocument } from '../users/schemas/user.schema';
 import { ConfigService } from '@nestjs/config';
 import { AuthGuard } from '@nestjs/passport';
 import { WithdrawalService } from './withdrawal.service';
 import { RequestWithdrawalDto } from './dto/request-withdrawal.dto';
-import { HubtelWebhookDto } from './dto/hubtel-webhook.dto';
 
 @Controller('payments')
 export class PaymentsController {
     private readonly logger = new Logger(PaymentsController.name);
 
     constructor(
-        private readonly hubtelService: HubtelService,
+        private readonly paystackService: PaystackService,
+        private readonly shuftiService: ShuftiService,
         private readonly ordersService: OrdersService,
         private readonly configService: ConfigService,
         private readonly withdrawalService: WithdrawalService,
+        private readonly usersService: UsersService,
+        @InjectModel(TempVerification.name) private tempVerificationModel: Model<TempVerification>,
     ) { }
 
-    @Post('webhook/hubtel')
-    async handleHubtelWebhook(@Body() payload: HubtelWebhookDto) {
-        // Business Rule: treat webhook as trigger, always verify with Hubtel API
-        const clientReference = payload.Data?.ClientReference || payload.clientReference;
-        const status = payload.Status || payload.status;
-        const transactionId = payload.Data?.TransactionId || payload.transactionId;
-        const metadata = payload.Data?.Metadata || payload.metadata;
+    @Post('webhook/shufti')
+    async handleShuftiWebhook(@Body() payload: any, @Headers('signature') signature: string) {
+        this.logger.log(`Shufti Webhook received for ref: ${payload.reference}`);
+        
+        const event = payload.event;
+        const reference = payload.reference;
 
-        this.logger.log(`Hubtel Webhook received for ref: ${clientReference}`);
+        // Extract email if it's a TEMP reference
+        let email = payload.email;
+        if (reference.startsWith('TEMP_')) {
+            const parts = reference.split('_');
+            email = parts[parts.length - 2] + '@' + parts[parts.length - 1]; // Reconstruct email
+        }
 
-        if (status === 'Success') {
-            // SECURITY: Double verify with Hubtel API to be absolutely sure
-            const verification = await this.hubtelService.verifyTransaction(clientReference as string);
+        if (event === 'verification.accepted') {
+            this.logger.log(`Shufti: Identity verified for: ${email || reference}`);
             
-            if (verification.responseCode === '00' && (verification.data.status === 'Success' || verification.data.status === 'Paid')) {
-                const orderId = metadata?.orderId || clientReference;
-                const paymentType = metadata?.paymentType;
-
-                if (paymentType === 'first_mile_fee') {
-                    this.logger.log(`Hubtel: First-mile delivery fee payment successful for order: ${orderId}`);
-                    await this.ordersService.handleFirstMilePaymentSuccess(orderId, transactionId as string);
-                } else {
-                    this.logger.log(`Hubtel: Main order payment successful for order: ${orderId}`);
-                    await this.ordersService.handlePaymentSuccess(orderId, transactionId as string);
-                }
+            // Try updating user if they exist
+            const user = await this.usersService.findOne(email) || await this.usersService.findOneById(reference);
+            if (user) {
+                await this.usersService.update((user as UserDocument)._id.toString(), { 
+                    isVerified: true, 
+                    verificationStatus: 'verified',
+                    verificationDate: new Date()
+                });
             } else {
-                this.logger.warn(`Hubtel Webhook verification failed for ref: ${clientReference}`);
+                // Store in TempVerification for future signup
+                await this.tempVerificationModel.findOneAndUpdate(
+                    { email },
+                    { status: 'verified', reference, payload },
+                    { upsert: true }
+                );
+            }
+        } else if (event === 'verification.declined') {
+            this.logger.warn(`Shufti: Identity verification declined for: ${email || reference}`);
+            const user = await this.usersService.findOne(email) || await this.usersService.findOneById(reference);
+            if (user) {
+                await this.usersService.update((user as UserDocument)._id.toString(), { 
+                    verificationStatus: 'declined',
+                    verificationDeclineReason: payload.declined_reason
+                });
+            } else {
+                await this.tempVerificationModel.findOneAndUpdate(
+                    { email },
+                    { status: 'declined', reference, payload },
+                    { upsert: true }
+                );
             }
         }
 
         return { status: 'success' };
     }
 
-    @Get('lookup-name/:network/:number')
-    async lookupAccountName(@Param('network') network: string, @Param('number') number: string) {
-        // Mock name inquiry for now. In production, this should integrate with Hubtel/Paystack Name Enquiry API
-        console.log(`[PAYMENT_LOOKUP] Network: ${network}, Number: ${number}`);
-        
-        // Basic validation
-        if (!number || number.length < 9) {
-            return { success: false, message: 'Invalid number length' };
+    @Post('webhook/paystack')
+    async handlePaystackWebhook(@Body() payload: any) {
+        // Paystack Webhook payload structure: { event: 'charge.success', data: { ... } }
+        const event = payload.event;
+        const data = payload.data;
+
+        this.logger.log(`Paystack Webhook received: ${event}`);
+
+        if (event === 'charge.success') {
+            const reference = data.reference;
+            const status = data.status;
+            const transactionId = data.id?.toString();
+            const metadata = data.metadata;
+
+            if (status === 'success') {
+                const orderId = metadata?.orderId || reference;
+                const paymentType = metadata?.paymentType;
+
+                if (paymentType === 'first_mile_fee') {
+                    this.logger.log(`Paystack: First-mile delivery fee payment successful for order: ${orderId}`);
+                    await this.ordersService.handleFirstMilePaymentSuccess(orderId, transactionId);
+                } else {
+                    this.logger.log(`Paystack: Main order payment successful for order: ${orderId}`);
+                    await this.ordersService.handlePaymentSuccess(orderId, transactionId);
+                }
+            }
         }
 
-        // Mock response
-        // Using a slight delay to simulate network request
-        await new Promise(resolve => setTimeout(resolve, 800));
+        return { status: 'success' };
+    }
 
-        let mockName = 'Verified Merchant';
-        if (number.endsWith('1')) mockName = 'Fadilan Salifu';
-        else if (number.endsWith('2')) mockName = 'Musah Congo Adama';
-        else if (number.endsWith('3')) mockName = 'John Doe';
-        else if (number.endsWith('307') || number.endsWith('068')) mockName = 'Musah Congo Adama';
-        else if (number.endsWith('00')) mockName = 'FLA System Admin';
-        else mockName = 'Verified Payout Account';
-
-        return { success: true, name: mockName };
+    @Get('lookup-name/:bankCode/:accountNumber')
+    async lookupAccountName(@Param('bankCode') bankCode: string, @Param('accountNumber') accountNumber: string) {
+        this.logger.log(`Paystack: Resolving account name for ${accountNumber} at ${bankCode}`);
+        
+        try {
+            const result = await this.paystackService.resolveAccountNumber(accountNumber, bankCode);
+            
+            if (result.status && result.data) {
+                return { 
+                    success: true, 
+                    name: result.data.account_name,
+                    accountNumber: result.data.account_number 
+                };
+            }
+            
+            return { 
+                success: false, 
+                message: result.message || 'Could not resolve account name' 
+            };
+        } catch (error) {
+            this.logger.error(`Paystack Resolution Error: ${error.message}`);
+            return { 
+                success: false, 
+                message: 'Account verification service temporarily unavailable' 
+            };
+        }
     }
 
     // Withdrawal Endpoints

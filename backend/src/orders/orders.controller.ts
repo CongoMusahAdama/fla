@@ -1,7 +1,8 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request, Query } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
+import { OrderPaginationDto } from './dto/order-pagination.dto';
 import { AuthGuard } from '@nestjs/passport';
 
 @Controller('orders')
@@ -23,25 +24,28 @@ export class OrdersController {
 
   @UseGuards(AuthGuard('jwt'))
   @Get()
-  findAll(@Request() req) {
+  findAll(@Request() req, @Query() query: OrderPaginationDto) {
+    const { page, limit } = query;
     // If not admin, only return user's orders
     if (req.user.role !== 'admin') {
-      return this.ordersService.findByUser(req.user.userId);
+      return this.ordersService.findByUser(req.user.userId, page, limit);
     }
-    return this.ordersService.findAll();
+    return this.ordersService.findAll(page, limit);
   }
 
   @UseGuards(AuthGuard('jwt'))
   @Get('my-orders')
-  findMyOrders(@Request() req) {
-    return this.ordersService.findByUser(req.user.userId);
+  findMyOrders(@Request() req, @Query() query: OrderPaginationDto) {
+    const { page, limit } = query;
+    return this.ordersService.findByUser(req.user.userId, page, limit);
   }
 
   @UseGuards(AuthGuard('jwt'))
   @Get('vendor-orders')
-  findVendorOrders(@Request() req) {
+  findVendorOrders(@Request() req, @Query() query: OrderPaginationDto) {
+    const { page, limit } = query;
     // Only vendors (or admins) should call this
-    return this.ordersService.findByVendor(req.user.userId);
+    return this.ordersService.findByVendor(req.user.userId, page, limit);
   }
 
   @UseGuards(AuthGuard('jwt'))

@@ -1,4 +1,4 @@
-import { Injectable, ConflictException, InternalServerErrorException, NotFoundException, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, ConflictException, InternalServerErrorException, NotFoundException, Inject, forwardRef, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -6,35 +6,86 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { User, UserDocument } from './schemas/user.schema';
 import * as bcrypt from 'bcrypt';
 import { OrdersService } from '../orders/orders.service';
+import { PaystackService } from '../common/paystack.service';
+import { ShuftiService } from '../common/shufti.service';
+import { TempVerification } from '../common/schemas/temp-verification.schema';
 
 // Rounds=8: ~25ms (vs 10 rounds=~100ms). Both are cryptographically secure.
 const BCRYPT_ROUNDS = 8;
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
-    @Inject(forwardRef(() => OrdersService)) private ordersService: OrdersService
+    @InjectModel(TempVerification.name) private tempVerificationModel: Model<TempVerification>,
+    @Inject(forwardRef(() => OrdersService)) private ordersService: OrdersService,
+    private readonly paystackService: PaystackService,
+    private readonly shuftiService: ShuftiService,
   ) { }
 
   async create(createUserDto: CreateUserDto): Promise<User> {
     try {
-      const hashedPassword = await bcrypt.hash(createUserDto.password, BCRYPT_ROUNDS);
-      const role = createUserDto.role || 'customer';
+      const { email, password, role: inputRole, name, phone, location } = createUserDto;
+      const hashedPassword = await bcrypt.hash(password, BCRYPT_ROUNDS);
+      const role = inputRole || 'customer';
       const uniqueVendorId = role === 'vendor'
         ? `FLA-V-${Math.random().toString(36).substr(2, 6).toUpperCase()}`
         : undefined;
 
+      const vendorTier = (role === 'vendor' && createUserDto.businessRegistration) ? 'high' : 'low';
+
+      // Check for pending Shufti verification
+      const tempVerification = await this.tempVerificationModel.findOne({ email: email.toLowerCase().trim() }).exec();
+      let verificationStatus = 'pending';
+      let isVerified = false;
+      let verificationDate: Date | null = null;
+      let verificationDeclineReason = null;
+
+      if (tempVerification) {
+        verificationStatus = tempVerification.status;
+        isVerified = tempVerification.status === 'verified';
+        if (isVerified) verificationDate = new Date();
+        else verificationDeclineReason = tempVerification.payload?.declined_reason;
+      }
+
       const createdUser = new this.userModel({
         ...createUserDto,
         // Store email lowercase for consistent fast index lookups
-        email: createUserDto.email.toLowerCase().trim(),
+        email: email.toLowerCase().trim(),
         role,
         password: hashedPassword,
         uniqueVendorId,
-        status: role === 'vendor' ? 'pending' : 'active',
+        vendorTier,
+        verificationStatus,
+        isVerified,
+        verificationDate,
+        verificationDeclineReason
       });
-      return await createdUser.save();
+      const savedUser = await createdUser.save();
+      
+      // Cleanup temp verification
+      if (tempVerification) {
+        await this.tempVerificationModel.deleteOne({ _id: tempVerification._id }).exec();
+      }
+      
+      if (role === 'vendor') {
+        this.syncVendorSubaccount(savedUser._id.toString()).catch(console.error);
+
+        // TRIGGER SHUFTI BACKGROUND VERIFICATION (Manual Matching Flow)
+        if (createUserDto.ghanaCardFront && createUserDto.selfie) {
+          this.logger.log(`Triggering Shufti background verification for vendor: ${savedUser.email}`);
+          this.shuftiService.verifyImages(savedUser._id.toString(), {
+            email: savedUser.email,
+            ghanaCardFront: createUserDto.ghanaCardFront,
+            ghanaCardBack: createUserDto.ghanaCardBack || '',
+            selfie: createUserDto.selfie
+          }).catch(err => this.logger.error(`Shufti background submission failed for ${savedUser.email}: ${err.message}`));
+        }
+      }
+
+      return savedUser;
     } catch (error: any) {
       if (error.code === 11000) {
         throw new ConflictException('Email address already exists');
@@ -57,7 +108,78 @@ export class UsersService {
   }
 
   async update(id: string, updateUserDto: UpdateUserDto): Promise<User | null> {
-    return this.userModel.findByIdAndUpdate(id, { $set: updateUserDto }, { new: true }).lean().exec() as any;
+    const updateData: any = { ...updateUserDto };
+    
+    // Auto-promote to high tier if business registration is provided
+    if (updateData.businessRegistration) {
+      updateData.vendorTier = 'high';
+    }
+
+    const updatedUser = await this.userModel.findByIdAndUpdate(id, { $set: updateData }, { new: true }).lean().exec() as any;
+    
+    // If payment methods were updated for a vendor, sync with Paystack
+    if (updateData.paymentMethods && id) {
+      this.syncVendorSubaccount(id).catch(console.error);
+    }
+
+    return updatedUser;
+  }
+
+  async syncVendorSubaccount(userId: string) {
+    const user = await this.userModel.findById(userId).exec();
+    if (!user || user.role !== 'vendor') return;
+
+    // Skip if subaccount already exists
+    if (user.paystackSubaccountCode) {
+        this.logger.log(`User ${userId} already has a Paystack subaccount: ${user.paystackSubaccountCode}. Skipping.`);
+        return;
+    }
+
+    // Get primary payment method
+    const primaryMethod = user.paymentMethods?.[0];
+    if (!primaryMethod || !primaryMethod.accountNumber) {
+        this.logger.warn(`No primary payment method found for vendor ${userId}. Cannot sync subaccount.`);
+        return;
+    }
+
+    try {
+      const bankMapping: Record<string, string> = {
+        'MTN': 'MTN',
+        'Vodafone': 'VOD',
+        'AirtelTigo': 'ATL',
+        'GCB': '040100',
+        'ECO': '030100',
+        'ZEN': '060101',
+        'ABS': '020100',
+        'FID': '070101',
+        'STA': '010100',
+        'CAL': '050100',
+        'ACC': '090101',
+        'GTB': '080100',
+        'UBA': '100100'
+      };
+
+      const bankCode = bankMapping[primaryMethod.network] || primaryMethod.network;
+
+      this.logger.log(`Creating Paystack subaccount for vendor: ${user.shopName || user.name}...`);
+      
+      const subaccount = await this.paystackService.createSubaccount({
+        business_name: user.shopName || user.name,
+        settlement_bank: bankCode,
+        account_number: primaryMethod.accountNumber,
+        percentage_charge: 0, 
+      });
+
+      if (subaccount && subaccount.subaccount_code) {
+        await this.userModel.findByIdAndUpdate(userId, {
+          paystackSubaccountCode: subaccount.subaccount_code,
+          paystackBankCode: bankCode
+        });
+        this.logger.log(`Successfully synced Paystack subaccount ${subaccount.subaccount_code} for user ${userId}`);
+      }
+    } catch (error) {
+      this.logger.error(`Paystack Subaccount Sync Error for user ${userId}: ${error.response?.data?.message || error.message}`);
+    }
   }
 
   async findByUniqueVendorId(vendorId: string): Promise<User | null> {
@@ -105,11 +227,18 @@ export class UsersService {
     return this.userModel.find({ role: 'vendor', status: 'pending' }).lean().exec() as any;
   }
 
-  async updateStatus(id: string, status: 'active' | 'rejected' | 'pending'): Promise<User | null> {
+  async updateStatus(id: string, status: 'active' | 'rejected' | 'pending' | 'banned'): Promise<User | null> {
     const update: any = { status };
     if (status === 'active') {
       update.isIdentityVerified = true;
     }
-    return this.userModel.findByIdAndUpdate(id, { $set: update }, { new: true }).lean().exec() as any;
+    const user = await this.userModel.findByIdAndUpdate(id, { $set: update }, { new: true }).lean().exec() as any;
+    
+    // If banned, we might want to log this or notify the vendor via SMS/Email
+    if (status === 'banned' && user) {
+        // Implementation for ban notification could go here
+    }
+    
+    return user;
   }
 }

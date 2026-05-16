@@ -3,12 +3,14 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Support, SupportDocument } from './schemas/support.schema';
 import { NotificationsService } from '../notifications/notifications.service';
+import { StreamService } from '../common/stream.service';
 
 @Injectable()
 export class SupportService {
     constructor(
         @InjectModel(Support.name) private supportModel: Model<SupportDocument>,
-        private readonly notificationsService: NotificationsService
+        private readonly notificationsService: NotificationsService,
+        private readonly streamService: StreamService
     ) { }
 
     async createDispute(userId: string, data: any): Promise<Support> {
@@ -18,6 +20,15 @@ export class SupportService {
             vendorId: data.vendorId ? new Types.ObjectId(data.vendorId) : undefined
         });
         const saved = await dispute.save();
+
+        // Create Stream Chat Channel
+        if (data.vendorId) {
+            await this.streamService.createDisputeChannel(
+                saved._id.toString(),
+                userId,
+                data.vendorId.toString()
+            );
+        }
 
         // Notify Vendor and Admins
         if (data.vendorId && data.orderId) {

@@ -1,18 +1,23 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Resend } from 'resend';
+import * as SibApiV3Sdk from '@sendinblue/client';
 
 @Injectable()
 export class EmailService {
-    private resend: Resend;
+    private readonly logger = new Logger(EmailService.name);
+    private apiInstance: SibApiV3Sdk.TransactionalEmailsApi;
 
     constructor(private configService: ConfigService) {
-        const apiKey = this.configService.get<string>('RESEND_API_KEY') || '';
-        this.resend = new Resend(apiKey);
+        const apiKey = this.configService.get<string>('BREVO_API_KEY') || '';
+        this.apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
+        this.apiInstance.setApiKey(SibApiV3Sdk.TransactionalEmailsApiApiKeys.apiKey, apiKey);
     }
 
     private get sender() {
-        return `${this.configService.get<string>('RESEND_SENDER_NAME') || 'FLA Logistics'} <${this.configService.get<string>('RESEND_SENDER_EMAIL') || 'noreply@resend.dev'}>`;
+        return {
+            name: this.configService.get<string>('BREVO_SENDER_NAME') || 'FLA Logistics',
+            email: this.configService.get<string>('BREVO_SENDER_EMAIL') || 'security@flamingo-store1.com',
+        };
     }
 
     private getStyles() {
@@ -70,312 +75,238 @@ export class EmailService {
         `;
     }
 
-    async sendOTP(email: string, name: string, otp: string): Promise<void> {
+    private async sendEmail(to: string | string[], subject: string, htmlContent: string): Promise<void> {
         try {
-            const content = `
-                <p class="greeting">Hello ${name},</p>
-                <p class="message">Welcome to FLA! To activate your business account, please use the verification code below:</p>
-                <div class="otp-container">
-                    <div class="otp-label">Your Verification Code</div>
-                    <div class="otp-code">${otp}</div>
-                    <p style="font-size: 12px; color: #94a3b8; margin-top: 15px;">⏱️ Expires in 10 minutes</p>
-                </div>
-                <p style="font-size: 13px; color: #94a3b8;">🔒 Security Notice: Never share this code with anyone.</p>
-            `;
-
-            await this.resend.emails.send({
-                from: this.sender,
-                to: email,
-                subject: 'Verify Your FLA Account',
-                html: this.wrapLayout('Verify Your Account', content),
+            const recipients = Array.isArray(to) ? to.map(email => ({ email })) : [{ email: to }];
+            
+            await this.apiInstance.sendTransacEmail({
+                sender: this.sender,
+                to: recipients,
+                subject,
+                htmlContent,
             });
+            
+            this.logger.log(`Email sent successfully: [${subject}] to ${Array.isArray(to) ? to.join(', ') : to}`);
         } catch (error: any) {
-            console.error('[EmailService] sendOTP Error:', error.message);
-            throw error;
+            this.logger.error(`Failed to send email: [${subject}] to ${Array.isArray(to) ? to.join(', ') : to}. Error: ${error.message}`);
+            // In production, we don't want to crash the whole request if email fails, 
+            // but we might want to throw if it's a critical OTP
+            if (subject.toLowerCase().includes('otp') || subject.toLowerCase().includes('verify')) {
+                throw error;
+            }
         }
+    }
+
+    async sendOTP(email: string, name: string, otp: string): Promise<void> {
+        const content = `
+            <p class="greeting">Hello ${name},</p>
+            <p class="message">Welcome to FLA! To activate your business account, please use the verification code below:</p>
+            <div class="otp-container">
+                <div class="otp-label">Your Verification Code</div>
+                <div class="otp-code">${otp}</div>
+                <p style="font-size: 12px; color: #94a3b8; margin-top: 15px;">⏱️ Expires in 10 minutes</p>
+            </div>
+            <p style="font-size: 13px; color: #94a3b8;">🔒 Security Notice: Never share this code with anyone.</p>
+        `;
+
+        await this.sendEmail(email, 'Verify Your FLA Account', this.wrapLayout('Verify Your Account', content));
     }
 
     async sendWelcomeEmail(email: string, name: string, shopName: string): Promise<void> {
-        try {
-            const content = `
-                <p class="greeting">Hi ${name},</p>
-                <p class="message">Congratulations! Your vendor account for <strong>${shopName}</strong> has been successfully activated.</p>
-                <a href="${this.configService.get('FRONTEND_URL') || 'http://localhost:3000'}/vendor" class="cta-button">Go to Vendor Dashboard</a>
-            `;
+        const content = `
+            <p class="greeting">Hi ${name},</p>
+            <p class="message">Congratulations! Your vendor account for <strong>${shopName}</strong> has been successfully activated.</p>
+            <a href="${this.configService.get('FRONTEND_URL') || 'http://localhost:3000'}/vendor" class="cta-button">Go to Vendor Dashboard</a>
+        `;
 
-            await this.resend.emails.send({
-                from: this.sender,
-                to: email,
-                subject: `Welcome to FLA, ${shopName}! 🎉`,
-                html: this.wrapLayout('Welcome to FLA!', content, true),
-            });
-        } catch (error) {
-            console.error('Error sending welcome email:', error);
-        }
+        await this.sendEmail(email, `Welcome to FLA, ${shopName}! 🎉`, this.wrapLayout('Welcome to FLA!', content, true));
     }
 
     async sendVendorCredentialsEmail(email: string, name: string, password: string, shopName: string): Promise<void> {
-        try {
-            const content = `
-                <p class="greeting">Welcome, ${name}!</p>
-                <p class="message">Your professional studio account for <strong>${shopName}</strong> is ready.</p>
-                <div class="otp-container" style="text-align: left;">
-                    <p class="otp-label">Access Email</p>
-                    <p style="margin: 5px 0; font-weight: 700;">${email}</p>
-                    <p class="otp-label" style="margin-top: 15px;">Temporary Password</p>
-                    <p style="margin: 5px 0; font-weight: 700; color: #0f172a;">${password}</p>
-                </div>
-                <a href="${this.configService.get('FRONTEND_URL') || 'http://localhost:3000'}/auth?type=login" class="cta-accent">Log In to Studio Hub</a>
-            `;
+        const content = `
+            <p class="greeting">Welcome, ${name}!</p>
+            <p class="message">Your professional studio account for <strong>${shopName}</strong> is ready.</p>
+            <div class="otp-container" style="text-align: left;">
+                <p class="otp-label">Access Email</p>
+                <p style="margin: 5px 0; font-weight: 700;">${email}</p>
+                <p class="otp-label" style="margin-top: 15px;">Temporary Password</p>
+                <p style="margin: 5px 0; font-weight: 700; color: #0f172a;">${password}</p>
+            </div>
+            <a href="${this.configService.get('FRONTEND_URL') || 'http://localhost:3000'}/auth?type=login" class="cta-accent">Log In to Studio Hub</a>
+        `;
 
-            await this.resend.emails.send({
-                from: this.sender,
-                to: email,
-                subject: `Your FLA Studio Account is Ready: ${shopName} 🚀`,
-                html: this.wrapLayout('Studio Account Ready', content),
-            });
-        } catch (error) {
-            console.error('Error sending credentials email:', error);
-        }
+        await this.sendEmail(email, `Your FLA Studio Account is Ready: ${shopName} 🚀`, this.wrapLayout('Studio Account Ready', content));
     }
 
     async sendPasswordResetEmail(email: string, name: string, token: string): Promise<void> {
-        try {
-            const resetUrl = `${this.configService.get('FRONTEND_URL') || 'http://localhost:3000'}/auth/reset-password?token=${token}`;
-            const content = `
-                <p class="greeting">Hello ${name},</p>
-                <p class="message">Please click the button below to reset your password. This link is valid for 1 hour.</p>
-                <a href="${resetUrl}" class="cta-button">Reset Password</a>
-                <p style="font-size: 12px; color: #94a3b8; margin-top: 20px;">If you didn't request this, you can safely ignore this email.</p>
-            `;
+        const resetUrl = `${this.configService.get('FRONTEND_URL') || 'http://localhost:3000'}/auth/reset-password?token=${token}`;
+        const content = `
+            <p class="greeting">Hello ${name},</p>
+            <p class="message">Please click the button below to reset your password. This link is valid for 1 hour.</p>
+            <a href="${resetUrl}" class="cta-button">Reset Password</a>
+            <p style="font-size: 12px; color: #94a3b8; margin-top: 20px;">If you didn't request this, you can safely ignore this email.</p>
+        `;
 
-            await this.resend.emails.send({
-                from: this.sender,
-                to: email,
-                subject: 'Reset Your FLA Password 🔒',
-                html: this.wrapLayout('Password Reset', content),
-            });
-        } catch (error) {
-            console.error('Error sending reset email:', error);
-        }
+        await this.sendEmail(email, 'Reset Your FLA Password 🔒', this.wrapLayout('Password Reset', content));
     }
 
     async sendPasswordResetOTP(email: string, name: string, otp: string): Promise<void> {
-        try {
-            const content = `
-                <p class="greeting">Hello ${name},</p>
-                <p class="message">Use the following code to reset your password. If you didn't request this, please ignore this email.</p>
-                <div class="otp-container">
-                    <div class="otp-label">Reset Code</div>
-                    <div class="otp-code">${otp}</div>
-                </div>
-            `;
+        const content = `
+            <p class="greeting">Hello ${name},</p>
+            <p class="message">Use the following code to reset your password. If you didn't request this, please ignore this email.</p>
+            <div class="otp-container">
+                <div class="otp-label">Reset Code</div>
+                <div class="otp-code">${otp}</div>
+            </div>
+        `;
 
-            await this.resend.emails.send({
-                from: this.sender,
-                to: email,
-                subject: 'Your Password Reset Code 🔒',
-                html: this.wrapLayout('Security Verification', content),
-            });
-        } catch (error) {
-            console.error('Error sending reset OTP email:', error);
-            throw error;
-        }
+        await this.sendEmail(email, 'Your Password Reset Code 🔒', this.wrapLayout('Security Verification', content));
     }
 
     async sendOrderEmail(email: string, name: string, orderId: string, amount: number): Promise<void> {
-        try {
-            const content = `
-                <p class="greeting">Hello ${name},</p>
-                <p class="message">Your order <strong>#ORD-${orderId.slice(-6).toUpperCase()}</strong> has been placed successfully.</p>
-                <div style="background: #f8fafc; padding: 20px; border-radius: 12px; margin: 20px 0;">
-                    <p style="margin: 0; color: #64748b;">Total Amount</p>
-                    <p style="font-size: 24px; font-weight: 900; color: #0f172a; margin: 5px 0;">GH₵ ${amount.toLocaleString()}</p>
-                </div>
-                <p class="message">The vendor has been notified and will begin processing your items shortly.</p>
-                <a href="${this.configService.get('FRONTEND_URL') || 'http://localhost:3000'}/dashboard" class="cta-button">Track Order</a>
-            `;
+        const content = `
+            <p class="greeting">Hello ${name},</p>
+            <p class="message">Your order <strong>#ORD-${orderId.slice(-6).toUpperCase()}</strong> has been placed successfully.</p>
+            <div style="background: #f8fafc; padding: 20px; border-radius: 12px; margin: 20px 0;">
+                <p style="margin: 0; color: #64748b;">Total Amount</p>
+                <p style="font-size: 24px; font-weight: 900; color: #0f172a; margin: 5px 0;">GH₵ ${amount.toLocaleString()}</p>
+            </div>
+            <p class="message">The vendor has been notified and will begin processing your items shortly.</p>
+            <a href="${this.configService.get('FRONTEND_URL') || 'http://localhost:3000'}/dashboard" class="cta-button">Track Order</a>
+        `;
 
-            await this.resend.emails.send({
-                from: this.sender,
-                to: email,
-                subject: `Order Confirmation: #ORD-${orderId.slice(-6).toUpperCase()} 📦`,
-                html: this.wrapLayout('Order Received! 🛍️', content),
-            });
-        } catch (error) {
-            console.error('Error sending order email:', error);
-        }
+        await this.sendEmail(email, `Order Confirmation: #ORD-${orderId.slice(-6).toUpperCase()} 📦`, this.wrapLayout('Order Received! 🛍️', content));
     }
 
     async sendDeliveryFeeEmail(email: string, name: string, orderId: string, fee: number): Promise<void> {
-        try {
-            const content = `
-                <p class="greeting">Hello ${name},</p>
-                <p class="message">A delivery fee of <strong>GH₵ ${fee}</strong> has been added to your Order <strong>#ORD-${orderId.slice(-6).toUpperCase()}</strong>.</p>
-                <p class="message">Please log in to your dashboard to pay this fee so the vendor can proceed with shipping.</p>
-                <a href="${this.configService.get('FRONTEND_URL') || 'http://localhost:3000'}/dashboard" class="cta-button">Pay Delivery Fee</a>
-            `;
+        const content = `
+            <p class="greeting">Hello ${name},</p>
+            <p class="message">A delivery fee of <strong>GH₵ ${fee}</strong> has been added to your Order <strong>#ORD-${orderId.slice(-6).toUpperCase()}</strong>.</p>
+            <p class="message">Please log in to your dashboard to pay this fee so the vendor can proceed with shipping.</p>
+            <a href="${this.configService.get('FRONTEND_URL') || 'http://localhost:3000'}/dashboard" class="cta-button">Pay Delivery Fee</a>
+        `;
 
-            await this.resend.emails.send({
-                from: this.sender,
-                to: email,
-                subject: `Delivery Fee for Order #ORD-${orderId.slice(-6).toUpperCase()} 🚚`,
-                html: this.wrapLayout('Delivery Fee Update', content),
-            });
-        } catch (error) {
-            console.error('Error sending delivery fee email:', error);
-        }
+        await this.sendEmail(email, `Delivery Fee for Order #ORD-${orderId.slice(-6).toUpperCase()} 🚚`, this.wrapLayout('Delivery Fee Update', content));
     }
 
     async sendAdminOrderNotification(adminEmail: string, orderId: string, amount: number, customerName: string): Promise<void> {
-        try {
-            const content = `
-                <div style="border-left: 4px solid #D8F800; padding-left: 20px; margin: 20px 0;">
-                    <p style="margin: 0; font-size: 13px; color: #64748b; text-transform: uppercase;">Order ID</p>
-                    <p style="font-weight: 700; margin: 5px 0;">#ORD-${orderId.slice(-6).toUpperCase()}</p>
-                    <p style="margin: 15px 0 0 0; font-size: 13px; color: #64748b; text-transform: uppercase;">Amount</p>
-                    <p style="font-weight: 700; margin: 5px 0;">GH₵ ${amount.toLocaleString()}</p>
-                    <p style="margin: 15px 0 0 0; font-size: 13px; color: #64748b; text-transform: uppercase;">Customer</p>
-                    <p style="font-weight: 700; margin: 5px 0;">${customerName}</p>
-                </div>
-                <a href="${this.configService.get('FRONTEND_URL') || 'http://localhost:3000'}/admin" class="cta-button">Review in Admin HQ</a>
-            `;
+        const content = `
+            <div style="border-left: 4px solid #D8F800; padding-left: 20px; margin: 20px 0;">
+                <p style="margin: 0; font-size: 13px; color: #64748b; text-transform: uppercase;">Order ID</p>
+                <p style="font-weight: 700; margin: 5px 0;">#ORD-${orderId.slice(-6).toUpperCase()}</p>
+                <p style="margin: 15px 0 0 0; font-size: 13px; color: #64748b; text-transform: uppercase;">Amount</p>
+                <p style="font-weight: 700; margin: 5px 0;">GH₵ ${amount.toLocaleString()}</p>
+                <p style="margin: 15px 0 0 0; font-size: 13px; color: #64748b; text-transform: uppercase;">Customer</p>
+                <p style="font-weight: 700; margin: 5px 0;">${customerName}</p>
+            </div>
+            <a href="${this.configService.get('FRONTEND_URL') || 'http://localhost:3000'}/admin" class="cta-button">Review in Admin HQ</a>
+        `;
 
-            await this.resend.emails.send({
-                from: this.sender,
-                to: adminEmail,
-                subject: `NEW ORDER: #ORD-${orderId.slice(-6).toUpperCase()} (GH₵ ${amount.toLocaleString()})`,
-                html: this.wrapLayout('NEW ORDER ALERT 🚨', content),
-            });
-        } catch (error) {
-            console.error('Error sending admin order notification email:', error);
-        }
+        await this.sendEmail(adminEmail, `NEW ORDER: #ORD-${orderId.slice(-6).toUpperCase()} (GH₵ ${amount.toLocaleString()})`, this.wrapLayout('NEW ORDER ALERT 🚨', content));
     }
 
     async sendVendorOrderNotification(vendorEmail: string, shopName: string, orderId: string, amount: number): Promise<void> {
-        try {
-            const content = `
-                <p class="greeting">Hello ${shopName},</p>
-                <p class="message">Great news! You have received a new order <strong>#ORD-${orderId.slice(-6).toUpperCase()}</strong>.</p>
-                <div style="background: #f1f5f9; padding: 20px; border-radius: 12px; margin: 20px 0;">
-                    <p style="margin: 0; font-size: 13px; color: #64748b;">Order Amount</p>
-                    <p style="font-size: 20px; font-weight: 900; color: #0f172a; margin: 5px 0;">GH₵ ${amount.toLocaleString()}</p>
-                </div>
-                <a href="${this.configService.get('FRONTEND_URL') || 'http://localhost:3000'}/vendor" class="cta-accent">Manage in Studio</a>
-                <p style="font-size: 12px; color: #94a3b8; margin-top: 20px;">Note: Funds will be released to your wallet once the customer confirms delivery.</p>
-            `;
+        const content = `
+            <p class="greeting">Hello ${shopName},</p>
+            <p class="message">Great news! You have received a new order <strong>#ORD-${orderId.slice(-6).toUpperCase()}</strong>.</p>
+            <div style="background: #f1f5f9; padding: 20px; border-radius: 12px; margin: 20px 0;">
+                <p style="margin: 0; font-size: 13px; color: #64748b;">Order Amount</p>
+                <p style="font-size: 20px; font-weight: 900; color: #0f172a; margin: 5px 0;">GH₵ ${amount.toLocaleString()}</p>
+            </div>
+            <a href="${this.configService.get('FRONTEND_URL') || 'http://localhost:3000'}/vendor" class="cta-accent">Manage in Studio</a>
+            <p style="font-size: 12px; color: #94a3b8; margin-top: 20px;">Note: Funds will be released to your wallet once the customer confirms delivery.</p>
+        `;
 
-            await this.resend.emails.send({
-                from: this.sender,
-                to: vendorEmail,
-                subject: `New Design Order: #ORD-${orderId.slice(-6).toUpperCase()} 🎨`,
-                html: this.wrapLayout('New Order Alert! 💰', content),
-            });
-        } catch (error) {
-            console.error('Error sending vendor order notification email:', error);
-        }
+        await this.sendEmail(vendorEmail, `New Design Order: #ORD-${orderId.slice(-6).toUpperCase()} 🎨`, this.wrapLayout('New Order Alert! 💰', content));
     }
 
     async sendGenericNotification(email: string, name: string, subject: string, message: string): Promise<void> {
-        try {
-            const content = `
-                <p class="greeting">Hello ${name},</p>
-                <p class="message">${message}</p>
-            `;
+        const content = `
+            <p class="greeting">Hello ${name},</p>
+            <p class="message">${message}</p>
+        `;
 
-            await this.resend.emails.send({
-                from: this.sender,
-                to: email,
-                subject: subject,
-                html: this.wrapLayout('Update from FLA', content),
-            });
-        } catch (error) {
-            console.error('Error sending generic notification email:', error);
-        }
+        await this.sendEmail(email, subject, this.wrapLayout('Update from FLA', content));
     }
 
     async sendAdminDisputeNotification(adminEmail: string, orderId: string, reason: string): Promise<void> {
-        try {
-            const content = `
-                <div style="background: #fef2f2; border-left: 4px solid #dc2626; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                    <p style="margin: 0; color: #991b1b; font-weight: 700;">Dispute Category: General</p>
-                    <p style="margin: 10px 0 0 0; color: #dc2626; font-style: italic;">"${reason}"</p>
-                </div>
-                <p class="message">Order ID: <strong>#ORD-${orderId.slice(-6).toUpperCase()}</strong></p>
-                <a href="${this.configService.get('FRONTEND_URL') || 'http://localhost:3000'}/admin" class="cta-button" style="background-color: #dc2626;">Investigate Dispute</a>
-            `;
+        const content = `
+            <div style="background: #fef2f2; border-left: 4px solid #dc2626; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <p style="margin: 0; color: #991b1b; font-weight: 700;">Dispute Category: General</p>
+                <p style="margin: 10px 0 0 0; color: #dc2626; font-style: italic;">"${reason}"</p>
+            </div>
+            <p class="message">Order ID: <strong>#ORD-${orderId.slice(-6).toUpperCase()}</strong></p>
+            <a href="${this.configService.get('FRONTEND_URL') || 'http://localhost:3000'}/admin" class="cta-button" style="background-color: #dc2626;">Investigate Dispute</a>
+        `;
 
-            await this.resend.emails.send({
-                from: this.sender,
-                to: adminEmail,
-                subject: `⚠️ DISPUTE FILED: #ORD-${orderId.slice(-6).toUpperCase()}`,
-                html: this.wrapLayout('DISPUTE FILED ⚠️', content),
-            });
-        } catch (error) {
-            console.error('Error sending admin dispute notification email:', error);
-        }
+        await this.sendEmail(adminEmail, `⚠️ DISPUTE FILED: #ORD-${orderId.slice(-6).toUpperCase()}`, this.wrapLayout('DISPUTE FILED ⚠️', content));
     }
 
     async sendCustomerDisputeResolutionEmail(email: string, name: string, orderId: string, resolution: string): Promise<void> {
-        try {
-            const content = `
-                <p class="greeting">Hello ${name},</p>
-                <p class="message">Your dispute for Order <strong>#ORD-${orderId.slice(-6).toUpperCase()}</strong> has been resolved.</p>
-                <div style="background: #f0fdf4; border-radius: 12px; padding: 20px; text-align: center; margin: 20px 0;">
-                    <p style="margin: 0; font-size: 13px; color: #15803d; text-transform: uppercase; font-weight: 800;">Resolution</p>
-                    <p style="margin: 10px 0 0 0; font-size: 18px; font-weight: 700; color: #166534;">
-                        ${resolution === 'refund' ? 'Full Refund Processed' : 'Funds Released to Vendor'}
-                    </p>
-                </div>
-            `;
+        const content = `
+            <p class="greeting">Hello ${name},</p>
+            <p class="message">Your dispute for Order <strong>#ORD-${orderId.slice(-6).toUpperCase()}</strong> has been resolved.</p>
+            <div style="background: #f0fdf4; border-radius: 12px; padding: 20px; text-align: center; margin: 20px 0;">
+                <p style="margin: 0; font-size: 13px; color: #15803d; text-transform: uppercase; font-weight: 800;">Resolution</p>
+                <p style="margin: 10px 0 0 0; font-size: 18px; font-weight: 700; color: #166534;">
+                    ${resolution === 'refund' ? 'Full Refund Processed' : 'Funds Released to Vendor'}
+                </p>
+            </div>
+        `;
 
-            await this.resend.emails.send({
-                from: this.sender,
-                to: email,
-                subject: `Dispute Resolution: #ORD-${orderId.slice(-6).toUpperCase()} ✅`,
-                html: this.wrapLayout('Dispute Resolved ✅', content),
-            });
-        } catch (error) {
-            console.error('Error sending customer dispute resolution email:', error);
-        }
+        await this.sendEmail(email, `Dispute Resolution: #ORD-${orderId.slice(-6).toUpperCase()} ✅`, this.wrapLayout('Dispute Resolved ✅', content));
     }
 
     async sendDisputeNotification(recipients: string[], orderId: string, reason: string, customerName: string, vendorName: string): Promise<void> {
-        try {
-            const content = `
-                <p class="greeting">Dispute Resolution Case Opened</p>
-                <p class="message">A formal dispute has been filed for Order <strong>#ORD-${orderId.slice(-6).toUpperCase()}</strong>. This email serves as a transparent communication channel between the <strong>Customer</strong>, the <strong>Vendor</strong>, and the <strong>Admin Team</strong>.</p>
-                
-                <div style="background: #fef2f2; border-left: 4px solid #dc2626; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                    <p style="margin: 0; color: #991b1b; font-weight: 700;">Dispute Details:</p>
-                    <p style="margin: 10px 0 0 0; color: #1e293b;"><strong>Reason:</strong> ${reason}</p>
-                    <p style="margin: 5px 0 0 0; color: #1e293b;"><strong>Customer:</strong> ${customerName}</p>
-                    <p style="margin: 5px 0 0 0; color: #1e293b;"><strong>Vendor:</strong> ${vendorName}</p>
-                </div>
+        const content = `
+            <p class="greeting">Dispute Resolution Case Opened</p>
+            <p class="message">A formal dispute has been filed for Order <strong>#ORD-${orderId.slice(-6).toUpperCase()}</strong>. This email serves as a transparent communication channel between the <strong>Customer</strong>, the <strong>Vendor</strong>, and the <strong>Admin Team</strong>.</p>
+            
+            <div style="background: #fef2f2; border-left: 4px solid #dc2626; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <p style="margin: 0; color: #991b1b; font-weight: 700;">Dispute Details:</p>
+                <p style="margin: 10px 0 0 0; color: #1e293b;"><strong>Reason:</strong> ${reason}</p>
+                <p style="margin: 5px 0 0 0; color: #1e293b;"><strong>Customer:</strong> ${customerName}</p>
+                <p style="margin: 5px 0 0 0; color: #1e293b;"><strong>Vendor:</strong> ${vendorName}</p>
+            </div>
 
-                <p class="message" style="font-weight: 600; color: #0f172a;">Next Steps for Evidence Submission:</p>
-                <ul style="color: #64748b; font-size: 14px; line-height: 1.8;">
-                    <li><strong>Vendor:</strong> Please provide proof of shipment, delivery notes, or any communication with the customer regarding this order.</li>
-                    <li><strong>Customer:</strong> Please provide photos of the received item (if applicable) or any other evidence supporting your claim.</li>
-                    <li><strong>Admin:</strong> Will review all provided evidence and make a final judgment within 48-72 hours.</li>
-                </ul>
+            <p class="message" style="font-weight: 600; color: #0f172a;">Next Steps for Evidence Submission:</p>
+            <ul style="color: #64748b; font-size: 14px; line-height: 1.8;">
+                <li><strong>Vendor:</strong> Please provide proof of shipment, delivery notes, or any communication with the customer regarding this order.</li>
+                <li><strong>Customer:</strong> Please provide photos of the received item (if applicable) or any other evidence supporting your claim.</li>
+                <li><strong>Admin:</strong> Will review all provided evidence and make a final judgment within 48-72 hours.</li>
+            </ul>
 
-                <p class="message">Please respond directly to this thread or log in to the resolution center to upload your evidence files.</p>
-                
-                <div style="display: flex; gap: 10px; margin-top: 30px;">
-                    <a href="${this.configService.get('FRONTEND_URL') || 'http://localhost:3000'}/dashboard" class="cta-button" style="margin: 0;">Resolution Center</a>
-                </div>
-            `;
+            <p class="message">Please respond directly to this thread or log in to the resolution center to upload your evidence files.</p>
+            
+            <div style="display: flex; gap: 10px; margin-top: 30px;">
+                <a href="${this.configService.get('FRONTEND_URL') || 'http://localhost:3000'}/dashboard" class="cta-button" style="margin: 0;">Resolution Center</a>
+            </div>
+        `;
 
-            await this.resend.emails.send({
-                from: this.sender,
-                to: recipients,
-                subject: `⚠️ DISPUTE CASE OPENED: #ORD-${orderId.slice(-6).toUpperCase()} (Transparency Thread)`,
-                html: this.wrapLayout('DISPUTE INVESTIGATION 🔍', content),
-            });
-        } catch (error) {
-            console.error('Error sending multi-party dispute notification:', error);
-        }
+        await this.sendEmail(recipients, `⚠️ DISPUTE CASE OPENED: #ORD-${orderId.slice(-6).toUpperCase()} (Transparency Thread)`, this.wrapLayout('DISPUTE INVESTIGATION 🔍', content));
+    }
+
+    async sendSkynetHandoverEmail(email: string, name: string, orderId: string, trackingNumber: string): Promise<void> {
+        const content = `
+            <p class="greeting">Professional Handover Complete! 🚚</p>
+            <p class="message">Hello ${name}, your fashion pieces for Order <strong>#ORD-${orderId.slice(-6).toUpperCase()}</strong> have been officially received by our logistics partner, <strong>Skynet Express</strong>.</p>
+            
+            <div style="background: #0f172a; color: #ffffff; padding: 30px; border-radius: 24px; margin: 30px 0; text-align: center; border: 4px solid #D8F800;">
+                <p style="font-size: 11px; font-weight: 800; color: #D8F800; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 10px;">Skynet Tracking Number</p>
+                <p style="font-size: 28px; font-weight: 900; letter-spacing: 1px; margin: 0;">${trackingNumber}</p>
+            </div>
+
+            <p class="message">The items are now undergoing nationwide sorting and will be dispatched to your location shortly. You can track the real-time movement on the Skynet portal or your FLA dashboard.</p>
+            
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <a href="${this.configService.get('FRONTEND_URL') || 'http://localhost:3000'}/dashboard" class="cta-accent" style="margin: 0;">Track on FLA</a>
+            </div>
+
+            <p style="font-size: 12px; color: #94a3b8; margin-top: 30px; border-top: 1px solid #f1f5f9; pt: 20px;">
+                <strong>Security Notice:</strong> All Skynet shipments are insured and tracked via our institutional partnership. Please ensure you inspect the package seal upon arrival.
+            </p>
+        `;
+
+        await this.sendEmail(email, `Skynet Handover Successful: Order #ORD-${orderId.slice(-6).toUpperCase()} 🚚`, this.wrapLayout('Official Logistics Handover', content, true));
     }
 }
-

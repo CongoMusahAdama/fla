@@ -6,6 +6,7 @@ import { UpdateUserDto } from '../users/dto/update-user.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { UsersService } from '../users/users.service';
 import { TurnstileService } from '../common/turnstile.service';
+import { StreamService } from '../common/stream.service';
 
 @Controller('auth')
 export class AuthController {
@@ -13,7 +14,15 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly usersService: UsersService,
     private readonly turnstileService: TurnstileService,
+    private readonly streamService: StreamService,
   ) { }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Get('stream-token')
+  async getStreamToken(@Request() req) {
+    const token = await this.streamService.createToken(req.user.userId);
+    return { token };
+  }
 
   @UseGuards(AuthGuard('local'))
   @Post('login')

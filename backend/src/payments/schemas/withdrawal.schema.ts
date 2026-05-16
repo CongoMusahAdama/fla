@@ -12,7 +12,7 @@ export class Withdrawal {
     amount: number; // Requested amount (Gross)
 
     @Prop({ required: true })
-    adminCommission: number; // 10% of amount
+    adminCommission: number; // 6% of amount
 
     @Prop({ required: true })
     netAmount: number; // Amount vendor actually gets (amount - commission)

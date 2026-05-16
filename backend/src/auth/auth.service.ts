@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import { EmailService } from '../email/email.service';
@@ -9,6 +9,8 @@ import * as crypto from 'crypto';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private usersService: UsersService,
     private jwtService: JwtService,
@@ -23,20 +25,20 @@ export class AuthService {
   }
 
   async validateUser(email: string, pass: string): Promise<any> {
-    console.log(`[AuthService] Validating user: ${email}`);
+    this.logger.debug(`Validating user: ${email}`);
     const user = await this.usersService.findOne(email);
     if (!user) {
-      console.warn(`[AuthService] User not found: ${email}`);
+      this.logger.warn(`User not found during validation attempt: ${email}`);
       return null;
     }
 
     if (!user.password) {
-      console.warn(`[AuthService] User has no password set: ${email}`);
+      this.logger.warn(`User has no password set: ${email}`);
       return null;
     }
     
     const isMatch = await bcrypt.compare(pass, user.password);
-    console.log(`[AuthService] Password match for ${email}: ${isMatch}`);
+    this.logger.debug(`Password match for ${email}: ${isMatch}`);
 
     if (isMatch) {
       const userObj = (user as any).toObject();
@@ -77,6 +79,7 @@ export class AuthService {
         dob: user.dob,
         employeeCount: user.employeeCount,
         yearsOfExistence: user.yearsOfExistence,
+        vendorTier: user.vendorTier,
       }
     };
   }
@@ -95,7 +98,7 @@ export class AuthService {
         const apiKey = (this as any).smileIdService.apiKey;
 
         if (!partnerId || !apiKey) {
-          console.log('[AuthService] SMILE_ID_KEYS_MISSING: Bypassing real verification, auto-approving identity.');
+          this.logger.log('SMILE_ID_KEYS_MISSING: Bypassing real verification, auto-approving identity.');
           await this.usersService.update((user as any)._id.toString(), { 
             isIdentityVerified: true,
             status: user.role === 'customer' ? 'active' : 'pending'
@@ -118,7 +121,7 @@ export class AuthService {
           }
         }
       } catch (error) {
-        console.error('Smile ID Background Verification Error:', error);
+        this.logger.error(`Smile ID Background Verification Error: ${error.message}`);
       }
     }
 
@@ -181,11 +184,11 @@ export class AuthService {
   }
 
   async forgotPassword(email: string): Promise<void> {
-    console.log(`[ForgotPassword] Request received for: ${email}`);
+    this.logger.log(`ForgotPassword: Request received for: ${this.maskEmail(email)}`);
     const user = await this.usersService.findOne(email);
     if (!user) {
       // Don't leak whether a user exists or not (security best practice)
-      console.log(`[ForgotPassword] No user found for: ${this.maskEmail(email)} — returning silently`);
+      this.logger.warn(`ForgotPassword: No user found for: ${this.maskEmail(email)} — returning silently`);
       return;
     }
 
@@ -193,7 +196,7 @@ export class AuthService {
     const expires = new Date();
     expires.setHours(expires.getHours() + 1); // Token valid for 1 hour
 
-    console.log(`[ForgotPassword] Saving reset token for user: ${this.maskEmail(user.email)}`);
+    this.logger.log(`ForgotPassword: Saving reset token for user: ${this.maskEmail(user.email)}`);
     await this.usersService.update((user as any)._id.toString(), {
       resetPasswordToken: token,
       resetPasswordExpires: expires
@@ -202,7 +205,7 @@ export class AuthService {
     try {
       await this.emailService.sendPasswordResetEmail(user.email, user.name || 'User', token);
     } catch (emailError) {
-      console.error(`[ForgotPassword] FAILED to send email to ${this.maskEmail(user.email)}:`, emailError);
+      this.logger.error(`ForgotPassword: FAILED to send email to ${this.maskEmail(user.email)}: ${emailError.message}`);
       // Rethrow so the controller can return a meaningful error
       throw new Error('Failed to send password reset email. Please try again later.');
     }
@@ -218,23 +221,23 @@ export class AuthService {
   }
 
   async forgotPasswordOTP(email: string): Promise<void> {
-    console.log(`[ForgotPassword] OTP Request for: ${this.maskEmail(email)}`);
+    this.logger.log(`ForgotPassword: OTP Request for: ${this.maskEmail(email)}`);
     const user = await this.usersService.findOne(email);
     if (!user) {
-      console.warn(`[ForgotPassword] No user found with email: ${this.maskEmail(email)}`);
+      this.logger.warn(`ForgotPassword: No user found with email: ${this.maskEmail(email)}`);
       // Security best practice: don't leak user existence
       return;
     }
 
-    console.log(`[ForgotPassword] User found: ${user.name}. Generating OTP...`);
+    this.logger.log(`ForgotPassword: User found: ${user.name}. Generating OTP...`);
     const otp = this.otpService.generateOTP();
     await this.otpService.storeOTP(email, otp);
 
     try {
       await this.emailService.sendPasswordResetOTP(email, user.name || 'User', otp);
-      console.log(`[ForgotPassword] OTP email triggered for: ${this.maskEmail(email)}`);
+      this.logger.log(`ForgotPassword: OTP email triggered for: ${this.maskEmail(email)}`);
     } catch (error) {
-      console.error(`[ForgotPassword] Failed to trigger email:`, error.message);
+      this.logger.error(`ForgotPassword: Failed to trigger email: ${error.message}`);
       throw error;
     }
   }
