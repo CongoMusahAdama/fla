@@ -8,6 +8,7 @@ import * as bcrypt from 'bcrypt';
 import { OrdersService } from '../orders/orders.service';
 import { PaystackService } from '../common/paystack.service';
 import { ShuftiService } from '../common/shufti.service';
+import { EmailService } from '../email/email.service';
 import { TempVerification } from '../common/schemas/temp-verification.schema';
 
 // Rounds=8: ~25ms (vs 10 rounds=~100ms). Both are cryptographically secure.
@@ -23,6 +24,7 @@ export class UsersService {
     @Inject(forwardRef(() => OrdersService)) private ordersService: OrdersService,
     private readonly paystackService: PaystackService,
     private readonly shuftiService: ShuftiService,
+    private readonly emailService: EmailService,
   ) { }
 
   async create(createUserDto: CreateUserDto): Promise<User> {
@@ -235,9 +237,28 @@ export class UsersService {
     }
     const user = await this.userModel.findByIdAndUpdate(id, { $set: update }, { new: true }).lean().exec() as any;
     
-    // If banned, we might want to log this or notify the vendor via SMS/Email
-    if (status === 'banned' && user) {
-        // Implementation for ban notification could go here
+    if (user && user.email) {
+        try {
+            if (status === 'active' && user.role === 'vendor') {
+                await this.emailService.sendWelcomeEmail(user.email, user.name, user.shopName || 'Your Studio');
+            } else if (status === 'rejected' && user.role === 'vendor') {
+                await this.emailService.sendGenericNotification(
+                    user.email, 
+                    user.name, 
+                    'Studio Verification Update', 
+                    'We regret to inform you that your studio application has been declined. Please ensure your KYC documents are clear and valid before trying again.'
+                );
+            } else if (status === 'banned') {
+                await this.emailService.sendGenericNotification(
+                    user.email,
+                    user.name,
+                    'Account Status Update',
+                    'Your account has been suspended due to a violation of our platform policies. Please contact support if you believe this is an error.'
+                );
+            }
+        } catch (emailError) {
+            this.logger.error(`Failed to send status update email to ${user.email}: ${emailError.message}`);
+        }
     }
     
     return user;

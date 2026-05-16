@@ -241,6 +241,28 @@ export default function AdminDashboard() {
     };
 
     const handleUpdateUserStatus = async (userId: string, status: string) => {
+        const actionText = status === 'active' ? 'ACTIVATE this user?' : 'SUSPEND this user?';
+        const confirmButtonText = status === 'active' ? 'YES, ACTIVATE' : 'YES, SUSPEND';
+        const confirmButtonColor = status === 'active' ? '#0F172A' : '#E11D48';
+
+        const result = await Swal.fire({
+            title: 'CONFIRM STATUS CHANGE',
+            text: `Are you sure you want to ${actionText}`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: confirmButtonColor,
+            cancelButtonColor: '#F1F5F9',
+            cancelButtonText: '<span style="color: #64748b">CANCEL</span>',
+            confirmButtonText: confirmButtonText,
+            customClass: {
+                popup: 'rounded-[32px] border-none shadow-2xl',
+                title: 'text-xl font-black text-slate-900 tracking-tighter uppercase',
+                htmlContainer: 'text-slate-500 font-medium text-sm'
+            }
+        });
+
+        if (!result.isConfirmed) return;
+
         try {
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/users/${userId}`, {
                 method: 'PATCH',
@@ -259,10 +281,10 @@ export default function AdminDashboard() {
             Swal.fire({
                 icon: 'success',
                 title: 'USER UPDATED',
-                text: `Status changed to ${status}`,
+                text: `Status successfully changed to ${status}`,
                 timer: 1500,
                 showConfirmButton: false,
-                customClass: { popup: 'rounded-2xl' }
+                customClass: { popup: 'rounded-[32px]' }
             });
         } catch (error: any) {
             Swal.fire({ icon: 'error', title: 'Update Failed', text: error.message });
@@ -270,6 +292,28 @@ export default function AdminDashboard() {
     };
 
     const handleKYCAction = async (userId: string, status: 'active' | 'rejected') => {
+        const actionText = status === 'active' ? 'APPROVE this vendor?' : 'REJECT this application?';
+        const confirmButtonText = status === 'active' ? 'YES, APPROVE' : 'YES, REJECT';
+        const confirmButtonColor = status === 'active' ? '#0F172A' : '#E11D48';
+
+        const result = await Swal.fire({
+            title: 'CONFIRM ACTION',
+            text: `Are you sure you want to ${actionText}`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: confirmButtonColor,
+            cancelButtonColor: '#F1F5F9',
+            cancelButtonText: '<span style="color: #64748b">CANCEL</span>',
+            confirmButtonText: confirmButtonText,
+            customClass: {
+                popup: 'rounded-[32px] border-none shadow-2xl',
+                title: 'text-xl font-black text-slate-900 tracking-tighter uppercase',
+                htmlContainer: 'text-slate-500 font-medium text-sm'
+            }
+        });
+
+        if (!result.isConfirmed) return;
+
         try {
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/users/admin/${userId}/status`, {
                 method: 'PATCH',
