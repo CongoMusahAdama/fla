@@ -505,18 +505,18 @@ export default function AdminDashboard() {
                                 <button
                                     key={i}
                                     onClick={() => setActiveSection(stat.id)}
-                                    className={`${stat.bg} p-4 md:p-8 rounded-none shadow-xl shadow-slate-200/50 relative overflow-hidden group hover:-translate-y-1 transition-all duration-500 text-left border-none outline-none focus:ring-4 focus:ring-brand-lemon/20`}
+                                    className={`${stat.bg} p-4 md:p-6 rounded-none shadow-xl shadow-slate-200/50 relative overflow-hidden group hover:-translate-y-1 transition-all duration-500 text-left border-none outline-none focus:ring-4 focus:ring-brand-lemon/20`}
                                 >
                                     {/* Decorative Pattern */}
-                                    <div className={`absolute -right-4 -bottom-4 w-20 h-20 md:w-32 md:h-32 ${stat.pattern} transform rotate-12 pointer-events-none group-hover:scale-110 transition-transform duration-700`}>
+                                    <div className={`absolute -right-4 -bottom-4 w-16 h-16 md:w-24 md:h-24 ${stat.pattern} transform rotate-12 pointer-events-none group-hover:scale-110 transition-transform duration-700`}>
                                         <stat.icon className="w-full h-full text-white" />
                                     </div>
 
-                                    <div className={`w-8 h-8 md:w-12 md:h-12 bg-white/20 backdrop-blur-md rounded-lg md:rounded-2xl flex items-center justify-center mb-3 md:mb-6 shadow-sm border border-white/30 group-hover:rotate-6 transition-transform`}>
-                                        <stat.icon className={`w-4 h-4 md:w-6 md:h-6 text-white`} />
+                                    <div className={`w-7 h-7 md:w-10 md:h-10 bg-white/20 backdrop-blur-md rounded-lg md:rounded-xl flex items-center justify-center mb-2 md:mb-4 shadow-sm border border-white/30 group-hover:rotate-6 transition-transform`}>
+                                        <stat.icon className={`w-3.5 h-3.5 md:w-5 md:h-5 text-white`} />
                                     </div>
-                                    <p className="text-white/70 text-[8px] md:text-[10px] font-black uppercase tracking-widest leading-none mb-1 md:mb-2">{stat.label}</p>
-                                    <p className="text-xl md:text-3xl font-black text-white tracking-tighter">{stat.value}</p>
+                                    <p className="text-white/70 text-[8px] md:text-[9px] font-black uppercase tracking-widest leading-none mb-1 md:mb-1.5">{stat.label}</p>
+                                    <p className="text-lg md:text-2xl font-black text-white tracking-tighter">{stat.value}</p>
                                 </button>
                             ))}
                         </div>
@@ -826,10 +826,6 @@ export default function AdminDashboard() {
                                                         <MessageSquare className="w-3 h-3 text-slate-300" />
                                                         <p className="text-xs font-bold text-slate-600">{u.email}</p>
                                                     </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <Phone className="w-3 h-3 text-slate-300" />
-                                                        <p className="text-xs font-bold text-slate-600">{u.phone || 'N/A'}</p>
-                                                    </div>
                                                 </div>
                                             </td>
                                             <td className="px-8 py-6 border-r border-slate-50">
@@ -1023,7 +1019,6 @@ export default function AdminDashboard() {
                                             <td className="px-8 py-6 border-r border-slate-50">
                                                 <div className="space-y-1">
                                                     <p className="text-xs font-bold text-slate-600">{u.email}</p>
-                                                    <p className="text-[10px] font-medium text-slate-400">{u.phone || 'No phone'}</p>
                                                     <p className="text-[9px] font-black text-slate-400 uppercase">{u.location || 'N/A'}</p>
                                                 </div>
                                             </td>
@@ -2328,7 +2323,6 @@ export default function AdminDashboard() {
                                         <div className="space-y-1">
                                             <p className="font-black text-slate-900 text-base">{selectedOrder.customerName || 'Anonymous Guest'}</p>
                                             <p className="text-sm font-medium text-slate-600">{selectedOrder.customerEmail}</p>
-                                            <p className="text-sm font-medium text-slate-600">{selectedOrder.customerPhone || 'Phone hidden'}</p>
                                         </div>
                                     </div>
 
