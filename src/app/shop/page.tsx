@@ -206,7 +206,7 @@ function ShopContent() {
                             {/* Shop Page Suggestions */}
                             {localSearch.length >= 2 && suggestions.length > 0 && (
                                 <div className="absolute top-full left-0 right-0 mt-2 bg-white shadow-2xl rounded-2xl border border-slate-100 overflow-hidden z-[50] animate-in slide-in-from-top-2 duration-200 min-w-[200px]">
-                                    {suggestions.map((s: any, idx: number) => (
+                                    {(suggestions || []).map((s: any, idx: number) => (
                                         <button
                                             key={idx}
                                             onClick={() => {
@@ -317,10 +317,10 @@ function ShopContent() {
                                 <div key={i} className="aspect-[3/4] bg-white animate-pulse rounded-[32px] border border-slate-100 shadow-sm" />
                             ))}
                         </div>
-                    ) : groupedProducts.length > 0 && activeCategory === 'All Product' && !localSearch && !activeFilters.Region ? (
+                    ) : (groupedProducts || []).length > 0 && activeCategory === 'All Product' && !localSearch && !activeFilters.Region ? (
                         /* Grouped View - 9 Products Per Vendor */
                         <div className="space-y-32">
-                            {groupedProducts.map((group, idx) => (
+                            {(groupedProducts || []).map((group, idx) => (
                                 <div key={group.vendorId} className="animate-in fade-in slide-in-from-bottom-10 duration-1000" style={{ animationDelay: `${idx * 150}ms` }}>
                                     {/* Vendor Header */}
                                     <div className="flex flex-col md:flex-row justify-between items-end gap-6 mb-12 px-2">
@@ -352,7 +352,7 @@ function ShopContent() {
 
                                     {/* Vendor Product Grid */}
                                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-8">
-                                        {group.products.map((product: any, pIdx: number) => (
+                                        {(group.products || []).map((product: any, pIdx: number) => (
                                             <ProductCard
                                                 key={product._id}
                                                 id={product._id}
@@ -379,10 +379,10 @@ function ShopContent() {
                                 </div>
                             ))}
                         </div>
-                    ) : products.length > 0 ? (
+                    ) : (products || []).length > 0 ? (
                         /* Standard Filter View */
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-12">
-                            {products.map((product, index) => (
+                            {(products || []).map((product, index) => (
                                 <ProductCard
                                     key={product._id}
                                     id={product._id}

@@ -179,9 +179,9 @@ export default function Navbar() {
                                         autoFocus={isSearchOpen}
                                     />
                                     {/* Mobile Suggestions */}
-                                    {isSearchOpen && suggestions.length > 0 && (
+                                    {isSearchOpen && (suggestions || []).length > 0 && (
                                         <div className="absolute top-full left-0 right-0 mt-2 bg-white shadow-2xl rounded-none border border-slate-100 overflow-hidden z-[300] animate-in slide-in-from-top-2 duration-200">
-                                            {suggestions.map((s, idx) => (
+                                            {(suggestions || []).map((s, idx) => (
                                                 <button
                                                     key={idx}
                                                     onClick={() => handleSuggestionClick(s.text)}
@@ -301,7 +301,7 @@ export default function Navbar() {
                                                             <div className="px-5 py-3 bg-slate-50/50 border-b border-slate-50">
                                                                 <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Quick Results</span>
                                                             </div>
-                                                            {suggestions.map((s, idx) => (
+                                                            {(suggestions || []).map((s, idx) => (
                                                                 <button
                                                                     key={idx}
                                                                     onClick={() => handleSuggestionClick(s.text)}

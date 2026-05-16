@@ -51,9 +51,10 @@ export const VendorOrders: React.FC<VendorOrdersProps> = ({
   const itemsPerPage = 8;
 
   const filteredOrders = React.useMemo(() => {
+    const ordersArray = orders || [];
     switch (activeTab) {
       case 'In delivery':
-        return orders.filter(o => [
+        return ordersArray.filter(o => [
           'preparing_shipment', 
           'in_transit_to_first_mile', 
           'in_transit', 
@@ -62,11 +63,11 @@ export const VendorOrders: React.FC<VendorOrdersProps> = ({
           'shipped'
         ].includes(o.status));
       case 'completed':
-        return orders.filter(o => ['delivered', 'completed'].includes(o.status));
+        return ordersArray.filter(o => ['delivered', 'completed'].includes(o.status));
       case 'cancelled':
-        return orders.filter(o => ['cancelled'].includes(o.status));
+        return ordersArray.filter(o => ['cancelled'].includes(o.status));
       default:
-        return orders;
+        return ordersArray;
     }
   }, [orders, activeTab]);
 
@@ -102,10 +103,10 @@ export const VendorOrders: React.FC<VendorOrdersProps> = ({
           >
             {tab}
             <span className={`ml-2 px-1.5 py-0.5 rounded-md text-[8px] ${activeTab === tab ? 'bg-brand-lemon/20 text-brand-lemon' : 'bg-slate-100 text-slate-400'}`}>
-              {tab === 'All' ? orders.length : 
-               tab === 'In delivery' ? orders.filter(o => ['preparing_shipment', 'in_transit_to_first_mile', 'in_transit', 'arrived_at_first_mile', 'in_transit_to_last_mile', 'shipped'].includes(o.status)).length :
-               tab === 'completed' ? orders.filter(o => ['delivered', 'completed'].includes(o.status)).length :
-               tab === 'cancelled' ? orders.filter(o => ['cancelled'].includes(o.status)).length : 0}
+              {tab === 'All' ? (orders || []).length : 
+               tab === 'In delivery' ? (orders || []).filter(o => ['preparing_shipment', 'in_transit_to_first_mile', 'in_transit', 'arrived_at_first_mile', 'in_transit_to_last_mile', 'shipped'].includes(o.status)).length :
+               tab === 'completed' ? (orders || []).filter(o => ['delivered', 'completed'].includes(o.status)).length :
+               tab === 'cancelled' ? (orders || []).filter(o => ['cancelled'].includes(o.status)).length : 0}
             </span>
           </button>
         ))}

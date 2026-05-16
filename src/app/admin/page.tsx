@@ -681,15 +681,15 @@ export default function AdminDashboard() {
                     </div>
                 );
             case 'vendors':
-                const filteredVendors = allUsers.filter(u => 
+                const filteredVendors = (allUsers || []).filter(u => 
                     u.role === 'vendor' && (
                         u.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                         u.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                         u.shopName?.toLowerCase().includes(searchQuery.toLowerCase())
                     )
                 );
-                const paginatedVendors = filteredVendors.slice((vendorsPage - 1) * itemsPerPage, vendorsPage * itemsPerPage);
-                const vendorsTotalPages = Math.ceil(filteredVendors.length / itemsPerPage);
+                const paginatedVendors = (filteredVendors || []).slice((vendorsPage - 1) * itemsPerPage, vendorsPage * itemsPerPage);
+                const vendorsTotalPages = Math.ceil((filteredVendors || []).length / itemsPerPage);
 
                 return (
                     <div className="space-y-8 animate-in fade-in duration-500">
@@ -747,7 +747,7 @@ export default function AdminDashboard() {
                                     <div className="flex justify-between items-center py-3 border-y border-slate-50">
                                         <div className="flex items-center gap-2">
                                             <Package className="w-3 h-3 text-slate-400" />
-                                            <span className="text-xs font-bold text-slate-700">{allProducts.filter(p => p.vendorId === u._id).length} Products</span>
+                                            <span className="text-xs font-bold text-slate-700">{(allProducts || []).filter(p => p.vendorId === u._id).length} Products</span>
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <Wallet className="w-3 h-3 text-slate-400" />
@@ -835,7 +835,7 @@ export default function AdminDashboard() {
                                             <td className="px-8 py-6 border-r border-slate-50">
                                                 <div className="flex items-center gap-2">
                                                     <Package className="w-4 h-4 text-brand-lemon" />
-                                                    <span className="text-sm font-black text-slate-900">{allProducts.filter(p => p.vendorId === u._id).length}</span>
+                                                    <span className="text-sm font-black text-slate-900">{(allProducts || []).filter(p => p.vendorId === u._id).length}</span>
                                                     <span className="text-[9px] font-bold text-slate-400 uppercase">Items</span>
                                                 </div>
                                             </td>
@@ -931,14 +931,14 @@ export default function AdminDashboard() {
                     </div>
                 );
             case 'customers':
-                const filteredPatrons = allUsers.filter(u => 
+                const filteredPatrons = (allUsers || []).filter(u => 
                     u.role === 'customer' && (
                         u.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                         u.email?.toLowerCase().includes(searchQuery.toLowerCase())
                     )
                 );
-                const paginatedPatrons = filteredPatrons.slice((customersPage - 1) * itemsPerPage, customersPage * itemsPerPage);
-                const totalPatronPages = Math.ceil(filteredPatrons.length / itemsPerPage);
+                const paginatedPatrons = (filteredPatrons || []).slice((customersPage - 1) * itemsPerPage, customersPage * itemsPerPage);
+                const totalPatronPages = Math.ceil((filteredPatrons || []).length / itemsPerPage);
 
                 return (
                     <div className="space-y-8 animate-in fade-in duration-500">
@@ -1098,9 +1098,9 @@ export default function AdminDashboard() {
                     </div>
                 );
             case 'products':
-                const filteredProducts = allProducts.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
-                const paginatedProducts = filteredProducts.slice((productsPage - 1) * itemsPerPage, productsPage * itemsPerPage);
-                const productsTotalPages = Math.ceil(filteredProducts.length / itemsPerPage);
+                const filteredProducts = (allProducts || []).filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
+                const paginatedProducts = (filteredProducts || []).slice((productsPage - 1) * itemsPerPage, productsPage * itemsPerPage);
+                const productsTotalPages = Math.ceil((filteredProducts || []).length / itemsPerPage);
 
                 return (
                     <div className="space-y-8 animate-in fade-in duration-500">
@@ -1207,16 +1207,16 @@ export default function AdminDashboard() {
                 const isEscrow = activeSection === 'escrow';
                 const isDelivery = activeSection === 'delivery';
                 // Escrow should show orders that are pending payment verification, OR have funds currently held in escrow
-                const displayOrders = isEscrow ? allOrders.filter(o => !o.isPaid || ['held', 'frozen', 'waiting_approval'].includes(o.escrowStatus)) : isDelivery ? allOrders.filter(o => ['processing', 'shipped', 'delivered'].includes(o.status)) : allOrders;
+                const displayOrders = isEscrow ? (allOrders || []).filter(o => !o.isPaid || ['held', 'frozen', 'waiting_approval'].includes(o.escrowStatus)) : isDelivery ? (allOrders || []).filter(o => ['processing', 'shipped', 'delivered'].includes(o.status)) : (allOrders || []);
                 
-                const filteredOrders = displayOrders.filter(o => 
+                const filteredOrders = (displayOrders || []).filter(o => 
                     o._id.toLowerCase().includes(searchQuery.toLowerCase()) || 
                     o.customerName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                     o.customerEmail?.toLowerCase().includes(searchQuery.toLowerCase())
                 );
 
-                const paginatedOrders = filteredOrders.slice((ordersPage - 1) * itemsPerPage, ordersPage * itemsPerPage);
-                const ordersTotalPages = Math.ceil(filteredOrders.length / itemsPerPage);
+                const paginatedOrders = (filteredOrders || []).slice((ordersPage - 1) * itemsPerPage, ordersPage * itemsPerPage);
+                const ordersTotalPages = Math.ceil((filteredOrders || []).length / itemsPerPage);
 
                 return (
                     <div className="space-y-8 animate-in fade-in duration-500">
@@ -1534,7 +1534,7 @@ export default function AdminDashboard() {
                     </div>
                 );
             case 'disputes':
-                const disputedOrders = allOrders.filter(o => o.status === 'disputed');
+                const disputedOrders = (allOrders || []).filter(o => o.status === 'disputed');
                 const paginatedDisputes = disputedOrders.slice(0, itemsPerPage); // Static for now as we don't have a disputesPage yet, let's just use it anyway
                 
                 return (
@@ -1666,9 +1666,9 @@ export default function AdminDashboard() {
                     </div>
                 );
             case 'reports':
-                const reportCustomers = allUsers.filter(u => u.role === 'customer');
-                const newCustomersThisMonth = reportCustomers.filter(u => new Date(u.createdAt).getMonth() === new Date().getMonth()).length;
-                const activeCustomers = reportCustomers.filter(u => u.status === 'active').length;
+                const reportCustomers = (allUsers || []).filter(u => u.role === 'customer');
+                const newCustomersThisMonth = (reportCustomers || []).filter(u => new Date(u.createdAt).getMonth() === new Date().getMonth()).length;
+                const activeCustomers = (reportCustomers || []).filter(u => u.status === 'active').length;
 
                 return (
                     <div className="space-y-8 animate-in fade-in duration-500">
@@ -1748,11 +1748,11 @@ export default function AdminDashboard() {
                             <div className="flex gap-4">
                                 <div className="bg-white px-6 py-3 rounded-2xl border border-slate-100 shadow-sm">
                                     <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Open Cases</p>
-                                    <p className="text-xl font-black text-slate-900">{allDisputes.filter(d => d.status === 'pending').length}</p>
+                                    <p className="text-xl font-black text-slate-900">{(allDisputes || []).filter(d => d.status === 'pending').length}</p>
                                 </div>
                                 <div className="bg-emerald-50 px-6 py-3 rounded-2xl border border-emerald-100 shadow-sm">
                                     <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest mb-1">Resolved</p>
-                                    <p className="text-xl font-black text-emerald-600">{allDisputes.filter(d => d.status === 'resolved').length}</p>
+                                    <p className="text-xl font-black text-emerald-600">{(allDisputes || []).filter(d => d.status === 'resolved').length}</p>
                                 </div>
                             </div>
                         </div>
@@ -1769,8 +1769,8 @@ export default function AdminDashboard() {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-50">
-                                    {allDisputes.length > 0 ? (
-                                        allDisputes.map((dispute) => (
+                                    {(allDisputes || []).length > 0 ? (
+                                        (allDisputes || []).map((dispute) => (
                                             <tr key={dispute._id} className="hover:bg-slate-50/50 transition-colors group">
                                                 <td className="px-8 py-6 border-r border-slate-50">
                                                     <p className="font-black text-slate-900 text-sm uppercase">#ORD-{dispute.orderId.slice(-8).toUpperCase()}</p>
