@@ -9,8 +9,7 @@ import {
     MessageList,
     Thread,
     LoadingIndicator,
-    // @ts-ignore
-    MessageInput,
+    MessageComposer,
 } from 'stream-chat-react';
 import 'stream-chat-react/dist/css/index.css';
 import { useAuth } from '@/context/AuthContext';
@@ -83,7 +82,7 @@ export const DisputeChat: React.FC<DisputeChatProps> = ({ disputeId }) => {
                     <Window>
                         <ChannelHeader />
                         <MessageList />
-                        <MessageInput />
+                        <MessageComposer />
                     </Window>
                     <Thread />
                 </Channel>
