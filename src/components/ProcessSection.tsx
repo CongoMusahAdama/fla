@@ -14,6 +14,11 @@ export default function ProcessSection() {
             description: "Track your order's journey from processing to final delivery. Know exactly when your authentic item will be ready."
         },
         {
+            icon: <ShieldCheck className="w-6 h-6 text-slate-900" />,
+            title: "Split-Payment Facilitation",
+            description: "Your payment is processed securely via split-payment. Funds are divided directly between the vendor and the platform upon successful delivery."
+        },
+        {
             icon: <Truck className="w-6 h-6 text-slate-900" />,
             title: "Secure Delivery",
             description: "Once approved, your item is professionally packaged and delivered directly to your doorstep."
@@ -35,7 +40,7 @@ export default function ProcessSection() {
                     </p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
                     {steps.map((step, index) => (
                         <div key={index} className="bg-white p-8 rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 group cursor-default border border-slate-100/50">
                             <div className="w-12 h-12 bg-brand-lemon rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
