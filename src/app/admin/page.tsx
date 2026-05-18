@@ -521,7 +521,7 @@ export default function AdminDashboard() {
         { id: 'vendors', label: 'Vendors', icon: Store },
         { id: 'customers', label: 'Customers', icon: Users },
         { id: 'orders', label: 'Orders', icon: ShoppingBag },
-        { id: 'escrow', label: 'Escrow & Payments', icon: Wallet },
+        { id: 'escrow', label: 'Settlements & Payments', icon: Wallet },
         { id: 'products', label: 'Products', icon: Package },
         { id: 'disputes', label: 'Disputes', icon: MessageSquare },
         { id: 'delivery', label: 'Delivery', icon: Truck },
@@ -531,7 +531,7 @@ export default function AdminDashboard() {
 
     const statsCards = [
         { id: 'escrow' as const, label: 'Platform Commission', value: `GH₵ ${adminData?.totalCommission?.toLocaleString() || '0'}`, icon: ShieldCheck, color: 'text-white', bg: 'bg-gradient-to-br from-violet-500 to-indigo-600', pattern: 'opacity-10' },
-        { id: 'escrow' as const, label: 'Escrow Balance', value: `GH₵ ${adminData?.escrowBalance?.toLocaleString() || '0'}`, icon: Wallet, color: 'text-white', bg: 'bg-gradient-to-br from-amber-500 to-orange-600', pattern: 'opacity-10' },
+        { id: 'escrow' as const, label: 'Settlement Balance', value: `GH₵ ${adminData?.escrowBalance?.toLocaleString() || '0'}`, icon: Wallet, color: 'text-white', bg: 'bg-gradient-to-br from-amber-500 to-orange-600', pattern: 'opacity-10' },
         { id: 'orders' as const, label: 'Total Orders', value: adminData?.totalOrders?.toString() || '0', icon: ShoppingBag, color: 'text-white', bg: 'bg-gradient-to-br from-blue-500 to-indigo-600', pattern: 'opacity-10' },
         { id: 'vendors' as const, label: 'Total Vendors', value: adminData?.totalVendors?.toString() || '0', icon: ShieldCheck, color: 'text-white', bg: 'bg-gradient-to-br from-purple-500 to-fuchsia-600', pattern: 'opacity-10' },
         { id: 'products' as const, label: 'Total Products', value: adminData?.totalProducts?.toString() || '0', icon: Package, color: 'text-white', bg: 'bg-gradient-to-br from-rose-500 to-pink-600', pattern: 'opacity-10' },
@@ -1262,10 +1262,10 @@ export default function AdminDashboard() {
                         <div className="flex justify-between items-end">
                             <div>
                                 <h1 className="text-3xl font-black text-slate-900 uppercase tracking-tighter">
-                                    {isEscrow ? 'Escrow & Verification' : isDelivery ? 'Logistics & Dispatch' : 'Order Ledger'}
+                                    {isEscrow ? 'Settlement & Verification' : isDelivery ? 'Logistics & Dispatch' : 'Order Ledger'}
                                 </h1>
                                 <p className="text-slate-500 text-sm">
-                                    {isEscrow ? 'Verify customer payments to release vendor orders.' : isDelivery ? 'Monitor shipping tracking and final deliveries.' : 'Comprehensive history of platform fashion requests.'}
+                                    {isEscrow ? 'Verify customer payments to approve vendor payouts.' : isDelivery ? 'Monitor shipping tracking and final deliveries.' : 'Comprehensive history of platform fashion requests.'}
                                 </p>
                             </div>
                             <div className="relative">
@@ -1297,7 +1297,7 @@ export default function AdminDashboard() {
                                             </div>
                                         </div>
                                         <span className={`text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-tighter ${o.isPaid ? 'bg-emerald-50 text-emerald-600' : 'bg-orange-50 text-orange-600'}`}>
-                                            {o.isPaid ? 'PAID' : 'ESCROW'}
+                                            {o.isPaid ? 'PAID' : 'PENDING'}
                                         </span>
                                     </div>
                                     <div className="flex items-center gap-2 py-2">
@@ -1461,7 +1461,7 @@ export default function AdminDashboard() {
                                                 <td className="px-8 py-6 border-r border-slate-50">
                                                     <div className="space-y-2">
                                                         <span className={`text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-tighter ${o.isPaid ? 'bg-emerald-50 text-emerald-600' : 'bg-orange-50 text-orange-600'}`}>
-                                                            {o.isPaid ? (o.escrowStatus === 'released' ? 'FUNDS RELEASED' : 'FUNDS HELD') : 'PENDING PAYMENT'}
+                                                            {o.isPaid ? (o.escrowStatus === 'released' ? 'SETTLED' : 'HELD') : 'PENDING PAYMENT'}
                                                         </span>
                                                         <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest pl-1">
                                                             {o.escrowStatus === 'waiting_approval' ? 'Pending Admin Approval' : o.status}
@@ -2490,7 +2490,7 @@ export default function AdminDashboard() {
                                         }}
                                         className="flex-1 py-5 bg-brand-lemon text-slate-900 font-black text-xs uppercase tracking-[0.2em] rounded-full shadow-xl shadow-brand-lemon/20 active:scale-95 transition-all"
                                     >
-                                        Verify & Release Escrow
+                                        Verify & Settle Payout
                                     </button>
                                 )}
                                 <button

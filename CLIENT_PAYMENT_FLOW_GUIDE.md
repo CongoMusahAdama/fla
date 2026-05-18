@@ -193,7 +193,7 @@ A: You have access to:
   - All order details
 
 **Q: Can I manually verify a payment?**
-A: Yes, admins can use the "Release Funds" button in the Escrow section.
+A: Yes, admins can use the "Release Funds" button in the Settlement section.
 
 ---
 

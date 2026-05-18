@@ -15,8 +15,8 @@ export default function ProcessSection() {
         },
         {
             icon: <ShieldCheck className="w-6 h-6 text-slate-900" />,
-            title: "Escrow Protection",
-            description: "Your payment is held securely in escrow. Funds are only released when both you and the vendor are satisfied with the result."
+            title: "Split Payment Protection",
+            description: "Your payment is secured. Funds are only settled to the vendor when both you and the vendor confirm successful delivery."
         },
         {
             icon: <Truck className="w-6 h-6 text-slate-900" />,

@@ -7,7 +7,7 @@ export const VendorHelp: React.FC = () => {
   const guides = [
     { title: 'Processing Orders', icon: Package, desc: 'How to handle new customer requests and manifest generation.' },
     { title: 'Global Logistics', icon: Truck, desc: 'Understanding inter-regional shipping and first-mile fees.' },
-    { title: 'Earnings & Payouts', icon: Wallet, desc: 'Revenue cycles, escrow mechanisms, and MoMo withdrawals.' },
+    { title: 'Earnings & Payouts', icon: Wallet, desc: 'Revenue cycles, split payouts, and MoMo withdrawals.' },
     { title: 'Verified Status', icon: ShieldCheck, desc: 'Becoming a Master Artisan and building brand trust.' },
   ];
 

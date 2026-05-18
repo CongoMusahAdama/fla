@@ -153,7 +153,7 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                                         <span class="text-xl font-black text-slate-900">${duration || '6-7 Days'}</span>
                                         <div class="w-1.5 h-1.5 rounded-none bg-emerald-500 animate-pulse"></div>
                                     </div>
-                                    <span class="text-[8px] font-black text-slate-400 uppercase tracking-widest mt-1 opacity-60 italic">Escrow Protected</span>
+                                    <span class="text-[8px] font-black text-slate-400 uppercase tracking-widest mt-1 opacity-60 italic">Secure Split Pay</span>
                                 </div>
                             </div>
                         </div>
@@ -378,8 +378,8 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                     <div class="text-left text-sm space-y-3">
                         <p>This item requires <b class="text-slate-900 font-bold underline decoration-brand-lemon decoration-2">${duration}</b> to be tailored.</p>
                         <div class="bg-brand-lemon/10 p-3 rounded-lg border border-brand-lemon/20 text-slate-700">
-                            <p class="font-bold flex items-center gap-2"> Escrow Protected</p>
-                            <p class="text-xs mt-1">Your funds are held in escrow until delivery.</p>
+                             <p class="font-bold flex items-center gap-2"> Split Payment Protection</p>
+                            <p class="text-xs mt-1">Your payment is settled to the vendor upon successful delivery confirmation.</p>
                         </div>
                         <p class="text-center font-bold text-slate-900 mt-2">Do you accept?</p>
                     </div>

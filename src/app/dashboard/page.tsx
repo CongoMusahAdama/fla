@@ -493,7 +493,7 @@ export default function CustomerDashboard() {
             border: 'border-brand-lemon/30'
         },
         {
-            label: 'Held in Escrow',
+            label: 'Pending Settlement',
             value: `GH₵ ${dashboardData?.pendingEscrow || 0}`,
             icon: ShieldAlert,
             color: 'text-blue-600',
@@ -662,8 +662,8 @@ export default function CustomerDashboard() {
                                     <div className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm">
                                         <ShieldAlert className="w-6 h-6 text-slate-900 mb-4" />
                                         <h3 className="font-bold mb-1 text-slate-900">Wallet Overview</h3>
-                                        <p className="text-slate-500 text-xs leading-relaxed mb-4">Your payments are held in escrow until you confirm delivery.</p>
-                                        <button className="text-xs font-bold text-slate-900 underline">View Escrow Policy</button>
+                                        <p className="text-slate-500 text-xs leading-relaxed mb-4">Your payments are secured via split settlement until you confirm delivery.</p>
+                                        <button className="text-xs font-bold text-slate-900 underline">View Settlement Policy</button>
                                     </div>
                                 </div>
                             </div>
@@ -712,14 +712,15 @@ export default function CustomerDashboard() {
                                                         target.src = '/product-1.jpg';
                                                     }}
                                                 />
-                                                <div className="absolute bottom-2 left-2 right-2">
                                                     <span className={`block text-center px-1 py-0.5 rounded-md text-[7px] font-black uppercase tracking-tighter shadow-sm ${order.escrowStatus === 'released' ? 'bg-emerald-500 text-white' :
                                                         order.escrowStatus === 'frozen' ? 'bg-red-500 text-white' :
                                                             'bg-orange-500 text-white'
                                                         }`}>
-                                                        {order.escrowStatus || 'HELD'}
+                                                        {order.escrowStatus === 'released' ? 'SETTLED' :
+                                                         order.escrowStatus === 'frozen' ? 'DISPUTED' :
+                                                         order.escrowStatus === 'waiting_approval' ? 'PENDING APPROVAL' :
+                                                         'SECURED'}
                                                     </span>
-                                                </div>
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex justify-between items-start mb-1">
@@ -881,7 +882,7 @@ export default function CustomerDashboard() {
                                         <tr className="border-b border-slate-50">
                                             <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Product</th>
                                             <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
-                                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Escrow</th>
+                                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Settlement</th>
                                             <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Vendor</th>
                                             <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Price</th>
                                             <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Action</th>
@@ -917,15 +918,16 @@ export default function CustomerDashboard() {
                                                         {order.status}
                                                     </span>
                                                 </td>
-                                                <td className="px-8 py-6">
                                                     <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${order.escrowStatus === 'released' ? 'bg-emerald-100 text-emerald-700' :
                                                         order.escrowStatus === 'frozen' ? 'bg-red-100 text-red-700' :
                                                             order.escrowStatus === 'waiting_approval' ? 'bg-purple-100 text-purple-700' :
                                                                 'bg-orange-100 text-orange-700'
                                                         }`}>
-                                                        {order.escrowStatus || 'held'}
+                                                        {order.escrowStatus === 'released' ? 'SETTLED' :
+                                                         order.escrowStatus === 'frozen' ? 'DISPUTED' :
+                                                         order.escrowStatus === 'waiting_approval' ? 'PENDING APPROVAL' :
+                                                         'PENDING SETTLEMENT'}
                                                     </span>
-                                                </td>
                                                 <td className="px-8 py-6 text-sm text-slate-600 font-bold">
                                                     {order.vendorName || 'FLA Vendor'}
                                                     {order.pickupPoint && (
@@ -1620,8 +1622,8 @@ export default function CustomerDashboard() {
                                 {(() => {
                                     const getStatusInfo = (status: string) => {
                                         switch (status) {
-                                            case 'pending': return { label: 'Awaiting Payment', desc: 'Secure your design via Escrow Pay', color: 'bg-orange-500' };
-                                            case 'funds_captured': case 'payment_verified': return { label: 'Payment Verified', desc: 'Funds secured in Escrow', color: 'bg-emerald-500' };
+                                            case 'pending': return { label: 'Awaiting Payment', desc: 'Secure your design via Split Pay', color: 'bg-orange-500' };
+                                            case 'funds_captured': case 'payment_verified': return { label: 'Payment Verified', desc: 'Payment securely settled', color: 'bg-emerald-500' };
                                             case 'confirmed': return { label: 'Order Confirmed', desc: 'Vendor has accepted your request', color: 'bg-blue-500' };
                                             case 'processing': case 'in_printing': return { label: 'In Production', desc: 'Your bespoke design is being crafted', color: 'bg-purple-500' };
                                             case 'preparing_shipment': return { label: 'Preparing Shipment', desc: 'Vendor is packaging your items', color: 'bg-indigo-500' };
@@ -1700,7 +1702,7 @@ export default function CustomerDashboard() {
                                             { 
                                                 title: 'Payment Verified', 
                                                 time: isPassed(status, ['funds_captured', 'payment_verified', 'confirmed', 'processing', 'in_printing', 'preparing_shipment', 'in_transit_to_first_mile', 'in_transit', 'arrived_at_first_mile', 'in_transit_to_last_mile', 'shipped', 'delivered', 'completed']) ? 'Done' : 'Pending',
-                                                desc: 'Transaction secured via FLA Escrow.',
+                                                desc: 'Transaction secured via FLA Split Payment.',
                                                 done: isPassed(status, ['funds_captured', 'payment_verified', 'confirmed', 'processing', 'in_printing', 'preparing_shipment', 'in_transit_to_first_mile', 'in_transit', 'arrived_at_first_mile', 'in_transit_to_last_mile', 'shipped', 'delivered', 'completed'])
                                             },
                                             { 
@@ -1824,7 +1826,7 @@ export default function CustomerDashboard() {
                                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Order Information</p>
                                         <p className="text-sm text-slate-900 font-bold">#ORD-{selectedReceipt._id.slice(-6).toUpperCase()}</p>
                                         <p className="text-xs text-slate-500 mt-1">{new Date(selectedReceipt.createdAt).toLocaleDateString()}</p>
-                                        <p className="text-xs text-slate-500">{selectedReceipt.paymentStatus === 'paid' ? 'Paystack Transaction' : 'Platform Escrow'}</p>
+                                        <p className="text-xs text-slate-500">{selectedReceipt.paymentStatus === 'paid' ? 'Paystack Transaction' : 'Platform Settlement'}</p>
                                     </div>
                                 </div>
 

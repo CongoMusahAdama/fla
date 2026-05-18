@@ -5,7 +5,7 @@ export default function Workflow() {
     const steps = [
         {
             id: 1,
-            title: "Confirm & Escrow",
+            title: "Secure Split Payment",
             description: "Payment is held securely. Production only begins once your order is confirmed.",
             icon: CreditCard,
         },
