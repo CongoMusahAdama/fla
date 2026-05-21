@@ -5,6 +5,20 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 
+const AnimatedText = ({ text, delayOffset = 0 }: { text: string; delayOffset?: number }) => (
+    <>
+        {text.split(" ").map((word, i) => (
+            <span
+                key={i}
+                className="inline-block opacity-0 animate-fade-up-word"
+                style={{ animationDelay: `${delayOffset + i * 0.08}s` }}
+            >
+                {word}&nbsp;
+            </span>
+        ))}
+    </>
+);
+
 export default function Hero() {
     return (
         <section className="relative w-full bg-white pt-24 md:pt-40 pb-20 overflow-hidden">
@@ -28,11 +42,19 @@ export default function Hero() {
                         </div>
                     </div>
 
-                    <h1 className="text-4xl md:text-7xl lg:text-8xl font-black text-slate-900 tracking-tighter leading-[0.9] max-w-5xl uppercase animate-in fade-in slide-in-from-top duration-700">
-                        The Fastest Way <br /> To Get <span className="bg-gradient-to-r from-brand-lemon via-white to-brand-lemon bg-[length:200%_auto] bg-clip-text text-transparent animate-text-shine inline-block">Exactly</span> <br /> What You've Ordered
+                    <h1 className="text-4xl md:text-7xl lg:text-8xl font-black text-slate-900 tracking-tighter leading-[0.9] max-w-5xl uppercase">
+                        <AnimatedText text="The Fastest Way" delayOffset={0.1} /> <br />
+                        <AnimatedText text="To Get" delayOffset={0.34} />
+                        <span 
+                            className="bg-gradient-to-r from-brand-lemon via-slate-400 to-brand-lemon bg-[length:200%_auto] bg-clip-text text-transparent animate-text-shine inline-block opacity-0 animate-fade-up-word"
+                            style={{ animationDelay: '0.5s' }}
+                        >
+                            Exactly
+                        </span> <br />
+                        <AnimatedText text="What You've Ordered" delayOffset={0.58} />
                     </h1>
 
-                    <div className="flex flex-row justify-center gap-4 mt-12 w-full px-6 md:px-0">
+                    <div className="flex flex-row justify-center gap-4 mt-12 w-full px-6 md:px-0 opacity-0 animate-scale-in" style={{ animationDelay: '1s' }}>
                         <Link href="/shop" className="flex-1 md:flex-none md:w-36 bg-slate-900 text-white py-4 rounded-none text-[11px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-xl hover:scale-105 active:scale-95 flex items-center justify-center">
                             Shop Now
                         </Link>
@@ -55,7 +77,7 @@ export default function Hero() {
                 </div>
 
                 {/* Dynamic Image Grid - Now with Mobile Collage */}
-                <div className="relative grid grid-cols-5 gap-2 md:gap-6 items-end h-[350px] md:h-[650px] mt-4 md:mt-0">
+                <div className="relative grid grid-cols-5 gap-2 md:gap-6 items-end h-[350px] md:h-[650px] mt-4 md:mt-0 opacity-0 animate-scale-in" style={{ animationDelay: '0.4s' }}>
                     
                     {/* Far Left - Column 1 */}
                     <div className="flex flex-col gap-2 md:gap-6 h-full justify-between">

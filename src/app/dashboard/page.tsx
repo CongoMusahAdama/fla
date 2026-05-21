@@ -120,10 +120,10 @@ export default function CustomerDashboard() {
 
             await Promise.all([
                 fetchData('/dashboard/customer/stats', setDashboardData),
-                fetchData('/orders/my-orders', setOrders),
+                fetchData('/orders/my-orders', (data) => setOrders(Array.isArray(data) ? data : data.orders || data.data || [])),
                 fetchData('/wishlist/my-wishlist', setWishlist),
-                fetchData('/notifications/my-notifications', setNotifications),
-                fetchData('/support/my-disputes', setDisputes)
+                fetchData('/notifications/my-notifications', (data) => setNotifications(Array.isArray(data) ? data : data.notifications || data.data || [])),
+                fetchData('/support/my-disputes', (data) => setDisputes(Array.isArray(data) ? data : data.disputes || data.data || []))
             ]);
 
         } catch (error) {
@@ -165,6 +165,7 @@ export default function CustomerDashboard() {
     }, [isAuthenticated, isLoading, router, isHydrated, user]);
 
     const filteredOrders = React.useMemo(() => {
+        if (!Array.isArray(orders)) return [];
         return orders.filter(order => {
             if (orderFilter === 'All') return true;
             if (orderFilter === 'In delivery') return ![ 'delivered', 'completed', 'cancelled' ].includes(order.status);

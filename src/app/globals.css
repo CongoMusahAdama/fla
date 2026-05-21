@@ -26,8 +26,20 @@
     100% { background-position: -200% center; }
   }
 
+  @keyframes fade-up-word {
+    0% { opacity: 0; transform: translateY(30px) rotate(2deg); filter: blur(8px); }
+    100% { opacity: 1; transform: translateY(0) rotate(0); filter: blur(0); }
+  }
+
+  @keyframes scale-in {
+    0% { opacity: 0; transform: scale(0.9); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+
   --animation-spin-slow: spin-slow 15s linear infinite;
   --animation-text-shine: text-shine 4s linear infinite;
+  --animation-fade-up-word: fade-up-word 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  --animation-scale-in: scale-in 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 /* Custom Utilities if needed */
