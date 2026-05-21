@@ -11,6 +11,8 @@ import { ShuftiService } from '../common/shufti.service';
 import { EmailService } from '../email/email.service';
 import { TempVerification } from '../common/schemas/temp-verification.schema';
 
+import * as crypto from 'crypto';
+
 // Rounds=8: ~25ms (vs 10 rounds=~100ms). Both are cryptographically secure.
 const BCRYPT_ROUNDS = 8;
 
@@ -33,7 +35,7 @@ export class UsersService {
       const hashedPassword = await bcrypt.hash(password, BCRYPT_ROUNDS);
       const role = inputRole || 'customer';
       const uniqueVendorId = role === 'vendor'
-        ? `FLA-V-${Math.random().toString(36).substr(2, 6).toUpperCase()}`
+        ? `FLA-V-${crypto.randomBytes(3).toString('hex').toUpperCase()}`
         : undefined;
 
       const vendorTier = (role === 'vendor' && createUserDto.businessRegistration) ? 'high' : 'low';
@@ -74,7 +76,7 @@ export class UsersService {
       }
       
       if (role === 'vendor') {
-        this.syncVendorSubaccount(savedUser._id.toString()).catch(console.error);
+        this.syncVendorSubaccount(savedUser._id.toString()).catch(err => this.logger.error(err));
 
         // TRIGGER SHUFTI BACKGROUND VERIFICATION (Manual Matching Flow)
         if (createUserDto.ghanaCardFront && createUserDto.selfie) {
@@ -103,11 +105,11 @@ export class UsersService {
   }
 
   async findAll(): Promise<User[]> {
-    return this.userModel.find().lean().exec() as any;
+    return this.userModel.find().lean().exec() as unknown as User[];
   }
 
   async findOneById(id: string): Promise<User | null> {
-    return this.userModel.findById(id).lean().exec() as any;
+    return this.userModel.findById(id).lean().exec() as unknown as User;
   }
 
   async update(id: string, updateUserDto: UpdateUserDto): Promise<User | null> {
@@ -118,11 +120,11 @@ export class UsersService {
       updateData.vendorTier = 'high';
     }
 
-    const updatedUser = await this.userModel.findByIdAndUpdate(id, { $set: updateData }, { new: true }).lean().exec() as any;
+    const updatedUser = await this.userModel.findByIdAndUpdate(id, { $set: updateData }, { new: true }).lean().exec() as unknown as User;
     
     // If payment methods were updated for a vendor, sync with Paystack
     if (updateData.paymentMethods && id) {
-      this.syncVendorSubaccount(id).catch(console.error);
+      this.syncVendorSubaccount(id).catch(err => this.logger.error(err));
     }
 
     return updatedUser;
@@ -186,7 +188,7 @@ export class UsersService {
   }
 
   async findByUniqueVendorId(vendorId: string): Promise<User | null> {
-    return this.userModel.findOne({ uniqueVendorId: vendorId }).lean().exec() as any;
+    return this.userModel.findOne({ uniqueVendorId: vendorId }).lean().exec() as unknown as User;
   }
 
   async remove(id: string): Promise<User | null> {
@@ -217,7 +219,7 @@ export class UsersService {
     }
 
     if (user.role === 'vendor' && !user.uniqueVendorId) {
-      const uniqueId = `FLA-V-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+      const uniqueId = `FLA-V-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
       user.uniqueVendorId = uniqueId;
       await this.userModel.findByIdAndUpdate(vendorId, { uniqueVendorId: uniqueId });
     }
@@ -227,7 +229,7 @@ export class UsersService {
   }
 
   async findPendingVendors(): Promise<User[]> {
-    return this.userModel.find({ role: 'vendor', status: 'pending' }).lean().exec() as any;
+    return this.userModel.find({ role: 'vendor', status: 'pending' }).lean().exec() as unknown as User[];
   }
 
   async updateStatus(id: string, status: 'active' | 'rejected' | 'pending' | 'banned'): Promise<User | null> {
@@ -235,7 +237,7 @@ export class UsersService {
     if (status === 'active') {
       update.isIdentityVerified = true;
     }
-    const user = await this.userModel.findByIdAndUpdate(id, { $set: update }, { new: true }).lean().exec() as any;
+    const user = await this.userModel.findByIdAndUpdate(id, { $set: update }, { new: true }).lean().exec() as unknown as User;
     
     if (user && user.email) {
         try {

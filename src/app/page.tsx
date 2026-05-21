@@ -7,10 +7,13 @@ import ProcessSection from "@/components/ProcessSection";
 import Link from 'next/link';
 import { Filter, ChevronRight, LayoutGrid, List, MapPin } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
+import { Product } from '@/lib/types';
+import { PRODUCT_CATEGORIES, GHANA_REGIONS, PRODUCT_FILTERS } from '@/lib/constants';
 
 export default function Home() {
-  const [products, setProducts] = useState<any[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState('All Product');
   const [activeFilter, setActiveFilter] = useState('');
   const [totalCount, setTotalCount] = useState(0);
@@ -44,8 +47,10 @@ export default function Home() {
         const count = await results[1].json();
         setTotalCount(typeof count === 'number' ? count : count?.count ?? 0);
       }
-    } catch (error) {
-      // silent — keeps existing products visible on network blip
+      setError(null);
+    } catch (err) {
+      console.error('Failed to fetch products:', err);
+      setError('Failed to load products. Please try again later.');
     } finally {
       setLoading(false);
     }
@@ -54,12 +59,6 @@ export default function Home() {
   useEffect(() => {
     fetchLatestProducts(activeCategory, activeFilter, activeRegion);
   }, [activeCategory, activeFilter, activeRegion]);
-
-  const GHANA_REGIONS = [
-    'Ahafo', 'Ashanti', 'Bono', 'Bono East', 'Central', 'Eastern', 
-    'Greater Accra', 'North East', 'Northern', 'Oti', 'Savannah', 
-    'Upper East', 'Upper West', 'Volta', 'Western', 'Western North'
-  ];
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -97,7 +96,7 @@ export default function Home() {
             <div>
               <h3 className="font-heading font-bold text-slate-900 mb-4 text-lg">Category</h3>
               <div className="space-y-2">
-                {['All Product', 'Electronics', 'Home goods', 'Beauty/cosmetics', 'Accessories', 'Used items', 'Wholesaler', 'For men', 'For women', 'Children/Toys', 'Furniture', 'Food/beverages', 'Hardware items', 'Refurbished items', 'Unisex'].map((cat) => (
+                {PRODUCT_CATEGORIES.map((cat) => (
                   <button
                     key={cat}
                     onClick={() => {
@@ -119,7 +118,7 @@ export default function Home() {
             <div>
               <h3 className="font-heading font-bold text-slate-900 mb-4 text-lg">Filters</h3>
               <div className="space-y-1">
-                {['New Arrival', 'Best Seller', 'On Discount'].map((filt) => (
+                {PRODUCT_FILTERS.map((filt) => (
                   <button
                     key={filt}
                     onClick={() => setActiveFilter(filt)}
@@ -170,7 +169,7 @@ export default function Home() {
               </div>
 
               <div className="flex gap-2.5 overflow-x-auto no-scrollbar pb-4 -mx-4 px-4">
-                {['All Product', 'Electronics', 'Home goods', 'Beauty/cosmetics', 'Accessories', 'Used items', 'Wholesaler', 'For men', 'For women', 'Children/Toys', 'Furniture', 'Food/beverages', 'Hardware items', 'Refurbished items', 'Unisex'].map((cat) => (
+                {PRODUCT_CATEGORIES.map((cat) => (
                   <button
                     key={cat}
                     onClick={() => {
@@ -206,6 +205,11 @@ export default function Home() {
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+              {error && (
+                <div className="col-span-full py-4 text-center text-red-500 bg-red-50 rounded-xl border border-red-100 font-medium">
+                  {error}
+                </div>
+              )}
               {loading ? (
                 Array(6).fill(0).map((_, i) => (
                   <div key={i} className="aspect-[3/4] bg-slate-100 animate-pulse rounded-2xl" />
