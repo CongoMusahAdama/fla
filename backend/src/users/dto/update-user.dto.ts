@@ -71,6 +71,12 @@ export class UpdateUserDto {
     isVerified?: boolean;
 
     @IsOptional()
+    isIdentityVerified?: boolean;
+
+    @IsOptional()
+    isEmailVerified?: boolean;
+
+    @IsOptional()
     verificationStatus?: string;
 
     @IsOptional()
