@@ -75,12 +75,10 @@ export class UsersService {
 
       // Post-save work must never fail registration (user is already persisted)
       try {
-        if (savedUser.phone) {
-          const isVendor = role === 'vendor';
-          const namePart = savedUser.shopName || savedUser.name?.split(' ')[0] || 'partner';
-          const welcomeMsg = isVendor
-            ? `Welcome to FLA, ${namePart}! Your vendor application is under review. We'll notify you once approved.`
-            : `Welcome to FLA, ${namePart}! Your account has been successfully created. Enjoy shopping exactly what you've ordered!`;
+        // Vendors must verify OTP first; welcome SMS is sent after verification in AuthService
+        if (savedUser.phone && role !== 'vendor') {
+          const namePart = savedUser.name?.split(' ')[0] || 'partner';
+          const welcomeMsg = `Welcome to FLA, ${namePart}! Your account has been successfully created. Enjoy shopping exactly what you've ordered!`;
 
           this.smsService.sendSms(savedUser.phone, welcomeMsg).catch(err =>
             this.logger.error(`Welcome SMS failed: ${err.message}`),

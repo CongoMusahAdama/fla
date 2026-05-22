@@ -1028,10 +1028,10 @@ function AuthContent() {
                 Swal.fire({
                     icon: 'success',
                     iconColor: '#059669',
-                    title: isResume ? 'VERIFY YOUR STUDIO' : 'STUDIO ACCOUNT CREATED',
+                    title: isResume ? 'VERIFY YOUR STUDIO' : 'CHECK YOUR PHONE',
                     html: `
-                        <p class="text-slate-600 text-sm mb-3">${result.message || `A 4-digit code has been sent via SMS to ${phoneHint}.`}</p>
-                        ${!result.message?.includes('could not send') ? '<p class="text-xs text-slate-500">The code is sent to the phone number you registered with.</p>' : ''}
+                        <p class="text-slate-600 text-sm mb-3">${result.message || `A 4-digit verification code has been sent via SMS to ${phoneHint}.`}</p>
+                        ${!result.message?.includes('could not send') ? '<p class="text-xs text-slate-500">Your studio account is not active until you enter this code. No confirmation SMS is sent until verification is complete.</p>' : ''}
                     `,
                     confirmButtonText: 'ENTER CODE',
                     customClass: { popup: 'rounded-[32px]' }
@@ -1223,10 +1223,10 @@ function AuthContent() {
                 Swal.fire({
                     icon: 'success',
                     iconColor: '#059669',
-                    title: 'STUDIO VERIFIED!',
+                    title: 'STUDIO ACCOUNT CREATED',
                     html: `
                         <div class="text-center space-y-3">
-                            <p class="text-slate-600 text-sm">Your studio account is verified. Welcome SMS was sent when you registered.</p>
+                            <p class="text-slate-600 text-sm">Your phone is verified and your studio account is now created. A confirmation SMS has been sent to your phone.</p>
                             <div class="bg-green-50 p-3 rounded-xl border border-green-100">
                                 <p class="text-xs text-green-600">Your application is under admin review. You can access your vendor hub now.</p>
                             </div>

@@ -62,6 +62,7 @@ export default function AdminDashboard() {
     const [customersPage, setCustomersPage] = useState(1);
     const [ordersPage, setOrdersPage] = useState(1);
     const [productsPage, setProductsPage] = useState(1);
+    const [dashboardTab, setDashboardTab] = useState<'graph' | 'transactions' | 'activity'>('graph');
     const itemsPerPage = 8;
 
     const updateSettings = async (updates: Partial<typeof settings>) => {
@@ -513,7 +514,25 @@ export default function AdminDashboard() {
     };
 
 
-    if (!user || user.role !== 'admin') return null;
+    if (isAuthLoading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-slate-50">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Loading Admin HQ...</p>
+            </div>
+        );
+    }
+
+    if (!user || user.role !== 'admin') {
+        return null;
+    }
+
+    if (loading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-slate-50">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Loading dashboard data...</p>
+            </div>
+        );
+    }
 
     const sidebarItems = [
         { id: 'dashboard', label: 'Overview', icon: LayoutDashboard },
@@ -536,8 +555,6 @@ export default function AdminDashboard() {
         { id: 'vendors' as const, label: 'Total Vendors', value: adminData?.totalVendors?.toString() || '0', icon: ShieldCheck, color: 'text-white', bg: 'bg-gradient-to-br from-purple-500 to-fuchsia-600', pattern: 'opacity-10' },
         { id: 'products' as const, label: 'Total Products', value: adminData?.totalProducts?.toString() || '0', icon: Package, color: 'text-white', bg: 'bg-gradient-to-br from-rose-500 to-pink-600', pattern: 'opacity-10' },
     ];
-
-    const [dashboardTab, setDashboardTab] = useState<'graph' | 'transactions' | 'activity'>('graph');
 
     const renderSection = () => {
         switch (activeSection) {

@@ -36,9 +36,16 @@ export class SmsService {
   }
 
   /**
+   * Sends OTP verification SMS via mNotify (uses sms_type: otp route).
+   */
+  async sendOtpSms(to: string, message: string): Promise<boolean> {
+    return this.sendSms(to, message, { smsType: 'otp' });
+  }
+
+  /**
    * Sends a quick SMS via mNotify
    */
-  async sendSms(to: string, message: string): Promise<boolean> {
+  async sendSms(to: string, message: string, options?: { smsType?: 'otp' }): Promise<boolean> {
     const formattedPhone = this.formatPhoneNumber(to);
     
     if (!formattedPhone) {
@@ -55,12 +62,15 @@ export class SmsService {
       this.logger.log(`Sending SMS to ${formattedPhone}...`);
       
       const url = `${this.baseUrl}?key=${this.apiKey}`;
-      const payload = {
+      const payload: Record<string, unknown> = {
         recipient: [formattedPhone],
         sender: this.senderId,
         message: message,
         is_schedule: false,
       };
+      if (options?.smsType === 'otp') {
+        payload.sms_type = 'otp';
+      }
 
       const response = await fetch(url, {
         method: 'POST',

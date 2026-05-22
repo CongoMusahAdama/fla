@@ -107,7 +107,7 @@ export class AuthService {
     const safeUser = this.toSafeUser(user);
     const phoneHint = user.phone ? this.maskPhone(user.phone) : 'your phone';
     const baseMessage = user.role === 'vendor'
-      ? `Studio account created. A 4-digit verification code has been sent via SMS to ${phoneHint}.`
+      ? `A 4-digit verification code has been sent via SMS to ${phoneHint}. Enter it to complete your studio registration.`
       : 'Account created successfully. A confirmation SMS has been sent to your phone.';
 
     let message = baseMessage;
@@ -116,7 +116,7 @@ export class AuthService {
         `This email is already registered but not verified. A new verification code has been sent via SMS to ${phoneHint}.`;
     } else if (user.role === 'vendor' && !otpSent) {
       message =
-        'Account created. We could not send the verification SMS — tap Resend on the verification screen to try again.';
+        'We could not send the verification SMS — tap Resend on the verification screen to try again.';
     }
 
     return {
@@ -235,7 +235,7 @@ export class AuthService {
     const smsMessage =
       `FLA Purchase: Hi ${displayName}, your studio verification code is ${otp}. Valid for 10 minutes. Do not share this code.`;
 
-    const smsSent = await this.smsService.sendSms(user.phone, smsMessage);
+    const smsSent = await this.smsService.sendOtpSms(user.phone, smsMessage);
     if (!smsSent) {
       throw new Error('Failed to send verification SMS. Please try again.');
     }
@@ -255,6 +255,13 @@ export class AuthService {
         await this.usersService.update((user as any)._id.toString(), { isEmailVerified: true } as any);
         const shopName = user.shopName || user.name || 'Your Studio';
         await this.emailService.sendWelcomeEmail(normalizedEmail, user.name || 'Vendor', shopName);
+
+        if (user.phone) {
+          const namePart = user.shopName || user.name || 'Vendor';
+          const welcomeMsg =
+            `Welcome to FLA, ${namePart}! Your studio account has been created and verified. Your application is under review — we'll notify you once approved.`;
+          await this.smsService.sendSms(user.phone, welcomeMsg);
+        }
       }
       await this.otpService.deleteOTP(normalizedEmail);
     }
