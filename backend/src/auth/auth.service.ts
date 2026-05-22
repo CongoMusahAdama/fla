@@ -1,4 +1,4 @@
-import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException, ConflictException } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import { EmailService } from '../email/email.service';
@@ -89,66 +89,126 @@ export class AuthService {
     };
   }
 
-  async register(userData: any) {
-    const user = await this.usersService.create(userData);
-    
-    // Auto-trigger Identity Verification if details are provided
-    if (user.role === 'vendor') {
-      try {
-        await this.sendVendorOTP(user.email, user.name || user.shopName || 'Vendor');
-      } catch (error) {
-        this.logger.error(`Failed to send vendor OTP to ${this.maskEmail(user.email)}: ${error.message}`);
-        throw new Error('Account created but verification email could not be sent. Please tap "Resend" on the verification screen.');
-      }
-    }
-
-    if (userData.ghanaCardNumber && userData.dob) {
-      const [firstName, ...rest] = (userData.name || '').split(' ');
-      const lastName = rest.join(' ');
-
-      try {
-        // BYPASS: If API Keys are missing or for temporary testing, auto-verify
-        const partnerId = (this as any).smileIdService.partnerId;
-        const apiKey = (this as any).smileIdService.apiKey;
-
-        if (!partnerId || !apiKey) {
-          this.logger.log('SMILE_ID_KEYS_MISSING: Bypassing real verification, auto-approving identity.');
-          await this.usersService.update((user as any)._id.toString(), { 
-            isIdentityVerified: true,
-            status: user.role === 'customer' ? 'active' : 'pending'
-          } as any);
-        } else {
-          const verification = await this.smileIdService.verifyGhanaCard({
-            idNumber: userData.ghanaCardNumber,
-            firstName: firstName || userData.name,
-            lastName: lastName || 'User',
-            dob: userData.dob,
-            userId: (user as any)._id.toString()
-          });
-
-          if (verification.success) {
-            const updateData: any = { isIdentityVerified: true };
-            if (user.role === 'customer') {
-              updateData.status = 'active';
-            }
-            await this.usersService.update((user as any)._id.toString(), updateData);
-          }
-        }
-      } catch (error) {
-        this.logger.error(`Smile ID Background Verification Error: ${error.message}`);
-      }
-    }
-
-    const userObj = (user as any).toObject ? (user as any).toObject() : user;
+  private toSafeUser(user: any) {
+    const userObj = user?.toObject ? user.toObject() : user;
     const { password: _pw, ...safeUser } = userObj;
+    return safeUser;
+  }
+
+  private buildRegisterResponse(user: any, emailSent: boolean, resumed = false) {
+    const safeUser = this.toSafeUser(user);
+    const baseMessage = user.role === 'vendor'
+      ? 'Studio account created. Check your email for a 4-digit code and your phone for a welcome SMS.'
+      : 'Account created successfully. A confirmation SMS has been sent to your phone.';
+
+    let message = baseMessage;
+    if (resumed) {
+      message =
+        'This email is already registered but not verified. A new verification code has been sent to your email.';
+    } else if (user.role === 'vendor' && !emailSent) {
+      message =
+        'Account created. We could not send the verification email — use "Resend" on the verification screen to try again.';
+    }
 
     return {
       user: safeUser,
       requiresEmailVerification: user.role === 'vendor',
-      message: user.role === 'vendor'
-        ? 'Studio account created. Check your email for a 4-digit code and your phone for a welcome SMS.'
-        : 'Account created successfully. A confirmation SMS has been sent to your phone.',
+      message,
     };
+  }
+
+  async register(userData: any) {
+    let createdUser: any = null;
+
+    try {
+      const normalizedEmail = userData.email?.toLowerCase().trim();
+      const existing = normalizedEmail ? await this.usersService.findOne(normalizedEmail) : null;
+
+      if (existing) {
+        if (existing.role === 'vendor' && !existing.isEmailVerified) {
+          if (userData.password) {
+            await this.usersService.updatePassword((existing as any)._id.toString(), userData.password);
+          }
+          let emailSent = true;
+          try {
+            await this.sendVendorOTP(existing.email, existing.name || existing.shopName || 'Vendor');
+          } catch (error) {
+            emailSent = false;
+            this.logger.error(
+              `Failed to resend vendor OTP to ${this.maskEmail(existing.email)}: ${error.message}`,
+            );
+          }
+          return this.buildRegisterResponse(existing, emailSent, true);
+        }
+
+        throw new ConflictException(
+          existing.role === 'vendor'
+            ? 'This email is already registered. Please sign in to your studio account.'
+            : 'Email address already exists. Please sign in or use a different email.',
+        );
+      }
+
+      createdUser = await this.usersService.create(userData);
+
+      let vendorEmailSent = true;
+      if (createdUser.role === 'vendor') {
+        try {
+          await this.sendVendorOTP(
+            createdUser.email,
+            createdUser.name || createdUser.shopName || 'Vendor',
+          );
+        } catch (error) {
+          vendorEmailSent = false;
+          this.logger.error(
+            `Failed to send vendor OTP to ${this.maskEmail(createdUser.email)}: ${error.message}`,
+          );
+        }
+      }
+
+      if (userData.ghanaCardNumber && userData.dob) {
+        const [firstName, ...rest] = (userData.name || '').split(' ');
+        const lastName = rest.join(' ');
+
+        try {
+          if (!this.smileIdService.isConfigured()) {
+            this.logger.log('SMILE_ID_KEYS_MISSING: Bypassing real verification, auto-approving identity.');
+            await this.usersService.update((createdUser as any)._id.toString(), {
+              isIdentityVerified: true,
+              status: createdUser.role === 'customer' ? 'active' : 'pending',
+            } as any);
+          } else {
+            const verification = await this.smileIdService.verifyGhanaCard({
+              idNumber: userData.ghanaCardNumber,
+              firstName: firstName || userData.name,
+              lastName: lastName || 'User',
+              dob: userData.dob,
+              userId: (createdUser as any)._id.toString(),
+            });
+
+            if (verification.success) {
+              const updateData: any = { isIdentityVerified: true };
+              if (createdUser.role === 'customer') {
+                updateData.status = 'active';
+              }
+              await this.usersService.update((createdUser as any)._id.toString(), updateData);
+            }
+          }
+        } catch (error) {
+          this.logger.error(`Smile ID Background Verification Error: ${error.message}`);
+        }
+      }
+
+      return this.buildRegisterResponse(createdUser, vendorEmailSent);
+    } catch (error) {
+      // Account may already exist in DB (SMS sent) even if a post-create step failed
+      if (createdUser) {
+        this.logger.error(
+          `Registration post-create error for ${createdUser.email}; returning success: ${error.message}`,
+        );
+        return this.buildRegisterResponse(createdUser, false);
+      }
+      throw error;
+    }
   }
 
   async sendVendorOTP(email: string, name: string): Promise<void> {

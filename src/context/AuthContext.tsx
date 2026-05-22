@@ -185,24 +185,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.message || 'Registration failed');
+            const rawMsg = errorData.message;
+            const message = Array.isArray(rawMsg) ? rawMsg[0] : rawMsg;
+            throw new Error(message || 'Registration failed');
         }
 
         const data = await response.json();
         const raw = data.user || data;
+        const registeredRole = (raw.role || role) as UserRole;
         const registeredUser: User = {
             id: raw._id || raw.id,
             name: raw.name,
             email: raw.email,
             phone: raw.phone,
             location: raw.location,
-            role: raw.role || role,
+            role: registeredRole,
             shopName: raw.shopName,
             status: raw.status,
             region: raw.region,
         };
 
-        if (data.requiresEmailVerification) {
+        // Vendors must verify email before login — never auto-login after register
+        const needsEmailVerification =
+            data.requiresEmailVerification === true || registeredRole === 'vendor';
+
+        if (needsEmailVerification) {
             return {
                 user: registeredUser,
                 requiresEmailVerification: true,

@@ -19,6 +19,10 @@ export class SmileIdService {
         }
     }
 
+    isConfigured(): boolean {
+        return Boolean(this.partnerId && this.apiKey);
+    }
+
     /**
      * Generates a signature for Smile ID API requests
      * @param timestamp ISO 8601 timestamp

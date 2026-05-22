@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UseGuards, Request, Get, Patch, Res, BadRequestException } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, Request, Get, Patch, Res, BadRequestException, HttpCode, HttpStatus } from '@nestjs/common';
 import type { Response } from 'express';
 import { AuthService } from './auth.service';
 import { CreateUserDto } from '../users/dto/create-user.dto';
@@ -54,6 +54,7 @@ export class AuthController {
   }
 
   @Post('register')
+  @HttpCode(HttpStatus.CREATED)
   async register(@Body() createUserDto: CreateUserDto, @Request() req) {
     // SECURITY: Verify human status via Cloudflare Turnstile
     if (createUserDto.turnstileToken) {

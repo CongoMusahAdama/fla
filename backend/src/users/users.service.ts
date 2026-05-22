@@ -72,36 +72,44 @@ export class UsersService {
         status: role === 'vendor' ? 'pending' : 'active'
       });
       const savedUser = await createdUser.save();
-      
-      // Send welcome SMS via mNotify
-      if (savedUser.phone) {
-        const isVendor = role === 'vendor';
-        const namePart = savedUser.shopName || savedUser.name?.split(' ')[0] || 'partner';
-        const welcomeMsg = isVendor 
+
+      // Post-save work must never fail registration (user is already persisted)
+      try {
+        if (savedUser.phone) {
+          const isVendor = role === 'vendor';
+          const namePart = savedUser.shopName || savedUser.name?.split(' ')[0] || 'partner';
+          const welcomeMsg = isVendor
             ? `Welcome to FLA, ${namePart}! Your vendor application is under review. We'll notify you once approved.`
             : `Welcome to FLA, ${namePart}! Your account has been successfully created. Enjoy shopping exactly what you've ordered!`;
-        
-        this.smsService.sendSms(savedUser.phone, welcomeMsg).catch(err => this.logger.error(`Welcome SMS failed: ${err.message}`));
-      }
 
-      // Cleanup temp verification
-      if (tempVerification) {
-        await this.tempVerificationModel.deleteOne({ _id: tempVerification._id }).exec();
-      }
-      
-      if (role === 'vendor') {
-        this.syncVendorSubaccount(savedUser._id.toString()).catch(err => this.logger.error(err));
-
-        // TRIGGER SHUFTI BACKGROUND VERIFICATION (Manual Matching Flow)
-        if (createUserDto.ghanaCardFront && createUserDto.selfie) {
-          this.logger.log(`Triggering Shufti background verification for vendor: ${savedUser.email}`);
-          this.shuftiService.verifyImages(savedUser._id.toString(), {
-            email: savedUser.email,
-            ghanaCardFront: createUserDto.ghanaCardFront,
-            ghanaCardBack: createUserDto.ghanaCardBack || '',
-            selfie: createUserDto.selfie
-          }).catch(err => this.logger.error(`Shufti background submission failed for ${savedUser.email}: ${err.message}`));
+          this.smsService.sendSms(savedUser.phone, welcomeMsg).catch(err =>
+            this.logger.error(`Welcome SMS failed: ${err.message}`),
+          );
         }
+
+        if (tempVerification) {
+          await this.tempVerificationModel.deleteOne({ _id: tempVerification._id }).exec();
+        }
+
+        if (role === 'vendor') {
+          this.syncVendorSubaccount(savedUser._id.toString()).catch(err => this.logger.error(err));
+
+          if (createUserDto.ghanaCardFront && createUserDto.selfie) {
+            this.logger.log(`Triggering Shufti background verification for vendor: ${savedUser.email}`);
+            this.shuftiService.verifyImages(savedUser._id.toString(), {
+              email: savedUser.email,
+              ghanaCardFront: createUserDto.ghanaCardFront,
+              ghanaCardBack: createUserDto.ghanaCardBack || '',
+              selfie: createUserDto.selfie,
+            }).catch(err =>
+              this.logger.error(`Shufti background submission failed for ${savedUser.email}: ${err.message}`),
+            );
+          }
+        }
+      } catch (postSaveError: any) {
+        this.logger.error(
+          `Post-registration side effects failed for ${savedUser.email}: ${postSaveError.message}`,
+        );
       }
 
       return savedUser;

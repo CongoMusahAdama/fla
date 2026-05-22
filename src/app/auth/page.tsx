@@ -280,11 +280,13 @@ const RegisterForm = ({ role, onSignup }: { role: UserRole, onSignup: (data: any
     const [employeeCount, setEmployeeCount] = useState('1-5');
     const [yearsOfExistence, setYearsOfExistence] = useState('0-1');
 
-    // Password Validation Rules
+    // Password Validation Rules (aligned with backend CreateUserDto)
     const hasMinLength = password.length >= 8;
+    const hasUppercase = /[A-Z]/.test(password);
+    const hasLowercase = /[a-z]/.test(password);
     const hasNumber = /\d/.test(password);
     const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
-    const allRulesPassed = hasMinLength && hasNumber && hasSpecialChar;
+    const allRulesPassed = hasMinLength && hasUppercase && hasLowercase && hasNumber && hasSpecialChar;
 
     // Vendor Specific
     const [shopName, setShopName] = useState('');
@@ -426,10 +428,11 @@ const RegisterForm = ({ role, onSignup }: { role: UserRole, onSignup: (data: any
                             <AuthInput label="Confirm Password" type="password" placeholder="••••••••" required value={confirmPassword} onChange={setConfirmPassword} icon={Lock} />
                             <div className="flex gap-2 pt-2">
                                 <div className={`flex-1 h-1 rounded-full transition-all ${hasMinLength ? 'bg-emerald-500' : 'bg-slate-100'}`} />
+                                <div className={`flex-1 h-1 rounded-full transition-all ${hasUppercase && hasLowercase ? 'bg-emerald-500' : 'bg-slate-100'}`} />
                                 <div className={`flex-1 h-1 rounded-full transition-all ${hasNumber ? 'bg-emerald-500' : 'bg-slate-100'}`} />
                                 <div className={`flex-1 h-1 rounded-full transition-all ${hasSpecialChar ? 'bg-emerald-500' : 'bg-slate-100'}`} />
                             </div>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">8+ Characters • 1 Number • 1 Special</p>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">8+ Chars • Upper & Lower • 1 Number • 1 Special</p>
                             
                             {role === 'customer' && (
                                 <div className="pt-4 flex justify-center">
@@ -1012,13 +1015,14 @@ function AuthContent() {
                 setShowOTP(true);
                 setTimer(60);
                 setOtp(['', '', '', '']);
+                const isResume = result.message?.includes('not verified');
                 Swal.fire({
                     icon: 'success',
                     iconColor: '#059669',
-                    title: 'STUDIO ACCOUNT CREATED',
+                    title: isResume ? 'VERIFY YOUR EMAIL' : 'STUDIO ACCOUNT CREATED',
                     html: `
                         <p class="text-slate-600 text-sm mb-3">${result.message || 'Check your email for the 4-digit code.'}</p>
-                        <p class="text-xs text-slate-500">A welcome SMS was also sent to your phone.</p>
+                        ${!result.message?.includes('could not send') ? '<p class="text-xs text-slate-500">Check spam if you do not see the email.</p>' : ''}
                     `,
                     confirmButtonText: 'ENTER CODE',
                     customClass: { popup: 'rounded-[32px]' }
@@ -1028,7 +1032,27 @@ function AuthContent() {
 
             showSuccess(false, result.user.role, result.message);
         } catch (error: any) {
-            showError(error.message);
+            const msg = error.message || '';
+            if (
+                role === 'vendor' &&
+                (msg.toLowerCase().includes('already registered') || msg.toLowerCase().includes('sign in'))
+            ) {
+                Swal.fire({
+                    icon: 'info',
+                    title: 'ACCOUNT EXISTS',
+                    text: msg,
+                    confirmButtonText: 'SIGN IN',
+                    showCancelButton: true,
+                    cancelButtonText: 'TRY DIFFERENT EMAIL',
+                    customClass: { popup: 'rounded-[32px]' },
+                }).then((r) => {
+                    if (r.isConfirmed) setIsLogin(true);
+                });
+                return;
+            }
+            showError(msg);
+        } finally {
+            Swal.close();
         }
     };
 
