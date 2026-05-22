@@ -154,6 +154,9 @@ export class User {
     @Prop({ default: false })
     isIdentityVerified: boolean;
 
+    @Prop({ default: false })
+    isEmailVerified: boolean;
+
     @Prop()
     resetPasswordToken?: string;
 

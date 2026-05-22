@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import { EmailService } from '../email/email.service';
@@ -41,6 +41,11 @@ export class AuthService {
     this.logger.debug(`Password match for ${email}: ${isMatch}`);
 
     if (isMatch) {
+      if (user.role === 'vendor' && !user.isEmailVerified) {
+        throw new UnauthorizedException(
+          'Please verify your email first. Check your inbox for the 4-digit code, or register again to receive a new one.',
+        );
+      }
       const userObj = (user as any).toObject();
       const { password, ...result } = userObj;
       return result;
@@ -88,6 +93,15 @@ export class AuthService {
     const user = await this.usersService.create(userData);
     
     // Auto-trigger Identity Verification if details are provided
+    if (user.role === 'vendor') {
+      try {
+        await this.sendVendorOTP(user.email, user.name || user.shopName || 'Vendor');
+      } catch (error) {
+        this.logger.error(`Failed to send vendor OTP to ${this.maskEmail(user.email)}: ${error.message}`);
+        throw new Error('Account created but verification email could not be sent. Please tap "Resend" on the verification screen.');
+      }
+    }
+
     if (userData.ghanaCardNumber && userData.dob) {
       const [firstName, ...rest] = (userData.name || '').split(' ');
       const lastName = rest.join(' ');
@@ -125,26 +139,37 @@ export class AuthService {
       }
     }
 
-    return user;
+    const userObj = (user as any).toObject ? (user as any).toObject() : user;
+    const { password: _pw, ...safeUser } = userObj;
+
+    return {
+      user: safeUser,
+      requiresEmailVerification: user.role === 'vendor',
+      message: user.role === 'vendor'
+        ? 'Studio account created. Check your email for a 4-digit code and your phone for a welcome SMS.'
+        : 'Account created successfully. A confirmation SMS has been sent to your phone.',
+    };
   }
 
   async sendVendorOTP(email: string, name: string): Promise<void> {
+    const normalizedEmail = email.toLowerCase().trim();
     const otp = this.otpService.generateOTP();
-    await this.otpService.storeOTP(email, otp);
-    await this.emailService.sendOTP(email, name, otp);
+    await this.otpService.storeOTP(normalizedEmail, otp);
+    await this.emailService.sendOTP(normalizedEmail, name, otp);
   }
 
   async verifyVendorOTP(email: string, code: string): Promise<boolean> {
-    const isValid = await this.otpService.verifyOTP(email, code);
+    const normalizedEmail = email.toLowerCase().trim();
+    const isValid = await this.otpService.verifyOTP(normalizedEmail, code);
 
     if (isValid) {
-      // Send welcome email
-      const user = await this.usersService.findOne(email);
-      if (user && user.shopName) {
-        await this.emailService.sendWelcomeEmail(email, user.name, user.shopName);
+      const user = await this.usersService.findOne(normalizedEmail);
+      if (user) {
+        await this.usersService.update((user as any)._id.toString(), { isEmailVerified: true } as any);
+        const shopName = user.shopName || user.name || 'Your Studio';
+        await this.emailService.sendWelcomeEmail(normalizedEmail, user.name || 'Vendor', shopName);
       }
-      // Clean up OTP
-      await this.otpService.deleteOTP(email);
+      await this.otpService.deleteOTP(normalizedEmail);
     }
     return isValid;
   }
@@ -165,8 +190,8 @@ export class AuthService {
       role: 'vendor',
     }) as any;
 
-    // Set status to active
-    await this.usersService.update(user._id.toString(), { status: 'active' });
+    // Set status to active and mark email verified (admin-created)
+    await this.usersService.update(user._id.toString(), { status: 'active', isEmailVerified: true } as any);
 
     // Send the credentials email with the raw password
     await this.emailService.sendVendorCredentialsEmail(user.email, user.name || 'Vendor', password, user.shopName || 'FLA Studio');

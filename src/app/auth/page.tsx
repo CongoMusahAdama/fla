@@ -812,6 +812,8 @@ function AuthContent() {
     const [showOTP, setShowOTP] = useState(false);
     const [otp, setOtp] = useState(['', '', '', '']);
     const [timer, setTimer] = useState(60);
+    const [pendingVendorEmail, setPendingVendorEmail] = useState('');
+    const [pendingVendorPassword, setPendingVendorPassword] = useState('');
 
     const { login, signup } = useAuth();
     const router = useRouter();
@@ -998,23 +1000,50 @@ function AuthContent() {
                 })
             };
 
-            const registeredUser = await signup(
+            const result = await signup(
                 data.name, data.email, data.phone, data.location, data.region, data.password, 
                 role, kycData, data.turnstileToken
             );
-            showSuccess(false, registeredUser.role);
+
+            if (result.requiresEmailVerification) {
+                Swal.close();
+                setPendingVendorEmail(data.email.toLowerCase().trim());
+                setPendingVendorPassword(data.password);
+                setShowOTP(true);
+                setTimer(60);
+                setOtp(['', '', '', '']);
+                Swal.fire({
+                    icon: 'success',
+                    iconColor: '#059669',
+                    title: 'STUDIO ACCOUNT CREATED',
+                    html: `
+                        <p class="text-slate-600 text-sm mb-3">${result.message || 'Check your email for the 4-digit code.'}</p>
+                        <p class="text-xs text-slate-500">A welcome SMS was also sent to your phone.</p>
+                    `,
+                    confirmButtonText: 'ENTER CODE',
+                    customClass: { popup: 'rounded-[32px]' }
+                });
+                return;
+            }
+
+            showSuccess(false, result.user.role, result.message);
         } catch (error: any) {
             showError(error.message);
         }
     };
 
-    const showSuccess = (isLog: boolean, userRole: UserRole) => {
+    const showSuccess = (isLog: boolean, userRole: UserRole, extraMessage?: string) => {
+        const defaultText = isLog
+            ? 'Your fashion journey continues...'
+            : userRole === 'customer'
+                ? 'Welcome to FLA Purchase! A confirmation SMS has been sent to your phone.'
+                : 'Welcome to the world of FLA Purchase.';
         Swal.fire({
             icon: 'success',
             iconColor: '#059669',
             title: isLog ? 'WELCOME BACK!' : 'ACCOUNT CREATED',
-            text: isLog ? 'Your fashion journey continues...' : 'Welcome to the world of FLA Purchase.',
-            timer: 2000,
+            text: extraMessage || defaultText,
+            timer: 2500,
             showConfirmButton: false,
             customClass: {
                 popup: 'rounded-[32px] border-none shadow-2xl p-10 bg-white',
@@ -1079,8 +1108,7 @@ function AuthContent() {
 
     const handleResendOtp = async () => {
         try {
-            const email = (window as any).vendorEmail;
-            if (!email) {
+            if (!pendingVendorEmail) {
                 Swal.fire({ icon: 'error', title: 'Error', text: 'Email not found. Please try registering again.' });
                 return;
             }
@@ -1088,11 +1116,12 @@ function AuthContent() {
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/auth/resend-otp`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email })
+                body: JSON.stringify({ email: pendingVendorEmail })
             });
 
-            if (!response.ok) {
-                throw new Error('Failed to resend OTP');
+            const result = await response.json();
+            if (!response.ok || !result.success) {
+                throw new Error(result.message || 'Failed to resend OTP');
             }
 
             setTimer(60);
@@ -1131,8 +1160,7 @@ function AuthContent() {
             return;
         }
 
-        const email = (window as any).vendorEmail;
-        if (!email) {
+        if (!pendingVendorEmail) {
             Swal.fire({ icon: 'error', title: 'Error', text: 'Email not found. Please try registering again.' });
             return;
         }
@@ -1152,21 +1180,22 @@ function AuthContent() {
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/auth/verify-otp`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, code })
+                body: JSON.stringify({ email: pendingVendorEmail, code })
             });
 
             const result = await response.json();
 
             if (result.success) {
+                await login(pendingVendorEmail, pendingVendorPassword);
                 Swal.fire({
                     icon: 'success',
                     iconColor: '#059669',
-                    title: 'VENDOR VERIFIED! 🎉',
+                    title: 'EMAIL VERIFIED!',
                     html: `
                         <div class="text-center space-y-3">
-                            <p class="text-slate-600 text-sm">Your business account is now active!</p>
+                            <p class="text-slate-600 text-sm">Your studio email is verified. Welcome SMS was sent when you registered.</p>
                             <div class="bg-green-50 p-3 rounded-xl border border-green-100">
-                                <p class="text-xs text-green-600">✅ You can now start adding products and managing your store.</p>
+                                <p class="text-xs text-green-600">Your application is under admin review. You can access your vendor hub now.</p>
                             </div>
                         </div>
                     `,
@@ -1228,7 +1257,9 @@ function AuthContent() {
                                         <MessageSquare className="w-8 h-8" />
                                     </div>
                                     <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tighter mb-2">Verify Studio</h2>
-                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">A code was sent to your email.</p>
+                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                                        Code sent to {pendingVendorEmail || 'your email'}. Check spam if you do not see it.
+                                    </p>
                                 </div>
                                 <div className="flex gap-3 mb-8">
                                     {otp.map((digit, i) => (

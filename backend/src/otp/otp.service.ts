@@ -1,69 +1,55 @@
 import { Injectable } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-
-export interface OTP {
-    email: string;
-    code: string;
-    expiresAt: Date;
-    verified: boolean;
-}
-
-export type OTPDocument = OTP & Document;
 
 @Injectable()
 export class OtpService {
     private otpStore: Map<string, { code: string; expiresAt: Date; verified: boolean }> = new Map();
 
+    private normalizeEmail(email: string): string {
+        return email.toLowerCase().trim();
+    }
+
     generateOTP(): string {
-        // Generate 4-digit OTP
         return Math.floor(1000 + Math.random() * 9000).toString();
     }
 
     async storeOTP(email: string, code: string): Promise<void> {
+        const key = this.normalizeEmail(email);
         const expiresAt = new Date();
-        expiresAt.setMinutes(expiresAt.getMinutes() + 10); // OTP expires in 10 minutes
+        expiresAt.setMinutes(expiresAt.getMinutes() + 10);
 
-        this.otpStore.set(email, {
+        this.otpStore.set(key, {
             code,
             expiresAt,
-            verified: false
+            verified: false,
         });
     }
 
     async verifyOTP(email: string, code: string): Promise<boolean> {
-        const otpData = this.otpStore.get(email);
+        const key = this.normalizeEmail(email);
+        const otpData = this.otpStore.get(key);
 
-        if (!otpData) {
+        if (!otpData || otpData.verified || new Date() > otpData.expiresAt) {
+            if (otpData && new Date() > otpData.expiresAt) {
+                this.otpStore.delete(key);
+            }
             return false;
         }
 
-        if (otpData.verified) {
+        if (otpData.code !== code.trim()) {
             return false;
         }
 
-        if (new Date() > otpData.expiresAt) {
-            this.otpStore.delete(email);
-            return false;
-        }
-
-        if (otpData.code !== code) {
-            return false;
-        }
-
-        // Mark as verified
         otpData.verified = true;
-        this.otpStore.set(email, otpData);
-
+        this.otpStore.set(key, otpData);
         return true;
     }
 
     async deleteOTP(email: string): Promise<void> {
-        this.otpStore.delete(email);
+        this.otpStore.delete(this.normalizeEmail(email));
     }
 
     async isVerified(email: string): Promise<boolean> {
-        const otpData = this.otpStore.get(email);
+        const otpData = this.otpStore.get(this.normalizeEmail(email));
         return otpData?.verified || false;
     }
 }

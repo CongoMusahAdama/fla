@@ -1,9 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as SibApiV3Sdk from '@sendinblue/client';
 
 @Injectable()
-export class EmailService {
+export class EmailService implements OnModuleInit {
     private readonly logger = new Logger(EmailService.name);
     private apiInstance: SibApiV3Sdk.TransactionalEmailsApi;
 
@@ -13,11 +13,29 @@ export class EmailService {
         this.apiInstance.setApiKey(SibApiV3Sdk.TransactionalEmailsApiApiKeys.apiKey, apiKey);
     }
 
+    onModuleInit() {
+        const apiKey = this.configService.get<string>('BREVO_API_KEY');
+        const { name, email } = this.sender;
+        if (!apiKey) {
+            this.logger.warn('BREVO_API_KEY is not set — transactional emails will fail.');
+        } else {
+            this.logger.log(`Brevo ready. Sender must be verified in Brevo dashboard: "${name}" <${email}>`);
+        }
+    }
+
     private get sender() {
         return {
-            name: this.configService.get<string>('BREVO_SENDER_NAME') || 'FLA Logistics',
+            name: this.configService.get<string>('BREVO_SENDER_NAME') || 'FLA Purchase',
             email: this.configService.get<string>('BREVO_SENDER_EMAIL') || 'security@flamingo-store1.com',
         };
+    }
+
+    private formatBrevoError(error: any): string {
+        const body = error?.response?.body;
+        if (typeof body === 'string') return body;
+        if (body?.message) return body.message;
+        if (body?.code) return `${body.code}: ${JSON.stringify(body)}`;
+        return error?.message || 'Unknown Brevo error';
     }
 
     private getStyles() {
@@ -39,10 +57,6 @@ export class EmailService {
             .cta-button { display: inline-block; background-color: #0f172a; color: #ffffff; padding: 16px 32px; border-radius: 12px; text-decoration: none; font-weight: 700; margin: 20px 0; text-align: center; }
             .cta-accent { display: inline-block; background-color: #D8F800; color: #0f172a; padding: 16px 32px; border-radius: 12px; text-decoration: none; font-weight: 700; margin: 20px 0; text-align: center; }
             .footer { background-color: #f8fafc; padding: 30px; text-align: center; border-top: 1px solid #e2e8f0; font-size: 12px; color: #94a3b8; }
-            .status-badge { display: inline-block; padding: 4px 12px; border-radius: 50px; font-size: 12px; font-weight: 700; text-transform: uppercase; }
-            .status-success { background-color: #ecfdf5; color: #059669; }
-            .status-warning { background-color: #fffbeb; color: #d97706; }
-            .status-error { background-color: #fef2f2; color: #dc2626; }
         `;
     }
 
@@ -65,9 +79,9 @@ export class EmailService {
                         ${content}
                     </div>
                     <div class="footer">
-                        <p><strong>FLA Logistics</strong></p>
+                        <p><strong>FLA Purchase</strong></p>
                         <p>Your Fashion, Delivered with Excellence</p>
-                        <p>© 2026 FLA Logistics. All rights reserved.</p>
+                        <p>© 2026 FLA Purchase. All rights reserved.</p>
                     </div>
                 </div>
             </body>
@@ -76,50 +90,67 @@ export class EmailService {
     }
 
     private async sendEmail(to: string | string[], subject: string, htmlContent: string): Promise<void> {
+        const apiKey = this.configService.get<string>('BREVO_API_KEY');
+        if (!apiKey) {
+            this.logger.error('BREVO_API_KEY is missing. Email not sent.');
+            throw new Error('Email service is not configured (BREVO_API_KEY missing)');
+        }
+
         try {
             const recipients = Array.isArray(to) ? to.map(email => ({ email })) : [{ email: to }];
-            
+
             await this.apiInstance.sendTransacEmail({
                 sender: this.sender,
                 to: recipients,
                 subject,
                 htmlContent,
             });
-            
-            this.logger.log(`Email sent successfully: [${subject}] to ${Array.isArray(to) ? to.join(', ') : to}`);
+
+            this.logger.log(
+                `Email sent via Brevo [${subject}] from ${this.sender.email} to ${Array.isArray(to) ? to.join(', ') : to}`,
+            );
         } catch (error: any) {
-            this.logger.error(`Failed to send email: [${subject}] to ${Array.isArray(to) ? to.join(', ') : to}. Error: ${error.message}`);
-            // In production, we don't want to crash the whole request if email fails, 
-            // but we might want to throw if it's a critical OTP
-            if (subject.toLowerCase().includes('otp') || subject.toLowerCase().includes('verify')) {
-                throw error;
+            const detail = this.formatBrevoError(error);
+            this.logger.error(
+                `Brevo send failed [${subject}] from "${this.sender.name}" <${this.sender.email}> ` +
+                `to ${Array.isArray(to) ? to.join(', ') : to}. ${detail}`,
+            );
+            if (
+                detail.toLowerCase().includes('sender') ||
+                detail.toLowerCase().includes('not valid') ||
+                detail.toLowerCase().includes('authenticated')
+            ) {
+                this.logger.error(
+                    `Add and verify sender "${this.sender.email}" under Brevo → Senders, Domains & Dedicated IPs (authenticate domain flamingo-store1.com first).`,
+                );
             }
+            throw new Error(detail);
         }
     }
 
     async sendOTP(email: string, name: string, otp: string): Promise<void> {
         const content = `
             <p class="greeting">Hello ${name},</p>
-            <p class="message">Welcome to FLA! To activate your business account, please use the verification code below:</p>
+            <p class="message">Welcome to FLA! To verify your vendor email and activate your studio account, use the code below:</p>
             <div class="otp-container">
                 <div class="otp-label">Your Verification Code</div>
                 <div class="otp-code">${otp}</div>
-                <p style="font-size: 12px; color: #94a3b8; margin-top: 15px;">⏱️ Expires in 10 minutes</p>
+                <p style="font-size: 12px; color: #94a3b8; margin-top: 15px;">Expires in 10 minutes</p>
             </div>
-            <p style="font-size: 13px; color: #94a3b8;">🔒 Security Notice: Never share this code with anyone.</p>
+            <p style="font-size: 13px; color: #94a3b8;">Never share this code with anyone.</p>
         `;
 
-        await this.sendEmail(email, 'Verify Your FLA Account', this.wrapLayout('Verify Your Account', content));
+        await this.sendEmail(email, 'Verify Your FLA Vendor Email', this.wrapLayout('Verify Your Account', content));
     }
 
     async sendWelcomeEmail(email: string, name: string, shopName: string): Promise<void> {
         const content = `
             <p class="greeting">Hi ${name},</p>
-            <p class="message">Congratulations! Your vendor account for <strong>${shopName}</strong> has been successfully activated.</p>
+            <p class="message">Your vendor account for <strong>${shopName}</strong> is verified. Your application is under admin review — we'll notify you once your studio is approved.</p>
             <a href="${this.configService.get('FRONTEND_URL') || 'http://localhost:3000'}/vendor" class="cta-button">Go to Vendor Dashboard</a>
         `;
 
-        await this.sendEmail(email, `Welcome to FLA, ${shopName}! 🎉`, this.wrapLayout('Welcome to FLA!', content, true));
+        await this.sendEmail(email, `Welcome to FLA, ${shopName}!`, this.wrapLayout('Welcome to FLA!', content, true));
     }
 
     async sendVendorCredentialsEmail(email: string, name: string, password: string, shopName: string): Promise<void> {
@@ -135,7 +166,7 @@ export class EmailService {
             <a href="${this.configService.get('FRONTEND_URL') || 'http://localhost:3000'}/auth?type=login" class="cta-accent">Log In to Studio Hub</a>
         `;
 
-        await this.sendEmail(email, `Your FLA Studio Account is Ready: ${shopName} 🚀`, this.wrapLayout('Studio Account Ready', content));
+        await this.sendEmail(email, `Your FLA Studio Account is Ready: ${shopName}`, this.wrapLayout('Studio Account Ready', content));
     }
 
     async sendPasswordResetEmail(email: string, name: string, token: string): Promise<void> {
@@ -147,20 +178,20 @@ export class EmailService {
             <p style="font-size: 12px; color: #94a3b8; margin-top: 20px;">If you didn't request this, you can safely ignore this email.</p>
         `;
 
-        await this.sendEmail(email, 'Reset Your FLA Password 🔒', this.wrapLayout('Password Reset', content));
+        await this.sendEmail(email, 'Reset Your FLA Password', this.wrapLayout('Password Reset', content));
     }
 
     async sendPasswordResetOTP(email: string, name: string, otp: string): Promise<void> {
         const content = `
             <p class="greeting">Hello ${name},</p>
-            <p class="message">Use the following code to reset your password. If you didn't request this, please ignore this email.</p>
+            <p class="message">Use the following code to reset your password.</p>
             <div class="otp-container">
                 <div class="otp-label">Reset Code</div>
                 <div class="otp-code">${otp}</div>
             </div>
         `;
 
-        await this.sendEmail(email, 'Your Password Reset Code 🔒', this.wrapLayout('Security Verification', content));
+        await this.sendEmail(email, 'Your Password Reset Code', this.wrapLayout('Security Verification', content));
     }
 
     async sendOrderEmail(email: string, name: string, orderId: string, amount: number): Promise<void> {
@@ -171,22 +202,20 @@ export class EmailService {
                 <p style="margin: 0; color: #64748b;">Total Amount</p>
                 <p style="font-size: 24px; font-weight: 900; color: #0f172a; margin: 5px 0;">GH₵ ${amount.toLocaleString()}</p>
             </div>
-            <p class="message">The vendor has been notified and will begin processing your items shortly.</p>
             <a href="${this.configService.get('FRONTEND_URL') || 'http://localhost:3000'}/dashboard" class="cta-button">Track Order</a>
         `;
 
-        await this.sendEmail(email, `Order Confirmation: #ORD-${orderId.slice(-6).toUpperCase()} 📦`, this.wrapLayout('Order Received! 🛍️', content));
+        await this.sendEmail(email, `Order Confirmation: #ORD-${orderId.slice(-6).toUpperCase()}`, this.wrapLayout('Order Received!', content));
     }
 
     async sendDeliveryFeeEmail(email: string, name: string, orderId: string, fee: number): Promise<void> {
         const content = `
             <p class="greeting">Hello ${name},</p>
             <p class="message">A delivery fee of <strong>GH₵ ${fee}</strong> has been added to your Order <strong>#ORD-${orderId.slice(-6).toUpperCase()}</strong>.</p>
-            <p class="message">Please log in to your dashboard to pay this fee so the vendor can proceed with shipping.</p>
             <a href="${this.configService.get('FRONTEND_URL') || 'http://localhost:3000'}/dashboard" class="cta-button">Pay Delivery Fee</a>
         `;
 
-        await this.sendEmail(email, `Delivery Fee for Order #ORD-${orderId.slice(-6).toUpperCase()} 🚚`, this.wrapLayout('Delivery Fee Update', content));
+        await this.sendEmail(email, `Delivery Fee for Order #ORD-${orderId.slice(-6).toUpperCase()}`, this.wrapLayout('Delivery Fee Update', content));
     }
 
     async sendAdminOrderNotification(adminEmail: string, orderId: string, amount: number, customerName: string): Promise<void> {
@@ -202,22 +231,17 @@ export class EmailService {
             <a href="${this.configService.get('FRONTEND_URL') || 'http://localhost:3000'}/admin" class="cta-button">Review in Admin HQ</a>
         `;
 
-        await this.sendEmail(adminEmail, `NEW ORDER: #ORD-${orderId.slice(-6).toUpperCase()} (GH₵ ${amount.toLocaleString()})`, this.wrapLayout('NEW ORDER ALERT 🚨', content));
+        await this.sendEmail(adminEmail, `NEW ORDER: #ORD-${orderId.slice(-6).toUpperCase()}`, this.wrapLayout('NEW ORDER ALERT', content));
     }
 
     async sendVendorOrderNotification(vendorEmail: string, shopName: string, orderId: string, amount: number): Promise<void> {
         const content = `
             <p class="greeting">Hello ${shopName},</p>
-            <p class="message">Great news! You have received a new order <strong>#ORD-${orderId.slice(-6).toUpperCase()}</strong>.</p>
-            <div style="background: #f1f5f9; padding: 20px; border-radius: 12px; margin: 20px 0;">
-                <p style="margin: 0; font-size: 13px; color: #64748b;">Order Amount</p>
-                <p style="font-size: 20px; font-weight: 900; color: #0f172a; margin: 5px 0;">GH₵ ${amount.toLocaleString()}</p>
-            </div>
+            <p class="message">You have received a new order <strong>#ORD-${orderId.slice(-6).toUpperCase()}</strong>.</p>
             <a href="${this.configService.get('FRONTEND_URL') || 'http://localhost:3000'}/vendor" class="cta-accent">Manage in Studio</a>
-            <p style="font-size: 12px; color: #94a3b8; margin-top: 20px;">Note: Funds will be released to your wallet once the customer confirms delivery.</p>
         `;
 
-        await this.sendEmail(vendorEmail, `New Design Order: #ORD-${orderId.slice(-6).toUpperCase()} 🎨`, this.wrapLayout('New Order Alert! 💰', content));
+        await this.sendEmail(vendorEmail, `New Order: #ORD-${orderId.slice(-6).toUpperCase()}`, this.wrapLayout('New Order Alert!', content));
     }
 
     async sendGenericNotification(email: string, name: string, subject: string, message: string): Promise<void> {
@@ -231,82 +255,41 @@ export class EmailService {
 
     async sendAdminDisputeNotification(adminEmail: string, orderId: string, reason: string): Promise<void> {
         const content = `
-            <div style="background: #fef2f2; border-left: 4px solid #dc2626; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                <p style="margin: 0; color: #991b1b; font-weight: 700;">Dispute Category: General</p>
-                <p style="margin: 10px 0 0 0; color: #dc2626; font-style: italic;">"${reason}"</p>
-            </div>
-            <p class="message">Order ID: <strong>#ORD-${orderId.slice(-6).toUpperCase()}</strong></p>
-            <a href="${this.configService.get('FRONTEND_URL') || 'http://localhost:3000'}/admin" class="cta-button" style="background-color: #dc2626;">Investigate Dispute</a>
+            <p>Order <strong>#ORD-${orderId.slice(-6).toUpperCase()}</strong></p>
+            <p>${reason}</p>
+            <a href="${this.configService.get('FRONTEND_URL') || 'http://localhost:3000'}/admin" class="cta-button">Investigate Dispute</a>
         `;
 
-        await this.sendEmail(adminEmail, `⚠️ DISPUTE FILED: #ORD-${orderId.slice(-6).toUpperCase()}`, this.wrapLayout('DISPUTE FILED ⚠️', content));
+        await this.sendEmail(adminEmail, `DISPUTE FILED: #ORD-${orderId.slice(-6).toUpperCase()}`, this.wrapLayout('DISPUTE FILED', content));
     }
 
     async sendCustomerDisputeResolutionEmail(email: string, name: string, orderId: string, resolution: string): Promise<void> {
         const content = `
             <p class="greeting">Hello ${name},</p>
-            <p class="message">Your dispute for Order <strong>#ORD-${orderId.slice(-6).toUpperCase()}</strong> has been resolved.</p>
-            <div style="background: #f0fdf4; border-radius: 12px; padding: 20px; text-align: center; margin: 20px 0;">
-                <p style="margin: 0; font-size: 13px; color: #15803d; text-transform: uppercase; font-weight: 800;">Resolution</p>
-                <p style="margin: 10px 0 0 0; font-size: 18px; font-weight: 700; color: #166534;">
-                    ${resolution === 'refund' ? 'Full Refund Processed' : 'Funds Released to Vendor'}
-                </p>
-            </div>
+            <p class="message">Your dispute for Order <strong>#ORD-${orderId.slice(-6).toUpperCase()}</strong> has been resolved: ${resolution === 'refund' ? 'Full Refund Processed' : 'Funds Released to Vendor'}.</p>
         `;
 
-        await this.sendEmail(email, `Dispute Resolution: #ORD-${orderId.slice(-6).toUpperCase()} ✅`, this.wrapLayout('Dispute Resolved ✅', content));
+        await this.sendEmail(email, `Dispute Resolution: #ORD-${orderId.slice(-6).toUpperCase()}`, this.wrapLayout('Dispute Resolved', content));
     }
 
     async sendDisputeNotification(recipients: string[], orderId: string, reason: string, customerName: string, vendorName: string): Promise<void> {
         const content = `
-            <p class="greeting">Dispute Resolution Case Opened</p>
-            <p class="message">A formal dispute has been filed for Order <strong>#ORD-${orderId.slice(-6).toUpperCase()}</strong>. This email serves as a transparent communication channel between the <strong>Customer</strong>, the <strong>Vendor</strong>, and the <strong>Admin Team</strong>.</p>
-            
-            <div style="background: #fef2f2; border-left: 4px solid #dc2626; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                <p style="margin: 0; color: #991b1b; font-weight: 700;">Dispute Details:</p>
-                <p style="margin: 10px 0 0 0; color: #1e293b;"><strong>Reason:</strong> ${reason}</p>
-                <p style="margin: 5px 0 0 0; color: #1e293b;"><strong>Customer:</strong> ${customerName}</p>
-                <p style="margin: 5px 0 0 0; color: #1e293b;"><strong>Vendor:</strong> ${vendorName}</p>
-            </div>
-
-            <p class="message" style="font-weight: 600; color: #0f172a;">Next Steps for Evidence Submission:</p>
-            <ul style="color: #64748b; font-size: 14px; line-height: 1.8;">
-                <li><strong>Vendor:</strong> Please provide proof of shipment, delivery notes, or any communication with the customer regarding this order.</li>
-                <li><strong>Customer:</strong> Please provide photos of the received item (if applicable) or any other evidence supporting your claim.</li>
-                <li><strong>Admin:</strong> Will review all provided evidence and make a final judgment within 48-72 hours.</li>
-            </ul>
-
-            <p class="message">Please respond directly to this thread or log in to the resolution center to upload your evidence files.</p>
-            
-            <div style="display: flex; gap: 10px; margin-top: 30px;">
-                <a href="${this.configService.get('FRONTEND_URL') || 'http://localhost:3000'}/dashboard" class="cta-button" style="margin: 0;">Resolution Center</a>
-            </div>
+            <p>A dispute has been filed for Order <strong>#ORD-${orderId.slice(-6).toUpperCase()}</strong>.</p>
+            <p><strong>Reason:</strong> ${reason}</p>
+            <p><strong>Customer:</strong> ${customerName}</p>
+            <p><strong>Vendor:</strong> ${vendorName}</p>
         `;
 
-        await this.sendEmail(recipients, `⚠️ DISPUTE CASE OPENED: #ORD-${orderId.slice(-6).toUpperCase()} (Transparency Thread)`, this.wrapLayout('DISPUTE INVESTIGATION 🔍', content));
+        await this.sendEmail(recipients, `DISPUTE CASE: #ORD-${orderId.slice(-6).toUpperCase()}`, this.wrapLayout('DISPUTE INVESTIGATION', content));
     }
 
     async sendSkynetHandoverEmail(email: string, name: string, orderId: string, trackingNumber: string): Promise<void> {
         const content = `
-            <p class="greeting">Professional Handover Complete! 🚚</p>
-            <p class="message">Hello ${name}, your fashion pieces for Order <strong>#ORD-${orderId.slice(-6).toUpperCase()}</strong> have been officially received by our logistics partner, <strong>Skynet Express</strong>.</p>
-            
-            <div style="background: #0f172a; color: #ffffff; padding: 30px; border-radius: 24px; margin: 30px 0; text-align: center; border: 4px solid #D8F800;">
-                <p style="font-size: 11px; font-weight: 800; color: #D8F800; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 10px;">Skynet Tracking Number</p>
-                <p style="font-size: 28px; font-weight: 900; letter-spacing: 1px; margin: 0;">${trackingNumber}</p>
-            </div>
-
-            <p class="message">The items are now undergoing nationwide sorting and will be dispatched to your location shortly. You can track the real-time movement on the Skynet portal or your FLA dashboard.</p>
-            
-            <div style="display: flex; gap: 10px; margin-top: 20px;">
-                <a href="${this.configService.get('FRONTEND_URL') || 'http://localhost:3000'}/dashboard" class="cta-accent" style="margin: 0;">Track on FLA</a>
-            </div>
-
-            <p style="font-size: 12px; color: #94a3b8; margin-top: 30px; border-top: 1px solid #f1f5f9; pt: 20px;">
-                <strong>Security Notice:</strong> All Skynet shipments are insured and tracked via our institutional partnership. Please ensure you inspect the package seal upon arrival.
-            </p>
+            <p class="greeting">Hello ${name},</p>
+            <p class="message">Order <strong>#ORD-${orderId.slice(-6).toUpperCase()}</strong> has been received by Skynet Express. Tracking: <strong>${trackingNumber}</strong></p>
+            <a href="${this.configService.get('FRONTEND_URL') || 'http://localhost:3000'}/dashboard" class="cta-accent">Track on FLA</a>
         `;
 
-        await this.sendEmail(email, `Skynet Handover Successful: Order #ORD-${orderId.slice(-6).toUpperCase()} 🚚`, this.wrapLayout('Official Logistics Handover', content, true));
+        await this.sendEmail(email, `Skynet Handover: Order #ORD-${orderId.slice(-6).toUpperCase()}`, this.wrapLayout('Logistics Handover', content, true));
     }
 }

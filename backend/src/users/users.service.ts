@@ -68,6 +68,7 @@ export class UsersService {
         isVerified,
         verificationDate,
         verificationDeclineReason,
+        isEmailVerified: role !== 'vendor',
         status: role === 'vendor' ? 'pending' : 'active'
       });
       const savedUser = await createdUser.save();

@@ -49,7 +49,7 @@ type AuthContextType = {
     user: User | null;
     token: string | null;
     login: (identifier: string, password: string) => Promise<User>;
-    signup: (name: string, email: string, phone: string, location: string, region: string, password: string, role?: UserRole, vendorData?: Partial<User>, turnstileToken?: string) => Promise<User>;
+    signup: (name: string, email: string, phone: string, location: string, region: string, password: string, role?: UserRole, vendorData?: Partial<User>, turnstileToken?: string) => Promise<{ user: User; requiresEmailVerification: boolean; message?: string }>;
     logout: () => void;
     updateUser: (updatedData: Partial<User>) => void;
     isAuthenticated: boolean;
@@ -170,7 +170,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         name: string, email: string, phone: string, location: string, region: string,
         password: string, role: UserRole = 'customer', vendorData?: Partial<User>,
         turnstileToken?: string
-    ): Promise<User> => {
+    ): Promise<{ user: User; requiresEmailVerification: boolean; message?: string }> => {
         const response = await fetch(`${API_URL}/auth/register`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -188,7 +188,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             throw new Error(errorData.message || 'Registration failed');
         }
 
-        return await login(email, password);
+        const data = await response.json();
+        const raw = data.user || data;
+        const registeredUser: User = {
+            id: raw._id || raw.id,
+            name: raw.name,
+            email: raw.email,
+            phone: raw.phone,
+            location: raw.location,
+            role: raw.role || role,
+            shopName: raw.shopName,
+            status: raw.status,
+            region: raw.region,
+        };
+
+        if (data.requiresEmailVerification) {
+            return {
+                user: registeredUser,
+                requiresEmailVerification: true,
+                message: data.message,
+            };
+        }
+
+        const loggedInUser = await login(email, password);
+        return {
+            user: loggedInUser,
+            requiresEmailVerification: false,
+            message: data.message,
+        };
     }, [login]);
 
     const logout = useCallback(async () => {
