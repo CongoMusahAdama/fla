@@ -816,7 +816,14 @@ function AuthContent() {
     const [otp, setOtp] = useState(['', '', '', '']);
     const [timer, setTimer] = useState(60);
     const [pendingVendorEmail, setPendingVendorEmail] = useState('');
+    const [pendingVendorPhone, setPendingVendorPhone] = useState('');
     const [pendingVendorPassword, setPendingVendorPassword] = useState('');
+
+    const maskPhone = (phone: string) => {
+        const digits = phone.replace(/\D/g, '');
+        if (digits.length < 4) return 'your phone';
+        return `***${digits.slice(-4)}`;
+    };
 
     const { login, signup } = useAuth();
     const router = useRouter();
@@ -1011,18 +1018,20 @@ function AuthContent() {
             if (result.requiresEmailVerification) {
                 Swal.close();
                 setPendingVendorEmail(data.email.toLowerCase().trim());
+                setPendingVendorPhone(data.phone || '');
                 setPendingVendorPassword(data.password);
                 setShowOTP(true);
                 setTimer(60);
                 setOtp(['', '', '', '']);
                 const isResume = result.message?.includes('not verified');
+                const phoneHint = data.phone ? maskPhone(data.phone) : 'your phone';
                 Swal.fire({
                     icon: 'success',
                     iconColor: '#059669',
-                    title: isResume ? 'VERIFY YOUR EMAIL' : 'STUDIO ACCOUNT CREATED',
+                    title: isResume ? 'VERIFY YOUR STUDIO' : 'STUDIO ACCOUNT CREATED',
                     html: `
-                        <p class="text-slate-600 text-sm mb-3">${result.message || 'Check your email for the 4-digit code.'}</p>
-                        ${!result.message?.includes('could not send') ? '<p class="text-xs text-slate-500">Check spam if you do not see the email.</p>' : ''}
+                        <p class="text-slate-600 text-sm mb-3">${result.message || `A 4-digit code has been sent via SMS to ${phoneHint}.`}</p>
+                        ${!result.message?.includes('could not send') ? '<p class="text-xs text-slate-500">The code is sent to the phone number you registered with.</p>' : ''}
                     `,
                     confirmButtonText: 'ENTER CODE',
                     customClass: { popup: 'rounded-[32px]' }
@@ -1153,7 +1162,7 @@ function AuthContent() {
                 icon: 'success',
                 iconColor: '#059669',
                 title: 'OTP RESENT',
-                text: 'A new verification code has been sent to your email.',
+                text: `A new verification code has been sent via SMS to ${pendingVendorPhone ? maskPhone(pendingVendorPhone) : 'your phone'}.`,
                 timer: 2000,
                 showConfirmButton: false,
                 customClass: {
@@ -1161,12 +1170,12 @@ function AuthContent() {
                     title: 'text-xl font-black text-slate-900 tracking-tighter uppercase'
                 }
             });
-        } catch (error) {
+        } catch (error: any) {
             console.error('Resend OTP error:', error);
             Swal.fire({
                 icon: 'error',
                 title: 'Failed to Resend',
-                text: 'Could not resend OTP. Please try again.',
+                text: error.message || 'Could not resend verification SMS. Please try again.',
                 customClass: { popup: 'rounded-[32px]' }
             });
         }
@@ -1214,10 +1223,10 @@ function AuthContent() {
                 Swal.fire({
                     icon: 'success',
                     iconColor: '#059669',
-                    title: 'EMAIL VERIFIED!',
+                    title: 'STUDIO VERIFIED!',
                     html: `
                         <div class="text-center space-y-3">
-                            <p class="text-slate-600 text-sm">Your studio email is verified. Welcome SMS was sent when you registered.</p>
+                            <p class="text-slate-600 text-sm">Your studio account is verified. Welcome SMS was sent when you registered.</p>
                             <div class="bg-green-50 p-3 rounded-xl border border-green-100">
                                 <p class="text-xs text-green-600">Your application is under admin review. You can access your vendor hub now.</p>
                             </div>
@@ -1282,7 +1291,7 @@ function AuthContent() {
                                     </div>
                                     <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tighter mb-2">Verify Studio</h2>
                                     <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
-                                        Code sent to {pendingVendorEmail || 'your email'}. Check spam if you do not see it.
+                                        Code sent via SMS to {pendingVendorPhone ? maskPhone(pendingVendorPhone) : 'your phone'}. Enter the 4-digit code from the text message.
                                     </p>
                                 </div>
                                 <div className="flex gap-3 mb-8">

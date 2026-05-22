@@ -89,7 +89,7 @@ export class AuthController {
   async sendOTP(@Body() body: { email: string; name: string }) {
     try {
       await this.authService.sendVendorOTP(body.email, body.name);
-      return { message: 'OTP sent successfully', success: true };
+      return { message: 'Verification code sent via SMS', success: true };
     } catch (error) {
       console.error('Error sending OTP:', error);
       console.error('Error stack:', error.stack);
@@ -121,10 +121,13 @@ export class AuthController {
   async resendOTP(@Body() body: { email: string }) {
     try {
       await this.authService.resendVendorOTP(body.email);
-      return { message: 'OTP resent successfully', success: true };
+      return { message: 'Verification code sent via SMS', success: true };
     } catch (error) {
       console.error('Error resending OTP:', error);
-      throw error;
+      return {
+        message: error.message || 'Failed to resend verification SMS',
+        success: false,
+      };
     }
   }
 

@@ -4,6 +4,7 @@ import { JwtService } from '@nestjs/jwt';
 import { EmailService } from '../email/email.service';
 import { OtpService } from '../otp/otp.service';
 import { SmileIdService } from '../common/smileid.service';
+import { SmsService } from '../common/sms.service';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 
@@ -16,12 +17,19 @@ export class AuthService {
     private jwtService: JwtService,
     private emailService: EmailService,
     private otpService: OtpService,
-    private smileIdService: SmileIdService
+    private smileIdService: SmileIdService,
+    private smsService: SmsService,
   ) { }
 
   private maskEmail(email: string): string {
     const [name, domain] = email.split('@');
     return `${name.substring(0, 1)}***@${domain}`;
+  }
+
+  private maskPhone(phone: string): string {
+    const digits = phone.replace(/\D/g, '');
+    if (digits.length < 4) return 'your phone';
+    return `***${digits.slice(-4)}`;
   }
 
   async validateUser(email: string, pass: string): Promise<any> {
@@ -43,7 +51,7 @@ export class AuthService {
     if (isMatch) {
       if (user.role === 'vendor' && !user.isEmailVerified) {
         throw new UnauthorizedException(
-          'Please verify your email first. Check your inbox for the 4-digit code, or register again to receive a new one.',
+          'Please verify your studio account first. Check your phone for the 4-digit SMS code, or use Resend on the verification screen.',
         );
       }
       const userObj = (user as any).toObject();
@@ -95,19 +103,20 @@ export class AuthService {
     return safeUser;
   }
 
-  private buildRegisterResponse(user: any, emailSent: boolean, resumed = false) {
+  private buildRegisterResponse(user: any, otpSent: boolean, resumed = false) {
     const safeUser = this.toSafeUser(user);
+    const phoneHint = user.phone ? this.maskPhone(user.phone) : 'your phone';
     const baseMessage = user.role === 'vendor'
-      ? 'Studio account created. Check your email for a 4-digit code and your phone for a welcome SMS.'
+      ? `Studio account created. A 4-digit verification code has been sent via SMS to ${phoneHint}.`
       : 'Account created successfully. A confirmation SMS has been sent to your phone.';
 
     let message = baseMessage;
     if (resumed) {
       message =
-        'This email is already registered but not verified. A new verification code has been sent to your email.';
-    } else if (user.role === 'vendor' && !emailSent) {
+        `This email is already registered but not verified. A new verification code has been sent via SMS to ${phoneHint}.`;
+    } else if (user.role === 'vendor' && !otpSent) {
       message =
-        'Account created. We could not send the verification email — use "Resend" on the verification screen to try again.';
+        'Account created. We could not send the verification SMS — tap Resend on the verification screen to try again.';
     }
 
     return {
@@ -129,16 +138,16 @@ export class AuthService {
           if (userData.password) {
             await this.usersService.updatePassword((existing as any)._id.toString(), userData.password);
           }
-          let emailSent = true;
+          let otpSent = true;
           try {
             await this.sendVendorOTP(existing.email, existing.name || existing.shopName || 'Vendor');
           } catch (error) {
-            emailSent = false;
+            otpSent = false;
             this.logger.error(
               `Failed to resend vendor OTP to ${this.maskEmail(existing.email)}: ${error.message}`,
             );
           }
-          return this.buildRegisterResponse(existing, emailSent, true);
+          return this.buildRegisterResponse(existing, otpSent, true);
         }
 
         throw new ConflictException(
@@ -150,7 +159,7 @@ export class AuthService {
 
       createdUser = await this.usersService.create(userData);
 
-      let vendorEmailSent = true;
+      let vendorOtpSent = true;
       if (createdUser.role === 'vendor') {
         try {
           await this.sendVendorOTP(
@@ -158,9 +167,9 @@ export class AuthService {
             createdUser.name || createdUser.shopName || 'Vendor',
           );
         } catch (error) {
-          vendorEmailSent = false;
+          vendorOtpSent = false;
           this.logger.error(
-            `Failed to send vendor OTP to ${this.maskEmail(createdUser.email)}: ${error.message}`,
+            `Failed to send vendor OTP SMS to ${this.maskEmail(createdUser.email)}: ${error.message}`,
           );
         }
       }
@@ -198,7 +207,7 @@ export class AuthService {
         }
       }
 
-      return this.buildRegisterResponse(createdUser, vendorEmailSent);
+      return this.buildRegisterResponse(createdUser, vendorOtpSent);
     } catch (error) {
       // Account may already exist in DB (SMS sent) even if a post-create step failed
       if (createdUser) {
@@ -213,9 +222,27 @@ export class AuthService {
 
   async sendVendorOTP(email: string, name: string): Promise<void> {
     const normalizedEmail = email.toLowerCase().trim();
+    const user = await this.usersService.findOne(normalizedEmail);
+
+    if (!user?.phone) {
+      throw new Error('No phone number on this account. Cannot send verification code via SMS.');
+    }
+
     const otp = this.otpService.generateOTP();
     await this.otpService.storeOTP(normalizedEmail, otp);
-    await this.emailService.sendOTP(normalizedEmail, name, otp);
+
+    const displayName = name || user.shopName || user.name || 'Vendor';
+    const smsMessage =
+      `FLA Purchase: Hi ${displayName}, your studio verification code is ${otp}. Valid for 10 minutes. Do not share this code.`;
+
+    const smsSent = await this.smsService.sendSms(user.phone, smsMessage);
+    if (!smsSent) {
+      throw new Error('Failed to send verification SMS. Please try again.');
+    }
+
+    this.logger.log(
+      `Vendor OTP SMS sent to ${this.maskPhone(user.phone)} for ${this.maskEmail(normalizedEmail)}`,
+    );
   }
 
   async verifyVendorOTP(email: string, code: string): Promise<boolean> {
@@ -239,7 +266,7 @@ export class AuthService {
     if (!user) {
       throw new Error('User not found');
     }
-    await this.sendVendorOTP(email, user.name);
+    await this.sendVendorOTP(email, user.name || user.shopName || 'Vendor');
   }
 
   async adminCreateVendor(userData: any) {
