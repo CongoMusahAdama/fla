@@ -48,6 +48,7 @@ export class PaymentsController {
             if (user) {
                 await this.usersService.update((user as UserDocument)._id.toString(), { 
                     isVerified: true, 
+                    isIdentityVerified: true,
                     verificationStatus: 'verified',
                     verificationDate: new Date()
                 });
@@ -64,6 +65,8 @@ export class PaymentsController {
             const user = await this.usersService.findOne(email) || await this.usersService.findOneById(reference);
             if (user) {
                 await this.usersService.update((user as UserDocument)._id.toString(), { 
+                    isVerified: false,
+                    isIdentityVerified: false,
                     verificationStatus: 'declined',
                     verificationDeclineReason: payload.declined_reason
                 });

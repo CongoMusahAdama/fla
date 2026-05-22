@@ -154,6 +154,16 @@ export class User {
     @Prop({ default: false })
     isIdentityVerified: boolean;
 
+    /** Shufti Pro KYC: pending | submitted | verified | declined */
+    @Prop({ default: 'pending' })
+    verificationStatus: string;
+
+    @Prop()
+    verificationDate?: Date;
+
+    @Prop()
+    verificationDeclineReason?: string;
+
     @Prop({ default: false })
     isEmailVerified: boolean;
 

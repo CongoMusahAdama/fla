@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { getImageUrl } from '@/lib/utils';
+import { getShuftiKycStatus, kycToneClasses } from '@/lib/kyc';
 import {
     LayoutDashboard, Users, ShoppingBag, Settings, LogOut, ArrowLeft,
     Wallet, Package, Truck, MessageSquare, BarChart3, ShieldCheck, ShieldAlert,
@@ -678,14 +679,16 @@ export default function AdminDashboard() {
                                                         <span className="bg-orange-50 text-orange-600 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest">Pending</span>
                                                     </div>
                                                     <div className="flex justify-between items-center">
-                                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Identity</span>
-                                                        {v.isIdentityVerified ? (
-                                                            <span className="bg-emerald-50 text-emerald-600 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest flex items-center gap-1">
-                                                                <CheckCircle2 className="w-3 h-3" /> Smile ID Verified
-                                                            </span>
-                                                        ) : (
-                                                            <span className="bg-slate-50 text-slate-400 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest">Unverified</span>
-                                                        )}
+                                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Identity (Shufti)</span>
+                                                        {(() => {
+                                                            const kyc = getShuftiKycStatus(v);
+                                                            return (
+                                                                <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest flex items-center gap-1 ${kycToneClasses[kyc.tone]}`}>
+                                                                    {kyc.verified && <CheckCircle2 className="w-3 h-3" />}
+                                                                    {kyc.label}
+                                                                </span>
+                                                            );
+                                                        })()}
                                                     </div>
                                                 </div>
                                             </div>

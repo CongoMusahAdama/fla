@@ -3,7 +3,6 @@ import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import { EmailService } from '../email/email.service';
 import { OtpService } from '../otp/otp.service';
-import { SmileIdService } from '../common/smileid.service';
 import { SmsService } from '../common/sms.service';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
@@ -17,7 +16,6 @@ export class AuthService {
     private jwtService: JwtService,
     private emailService: EmailService,
     private otpService: OtpService,
-    private smileIdService: SmileIdService,
     private smsService: SmsService,
   ) { }
 
@@ -174,38 +172,7 @@ export class AuthService {
         }
       }
 
-      if (userData.ghanaCardNumber && userData.dob) {
-        const [firstName, ...rest] = (userData.name || '').split(' ');
-        const lastName = rest.join(' ');
-
-        try {
-          if (!this.smileIdService.isConfigured()) {
-            this.logger.log('SMILE_ID_KEYS_MISSING: Bypassing real verification, auto-approving identity.');
-            await this.usersService.update((createdUser as any)._id.toString(), {
-              isIdentityVerified: true,
-              status: createdUser.role === 'customer' ? 'active' : 'pending',
-            } as any);
-          } else {
-            const verification = await this.smileIdService.verifyGhanaCard({
-              idNumber: userData.ghanaCardNumber,
-              firstName: firstName || userData.name,
-              lastName: lastName || 'User',
-              dob: userData.dob,
-              userId: (createdUser as any)._id.toString(),
-            });
-
-            if (verification.success) {
-              const updateData: any = { isIdentityVerified: true };
-              if (createdUser.role === 'customer') {
-                updateData.status = 'active';
-              }
-              await this.usersService.update((createdUser as any)._id.toString(), updateData);
-            }
-          }
-        } catch (error) {
-          this.logger.error(`Smile ID Background Verification Error: ${error.message}`);
-        }
-      }
+      // Identity verification is handled by Shufti Pro (see UsersService.create) — not Smile ID
 
       return this.buildRegisterResponse(createdUser, vendorOtpSent);
     } catch (error) {

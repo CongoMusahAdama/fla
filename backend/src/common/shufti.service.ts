@@ -14,6 +14,10 @@ export class ShuftiService {
         this.secretKey = this.configService.get<string>('SHUFTI_SECRET_KEY') || '';
     }
 
+    isConfigured(): boolean {
+        return Boolean(this.clientId && this.secretKey);
+    }
+
     /**
      * Performs background verification using uploaded images.
      * This allows the user to stay on our site while Shufti Pro's experts verify the docs.

@@ -68,6 +68,7 @@ export class UsersService {
         isVerified,
         verificationDate,
         verificationDeclineReason,
+        isIdentityVerified: isVerified,
         isEmailVerified: role !== 'vendor',
         status: role === 'vendor' ? 'pending' : 'active'
       });
@@ -92,16 +93,25 @@ export class UsersService {
         if (role === 'vendor') {
           this.syncVendorSubaccount(savedUser._id.toString()).catch(err => this.logger.error(err));
 
-          if (createUserDto.ghanaCardFront && createUserDto.selfie) {
+          if (createUserDto.ghanaCardFront && createUserDto.selfie && this.shuftiService.isConfigured()) {
             this.logger.log(`Triggering Shufti background verification for vendor: ${savedUser.email}`);
-            this.shuftiService.verifyImages(savedUser._id.toString(), {
-              email: savedUser.email,
-              ghanaCardFront: createUserDto.ghanaCardFront,
-              ghanaCardBack: createUserDto.ghanaCardBack || '',
-              selfie: createUserDto.selfie,
-            }).catch(err =>
-              this.logger.error(`Shufti background submission failed for ${savedUser.email}: ${err.message}`),
-            );
+            this.shuftiService
+              .verifyImages(savedUser._id.toString(), {
+                email: savedUser.email,
+                ghanaCardFront: createUserDto.ghanaCardFront,
+                ghanaCardBack: createUserDto.ghanaCardBack || '',
+                selfie: createUserDto.selfie,
+              })
+              .then(async () => {
+                await this.userModel.findByIdAndUpdate(savedUser._id, {
+                  $set: { verificationStatus: 'submitted' },
+                });
+              })
+              .catch(err =>
+                this.logger.error(`Shufti background submission failed for ${savedUser.email}: ${err.message}`),
+              );
+          } else if (role === 'vendor' && createUserDto.ghanaCardFront && createUserDto.selfie) {
+            this.logger.warn(`Shufti keys missing — KYC documents saved but not sent for ${savedUser.email}`);
           }
         }
       } catch (postSaveError: any) {
@@ -249,14 +259,22 @@ export class UsersService {
   }
 
   async findPendingVendors(): Promise<User[]> {
-    return this.userModel.find({ role: 'vendor', status: 'pending' }).lean().exec() as unknown as User[];
+    const vendors = await this.userModel.find({ role: 'vendor', status: 'pending' }).lean().exec();
+    return vendors.map((v: any) => ({
+      ...v,
+      // Correct legacy Smile ID auto-verify flags — Shufti is the source of truth
+      isIdentityVerified: Boolean(
+        v.ghanaCardFront &&
+          v.selfie &&
+          v.verificationStatus === 'verified' &&
+          (v.isVerified || v.isIdentityVerified),
+      ),
+    })) as unknown as User[];
   }
 
   async updateStatus(id: string, status: 'active' | 'rejected' | 'pending' | 'banned'): Promise<User | null> {
     const update: any = { status };
-    if (status === 'active') {
-      update.isIdentityVerified = true;
-    }
+    // Shop approval is separate from Shufti identity verification — do not auto-set isIdentityVerified
     const user = await this.userModel.findByIdAndUpdate(id, { $set: update }, { new: true }).lean().exec() as unknown as User;
     
     if (user && user.email) {

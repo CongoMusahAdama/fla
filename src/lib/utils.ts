@@ -5,8 +5,14 @@ export const getImageUrl = (url: string | undefined | null) => {
 
     // If it's already a full URL
     if (url.startsWith('http') || url.startsWith('data:') || url.startsWith('blob:')) {
-        // If it's already a Cloudinary URL, apply optimization
+        // Cloudinary: do not transform signed/authenticated URLs (breaks access → 401)
         if (url.includes('res.cloudinary.com')) {
+            const isRestricted =
+                url.includes('/authenticated/') ||
+                /\/image\/upload\/s--[^/]+--\//.test(url);
+            if (isRestricted) {
+                return url;
+            }
             if (!url.includes('/image/upload/f_auto,q_auto')) {
                 return url.replace('/image/upload/', '/image/upload/f_auto,q_auto/');
             }
