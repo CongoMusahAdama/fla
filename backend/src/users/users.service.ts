@@ -10,6 +10,7 @@ import { PaystackService } from '../common/paystack.service';
 import { ShuftiService } from '../common/shufti.service';
 import { EmailService } from '../email/email.service';
 import { TempVerification } from '../common/schemas/temp-verification.schema';
+import { SmsService } from '../common/sms.service';
 
 import * as crypto from 'crypto';
 
@@ -27,6 +28,7 @@ export class UsersService {
     private readonly paystackService: PaystackService,
     private readonly shuftiService: ShuftiService,
     private readonly emailService: EmailService,
+    private readonly smsService: SmsService,
   ) { }
 
   async create(createUserDto: CreateUserDto): Promise<User> {
@@ -70,6 +72,17 @@ export class UsersService {
       });
       const savedUser = await createdUser.save();
       
+      // Send welcome SMS via mNotify
+      if (savedUser.phone) {
+        const isVendor = role === 'vendor';
+        const namePart = savedUser.shopName || savedUser.name?.split(' ')[0] || 'partner';
+        const welcomeMsg = isVendor 
+            ? `Welcome to FLA, ${namePart}! Your vendor application is under review. We'll notify you once approved.`
+            : `Welcome to FLA, ${namePart}! Your account has been successfully created. Enjoy shopping exactly what you've ordered!`;
+        
+        this.smsService.sendSms(savedUser.phone, welcomeMsg).catch(err => this.logger.error(`Welcome SMS failed: ${err.message}`));
+      }
+
       // Cleanup temp verification
       if (tempVerification) {
         await this.tempVerificationModel.deleteOne({ _id: tempVerification._id }).exec();

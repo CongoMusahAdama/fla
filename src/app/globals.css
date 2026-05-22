@@ -36,10 +36,10 @@
     100% { opacity: 1; transform: scale(1); }
   }
 
-  --animation-spin-slow: spin-slow 15s linear infinite;
-  --animation-text-shine: text-shine 4s linear infinite;
-  --animation-fade-up-word: fade-up-word 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  --animation-scale-in: scale-in 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  --animate-spin-slow: spin-slow 15s linear infinite;
+  --animate-text-shine: text-shine 4s linear infinite;
+  --animate-fade-up-word: fade-up-word 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  --animate-scale-in: scale-in 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 /* Custom Utilities if needed */
