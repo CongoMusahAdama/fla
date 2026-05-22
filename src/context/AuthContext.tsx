@@ -49,7 +49,7 @@ type AuthContextType = {
     user: User | null;
     token: string | null;
     login: (identifier: string, password: string) => Promise<User>;
-    signup: (name: string, email: string, phone: string, location: string, region: string, password: string, role?: UserRole, vendorData?: Partial<User>, turnstileToken?: string) => Promise<{ user: User; requiresEmailVerification: boolean; otpSent?: boolean; message?: string }>;
+    signup: (name: string, email: string, phone: string, location: string, region: string, password: string, role?: UserRole, vendorData?: Partial<User>, turnstileToken?: string) => Promise<{ user: User; requiresEmailVerification: boolean; otpSent?: boolean; message?: string; loginFailed?: boolean }>;
     logout: () => void;
     updateUser: (updatedData: Partial<User>) => void;
     isAuthenticated: boolean;
@@ -170,7 +170,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         name: string, email: string, phone: string, location: string, region: string,
         password: string, role: UserRole = 'customer', vendorData?: Partial<User>,
         turnstileToken?: string
-    ): Promise<{ user: User; requiresEmailVerification: boolean; otpSent?: boolean; message?: string }> => {
+    ): Promise<{ user: User; requiresEmailVerification: boolean; otpSent?: boolean; message?: string; loginFailed?: boolean }> => {
         const response = await fetch(`${API_URL}/auth/register`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -218,12 +218,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             };
         }
 
-        const loggedInUser = await login(email, password);
-        return {
-            user: loggedInUser,
-            requiresEmailVerification: false,
-            message: data.message,
-        };
+        try {
+            const loggedInUser = await login(email, password);
+            return {
+                user: loggedInUser,
+                requiresEmailVerification: false,
+                message: data.message,
+            };
+        } catch (loginError: any) {
+            // Account was created; login alone failed (e.g. network) — still show success and ask to sign in
+            return {
+                user: registeredUser,
+                requiresEmailVerification: false,
+                message:
+                    (data.message || 'Account created successfully.') +
+                    ' Please sign in with your email and password.',
+                loginFailed: true,
+            };
+        }
     }, [login]);
 
     const logout = useCallback(async () => {

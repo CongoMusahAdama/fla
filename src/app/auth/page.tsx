@@ -978,36 +978,38 @@ function AuthContent() {
 
         try {
             Swal.fire({
-                title: 'Registering Business...',
-                html: '<div class="text-slate-600 text-sm">Uploading documents and setting up your studio</div>',
+                title: role === 'vendor' ? 'Registering your studio...' : 'Creating your account...',
+                html: role === 'vendor'
+                    ? '<div class="text-slate-600 text-sm">Uploading documents and sending verification SMS</div>'
+                    : '<div class="text-slate-600 text-sm">Setting up your FLA account</div>',
                 didOpen: () => Swal.showLoading(),
                 allowOutsideClick: false,
                 customClass: { popup: 'rounded-[32px] border-none shadow-2xl p-10 bg-white' }
             });
 
-            let kycUrls: any = {};
-            if (data.kyc) {
-                const uploadFile = async (file: File | null) => {
-                    if (!file) return null;
-                    const formData = new FormData();
-                    formData.append('file', file);
-                    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/upload/public`, {
-                        method: 'POST',
-                        body: formData
-                    });
-                    if (!res.ok) throw new Error('Document upload failed. Please try again.');
-                    const result = await res.json();
-                    return result.url;
-                };
+            const uploadFile = async (file: File | null) => {
+                if (!file) return null;
+                const formData = new FormData();
+                formData.append('file', file);
+                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/upload/public`, {
+                    method: 'POST',
+                    body: formData
+                });
+                if (!res.ok) throw new Error('Document upload failed. Please try again.');
+                const result = await res.json();
+                return result.url;
+            };
 
+            let kycUrls: any = {};
+            if (data.kyc && role === 'vendor') {
                 kycUrls.ghanaCardFront = await uploadFile(data.kyc.ghanaCardFront);
                 kycUrls.ghanaCardBack = await uploadFile(data.kyc.ghanaCardBack);
-                
-                if (role === 'vendor') {
-                    kycUrls.selfie = await uploadFile(data.kyc.selfie);
-                    kycUrls.utilityBill = await uploadFile(data.kyc.utilityBill);
-                    kycUrls.businessRegistration = await uploadFile(data.kyc.businessRegistration);
-                }
+                kycUrls.selfie = await uploadFile(data.kyc.selfie);
+                kycUrls.utilityBill = await uploadFile(data.kyc.utilityBill);
+                kycUrls.businessRegistration = await uploadFile(data.kyc.businessRegistration);
+            } else if (data.kyc && role === 'customer') {
+                if (data.kyc.ghanaCardFront) kycUrls.ghanaCardFront = await uploadFile(data.kyc.ghanaCardFront);
+                if (data.kyc.ghanaCardBack) kycUrls.ghanaCardBack = await uploadFile(data.kyc.ghanaCardBack);
             }
 
             const kycData = {
@@ -1041,7 +1043,7 @@ function AuthContent() {
             );
 
             if (result.requiresEmailVerification) {
-                Swal.close();
+                await Swal.close();
                 setPendingVendorEmail(data.email.toLowerCase().trim());
                 setPendingVendorPhone(normalizePhoneForApi(data.phone || '') || data.phone || '');
                 setPendingVendorPassword(data.password);
@@ -1065,8 +1067,21 @@ function AuthContent() {
                 return;
             }
 
+            await Swal.close();
+            if (result.loginFailed) {
+                Swal.fire({
+                    icon: 'success',
+                    iconColor: '#059669',
+                    title: 'ACCOUNT CREATED',
+                    text: result.message,
+                    confirmButtonText: 'SIGN IN',
+                    customClass: { popup: 'rounded-[32px]' },
+                }).then(() => setIsLogin(true));
+                return;
+            }
             showSuccess(false, result.user.role, result.message);
         } catch (error: any) {
+            await Swal.close();
             const msg = error.message || '';
             if (
                 role === 'vendor' &&
@@ -1086,8 +1101,6 @@ function AuthContent() {
                 return;
             }
             showError(msg);
-        } finally {
-            Swal.close();
         }
     };
 
