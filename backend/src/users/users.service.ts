@@ -31,6 +31,17 @@ export class UsersService {
     private readonly smsService: SmsService,
   ) { }
 
+  /** Fire-and-forget safe: logs mNotify errors but never throws (user already saved). */
+  private sendRegistrationSms(phone: string, message: string, context: string): void {
+    this.smsService.sendSms(phone, message).then((sent) => {
+      if (!sent) {
+        this.logger.error(
+          `[${context}] SMS not delivered to ${phone}: ${this.smsService.lastError || 'unknown'}`,
+        );
+      }
+    });
+  }
+
   async create(createUserDto: CreateUserDto): Promise<User> {
     try {
       const { email, password, role: inputRole, name, phone, location } = createUserDto;
@@ -76,14 +87,16 @@ export class UsersService {
 
       // Post-save work must never fail registration (user is already persisted)
       try {
-        // Vendors must verify OTP first; welcome SMS is sent after verification in AuthService
-        if (savedUser.phone && role !== 'vendor') {
-          const namePart = savedUser.name?.split(' ')[0] || 'partner';
-          const welcomeMsg = `Welcome to FLA, ${namePart}! Your account has been successfully created. Enjoy shopping exactly what you've ordered!`;
-
-          this.smsService.sendSms(savedUser.phone, welcomeMsg).catch(err =>
-            this.logger.error(`Welcome SMS failed: ${err.message}`),
-          );
+        if (savedUser.phone) {
+          const namePart = savedUser.shopName || savedUser.name?.split(' ')[0] || 'partner';
+          if (role === 'customer') {
+            const welcomeMsg = `Welcome to FLA, ${namePart}! Your account has been successfully created. Enjoy shopping exactly what you've ordered!`;
+            this.sendRegistrationSms(savedUser.phone, welcomeMsg, 'customer-register');
+          } else if (role === 'vendor') {
+            // Registration received (same message as before). OTP code SMS is sent separately from AuthService.
+            const vendorMsg = `Welcome to FLA, ${namePart}! Your vendor application is under review. We'll notify you once approved.`;
+            this.sendRegistrationSms(savedUser.phone, vendorMsg, 'vendor-register');
+          }
         }
 
         if (tempVerification) {

@@ -49,7 +49,7 @@ type AuthContextType = {
     user: User | null;
     token: string | null;
     login: (identifier: string, password: string) => Promise<User>;
-    signup: (name: string, email: string, phone: string, location: string, region: string, password: string, role?: UserRole, vendorData?: Partial<User>, turnstileToken?: string) => Promise<{ user: User; requiresEmailVerification: boolean; message?: string }>;
+    signup: (name: string, email: string, phone: string, location: string, region: string, password: string, role?: UserRole, vendorData?: Partial<User>, turnstileToken?: string) => Promise<{ user: User; requiresEmailVerification: boolean; otpSent?: boolean; message?: string }>;
     logout: () => void;
     updateUser: (updatedData: Partial<User>) => void;
     isAuthenticated: boolean;
@@ -170,7 +170,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         name: string, email: string, phone: string, location: string, region: string,
         password: string, role: UserRole = 'customer', vendorData?: Partial<User>,
         turnstileToken?: string
-    ): Promise<{ user: User; requiresEmailVerification: boolean; message?: string }> => {
+    ): Promise<{ user: User; requiresEmailVerification: boolean; otpSent?: boolean; message?: string }> => {
         const response = await fetch(`${API_URL}/auth/register`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -213,6 +213,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             return {
                 user: registeredUser,
                 requiresEmailVerification: true,
+                otpSent: data.otpSent !== false,
                 message: data.message,
             };
         }

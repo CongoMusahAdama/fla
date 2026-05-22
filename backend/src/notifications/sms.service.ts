@@ -40,6 +40,7 @@ export class SmsService {
                     sender: this.senderId,
                     message: message,
                     is_schedule: false,
+                    schedule_date: '',
                 }),
                 signal: controller.signal
             });
@@ -47,13 +48,16 @@ export class SmsService {
             clearTimeout(timeoutId);
 
             const result = await response.json();
+            if (!response.ok && result?.error) {
+                this.logger.error(`mNotify (${response.status}): ${result.error}`);
+                return false;
+            }
             if (result.status === 'success' || result.code === '1000' || result.code === '2000') {
                 this.logger.log(`SMS sent to ${formattedPhone} successfully`);
                 return true;
-            } else {
-                this.logger.error(`SMS failed: ${result.message || JSON.stringify(result)}`);
-                return false;
             }
+            this.logger.error(`SMS failed: ${result.error || result.message || JSON.stringify(result)}`);
+            return false;
         } catch (error: any) {
             this.logger.error(`SMS error for ${formattedPhone}: ${error.message}`);
             return false;

@@ -120,6 +120,7 @@ export class AuthService {
     return {
       user: safeUser,
       requiresEmailVerification: user.role === 'vendor',
+      otpSent: user.role !== 'vendor' || otpSent,
       message,
     };
   }
@@ -162,19 +163,21 @@ export class AuthService {
 
       let vendorOtpSent = true;
       if (createdUser.role === 'vendor') {
-        try {
-          if (!createdUser.phone) {
-            throw new Error('Phone number is required for vendor verification.');
-          }
-          await this.sendVendorOTP(
-            createdUser.phone,
-            createdUser.name || createdUser.shopName || 'Vendor',
-          );
-        } catch (error) {
+        if (!createdUser.phone) {
           vendorOtpSent = false;
-          this.logger.error(
-            `Failed to send vendor OTP SMS to ${this.maskEmail(createdUser.email)}: ${error.message}`,
-          );
+          this.logger.error(`Vendor ${createdUser.email} has no phone — OTP SMS skipped`);
+        } else {
+          try {
+            await this.sendVendorOTP(
+              createdUser.phone,
+              createdUser.name || createdUser.shopName || 'Vendor',
+            );
+          } catch (error) {
+            vendorOtpSent = false;
+            this.logger.error(
+              `Failed to send vendor OTP SMS to ${this.maskPhone(createdUser.phone)}: ${error.message}`,
+            );
+          }
         }
       }
 

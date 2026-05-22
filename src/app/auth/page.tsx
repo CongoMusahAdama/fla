@@ -818,6 +818,16 @@ function AuthContent() {
     const [pendingVendorEmail, setPendingVendorEmail] = useState('');
     const [pendingVendorPhone, setPendingVendorPhone] = useState('');
     const [pendingVendorPassword, setPendingVendorPassword] = useState('');
+    const otpAutoSendDone = React.useRef(false);
+
+    const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+
+    const normalizePhoneForApi = (phone: string) => {
+        let c = phone.replace(/\D/g, '');
+        if (c.startsWith('233') && c.length >= 12) c = '0' + c.slice(3);
+        else if (c.length === 9) c = '0' + c;
+        return c;
+    };
 
     const maskPhone = (phone: string) => {
         const digits = phone.replace(/\D/g, '');
@@ -936,6 +946,21 @@ function AuthContent() {
         return () => clearInterval(interval);
     }, [showOTP, timer]);
 
+    // Always trigger one SMS when the verify screen opens (registration SMS may have failed silently)
+    useEffect(() => {
+        if (!showOTP || !pendingVendorPhone || otpAutoSendDone.current) return;
+        otpAutoSendDone.current = true;
+        sendOtpToPhone(pendingVendorPhone, false).catch((err) => {
+            console.error('Auto OTP send failed:', err);
+            Swal.fire({
+                icon: 'warning',
+                title: 'SMS not sent',
+                text: err.message || 'Tap RESEND to try again.',
+                customClass: { popup: 'rounded-[32px]' },
+            });
+        });
+    }, [showOTP, pendingVendorPhone]);
+
     const handleLogin = async (identifier: string, pass: string) => {
         try {
             const loggedInUser = await login(identifier, pass);
@@ -1018,8 +1043,9 @@ function AuthContent() {
             if (result.requiresEmailVerification) {
                 Swal.close();
                 setPendingVendorEmail(data.email.toLowerCase().trim());
-                setPendingVendorPhone(data.phone || '');
+                setPendingVendorPhone(normalizePhoneForApi(data.phone || '') || data.phone || '');
                 setPendingVendorPassword(data.password);
+                otpAutoSendDone.current = false;
                 setShowOTP(true);
                 setTimer(60);
                 setOtp(['', '', '', '']);
@@ -1139,44 +1165,54 @@ function AuthContent() {
         }
     };
 
+    const sendOtpToPhone = async (phone: string, showToast: boolean) => {
+        const normalized = normalizePhoneForApi(phone);
+        if (!normalized) {
+            throw new Error('Invalid phone number. Use Ghana format e.g. 0203154307');
+        }
+
+        const response = await fetch(`${apiBase}/auth/resend-otp`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone: normalized }),
+        });
+
+        const result = await response.json();
+        if (!response.ok || !result.success) {
+            throw new Error(result.message || 'Failed to send verification SMS');
+        }
+
+        setTimer(60);
+        if (showToast) {
+            Swal.fire({
+                icon: 'success',
+                iconColor: '#059669',
+                title: 'CODE SENT',
+                text: `A verification code has been sent via SMS to ${maskPhone(normalized)}.`,
+                timer: 2500,
+                showConfirmButton: false,
+                customClass: {
+                    popup: 'rounded-[32px] border-none shadow-2xl p-8 bg-white',
+                    title: 'text-xl font-black text-slate-900 tracking-tighter uppercase',
+                },
+            });
+        }
+    };
+
     const handleResendOtp = async () => {
         try {
             if (!pendingVendorPhone) {
                 Swal.fire({ icon: 'error', title: 'Error', text: 'Phone number not found. Please try registering again.' });
                 return;
             }
-
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/auth/resend-otp`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ phone: pendingVendorPhone })
-            });
-
-            const result = await response.json();
-            if (!response.ok || !result.success) {
-                throw new Error(result.message || 'Failed to resend OTP');
-            }
-
-            setTimer(60);
-            Swal.fire({
-                icon: 'success',
-                iconColor: '#059669',
-                title: 'OTP RESENT',
-                text: `A new verification code has been sent via SMS to ${pendingVendorPhone ? maskPhone(pendingVendorPhone) : 'your phone'}.`,
-                timer: 2000,
-                showConfirmButton: false,
-                customClass: {
-                    popup: 'rounded-[32px] border-none shadow-2xl p-8 bg-white',
-                    title: 'text-xl font-black text-slate-900 tracking-tighter uppercase'
-                }
-            });
+            await sendOtpToPhone(pendingVendorPhone, true);
         } catch (error: any) {
             console.error('Resend OTP error:', error);
             Swal.fire({
                 icon: 'error',
-                title: 'Failed to Resend',
-                text: error.message || 'Could not resend verification SMS. Please try again.',
-                customClass: { popup: 'rounded-[32px]' }
+                title: 'SMS not sent',
+                text: error.message || 'Could not send verification SMS. Check mNotify credits and try again.',
+                customClass: { popup: 'rounded-[32px]' },
             });
         }
     };
@@ -1215,10 +1251,10 @@ function AuthContent() {
         });
 
         try {
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/auth/verify-otp`, {
+            const response = await fetch(`${apiBase}/auth/verify-otp`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ phone: pendingVendorPhone, code })
+                body: JSON.stringify({ phone: normalizePhoneForApi(pendingVendorPhone), code }),
             });
 
             const result = await response.json();
