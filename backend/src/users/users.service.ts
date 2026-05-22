@@ -134,6 +134,29 @@ export class UsersService {
     return this.userModel.findOne({ email: email.toLowerCase().trim() }).exec();
   }
 
+  /** Match vendor/customer by Ghana phone (0XXXXXXXXX or 233XXXXXXXXX in DB) */
+  async findByPhone(phone: string): Promise<UserDocument | null> {
+    let cleaned = (phone || '').replace(/\D/g, '');
+    if (cleaned.startsWith('233') && cleaned.length >= 12) {
+      cleaned = '0' + cleaned.slice(3);
+    } else if (cleaned.length === 9) {
+      cleaned = '0' + cleaned;
+    }
+    if (!cleaned.startsWith('0') || cleaned.length !== 10) {
+      return null;
+    }
+    const intl = '233' + cleaned.slice(1);
+    return this.userModel
+      .findOne({
+        $or: [
+          { phone: cleaned },
+          { phone: intl },
+          { phone: `+${intl}` },
+        ],
+      })
+      .exec();
+  }
+
   async findAll(): Promise<User[]> {
     return this.userModel.find().lean().exec() as unknown as User[];
   }

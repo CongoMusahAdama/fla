@@ -7,6 +7,8 @@ export class SmsService {
   private readonly apiKey: string;
   private readonly senderId: string;
   private readonly baseUrl = 'https://api.mnotify.com/api/sms/quick';
+  /** Last mNotify failure — surfaced in API errors for Postman/debugging */
+  lastError: string | null = null;
 
   constructor(private configService: ConfigService) {
     this.apiKey = this.configService.get<string>('MNOTIFY_API_KEY') || '';
@@ -67,19 +69,25 @@ export class SmsService {
     }
 
     if (!this.apiKey) {
+      this.lastError = 'MNOTIFY_API_KEY is not set on the server';
       this.logger.error('mNotify API Key is missing. SMS not sent.');
       return false;
     }
 
+    this.lastError = null;
+
     try {
-      this.logger.log(`Sending SMS to ${formattedPhone}...`);
-      
+      this.logger.log(
+        `mNotify SMS → recipient=${formattedPhone} sender="${this.senderId}" chars=${message.length}`,
+      );
+
       const url = `${this.baseUrl}?key=${this.apiKey}`;
       const payload: Record<string, unknown> = {
         recipient: [formattedPhone],
         sender: this.senderId,
         message: message,
         is_schedule: false,
+        schedule_date: '',
       };
       if (options?.smsType === 'otp') {
         payload.sms_type = 'otp';
@@ -94,7 +102,8 @@ export class SmsService {
       const result = await response.json();
 
       if (!response.ok && result?.error) {
-        this.logger.error(`mNotify HTTP ${response.status}: ${result.error}`);
+        this.lastError = `mNotify (${response.status}): ${result.error}`;
+        this.logger.error(this.lastError);
         if (options?.smsType === 'otp') {
           this.logger.warn(`Retrying OTP to ${formattedPhone} without sms_type: otp`);
           return this.sendSms(to, message);
@@ -109,9 +118,11 @@ export class SmsService {
         return true;
       }
 
-      this.logger.error(
-        `mNotify Error: ${result.message || JSON.stringify(result)} (HTTP ${response.status}, code: ${result.code})`,
-      );
+      this.lastError =
+        result.error ||
+        result.message ||
+        `mNotify HTTP ${response.status} code ${result.code}`;
+      this.logger.error(`mNotify Error: ${this.lastError}`);
 
       // OTP route failed — retry once as standard SMS so user still receives the code
       if (options?.smsType === 'otp') {
@@ -121,6 +132,7 @@ export class SmsService {
 
       return false;
     } catch (error) {
+      this.lastError = error.message;
       this.logger.error(`Failed to send SMS to ${formattedPhone}: ${error.message}`);
       return false;
     }

@@ -1141,15 +1141,15 @@ function AuthContent() {
 
     const handleResendOtp = async () => {
         try {
-            if (!pendingVendorEmail) {
-                Swal.fire({ icon: 'error', title: 'Error', text: 'Email not found. Please try registering again.' });
+            if (!pendingVendorPhone) {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'Phone number not found. Please try registering again.' });
                 return;
             }
 
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/auth/resend-otp`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: pendingVendorEmail })
+                body: JSON.stringify({ phone: pendingVendorPhone })
             });
 
             const result = await response.json();
@@ -1193,8 +1193,13 @@ function AuthContent() {
             return;
         }
 
+        if (!pendingVendorPhone) {
+            Swal.fire({ icon: 'error', title: 'Error', text: 'Phone number not found. Please try registering again.' });
+            return;
+        }
+
         if (!pendingVendorEmail) {
-            Swal.fire({ icon: 'error', title: 'Error', text: 'Email not found. Please try registering again.' });
+            Swal.fire({ icon: 'error', title: 'Error', text: 'Session expired. Please try registering again.' });
             return;
         }
 
@@ -1213,7 +1218,7 @@ function AuthContent() {
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/auth/verify-otp`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: pendingVendorEmail, code })
+                body: JSON.stringify({ phone: pendingVendorPhone, code })
             });
 
             const result = await response.json();

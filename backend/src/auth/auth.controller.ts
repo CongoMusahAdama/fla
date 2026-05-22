@@ -86,9 +86,9 @@ export class AuthController {
   }
 
   @Post('send-otp')
-  async sendOTP(@Body() body: { email: string; name: string }) {
+  async sendOTP(@Body() body: { phone: string; name?: string }) {
     try {
-      await this.authService.sendVendorOTP(body.email, body.name);
+      await this.authService.sendVendorOTP(body.phone, body.name);
       return { message: 'Verification code sent via SMS', success: true };
     } catch (error) {
       console.error('Error sending OTP:', error);
@@ -103,9 +103,9 @@ export class AuthController {
   }
 
   @Post('verify-otp')
-  async verifyOTP(@Body() body: { email: string; code: string }) {
+  async verifyOTP(@Body() body: { phone: string; code: string }) {
     try {
-      const isValid = await this.authService.verifyVendorOTP(body.email, body.code);
+      const isValid = await this.authService.verifyVendorOTP(body.phone, body.code);
       if (isValid) {
         return { message: 'OTP verified successfully', success: true };
       } else {
@@ -118,15 +118,17 @@ export class AuthController {
   }
 
   @Post('resend-otp')
-  async resendOTP(@Body() body: { email: string }) {
+  async resendOTP(@Body() body: { phone: string }) {
     try {
-      await this.authService.resendVendorOTP(body.email);
+      await this.authService.resendVendorOTP(body.phone);
       return { message: 'Verification code sent via SMS', success: true };
     } catch (error) {
       console.error('Error resending OTP:', error);
       return {
         message: error.message || 'Failed to resend verification SMS',
         success: false,
+        mnotifyError: error.message,
+        hint: 'FLA sends mNotify with sender ID from MNOTIFY_SENDER_ID (e.g. FLAMINGO). Top up SMS credits if you see HTTP 402.',
       };
     }
   }

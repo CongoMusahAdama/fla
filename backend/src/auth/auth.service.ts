@@ -138,7 +138,10 @@ export class AuthService {
           }
           let otpSent = true;
           try {
-            await this.sendVendorOTP(existing.email, existing.name || existing.shopName || 'Vendor');
+            await this.sendVendorOTP(
+              existing.phone!,
+              existing.name || existing.shopName || 'Vendor',
+            );
           } catch (error) {
             otpSent = false;
             this.logger.error(
@@ -160,8 +163,11 @@ export class AuthService {
       let vendorOtpSent = true;
       if (createdUser.role === 'vendor') {
         try {
+          if (!createdUser.phone) {
+            throw new Error('Phone number is required for vendor verification.');
+          }
           await this.sendVendorOTP(
-            createdUser.email,
+            createdUser.phone,
             createdUser.name || createdUser.shopName || 'Vendor',
           );
         } catch (error) {
@@ -187,16 +193,20 @@ export class AuthService {
     }
   }
 
-  async sendVendorOTP(email: string, name: string): Promise<void> {
-    const normalizedEmail = email.toLowerCase().trim();
-    const user = await this.usersService.findOne(normalizedEmail);
+  async sendVendorOTP(phone: string, name?: string): Promise<void> {
+    const user = await this.usersService.findByPhone(phone);
 
     if (!user?.phone) {
-      throw new Error('No phone number on this account. Cannot send verification code via SMS.');
+      throw new Error('No vendor account found for this phone number.');
+    }
+
+    const otpKey = this.otpService.normalizePhone(user.phone);
+    if (!otpKey) {
+      throw new Error('Invalid phone number on this account.');
     }
 
     const otp = this.otpService.generateOTP();
-    await this.otpService.storeOTP(normalizedEmail, otp);
+    await this.otpService.storeOTP('phone', otpKey, otp);
 
     const displayName = name || user.shopName || user.name || 'Vendor';
     const smsMessage =
@@ -204,45 +214,47 @@ export class AuthService {
 
     const smsSent = await this.smsService.sendOtpSms(user.phone, smsMessage);
     if (!smsSent) {
-      throw new Error(
-        'Verification SMS could not be sent. Check mNotify wallet balance and sender ID (FLAMINGO), or contact support@mnotify.com.',
-      );
+      const detail = this.smsService.lastError || 'Unknown mNotify error';
+      throw new Error(`Verification SMS could not be sent. ${detail}`);
     }
 
-    this.logger.log(
-      `Vendor OTP SMS sent to ${this.maskPhone(user.phone)} for ${this.maskEmail(normalizedEmail)}`,
-    );
+    this.logger.log(`Vendor OTP SMS sent to ${this.maskPhone(user.phone)}`);
   }
 
-  async verifyVendorOTP(email: string, code: string): Promise<boolean> {
-    const normalizedEmail = email.toLowerCase().trim();
-    const isValid = await this.otpService.verifyOTP(normalizedEmail, code);
+  async verifyVendorOTP(phone: string, code: string): Promise<boolean> {
+    const user = await this.usersService.findByPhone(phone);
+    if (!user?.phone) {
+      return false;
+    }
+
+    const otpKey = this.otpService.normalizePhone(user.phone);
+    const isValid = await this.otpService.verifyOTP('phone', otpKey, code);
 
     if (isValid) {
-      const user = await this.usersService.findOne(normalizedEmail);
-      if (user) {
-        await this.usersService.update((user as any)._id.toString(), { isEmailVerified: true } as any);
-        const shopName = user.shopName || user.name || 'Your Studio';
-        await this.emailService.sendWelcomeEmail(normalizedEmail, user.name || 'Vendor', shopName);
+      await this.usersService.update((user as any)._id.toString(), { isEmailVerified: true } as any);
+      const shopName = user.shopName || user.name || 'Your Studio';
+      await this.emailService.sendWelcomeEmail(
+        user.email,
+        user.name || 'Vendor',
+        shopName,
+      );
 
-        if (user.phone) {
-          const namePart = user.shopName || user.name || 'Vendor';
-          const welcomeMsg =
-            `Welcome to FLA, ${namePart}! Your studio account has been created and verified. Your application is under review — we'll notify you once approved.`;
-          await this.smsService.sendSms(user.phone, welcomeMsg);
-        }
-      }
-      await this.otpService.deleteOTP(normalizedEmail);
+      const namePart = user.shopName || user.name || 'Vendor';
+      const welcomeMsg =
+        `Welcome to FLA, ${namePart}! Your studio account has been created and verified. Your application is under review — we'll notify you once approved.`;
+      await this.smsService.sendSms(user.phone, welcomeMsg);
+
+      await this.otpService.deleteOTP('phone', otpKey);
     }
     return isValid;
   }
 
-  async resendVendorOTP(email: string): Promise<void> {
-    const user = await this.usersService.findOne(email);
+  async resendVendorOTP(phone: string): Promise<void> {
+    const user = await this.usersService.findByPhone(phone);
     if (!user) {
-      throw new Error('User not found');
+      throw new Error('No vendor account found for this phone number.');
     }
-    await this.sendVendorOTP(email, user.name || user.shopName || 'Vendor');
+    await this.sendVendorOTP(phone, user.name || user.shopName || 'Vendor');
   }
 
   async adminCreateVendor(userData: any) {
@@ -319,7 +331,7 @@ export class AuthService {
 
     this.logger.log(`ForgotPassword: User found: ${user.name}. Generating OTP...`);
     const otp = this.otpService.generateOTP();
-    await this.otpService.storeOTP(email, otp);
+    await this.otpService.storeOTP('email', email, otp);
 
     try {
       await this.emailService.sendPasswordResetOTP(email, user.name || 'User', otp);
@@ -331,7 +343,7 @@ export class AuthService {
   }
 
   async resetPasswordWithOTP(email: string, code: string, newPassword: string): Promise<void> {
-    const isValid = await this.otpService.verifyOTP(email, code);
+    const isValid = await this.otpService.verifyOTP('email', email, code);
     if (!isValid) {
       throw new Error('Invalid or expired verification code');
     }
@@ -342,6 +354,6 @@ export class AuthService {
     }
 
     await this.usersService.updatePassword((user as any)._id.toString(), newPassword);
-    await this.otpService.deleteOTP(email);
+    await this.otpService.deleteOTP('email', email);
   }
 }
