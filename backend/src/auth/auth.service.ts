@@ -204,7 +204,9 @@ export class AuthService {
 
     const smsSent = await this.smsService.sendOtpSms(user.phone, smsMessage);
     if (!smsSent) {
-      throw new Error('Failed to send verification SMS. Please try again.');
+      throw new Error(
+        'Verification SMS could not be sent. Check mNotify wallet balance and sender ID (FLAMINGO), or contact support@mnotify.com.',
+      );
     }
 
     this.logger.log(

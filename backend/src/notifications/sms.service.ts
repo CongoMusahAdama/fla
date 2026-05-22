@@ -20,12 +20,12 @@ export class SmsService {
             return false;
         }
 
-        // Clean phone number (ensure it starts with 233)
-        let formattedPhone = phone.replace(/\s+/g, '').replace('+', '');
-        if (formattedPhone.startsWith('0')) {
-            formattedPhone = '233' + formattedPhone.substring(1);
-        } else if (!formattedPhone.startsWith('233')) {
-            formattedPhone = '233' + formattedPhone;
+        // mNotify expects 0XXXXXXXXX (Ghana local format)
+        let formattedPhone = phone.replace(/\s+/g, '').replace(/\D/g, '');
+        if (formattedPhone.startsWith('233') && formattedPhone.length >= 12) {
+            formattedPhone = '0' + formattedPhone.slice(3);
+        } else if (formattedPhone.length === 9) {
+            formattedPhone = '0' + formattedPhone;
         }
 
         try {
@@ -47,7 +47,7 @@ export class SmsService {
             clearTimeout(timeoutId);
 
             const result = await response.json();
-            if (result.status === 'success' || result.code === '1000') {
+            if (result.status === 'success' || result.code === '1000' || result.code === '2000') {
                 this.logger.log(`SMS sent to ${formattedPhone} successfully`);
                 return true;
             } else {

@@ -13,33 +13,46 @@ export class SmsService {
     this.senderId = this.configService.get<string>('MNOTIFY_SENDER_ID') || 'FLA';
   }
 
+  /**
+   * mNotify expects Ghana numbers as 0XXXXXXXXX (see API docs), not 233XXXXXXXXX.
+   */
   private formatPhoneNumber(phone: string): string {
     if (!phone) return '';
-    
-    // Remove any non-digit characters
+
     let cleaned = phone.replace(/\D/g, '');
 
-    // Handle 0XXXXXXXXX format (Ghana)
-    if (cleaned.startsWith('0') && cleaned.length === 10) {
-      cleaned = '233' + cleaned.substring(1);
-    }
-    // Handle XXXXXXXXX format (assume 233 is missing)
-    else if (cleaned.length === 9) {
-      cleaned = '233' + cleaned;
-    }
-    // Handle +233XXXXXXXXX or 233XXXXXXXXX (already correct)
-    else if (cleaned.startsWith('233') && (cleaned.length === 12 || cleaned.length === 13)) {
-      // already correct
+    if (cleaned.startsWith('233') && cleaned.length >= 12) {
+      cleaned = '0' + cleaned.slice(3);
+    } else if (cleaned.length === 9) {
+      cleaned = '0' + cleaned;
     }
 
-    return cleaned;
+    if (cleaned.startsWith('0') && cleaned.length === 10) {
+      return cleaned;
+    }
+
+    this.logger.warn(`Invalid Ghana phone after normalize: ${phone} -> ${cleaned}`);
+    return '';
+  }
+
+  private isMnotifySuccess(result: Record<string, unknown>): boolean {
+    const code = String(result?.code ?? '');
+    const status = String(result?.status ?? '').toLowerCase();
+    return status === 'success' || code === '1000' || code === '2000';
   }
 
   /**
-   * Sends OTP verification SMS via mNotify (uses sms_type: otp route).
+   * Vendor OTP — uses the same standard quick SMS route as welcome/alert messages.
+   * mNotify's separate sms_type:"otp" route is often blocked (HTTP 419) even when
+   * normal SMS works from wallet balance. Set MNOTIFY_USE_OTP_ROUTE=true to force OTP route.
    */
   async sendOtpSms(to: string, message: string): Promise<boolean> {
-    return this.sendSms(to, message, { smsType: 'otp' });
+    const useOtpRoute = this.configService.get<string>('MNOTIFY_USE_OTP_ROUTE') === 'true';
+    if (useOtpRoute) {
+      return this.sendSms(to, message, { smsType: 'otp' });
+    }
+    this.logger.log('Sending verification code via standard mNotify SMS (same as welcome messages)');
+    return this.sendSms(to, message);
   }
 
   /**
@@ -80,13 +93,33 @@ export class SmsService {
 
       const result = await response.json();
 
-      if (response.ok && result.code === '1000') {
-        this.logger.log(`SMS sent successfully to ${formattedPhone}`);
-        return true;
-      } else {
-        this.logger.error(`mNotify Error: ${result.message || 'Unknown error'} (Code: ${result.code})`);
+      if (!response.ok && result?.error) {
+        this.logger.error(`mNotify HTTP ${response.status}: ${result.error}`);
+        if (options?.smsType === 'otp') {
+          this.logger.warn(`Retrying OTP to ${formattedPhone} without sms_type: otp`);
+          return this.sendSms(to, message);
+        }
         return false;
       }
+
+      if (response.ok && this.isMnotifySuccess(result)) {
+        this.logger.log(
+          `SMS sent successfully to ${formattedPhone} (mNotify code: ${result.code}, status: ${result.status})`,
+        );
+        return true;
+      }
+
+      this.logger.error(
+        `mNotify Error: ${result.message || JSON.stringify(result)} (HTTP ${response.status}, code: ${result.code})`,
+      );
+
+      // OTP route failed — retry once as standard SMS so user still receives the code
+      if (options?.smsType === 'otp') {
+        this.logger.warn(`Retrying OTP to ${formattedPhone} without sms_type: otp`);
+        return this.sendSms(to, message);
+      }
+
+      return false;
     } catch (error) {
       this.logger.error(`Failed to send SMS to ${formattedPhone}: ${error.message}`);
       return false;
