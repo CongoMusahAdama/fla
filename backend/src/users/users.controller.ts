@@ -17,6 +17,16 @@ export class UsersController {
     return this.usersService.findAll();
   }
 
+  @Get('admin/pending')
+  findPending() {
+    return this.usersService.findPendingVendors();
+  }
+
+  @Get('vendor/:id/profile')
+  getVendorProfile(@Param('id') id: string) {
+    return this.usersService.getPublicVendorProfile(id);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.usersService.findOneById(id);
@@ -30,16 +40,6 @@ export class UsersController {
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.usersService.remove(id);
-  }
-
-  @Get('vendor/:id/profile')
-  getVendorProfile(@Param('id') id: string) {
-    return this.usersService.getPublicVendorProfile(id);
-  }
-
-  @Get('admin/pending')
-  findPending() {
-    return this.usersService.findPendingVendors();
   }
 
   @Patch('admin/:id/status')

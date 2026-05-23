@@ -254,7 +254,7 @@ const ForgotPasswordForm = ({ onBack, onSubmit, onResetWithOTP }: { onBack: () =
 
 
 
-const RegisterForm = ({ role, onSignup }: { role: UserRole, onSignup: (data: any) => void }) => {
+export const RegisterForm = ({ role, onSignup }: { role: UserRole, onSignup: (data: any) => void }) => {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [phone, setPhone] = useState('');

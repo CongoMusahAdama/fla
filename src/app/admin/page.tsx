@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import Image from 'next/image';
 import Swal from 'sweetalert2';
+import { RegisterForm } from '@/app/auth/page';
 import { RevenueChart } from '@/components/admin/RevenueChart';
 import { RecentTransactionsTable } from '@/components/admin/RecentTransactionsTable';
 
@@ -465,10 +466,61 @@ export default function AdminDashboard() {
         }
     };
 
-    const handleAdminCreateVendor = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleAdminCreateVendor = async (data: any) => {
         setIsSubmitting(true);
         try {
+            Swal.fire({
+                title: 'Onboarding Vendor...',
+                html: '<div class="text-slate-600 text-sm">Uploading documents and creating profile...</div>',
+                didOpen: () => Swal.showLoading(),
+                allowOutsideClick: false,
+                customClass: { popup: 'rounded-[32px] border-none shadow-2xl p-10 bg-white' }
+            });
+
+            const uploadFile = async (file: File | null) => {
+                if (!file) return null;
+                const formData = new FormData();
+                formData.append('file', file);
+                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/upload/public`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    body: formData
+                });
+                if (!res.ok) throw new Error('Document upload failed. Please try again.');
+                const result = await res.json();
+                return result.url;
+            };
+
+            const ghanaCardFrontUrl = await uploadFile(data.kyc?.ghanaCardFront);
+            const ghanaCardBackUrl = await uploadFile(data.kyc?.ghanaCardBack);
+            const selfieUrl = await uploadFile(data.kyc?.selfie);
+            const utilityBillUrl = await uploadFile(data.kyc?.utilityBill);
+            const businessRegistrationUrl = await uploadFile(data.kyc?.businessRegistration);
+
+            const vendorData = {
+                name: data.name,
+                email: data.email,
+                phone: data.phone,
+                location: data.location,
+                region: data.region,
+                password: data.password,
+                shopName: data.shopName,
+                productTypes: data.productTypes,
+                paymentMethods: data.paymentMethods,
+                ghanaCardFront: ghanaCardFrontUrl,
+                ghanaCardBack: ghanaCardBackUrl,
+                ghanaCardNumber: data.kyc?.ghanaCardNumber,
+                selfie: selfieUrl,
+                digitalAddress: data.kyc?.digitalAddress,
+                dob: data.kyc?.dob,
+                utilityBill: utilityBillUrl,
+                utilityType: data.kyc?.utilityType,
+                businessRegistration: businessRegistrationUrl,
+                employeeCount: data.kyc?.employeeCount,
+                yearsOfExistence: data.kyc?.yearsOfExistence,
+                bio: data.kyc?.bio,
+            };
+
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/auth/admin/create-vendor`, {
                 method: 'POST',
                 headers: {
@@ -476,39 +528,27 @@ export default function AdminDashboard() {
                     'Authorization': `Bearer ${token}`
                 },
                 credentials: 'include',
-                body: JSON.stringify(newVendorData)
+                body: JSON.stringify(vendorData)
             });
 
             if (!response.ok) {
-                const data = await response.json();
-                throw new Error(data.message || 'Failed to create vendor');
+                const errData = await response.json();
+                throw new Error(errData.message || 'Failed to create vendor');
             }
 
             await refreshData();
             setShowAddVendorModal(false);
-            setNewVendorData({
-                name: '',
-                email: '',
-                shopName: '',
-                phone: '',
-                location: '',
-                accountName: '',
-                momoNumber: '',
-                momoProvider: 'MTN',
-                bio: '',
-                password: Math.random().toString(36).slice(-8)
-            });
 
             Swal.fire({
                 icon: 'success',
-                title: 'STUDIO PARTNER CREATED',
-                text: 'Credentials have been sent to their email.',
-                timer: 3000,
+                title: 'VENDOR CREATED',
+                text: 'Vendor has been successfully onboarded with auto-approved KYC.',
+                timer: 2000,
                 showConfirmButton: false,
                 customClass: { popup: 'rounded-[32px]' }
             });
         } catch (error: any) {
-            Swal.fire({ icon: 'error', title: 'Creation Failed', text: error.message });
+            Swal.fire({ icon: 'error', title: 'Action Failed', text: error.message });
         } finally {
             setIsSubmitting(false);
         }
@@ -747,6 +787,7 @@ export default function AdminDashboard() {
             case 'vendors':
                 const filteredVendors = (allUsers || []).filter(u => 
                     u.role === 'vendor' && (
+                        !searchQuery ||
                         u.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                         u.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                         u.shopName?.toLowerCase().includes(searchQuery.toLowerCase())
@@ -993,6 +1034,7 @@ export default function AdminDashboard() {
             case 'customers':
                 const filteredPatrons = (allUsers || []).filter(u => 
                     u.role === 'customer' && (
+                        !searchQuery ||
                         u.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                         u.email?.toLowerCase().includes(searchQuery.toLowerCase())
                     )
@@ -2198,151 +2240,14 @@ export default function AdminDashboard() {
                             </button>
                         </div>
 
-                        <form onSubmit={handleAdminCreateVendor} className="p-10 space-y-6">
-                            {/* Row 1: Basic Info */}
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                <div className="space-y-2">
-                                    <label htmlFor="ov-name" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 cursor-pointer">Owner Name</label>
-                                    <input
-                                        id="ov-name"
-                                        required
-                                        type="text"
-                                        placeholder="Full Name"
-                                        value={newVendorData.name}
-                                        onChange={(e) => setNewVendorData({ ...newVendorData, name: e.target.value })}
-                                        className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20 focus:outline-none"
-                                    />
+                        <div className="p-8 relative">
+                            {isSubmitting && (
+                                <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-50 flex items-center justify-center">
+                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900"></div>
                                 </div>
-                                <div className="space-y-2">
-                                    <label htmlFor="ov-shop" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 cursor-pointer">Shop/Studio Name</label>
-                                    <input
-                                        id="ov-shop"
-                                        required
-                                        type="text"
-                                        placeholder="e.g. Signature Styles"
-                                        value={newVendorData.shopName}
-                                        onChange={(e) => setNewVendorData({ ...newVendorData, shopName: e.target.value })}
-                                        className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20 focus:outline-none"
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <label htmlFor="ov-email" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 cursor-pointer">Email Address</label>
-                                    <input
-                                        id="ov-email"
-                                        required
-                                        type="email"
-                                        placeholder="vendor@example.com"
-                                        value={newVendorData.email}
-                                        onChange={(e) => setNewVendorData({ ...newVendorData, email: e.target.value })}
-                                        className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20 focus:outline-none"
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Row 2: Location & Payment */}
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                <div className="space-y-2">
-                                    <label htmlFor="ov-phone" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 cursor-pointer">Phone Number</label>
-                                    <input
-                                        id="ov-phone"
-                                        required
-                                        type="tel"
-                                        placeholder="+233..."
-                                        value={newVendorData.phone}
-                                        onChange={(e) => setNewVendorData({ ...newVendorData, phone: e.target.value })}
-                                        className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20 focus:outline-none"
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <label htmlFor="ov-location" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 cursor-pointer">Location</label>
-                                    <input
-                                        id="ov-location"
-                                        required
-                                        type="text"
-                                        placeholder="City, Region"
-                                        value={newVendorData.location}
-                                        onChange={(e) => setNewVendorData({ ...newVendorData, location: e.target.value })}
-                                        className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20 focus:outline-none"
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <label htmlFor="ov-momo" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 cursor-pointer">Payment Details</label>
-                                    <div className="flex gap-2">
-                                        <select
-                                            id="ov-provider"
-                                            value={newVendorData.momoProvider}
-                                            onChange={(e) => setNewVendorData({ ...newVendorData, momoProvider: e.target.value })}
-                                            className="w-1/3 px-2 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold focus:ring-2 focus:ring-brand-lemon/20 focus:outline-none cursor-pointer"
-                                        >
-                                            <option value="MTN">MTN</option>
-                                            <option value="Telecel">Telecel</option>
-                                            <option value="AT">AT</option>
-                                        </select>
-                                        <input
-                                            id="ov-momo"
-                                            required
-                                            type="tel"
-                                            placeholder="024..."
-                                            value={newVendorData.momoNumber}
-                                            onChange={(e) => setNewVendorData({ ...newVendorData, momoNumber: e.target.value })}
-                                            className="w-2/3 px-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20 focus:outline-none"
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Row 3: Account Name & Generated Password */}
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                <div className="space-y-2">
-                                    <label htmlFor="ov-acc-name" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 cursor-pointer">Account Name</label>
-                                    <input
-                                        id="ov-acc-name"
-                                        required
-                                        type="text"
-                                        placeholder="Mobile Money Name"
-                                        value={newVendorData.accountName}
-                                        onChange={(e) => setNewVendorData({ ...newVendorData, accountName: e.target.value })}
-                                        className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20 focus:outline-none"
-                                    />
-                                </div>
-                                <div className="space-y-2 col-span-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Generated Password (Share this with Vendor)</label>
-                                    <div className="relative">
-                                        <input
-                                            required
-                                            type="text"
-                                            value={newVendorData.password}
-                                            readOnly
-                                            className="w-full px-5 py-3 bg-slate-900 text-brand-lemon rounded-2xl text-sm font-black focus:outline-none tracking-widest"
-                                        />
-                                        <div className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] text-white/50 font-medium">Auto-generated</div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="space-y-2">
-                                <label htmlFor="ov-bio" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 cursor-pointer">Brand Bio / Story</label>
-                                <textarea
-                                    id="ov-bio"
-                                    required
-                                    rows={2}
-                                    placeholder="Short description of the brand..."
-                                    value={newVendorData.bio}
-                                    onChange={(e) => setNewVendorData({ ...newVendorData, bio: e.target.value })}
-                                    className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20 focus:outline-none resize-none"
-                                />
-                            </div>
-
-                            <button
-                                disabled={isSubmitting}
-                                type="submit"
-                                className={`w-full py-5 rounded-full font-black text-xs uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-3 ${isSubmitting ? 'bg-slate-100 text-slate-400' : 'bg-slate-900 text-white hover:bg-brand-lemon hover:text-slate-900 shadow-xl shadow-slate-900/10'
-                                    }`}
-                            >
-                                {isSubmitting ? 'CREATING STUDIO...' : 'COMPLETE ONBOARDING'}
-                                {!isSubmitting && <ArrowUpRight className="w-4 h-4" />}
-                            </button>
-                        </form>
+                            )}
+                            <RegisterForm role="vendor" onSignup={handleAdminCreateVendor} />
+                        </div>
                     </div>
                 </div>
             )
