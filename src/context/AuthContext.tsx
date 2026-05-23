@@ -205,9 +205,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             region: raw.region,
         };
 
-        // Vendors must verify email before login — never auto-login after register
-        const needsEmailVerification =
-            data.requiresEmailVerification === true || registeredRole === 'vendor';
+        const needsEmailVerification = data.requiresEmailVerification === true;
 
         if (needsEmailVerification) {
             return {

@@ -80,7 +80,7 @@ export class UsersService {
         verificationDate,
         verificationDeclineReason,
         isIdentityVerified: isVerified,
-        isEmailVerified: role !== 'vendor',
+        isEmailVerified: true,
         status: role === 'vendor' ? 'pending' : 'active'
       });
       const savedUser = await createdUser.save();

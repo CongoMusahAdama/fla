@@ -47,11 +47,6 @@ export class AuthService {
     this.logger.debug(`Password match for ${email}: ${isMatch}`);
 
     if (isMatch) {
-      if (user.role === 'vendor' && !user.isEmailVerified) {
-        throw new UnauthorizedException(
-          'Please verify your studio account first. Check your phone for the 4-digit SMS code, or use Resend on the verification screen.',
-        );
-      }
       const userObj = (user as any).toObject();
       const { password, ...result } = userObj;
       return result;
@@ -103,24 +98,12 @@ export class AuthService {
 
   private buildRegisterResponse(user: any, otpSent: boolean, resumed = false) {
     const safeUser = this.toSafeUser(user);
-    const phoneHint = user.phone ? this.maskPhone(user.phone) : 'your phone';
-    const baseMessage = user.role === 'vendor'
-      ? `A 4-digit verification code has been sent via SMS to ${phoneHint}. Enter it to complete your studio registration.`
-      : 'Account created successfully. A confirmation SMS has been sent to your phone.';
-
-    let message = baseMessage;
-    if (resumed) {
-      message =
-        `This email is already registered but not verified. A new verification code has been sent via SMS to ${phoneHint}.`;
-    } else if (user.role === 'vendor' && !otpSent) {
-      message =
-        'We could not send the verification SMS — tap Resend on the verification screen to try again.';
-    }
+    const message = 'Account created successfully. A confirmation SMS has been sent to your phone.';
 
     return {
       user: safeUser,
-      requiresEmailVerification: user.role === 'vendor',
-      otpSent: user.role !== 'vendor' || otpSent,
+      requiresEmailVerification: false,
+      otpSent: true,
       message,
     };
   }
@@ -133,25 +116,6 @@ export class AuthService {
       const existing = normalizedEmail ? await this.usersService.findOne(normalizedEmail) : null;
 
       if (existing) {
-        if (existing.role === 'vendor' && !existing.isEmailVerified) {
-          if (userData.password) {
-            await this.usersService.updatePassword((existing as any)._id.toString(), userData.password);
-          }
-          let otpSent = true;
-          try {
-            await this.sendVendorOTP(
-              existing.phone!,
-              existing.name || existing.shopName || 'Vendor',
-            );
-          } catch (error) {
-            otpSent = false;
-            this.logger.error(
-              `Failed to resend vendor OTP to ${this.maskEmail(existing.email)}: ${error.message}`,
-            );
-          }
-          return this.buildRegisterResponse(existing, otpSent, true);
-        }
-
         throw new ConflictException(
           existing.role === 'vendor'
             ? 'This email is already registered. Please sign in to your studio account.'
@@ -161,29 +125,9 @@ export class AuthService {
 
       createdUser = await this.usersService.create(userData);
 
-      let vendorOtpSent = true;
-      if (createdUser.role === 'vendor') {
-        if (!createdUser.phone) {
-          vendorOtpSent = false;
-          this.logger.error(`Vendor ${createdUser.email} has no phone — OTP SMS skipped`);
-        } else {
-          try {
-            await this.sendVendorOTP(
-              createdUser.phone,
-              createdUser.name || createdUser.shopName || 'Vendor',
-            );
-          } catch (error) {
-            vendorOtpSent = false;
-            this.logger.error(
-              `Failed to send vendor OTP SMS to ${this.maskPhone(createdUser.phone)}: ${error.message}`,
-            );
-          }
-        }
-      }
-
       // Identity verification is handled by Shufti Pro (see UsersService.create) — not Smile ID
 
-      return this.buildRegisterResponse(createdUser, vendorOtpSent);
+      return this.buildRegisterResponse(createdUser, true);
     } catch (error) {
       // Account may already exist in DB (SMS sent) even if a post-create step failed
       if (createdUser) {
