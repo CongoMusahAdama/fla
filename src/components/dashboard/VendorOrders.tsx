@@ -121,7 +121,7 @@ export const VendorOrders: React.FC<VendorOrdersProps> = ({
                 <div className="flex justify-between items-start">
                   <div className="flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-brand-lemon" />
-                    <span className="font-black text-slate-900 text-[10px] uppercase tracking-widest">#ORD-{order._id?.slice(-8).toUpperCase()}</span>
+                    <span className="font-black text-slate-900 text-[10px] uppercase tracking-widest">#ORD-{order._id?.slice(-8)?.toUpperCase() || 'UNKNOWN'}</span>
                   </div>
                   <span className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest shadow-sm border ${
                     order.status === 'delivered' 
@@ -230,7 +230,7 @@ export const VendorOrders: React.FC<VendorOrdersProps> = ({
                     <td className="px-10 py-8 font-black text-slate-900 text-xs border-r border-slate-50 relative">
                       <div className="flex items-center gap-2">
                           <span className="w-2 h-2 rounded-full bg-brand-lemon" />
-                          #ORD-{order._id?.slice(-8).toUpperCase()}
+                          #ORD-{order._id?.slice(-8)?.toUpperCase() || 'UNKNOWN'}
                       </div>
                     </td>
                     <td className="px-10 py-8 border-r border-slate-50">
