@@ -915,7 +915,7 @@ export default function VendorDashboard() {
 
                             <div className="space-y-4">
                                 <label htmlFor="p-desc" className="text-[12px] font-black text-slate-900 uppercase tracking-widest ml-1 cursor-pointer">Product Description</label>
-                                <textarea id="p-desc" name="description" value={formNarrative} onChange={(e) => setFormNarrative(e.target.value)} rows={4} className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-slate-900/10 resize-none md:p-8" placeholder="Tell the story behind this product..." />
+                                <textarea id="p-desc" name="description" value={formNarrative} onChange={(e) => setFormNarrative(e.target.value)} rows={4} disabled={!!editingProduct} className={`w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-slate-900/10 resize-none md:p-8 ${editingProduct ? 'blur-[4px] select-none pointer-events-none opacity-70' : ''}`} placeholder="Tell the story behind this product..." />
                             </div>
                             
                             <button onClick={handleAddOrEditProduct} className="w-full py-6 bg-slate-900 text-white rounded-[24px] font-black text-xs uppercase tracking-widest hover:bg-brand-lemon hover:text-slate-900 transition-all active:scale-95 mt-4">

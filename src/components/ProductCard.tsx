@@ -125,7 +125,7 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                         <!-- Content Area -->
                         <div class="bg-white px-4 md:px-6 py-8 -mt-6 rounded-none relative z-10 flex flex-col gap-6 md:gap-8 border-x border-slate-100">
                             <div class="text-center">
-                                <p class="text-slate-500 text-xs md:text-sm font-medium leading-relaxed italic px-2 blur-[4px] select-none pointer-events-none opacity-70">
+                                <p class="text-slate-500 text-xs md:text-sm font-medium leading-relaxed italic px-2">
                                     "${vendor.bio || "Your studio's narrative is shared here with patrons in the marketplace."}"
                                 </p>
                             </div>
