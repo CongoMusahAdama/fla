@@ -104,8 +104,6 @@ export class UsersService {
         }
 
         if (role === 'vendor') {
-          this.syncVendorSubaccount(savedUser._id.toString()).catch(err => this.logger.error(err));
-
           if (createUserDto.ghanaCardFront && createUserDto.selfie && this.shuftiService.isConfigured()) {
             this.logger.log(`Triggering Shufti background verification for vendor: ${savedUser.email}`);
             this.shuftiService
@@ -316,6 +314,9 @@ export class UsersService {
     if (user && user.email) {
         try {
             if (status === 'active' && user.role === 'vendor') {
+                // Automatically sync Paystack subaccount upon approval
+                this.syncVendorSubaccount(id).catch(err => this.logger.error(`Failed to sync Paystack subaccount on approval: ${err.message}`));
+                
                 await this.emailService.sendWelcomeEmail(user.email, user.name, user.shopName || 'Your Studio');
                 if (user.phone) {
                     const smsMessage = `Congrats ${user.shopName || user.name}! Your vendor account on FLA is approved. Login here to start: https://flamingo-store1.com/auth`;

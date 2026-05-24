@@ -132,7 +132,10 @@ export default function AdminDashboard() {
             ]);
 
             if (statsRes.ok) setAdminData(await statsRes.json());
-            if (ordersRes.ok) setAllOrders(await ordersRes.json());
+            if (ordersRes.ok) {
+                const ordersData = await ordersRes.json();
+                setAllOrders(ordersData.orders ? ordersData.orders : (Array.isArray(ordersData) ? ordersData : []));
+            }
             if (usersRes.ok) setAllUsers(await usersRes.json());
             if (productsRes.ok) setAllProducts(await productsRes.json());
             if (allDisputesRes.ok) setAllDisputes(await allDisputesRes.json());
@@ -506,7 +509,12 @@ export default function AdminDashboard() {
                 password: data.password,
                 shopName: data.shopName,
                 productTypes: data.productTypes,
-                paymentMethods: data.paymentMethods,
+                paymentMethods: [{
+                    type: 'momo',
+                    network: data.momoProvider || 'MTN',
+                    accountNumber: data.momoNumber,
+                    accountName: data.accountName || data.name
+                }],
                 ghanaCardFront: ghanaCardFrontUrl,
                 ghanaCardBack: ghanaCardBackUrl,
                 ghanaCardNumber: data.kyc?.ghanaCardNumber,

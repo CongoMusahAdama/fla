@@ -567,6 +567,7 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                 customerName: user?.name,
                 customerEmail: user?.email,
                 customerPhone: user?.phone,
+                customerId: user?._id || user?.id || user?.userId,
                 paymentMethod: 'paystack',
                 notes: 'Quick Buy Checkout (Skynet Express)'
             };

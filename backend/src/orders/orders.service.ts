@@ -84,20 +84,25 @@ export class OrdersService {
       const savedOrder = await createdOrder.save();
 
       // Initialize Paystack Payment with Split (Subaccount)
-      const paymentLinkData: any = await this.paystackService.initializePayment({
+      const paystackPayload: any = {
         reference: orderId.toString(),
         amount: totalProductAmount,
         email: createOrderDto.customerEmail || 'customer@fla.com',
         callback_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard?order_id=${orderId}`,
-        subaccount: vendor?.paystackSubaccountCode,
-        transaction_charge: Math.round(adminCommission * 100),
         metadata: {
           orderId: orderId.toString(),
           customerName: createOrderDto.customerName,
           deliveryFee: deliveryFee,
           paymentNotes: 'Delivery fee to be paid on arrival'
         }
-      });
+      };
+
+      if (vendor?.paystackSubaccountCode) {
+        paystackPayload.subaccount = vendor.paystackSubaccountCode;
+        paystackPayload.transaction_charge = Math.round(adminCommission * 100);
+      }
+
+      const paymentLinkData: any = await this.paystackService.initializePayment(paystackPayload);
 
 
       // Notify vendor via Email
@@ -155,20 +160,25 @@ export class OrdersService {
     const totalProductAmount = order.totalAmount - (order.deliveryFee || 0);
     const adminCommission = order.adminCommission || (totalProductAmount * (FLA_CONSTANTS.DEFAULT_COMMISSION_RATE / 100));
 
-    const paymentLinkData: any = await this.paystackService.initializePayment({
+    const paystackPayload: any = {
       reference: `${orderId.toString()}_${Date.now()}`,
       amount: totalProductAmount,
       email: order.customerEmail || 'customer@fla.com',
       callback_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard?order_id=${orderId}`,
-      subaccount: vendor?.paystackSubaccountCode,
-      transaction_charge: Math.round(adminCommission * 100),
       metadata: {
         orderId: orderId.toString(),
         customerName: order.customerName,
         deliveryFee: order.deliveryFee,
         paymentNotes: 'Delivery fee to be paid on arrival'
       }
-    });
+    };
+
+    if (vendor?.paystackSubaccountCode) {
+      paystackPayload.subaccount = vendor.paystackSubaccountCode;
+      paystackPayload.transaction_charge = Math.round(adminCommission * 100);
+    }
+
+    const paymentLinkData: any = await this.paystackService.initializePayment(paystackPayload);
 
     return { paymentLink: paymentLinkData.authorization_url };
   }

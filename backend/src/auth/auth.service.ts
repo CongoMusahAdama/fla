@@ -215,6 +215,9 @@ export class AuthService {
     // Set status to active and mark email verified (admin-created)
     await this.usersService.update(user._id.toString(), { status: 'active', isEmailVerified: true } as any);
 
+    // Sync Paystack Subaccount immediately for admin-created vendors
+    await this.usersService.syncVendorSubaccount(user._id.toString()).catch(err => this.logger.error(`Failed to sync Paystack subaccount for admin-created vendor: ${err.message}`));
+
     // Send the credentials email with the raw password
     await this.emailService.sendVendorCredentialsEmail(user.email, user.name || 'Vendor', password, user.shopName || 'FLA Studio');
 
