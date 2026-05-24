@@ -125,24 +125,9 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                         <!-- Content Area -->
                         <div class="bg-white px-4 md:px-6 py-8 -mt-6 rounded-none relative z-10 flex flex-col gap-6 md:gap-8 border-x border-slate-100">
                             <div class="text-center">
-                                <p class="text-slate-500 text-xs md:text-sm font-medium leading-relaxed italic px-2">
+                                <p class="text-slate-500 text-xs md:text-sm font-medium leading-relaxed italic px-2 blur-[4px] select-none pointer-events-none opacity-70">
                                     "${vendor.bio || "Your studio's narrative is shared here with patrons in the marketplace."}"
                                 </p>
-                            </div>
-
-                            <!-- Contact Channels -->
-                            <div class="flex flex-col gap-4">
-                                <h4 class="text-[9px] font-black text-slate-400 uppercase tracking-widest text-center">Contact Designer</h4>
-                                <div class="grid grid-cols-2 gap-3">
-                                    <a href="https://wa.me/${vendor.phone}" target="_blank" class="flex flex-col items-center justify-center gap-1 bg-emerald-500 text-white p-3 md:p-4 rounded-none shadow-xl shadow-emerald-500/10 hover:shadow-emerald-500/20 active:scale-95 transition-all text-[10px] md:text-xs font-black uppercase tracking-widest">
-                                        <span>WhatsApp</span>
-                                        <span class="text-[8px] opacity-80">${vendor.phone || 'Contact'}</span>
-                                    </a>
-                                    <a href="tel:${vendor.phone}" class="flex flex-col items-center justify-center gap-1 bg-slate-900 text-white p-3 md:p-4 rounded-none shadow-xl shadow-slate-900/10 hover:shadow-slate-900/20 active:scale-95 transition-all text-[10px] md:text-xs font-black uppercase tracking-widest text-center">
-                                        <span>Call Store</span>
-                                        <span class="text-[8px] opacity-80">${vendor.phone || 'Contact'}</span>
-                                    </a>
-                                </div>
                             </div>
 
                             <!-- Performance Grid -->

@@ -141,6 +141,38 @@ export class OrdersService {
     }
   }
 
+  async initializePayment(orderId: string, customerId: string): Promise<{ paymentLink: string }> {
+    const order = await this.orderModel.findById(orderId).exec();
+    if (!order) throw new NotFoundException(`Order not found`);
+    if (order.customerId.toString() !== customerId) throw new ForbiddenException('Unauthorized');
+    if (order.isPaid) throw new BadRequestException('Order is already paid');
+
+    let vendor: any = null;
+    if (order.vendorId) {
+      vendor = await this.userModel.findById(order.vendorId).exec();
+    }
+
+    const totalProductAmount = order.totalAmount - (order.deliveryFee || 0);
+    const adminCommission = order.adminCommission || (totalProductAmount * (FLA_CONSTANTS.DEFAULT_COMMISSION_RATE / 100));
+
+    const paymentLinkData: any = await this.paystackService.initializePayment({
+      reference: `${orderId.toString()}_${Date.now()}`,
+      amount: totalProductAmount,
+      email: order.customerEmail || 'customer@fla.com',
+      callback_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard?order_id=${orderId}`,
+      subaccount: vendor?.paystackSubaccountCode,
+      transaction_charge: Math.round(adminCommission * 100),
+      metadata: {
+        orderId: orderId.toString(),
+        customerName: order.customerName,
+        deliveryFee: order.deliveryFee,
+        paymentNotes: 'Delivery fee to be paid on arrival'
+      }
+    });
+
+    return { paymentLink: paymentLinkData.authorization_url };
+  }
+
   async handlePaymentSuccess(orderId: string, transactionId: string) {
     const session = await this.connection.startSession();
     session.startTransaction();

@@ -152,6 +152,12 @@ export class OrdersController {
   }
 
   @UseGuards(AuthGuard('jwt'))
+  @Post(':id/initialize-payment')
+  initializePayment(@Param('id') id: string, @Request() req) {
+    return this.ordersService.initializePayment(id, req.user.userId);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
   @Post(':id/submit-first-mile-proof')
   submitFirstMileProof(@Param('id') id: string, @Body() body: { proofUrl: string }, @Request() req) {
     return this.ordersService.submitFirstMilePaymentProof(id, req.user.userId, body.proofUrl);
