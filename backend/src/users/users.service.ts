@@ -317,6 +317,10 @@ export class UsersService {
         try {
             if (status === 'active' && user.role === 'vendor') {
                 await this.emailService.sendWelcomeEmail(user.email, user.name, user.shopName || 'Your Studio');
+                if (user.phone) {
+                    const smsMessage = `Congrats ${user.shopName || user.name}! Your vendor account on FLA is approved. Login here to start: https://flamingo-store1.com/auth`;
+                    this.sendRegistrationSms(user.phone, smsMessage, 'vendor-approval');
+                }
             } else if (status === 'rejected' && user.role === 'vendor') {
                 await this.emailService.sendGenericNotification(
                     user.email, 
