@@ -105,31 +105,7 @@ export class OrdersService {
       const paymentLinkData: any = await this.paystackService.initializePayment(paystackPayload);
 
 
-      // --- SMS Notifications (Fire and Forget) ---
-      const orderShortId = orderId.toString().slice(-6).toUpperCase();
-      
-      // Notify customer via SMS
-      if (createOrderDto.customerPhone) {
-        const customerMsg = `Hi ${createOrderDto.customerName || 'Customer'}, your order #ORD-${orderShortId} on FLA has been placed successfully! Total: GHS ${totalAmount}.`;
-        this.smsService.sendSms(createOrderDto.customerPhone, customerMsg)
-          .catch(err => this.logger.error(`Failed to send customer SMS: ${err.message}`));
-      }
-      
-      // Notify vendor via SMS
-      if (createOrderDto.vendorId) {
-        this.userModel.findById(createOrderDto.vendorId).exec().then(vendor => {
-          if (vendor && vendor.phone) {
-            const vendorMsg = `Hello ${vendor.shopName || vendor.name}, you have a new order #ORD-${orderShortId} on FLA. Total: GHS ${totalAmount}. Please check your dashboard to begin fulfillment.`;
-            this.smsService.sendSms(vendor.phone, vendorMsg)
-              .catch(err => this.logger.error(`Vendor SMS failed: ${err.message}`));
-          }
-        }).catch(err => this.logger.error(`Failed to lookup vendor for SMS: ${err.message}`));
-      }
-
-      // Notify Admin via SMS
-      const adminMsg = `New Order #ORD-${orderShortId} placed by ${createOrderDto.customerName || 'Customer'}. Amount: GHS ${totalAmount}.`;
-      this.smsService.sendAdminNotification(adminMsg)
-        .catch(err => this.logger.error(`Admin SMS failed: ${err.message}`));
+      // NOTE: Vendor & Admin SMS are sent ONLY after payment is confirmed via Paystack webhook (handlePaymentSuccess)
 
       return { order: savedOrder, paymentLink: paymentLinkData.authorization_url };
     } catch (error) {
@@ -227,17 +203,27 @@ export class OrdersService {
       }
 
 
-      // --- SMS Notifications ---
+      // --- SMS Notifications (sent ONLY after Paystack confirms payment) ---
       const orderShortId = order._id.toString().slice(-6).toUpperCase();
 
       // Notify Customer via SMS
       if (customer && customer.phone) {
-        const customerMsg = `Payment for Order #ORD-${orderShortId} verified! Your vendor has been notified to begin fulfillment. Thank you for shopping on FLA.`;
-        this.smsService.sendSms(customer.phone, customerMsg).catch(console.error);
+        const customerMsg = `Payment confirmed! Your order #ORD-${orderShortId} on FLA is verified. Your vendor has been notified to begin fulfillment. Thank you for shopping!`;
+        this.smsService.sendSms(customer.phone, customerMsg).catch(err => this.logger.error(`Customer payment SMS failed: ${err.message}`));
+      }
+
+      // Notify Vendor via SMS (only now that payment is confirmed)
+      if (order.vendorId) {
+        this.userModel.findById(order.vendorId).exec().then(vendor => {
+          if (vendor && vendor.phone) {
+            const vendorMsg = `Payment received! Order #ORD-${orderShortId} on FLA has been paid. GHS ${order.totalAmount}. Please check your dashboard and begin fulfillment immediately.`;
+            this.smsService.sendSms(vendor.phone, vendorMsg).catch(err => this.logger.error(`Vendor payment SMS failed: ${err.message}`));
+          }
+        }).catch(err => this.logger.error(`Vendor lookup for payment SMS failed: ${err.message}`));
       }
 
       // Notify Admin via SMS
-      const adminMsg = `Payment Verified for Order #ORD-${orderShortId}. Amount: GHS ${order.totalAmount}.`;
+      const adminMsg = `Payment Confirmed for Order #ORD-${orderShortId} by ${order.customerName || 'Customer'}. Amount: GHS ${order.totalAmount}.`;
       this.smsService.sendAdminNotification(adminMsg).catch(err => this.logger.error(`Admin payment SMS failed: ${err.message}`));
     } catch (err) {
       this.logger.error(`Notification failed for order ${order._id}: ${err.message}`);
