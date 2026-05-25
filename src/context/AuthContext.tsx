@@ -7,6 +7,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 export type UserRole = 'customer' | 'admin' | 'vendor';
 
 export type User = {
+    _id?: string;
     id: string;
     name: string;
     email: string;
