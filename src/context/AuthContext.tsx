@@ -8,6 +8,7 @@ export type UserRole = 'customer' | 'admin' | 'vendor';
 
 export type User = {
     _id?: string;
+    userId?: string;
     id: string;
     name: string;
     email: string;
