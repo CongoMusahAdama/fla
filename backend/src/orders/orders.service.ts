@@ -105,44 +105,37 @@ export class OrdersService {
       const paymentLinkData: any = await this.paystackService.initializePayment(paystackPayload);
 
 
-      // Notify vendor via Email
-      if (createOrderDto.vendorId) {
-        const vendor = await this.userModel.findById(createOrderDto.vendorId).exec();
-        if (vendor && vendor.email) {
-          await this.emailService.sendVendorOrderNotification(vendor.email, vendor.shopName || vendor.name, orderId.toString(), totalAmount);
-        }
-      }
-
-      // Notify customer via Email
-      if (createOrderDto.customerEmail) {
-        await this.emailService.sendOrderEmail(
-          createOrderDto.customerEmail,
-          createOrderDto.customerName || 'Customer',
-          orderId.toString(),
-          totalAmount
-        );
-      }
-
-      // --- SMS Notifications ---
+      // --- SMS Notifications (Fire and Forget) ---
       const orderShortId = orderId.toString().slice(-6).toUpperCase();
+      
+      // Notify customer via SMS
+      if (createOrderDto.customerPhone) {
+        const customerMsg = `Hi ${createOrderDto.customerName || 'Customer'}, your order #ORD-${orderShortId} on FLA has been placed successfully! Total: GHS ${totalAmount}.`;
+        this.smsService.sendSms(createOrderDto.customerPhone, customerMsg)
+          .catch(err => this.logger.error(`Failed to send customer SMS: ${err.message}`));
+      }
       
       // Notify vendor via SMS
       if (createOrderDto.vendorId) {
-        const vendor = await this.userModel.findById(createOrderDto.vendorId).exec();
-        if (vendor && vendor.phone) {
-          const vendorMsg = `Hello ${vendor.shopName || vendor.name}, you have a new order #ORD-${orderShortId} on FLA. Total: GHS ${totalAmount}. Please check your dashboard to begin fulfillment.`;
-          this.smsService.sendSms(vendor.phone, vendorMsg).catch(err => this.logger.error(`Vendor SMS failed: ${err.message}`));
-        }
+        this.userModel.findById(createOrderDto.vendorId).exec().then(vendor => {
+          if (vendor && vendor.phone) {
+            const vendorMsg = `Hello ${vendor.shopName || vendor.name}, you have a new order #ORD-${orderShortId} on FLA. Total: GHS ${totalAmount}. Please check your dashboard to begin fulfillment.`;
+            this.smsService.sendSms(vendor.phone, vendorMsg)
+              .catch(err => this.logger.error(`Vendor SMS failed: ${err.message}`));
+          }
+        }).catch(err => this.logger.error(`Failed to lookup vendor for SMS: ${err.message}`));
       }
 
       // Notify Admin via SMS
       const adminMsg = `New Order #ORD-${orderShortId} placed by ${createOrderDto.customerName || 'Customer'}. Amount: GHS ${totalAmount}.`;
-      this.smsService.sendAdminNotification(adminMsg).catch(err => this.logger.error(`Admin SMS failed: ${err.message}`));
+      this.smsService.sendAdminNotification(adminMsg)
+        .catch(err => this.logger.error(`Admin SMS failed: ${err.message}`));
 
       return { order: savedOrder, paymentLink: paymentLinkData.authorization_url };
     } catch (error) {
-      this.logger.error(`Error creating order: ${error.message}`, error.stack);
-      throw error;
+      this.logger.error(`Failed to create order: ${error.message}`);
+      const errorMessage = error.response?.data?.message || error.message || 'Payment gateway error. Please try again.';
+      throw new InternalServerErrorException(errorMessage);
     }
   }
 

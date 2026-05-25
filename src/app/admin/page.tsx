@@ -52,7 +52,7 @@ export default function AdminDashboard() {
     });
 
     const [settings, setSettings] = useState({
-        platformCommission: 10,
+        platformCommission: 6,
         withdrawalMinimum: 50,
         automatedPayouts: true,
         vendorAutoApproval: false,
