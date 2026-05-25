@@ -230,6 +230,11 @@ export class AuthService {
         await this.emailService.sendGenericNotification(user.email, user.name || 'Vendor', 'Welcome to FLA Studio! 🚀', message);
     }
 
+    if (user.phone) {
+        const smsMessage = `Congrats ${user.shopName || user.name}! Your vendor account on FLA is active. Please check your email for your password and login here: https://flamingo-store1.com/auth`;
+        await this.smsService.sendSms(user.phone, smsMessage).catch(err => this.logger.error(`Failed to send SMS to admin-created vendor: ${err.message}`));
+    }
+
     return user;
   }
 
