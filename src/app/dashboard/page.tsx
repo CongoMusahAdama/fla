@@ -549,30 +549,7 @@ export default function CustomerDashboard() {
                             ))}
                         </div>
 
-                        {/* Logistics Attention Banner (If any inter-regional order requires fee payment) */}
-                        {orders.some(o => o.deliveryType === 'inter-regional' && o.firstMileFee > 0 && !o.isFirstMileFeePaid) && (
-                            <div className="bg-slate-900 rounded-[32px] p-6 text-white overflow-hidden relative group animate-in slide-in-from-top-4 duration-700">
-                                <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-125 transition-transform">
-                                    <Truck className="w-32 h-32" />
-                                </div>
-                                <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                                    <div className="space-y-2">
-                                        <div className="flex items-center gap-2">
-                                            <span className="bg-brand-lemon text-slate-900 text-[8px] font-black uppercase tracking-[0.2em] px-3 py-1 rounded-full">Action Required</span>
-                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Premium Logistics</span>
-                                        </div>
-                                        <h2 className="text-xl font-black uppercase tracking-tighter">Logistics Update Ready</h2>
-                                        <p className="text-slate-400 text-xs font-medium max-w-md">Your vendors have updated delivery quotations for your inter-regional orders. Please review and pay to proceed with fulfillment.</p>
-                                    </div>
-                                    <button 
-                                        onClick={() => setActiveSection('orders')}
-                                        className="bg-brand-lemon text-slate-900 px-8 py-4 rounded-full text-[11px] font-black uppercase tracking-widest hover:scale-105 transition-all shadow-xl shadow-brand-lemon/10"
-                                    >
-                                        Pay Delivery Fees
-                                    </button>
-                                </div>
-                            </div>
-                        )}
+                        {/* Logistics Attention Banner (Removed as delivery fees are paid off-platform) */}
 
                         {/* Recent Activity & Quick Links */}
                         <div className="grid lg:grid-cols-4 gap-8">
@@ -733,13 +710,7 @@ export default function CustomerDashboard() {
                                                 </div>
                                                 <h3 className="font-bold text-slate-900 text-sm mb-1 line-clamp-2">{order.items[0]?.name || 'Multiple Items'}</h3>
                                                 <p className="text-xs text-slate-500 font-medium">{order.vendorName || 'FLA Vendor'}</p>
-                                                {order.deliveryType === 'inter-regional' && (
-                                                    <div className="mt-2 text-[10px] font-black uppercase tracking-widest text-slate-500 flex flex-col gap-1">
-                                                        <span>1st Mile: GH₵ {order.firstMileFee || 'TBD'} 
-                                                            {order.firstMileFee > 0 && ` (${order.isFirstMileFeePaid ? 'Paid' : 'Pending'})`}
-                                                        </span>
-                                                    </div>
-                                                )}
+                                                {/* Delivery info placeholder if needed */}
                                                 <p className="font-sans font-black text-slate-900 mt-2">GH₵ {order.totalAmount}</p>
                                             </div>
                                         </div>
@@ -752,22 +723,7 @@ export default function CustomerDashboard() {
                                                     Pay Now
                                                 </button>
                                             )}
-                                            {order.deliveryType === 'inter-regional' && order.firstMileFee > 0 && !order.isFirstMileFeePaid && (
-                                                <div className="col-span-2 flex flex-col gap-2 mb-2">
-                                                    <button
-                                                        onClick={() => handlePayDeliveryFee(order._id)}
-                                                        className="py-4 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:shadow-lg transition-all active:scale-95 text-center shadow-slate-900/10"
-                                                    >
-                                                        Accept & Pay Delivery (GHC {order.firstMileFee})
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleWithdrawOrder(order._id)}
-                                                        className="py-4 bg-red-50 text-red-500 border border-red-100 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-red-100 transition-all active:scale-95 text-center"
-                                                    >
-                                                        Withdraw Order
-                                                    </button>
-                                                </div>
-                                            )}
+                                            {/* First Mile payment removed as per requirements */}
                                             {order.paymentProof && !order.isPaid && (
                                                 <div className="col-span-2 py-2 bg-slate-50 border border-slate-100 rounded-xl text-center mb-1">
                                                     <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest italic">Verification Pending</span>
@@ -936,14 +892,7 @@ export default function CustomerDashboard() {
                                                             <span className="text-[9px] font-black text-brand-black bg-brand-lemon px-2 py-0.5 rounded-md border border-brand-lemon/20 inline-block uppercase">POINT: {order.pickupPoint}</span>
                                                         </div>
                                                     )}
-                                                    {order.deliveryType === 'inter-regional' && (
-                                                        <div className="mt-1 flex flex-col gap-0.5">
-                                                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">1st Mile: GH₵ {order.firstMileFee || 'TBD'}</span>
-                                                            <span className={`text-[8px] font-black uppercase tracking-widest ${order.isFirstMileFeePaid ? 'text-emerald-500' : 'text-amber-500'}`}>
-                                                                {order.firstMileFee > 0 ? (order.isFirstMileFeePaid ? 'PAID' : 'PENDING') : ''}
-                                                            </span>
-                                                        </div>
-                                                    )}
+                                                    {/* Desktop delivery info removed */}
                                                 </td>
                                                 <td className="px-8 py-6 font-sans font-black text-slate-900">GH₵ {order.totalAmount}</td>
                                                 <td className={`px-8 py-6 text-right flex items-center justify-end gap-2 transition-all duration-500 ${order.status === 'cancelled' ? 'opacity-20 pointer-events-none grayscale blur-[3px]' : ''}`}>
@@ -955,22 +904,7 @@ export default function CustomerDashboard() {
                                                             Pay Now
                                                         </button>
                                                     )}
-                                                    {order.deliveryType === 'inter-regional' && order.firstMileFee > 0 && !order.isFirstMileFeePaid && (
-                                                        <div className="flex items-center gap-2">
-                                                            <button
-                                                                onClick={() => handlePayDeliveryFee(order._id)}
-                                                                className="px-6 py-2 bg-slate-900 text-white rounded-full text-[9px] font-black uppercase tracking-widest hover:shadow-lg transition-all whitespace-nowrap"
-                                                            >
-                                                                Accept Fee
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handleWithdrawOrder(order._id)}
-                                                                className="px-6 py-2 bg-red-50 text-red-500 border border-red-100 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-red-100 transition-all whitespace-nowrap"
-                                                            >
-                                                                Withdraw
-                                                            </button>
-                                                        </div>
-                                                    )}
+                                                    {/* Desktop delivery buttons removed */}
 
                                                     <button
                                                         onClick={() => setTrackingOrder(order)}

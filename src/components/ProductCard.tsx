@@ -588,6 +588,11 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
             }
 
             const { paymentLink } = await response.json();
+            
+            // Close the loading modal right before redirecting. 
+            // This prevents it from being stuck open if the user clicks "Back" in their browser.
+            Swal.close();
+            
             window.location.href = paymentLink;
 
         } catch (error: any) {

@@ -311,34 +311,37 @@ export class UsersService {
     // Shop approval is separate from Shufti identity verification — do not auto-set isIdentityVerified
     const user = await this.userModel.findByIdAndUpdate(id, { $set: update }, { new: true }).lean().exec() as unknown as User;
     
-    if (user && user.email) {
+    if (user) {
         try {
             if (status === 'active' && user.role === 'vendor') {
                 // Automatically sync Paystack subaccount upon approval
                 this.syncVendorSubaccount(id).catch(err => this.logger.error(`Failed to sync Paystack subaccount on approval: ${err.message}`));
                 
-                await this.emailService.sendWelcomeEmail(user.email, user.name, user.shopName || 'Your Studio');
                 if (user.phone) {
                     const smsMessage = `Congrats ${user.shopName || user.name}! Your vendor account on FLA is approved. Login here to start: https://flamingo-store1.com/auth`;
-                    this.sendRegistrationSms(user.phone, smsMessage, 'vendor-approval');
+                    this.sendRegistrationSms(user.phone, smsMessage, 'vendor-approval').catch(err => this.logger.error(err.message));
                 }
             } else if (status === 'rejected' && user.role === 'vendor') {
-                await this.emailService.sendGenericNotification(
-                    user.email, 
-                    user.name, 
-                    'Studio Verification Update', 
-                    'We regret to inform you that your studio application has been declined. Please ensure your KYC documents are clear and valid before trying again.'
-                );
+                if (user.email) {
+                    this.emailService.sendGenericNotification(
+                        user.email, 
+                        user.name, 
+                        'Studio Verification Update', 
+                        'We regret to inform you that your studio application has been declined. Please ensure your KYC documents are clear and valid before trying again.'
+                    ).catch(err => this.logger.error(err.message));
+                }
             } else if (status === 'banned') {
-                await this.emailService.sendGenericNotification(
-                    user.email,
-                    user.name,
-                    'Account Status Update',
-                    'Your account has been suspended due to a violation of our platform policies. Please contact support if you believe this is an error.'
-                );
+                if (user.email) {
+                    this.emailService.sendGenericNotification(
+                        user.email,
+                        user.name,
+                        'Account Status Update',
+                        'Your account has been suspended due to a violation of our platform policies. Please contact support if you believe this is an error.'
+                    ).catch(err => this.logger.error(err.message));
+                }
             }
-        } catch (emailError) {
-            this.logger.error(`Failed to send status update email to ${user.email}: ${emailError.message}`);
+        } catch (error) {
+            this.logger.error(`Failed to send status update notification: ${error.message}`);
         }
     }
     

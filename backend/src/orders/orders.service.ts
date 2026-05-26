@@ -168,13 +168,18 @@ export class OrdersService {
       order.escrowStatus = 'completed'; // Direct split means it's effectively completed
       order.paymentId = transactionId;
 
-      // Decrement stock for each item in parallel
+      // Decrement stock for each item and track sold-out status
       if (order.items && order.items.length > 0) {
-        const stockUpdates = order.items.map(item =>
-          this.productModel.findByIdAndUpdate(item.productId, {
-            $inc: { stock: -item.quantity }
-          }).session(session)
-        );
+        const stockUpdates = order.items.map(async item => {
+          const prod = await this.productModel.findById(item.productId).session(session).exec();
+          if (prod) {
+            prod.stock -= item.quantity;
+            if (prod.stock <= 0 && !prod.soldOutAt) {
+              prod.soldOutAt = new Date();
+            }
+            return prod.save({ session });
+          }
+        });
         await Promise.all(stockUpdates);
       }
 
@@ -232,7 +237,13 @@ export class OrdersService {
 
   async findAll(page: number = 1, limit: number = 10): Promise<{ orders: Order[]; total: number }> {
     const [orders, total] = await Promise.all([
-      this.orderModel.find().sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).exec(),
+      this.orderModel.find()
+        .populate('vendorId', 'name shopName email phone')
+        .populate('customerId', 'name email phone')
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .exec(),
       this.orderModel.countDocuments()
     ]);
     return { orders, total };
@@ -305,26 +316,17 @@ export class OrdersService {
           // Vendor can cancel (e.g., if product is no more fit to sell), which is already covered by ownership check
         }
 
-        // If order was paid, we handle the refund to customer wallet
+        // Since payments are split directly to vendors via Paystack, the platform cannot auto-refund.
+        // It must be paid back manually by the vendor.
         if (order.isPaid && order.escrowStatus !== 'refunded') {
-          // 1. Deduct from vendor's pending balance (if it was added during payment verification)
-          await this.userModel.findByIdAndUpdate(order.vendorId, {
-            $inc: { pendingBalance: -order.vendorShare }
-          }).session(session);
-
-          // 2. Credit the customer's wallet balance
-          await this.userModel.findByIdAndUpdate(order.customerId, {
-            $inc: { walletBalance: order.totalAmount }
-          }).session(session);
-
-          // 3. Update escrow status
-          (updateOrderDto as any).escrowStatus = 'refunded';
+          // 1. Update escrow status to indicate a refund is owed manually
+          (updateOrderDto as any).escrowStatus = 'refund_pending';
         }
 
         // Notify Customer
         await this.notificationsService.create(order.customerId.toString(), {
           title: 'Order Cancelled ⚠️',
-          message: `Your Order #ORD-${order._id.toString().slice(-6).toUpperCase()} has been cancelled. ${order.isPaid ? 'A full refund has been credited to your FLA Wallet.' : ''}`,
+          message: `Your Order #ORD-${order._id.toString().slice(-6).toUpperCase()} has been cancelled. ${order.isPaid ? 'The vendor will contact you to process your refund manually.' : ''}`,
           type: 'order',
           orderId: order._id
         });
@@ -336,7 +338,7 @@ export class OrdersService {
             customer.email,
             customer.name || 'Customer',
             'Order Cancellation Update',
-            `Order #ORD-${order._id.toString().slice(-6).toUpperCase()} was cancelled. ${order.isPaid ? 'The full amount has been refunded to your wallet balance.' : 'No funds were charged.'}`
+            `Order #ORD-${order._id.toString().slice(-6).toUpperCase()} was cancelled. ${order.isPaid ? 'Since the payment was already sent to the vendor, they will manually process your refund shortly.' : 'No funds were charged.'}`
           ).catch(console.error);
         }
       }

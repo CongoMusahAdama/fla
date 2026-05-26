@@ -76,6 +76,9 @@ export class Product {
 
     @Prop({ default: true })
     hasColors: boolean;
+
+    @Prop({ type: Date })
+    soldOutAt?: Date;
 }
 
 export const ProductSchema = SchemaFactory.createForClass(Product);

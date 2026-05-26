@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, UnauthorizedException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, UnauthorizedException, ForbiddenException, OnModuleInit, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -7,11 +7,38 @@ import { Product, ProductDocument } from './schemas/product.schema';
 import { User, UserDocument } from '../users/schemas/user.schema';
 
 @Injectable()
-export class ProductsService {
+export class ProductsService implements OnModuleInit {
+  private readonly logger = new Logger(ProductsService.name);
   constructor(
     @InjectModel(Product.name) private productModel: Model<ProductDocument>,
     @InjectModel(User.name) private userModel: Model<UserDocument>
   ) { }
+
+  onModuleInit() {
+    // Run the auto-archiver every hour
+    setInterval(async () => {
+      try {
+        const twoDaysAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
+        
+        const result = await this.productModel.updateMany(
+          {
+            stock: { $lte: 0 },
+            soldOutAt: { $lt: twoDaysAgo },
+            isActive: true
+          },
+          {
+            $set: { isActive: false }
+          }
+        ).exec();
+
+        if (result.modifiedCount > 0) {
+          this.logger.log(`Auto-archived ${result.modifiedCount} products that were sold out for over 48 hours.`);
+        }
+      } catch (err) {
+        this.logger.error(`Error running auto-archiver: ${err.message}`);
+      }
+    }, 60 * 60 * 1000); // 1 hour interval
+  }
 
   async create(createProductDto: CreateProductDto): Promise<Product> {
     const createdProduct = new this.productModel(createProductDto);
