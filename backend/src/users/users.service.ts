@@ -319,7 +319,7 @@ export class UsersService {
                 
                 if (user.phone) {
                     const smsMessage = `Congrats ${user.shopName || user.name}! Your vendor account on FLA is approved. Login here to start: https://flamingo-store1.com/auth`;
-                    this.sendRegistrationSms(user.phone, smsMessage, 'vendor-approval').catch(err => this.logger.error(err.message));
+                    this.sendRegistrationSms(user.phone, smsMessage, 'vendor-approval');
                 }
             } else if (status === 'rejected' && user.role === 'vendor') {
                 if (user.email) {
