@@ -83,6 +83,18 @@ export class OrdersService {
       });
       const savedOrder = await createdOrder.save();
 
+      // Reserve stock immediately at order creation so other buyers see accurate availability
+      if (createOrderDto.items && createOrderDto.items.length > 0) {
+        for (const item of createOrderDto.items) {
+          await this.productModel.findByIdAndUpdate(
+            item.productId,
+            { $inc: { stock: -item.quantity } },
+            { new: true }
+          ).exec();
+        }
+        this.logger.log(`Stock reserved for order ${orderId.toString()}`);
+      }
+
       // Initialize Paystack Payment with Split (Subaccount)
       const paystackPayload: any = {
         reference: orderId.toString(),
@@ -168,19 +180,16 @@ export class OrdersService {
       order.escrowStatus = 'completed'; // Direct split means it's effectively completed
       order.paymentId = transactionId;
 
-      // Decrement stock for each item and track sold-out status
+      // Stock was already reserved at order creation — mark soldOutAt if applicable
       if (order.items && order.items.length > 0) {
-        const stockUpdates = order.items.map(async item => {
+        const soldOutUpdates = order.items.map(async item => {
           const prod = await this.productModel.findById(item.productId).session(session).exec();
-          if (prod) {
-            prod.stock -= item.quantity;
-            if (prod.stock <= 0 && !prod.soldOutAt) {
-              prod.soldOutAt = new Date();
-            }
+          if (prod && prod.stock <= 0 && !prod.soldOutAt) {
+            prod.soldOutAt = new Date();
             return prod.save({ session });
           }
         });
-        await Promise.all(stockUpdates);
+        await Promise.all(soldOutUpdates);
       }
 
       await order.save({ session });
@@ -319,8 +328,23 @@ export class OrdersService {
         // Since payments are split directly to vendors via Paystack, the platform cannot auto-refund.
         // It must be paid back manually by the vendor.
         if (order.isPaid && order.escrowStatus !== 'refunded') {
-          // 1. Update escrow status to indicate a refund is owed manually
           (updateOrderDto as any).escrowStatus = 'refund_pending';
+        }
+
+        // Restore reserved stock so the items go back on sale
+        if (order.items && order.items.length > 0) {
+          for (const item of order.items) {
+            await this.productModel.findByIdAndUpdate(
+              item.productId,
+              {
+                $inc: { stock: item.quantity },
+                // Clear soldOutAt if stock is being restored
+                $unset: { soldOutAt: '' }
+              },
+              { new: true }
+            ).session(session).exec();
+          }
+          this.logger.log(`Stock restored for cancelled order ${id}`);
         }
 
         // Notify Customer
