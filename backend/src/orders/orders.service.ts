@@ -217,23 +217,39 @@ export class OrdersService {
       }
 
 
-      // --- SMS Notifications (sent ONLY after Paystack confirms payment) ---
+      // --- SMS + In-App Notifications (sent ONLY after Paystack confirms payment) ---
       const orderShortId = order._id.toString().slice(-6).toUpperCase();
 
-      // Notify Customer via SMS
-      if (customer && customer.phone) {
-        const customerMsg = `Payment confirmed! Your order #ORD-${orderShortId} on FLA is verified. Your vendor has been notified to begin fulfillment. Thank you for shopping!`;
-        this.smsService.sendSms(customer.phone, customerMsg).catch(err => this.logger.error(`Customer payment SMS failed: ${err.message}`));
+      // Notify Customer via SMS + in-app bell
+      if (customer) {
+        if (customer.phone) {
+          const customerMsg = `Payment confirmed! Your order #ORD-${orderShortId} on FLA is verified. Your vendor has been notified to begin fulfillment. Thank you for shopping!`;
+          this.smsService.sendSms(customer.phone, customerMsg).catch(err => this.logger.error(`Customer payment SMS failed: ${err.message}`));
+        }
+        this.notificationsService.create(order.customerId.toString(), {
+          title: 'Payment Confirmed ✅',
+          message: `Your payment for Order #ORD-${orderShortId} has been verified. Your vendor is now preparing your item(s).`,
+          type: 'order',
+          orderId: order._id
+        }).catch(err => this.logger.error(`Customer in-app notification failed: ${err.message}`));
       }
 
-      // Notify Vendor via SMS (only now that payment is confirmed)
+      // Notify Vendor via SMS + in-app bell (only now that payment is confirmed)
       if (order.vendorId) {
         this.userModel.findById(order.vendorId).exec().then(vendor => {
-          if (vendor && vendor.phone) {
-            const vendorMsg = `Payment received! Order #ORD-${orderShortId} on FLA has been paid. GHS ${order.totalAmount}. Please check your dashboard and begin fulfillment immediately.`;
-            this.smsService.sendSms(vendor.phone, vendorMsg).catch(err => this.logger.error(`Vendor payment SMS failed: ${err.message}`));
+          if (vendor) {
+            if (vendor.phone) {
+              const vendorMsg = `Payment received! Order #ORD-${orderShortId} on FLA has been paid. GHS ${order.totalAmount}. Check your dashboard and begin fulfillment immediately.`;
+              this.smsService.sendSms(vendor.phone, vendorMsg).catch(err => this.logger.error(`Vendor payment SMS failed: ${err.message}`));
+            }
+            this.notificationsService.create(order.vendorId.toString(), {
+              title: 'New Order Payment Received 💰',
+              message: `Order #ORD-${orderShortId} has been paid — GHS ${order.totalAmount}. Please begin fulfillment immediately.`,
+              type: 'order',
+              orderId: order._id
+            }).catch(err => this.logger.error(`Vendor in-app notification failed: ${err.message}`));
           }
-        }).catch(err => this.logger.error(`Vendor lookup for payment SMS failed: ${err.message}`));
+        }).catch(err => this.logger.error(`Vendor lookup for payment notification failed: ${err.message}`));
       }
 
       // Notify Admin via SMS
