@@ -163,7 +163,8 @@ export default function VendorDashboard() {
                 }
 
                 if (ordsRes.status === 'fulfilled' && ordsRes.value.ok) {
-                    setVendorOrders(await ordsRes.value.json());
+                    const data = await ordsRes.value.json();
+                    setVendorOrders(data.orders || data);
                 }
 
                 if (notifsRes.status === 'fulfilled' && notifsRes.value.ok) {
