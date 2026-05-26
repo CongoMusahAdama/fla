@@ -485,22 +485,7 @@ export default function CustomerDashboard() {
     ];
 
     const statsList = [
-        {
-            label: 'Wallet Balance',
-            value: `GH₵ ${dashboardData?.walletBalance || 0}`,
-            icon: Wallet,
-            color: 'text-slate-900',
-            bg: 'bg-brand-lemon/20',
-            border: 'border-brand-lemon/30'
-        },
-        {
-            label: 'Pending Settlement',
-            value: `GH₵ ${dashboardData?.pendingEscrow || 0}`,
-            icon: ShieldAlert,
-            color: 'text-blue-600',
-            bg: 'bg-blue-50',
-            border: 'border-blue-100'
-        },
+
         {
             label: 'Active Orders',
             value: dashboardData?.activeOrders || '0',
@@ -715,14 +700,7 @@ export default function CustomerDashboard() {
                                             </div>
                                         </div>
                                         <div className={`grid grid-cols-2 gap-3 transition-all duration-500 ${order.status === 'cancelled' ? 'opacity-20 pointer-events-none grayscale blur-[3px]' : ''}`}>
-                                            {!order.isPaid && !order.paymentProof && (
-                                                <button
-                                                    onClick={() => handlePayNow(order._id, order.totalAmount)}
-                                                    className="col-span-2 py-3 bg-brand-lemon text-slate-900 rounded-full text-[10px] font-black uppercase tracking-widest hover:shadow-lg transition-all active:scale-95 text-center mb-1"
-                                                >
-                                                    Pay Now
-                                                </button>
-                                            )}
+
                                             {/* First Mile payment removed as per requirements */}
                                             {order.paymentProof && !order.isPaid && (
                                                 <div className="col-span-2 py-2 bg-slate-50 border border-slate-100 rounded-xl text-center mb-1">
@@ -896,14 +874,6 @@ export default function CustomerDashboard() {
                                                 </td>
                                                 <td className="px-8 py-6 font-sans font-black text-slate-900">GH₵ {order.totalAmount}</td>
                                                 <td className={`px-8 py-6 text-right flex items-center justify-end gap-2 transition-all duration-500 ${order.status === 'cancelled' ? 'opacity-20 pointer-events-none grayscale blur-[3px]' : ''}`}>
-                                                    {!order.isPaid && (
-                                                        <button
-                                                            onClick={() => handlePayNow(order._id, order.totalAmount)}
-                                                            className="px-6 py-2 bg-brand-lemon text-slate-900 rounded-full text-[9px] font-black uppercase tracking-widest hover:shadow-lg transition-all whitespace-nowrap"
-                                                        >
-                                                            Pay Now
-                                                        </button>
-                                                    )}
                                                     {/* Desktop delivery buttons removed */}
 
                                                     <button
