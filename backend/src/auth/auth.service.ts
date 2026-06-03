@@ -86,8 +86,20 @@ export class AuthService {
         employeeCount: user.employeeCount,
         yearsOfExistence: user.yearsOfExistence,
         vendorTier: user.vendorTier,
+        termsAcceptedAt: user.termsAcceptedAt,
+        termsVersion: user.termsVersion,
       }
     };
+  }
+
+  async acceptTerms(userId: string, version: string) {
+    const updated = await this.usersService.update(userId, {
+      termsAcceptedAt: new Date(),
+      termsVersion: version,
+    } as any);
+    const userObj = (updated as any)?.toObject ? (updated as any).toObject() : updated;
+    const { password: _pw, ...safe } = userObj;
+    return safe;
   }
 
   private toSafeUser(user: any) {

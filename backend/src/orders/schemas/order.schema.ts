@@ -78,18 +78,8 @@ export class Order {
     })
     status: string;
 
-    @Prop({
-        type: String,
-        enum: ['held', 'waiting_approval', 'released', 'refunded', 'frozen'],
-        default: 'held'
-    })
-    escrowStatus: string;
-
     @Prop()
     deliveryConfirmationDate?: Date;
-
-    @Prop()
-    autoReleaseDate?: Date;
 
     @Prop()
     disputeReason?: string;
@@ -201,4 +191,4 @@ export const OrderSchema = SchemaFactory.createForClass(Order);
 OrderSchema.index({ vendorId: 1, createdAt: -1 });
 OrderSchema.index({ customerId: 1, createdAt: -1 });
 OrderSchema.index({ status: 1, isPaid: 1 });
-OrderSchema.index({ escrowStatus: 1 });
+OrderSchema.index({ paymentVerifiedByVendor: 1, paymentSubmittedAt: 1 });

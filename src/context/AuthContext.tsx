@@ -45,6 +45,8 @@ export type User = {
     yearsOfExistence?: string;
     paymentMethods?: any[];
     vendorTier?: 'low' | 'high';
+    termsAcceptedAt?: string | Date | null;
+    termsVersion?: string;
 };
 
 type AuthContextType = {
@@ -54,6 +56,7 @@ type AuthContextType = {
     signup: (name: string, email: string, phone: string, location: string, region: string, password: string, role?: UserRole, vendorData?: Partial<User>, turnstileToken?: string) => Promise<{ user: User; requiresEmailVerification: boolean; otpSent?: boolean; message?: string; loginFailed?: boolean }>;
     logout: () => void;
     updateUser: (updatedData: Partial<User>) => void;
+    acceptTerms: (version: string) => Promise<User>;
     isAuthenticated: boolean;
     isLoading: boolean;
 };
@@ -159,6 +162,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             pendingBalance: data.user.pendingBalance,
             region: data.user.region,
             vendorTier: data.user.vendorTier,
+            termsAcceptedAt: data.user.termsAcceptedAt,
+            termsVersion: data.user.termsVersion,
         };
 
         setUser(loggedInUser);
@@ -205,6 +210,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             shopName: raw.shopName,
             status: raw.status,
             region: raw.region,
+            termsAcceptedAt: raw.termsAcceptedAt,
+            termsVersion: raw.termsVersion,
         };
 
         const needsEmailVerification = data.requiresEmailVerification === true;
@@ -260,6 +267,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
     }, []);
 
+    const acceptTerms = useCallback(async (version: string): Promise<User> => {
+        const authToken = token || localStorage.getItem('fla_token');
+        if (!authToken) throw new Error('You must be signed in to accept terms.');
+
+        const response = await fetch(`${API_URL}/auth/accept-terms`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${authToken}`,
+            },
+            credentials: 'include',
+            body: JSON.stringify({ version }),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.message || 'Could not save your acceptance.');
+        }
+
+        const data = await response.json();
+        const raw = data.user || {};
+        let updatedUser: User | null = null;
+        setUser(prev => {
+            if (!prev) return null;
+            updatedUser = {
+                ...prev,
+                termsAcceptedAt: raw.termsAcceptedAt,
+                termsVersion: raw.termsVersion,
+            };
+            localStorage.setItem('fla_user', JSON.stringify(updatedUser));
+            return updatedUser;
+        });
+        if (!updatedUser) throw new Error('No active session');
+        return updatedUser;
+    }, [token]);
+
     return (
         <AuthContext.Provider value={{
             user,
@@ -268,6 +311,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             signup,
             logout,
             updateUser,
+            acceptTerms,
             isAuthenticated: !!user && !!token,
             isLoading
         }}>

@@ -134,6 +134,11 @@ export class ProductsService implements OnModuleInit {
     return this.productModel.countDocuments(filters).exec();
   }
 
+  /** Total products in catalog (admin dashboard) */
+  async countCatalog(): Promise<number> {
+    return this.productModel.countDocuments().exec();
+  }
+
   async findByVendor(vendorId: string): Promise<Product[]> {
     const products = await this.productModel.find({ vendorId: vendorId }).populate('vendorId', 'uniqueVendorId region bio shopName').exec();
     return products.map(p => {

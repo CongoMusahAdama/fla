@@ -5,6 +5,19 @@ import { ShoppingBag, User, MapPin, Eye, Printer, Trash2 } from 'lucide-react';
 import { getImageUrl } from '@/lib/utils';
 import Link from 'next/link';
 import Swal from 'sweetalert2';
+import {
+  canShowOrderWhatsApp,
+  normalizeWhatsAppPhone,
+  buildVendorToCustomerMessage,
+  openWhatsAppChat,
+  promptMissingWhatsAppContact,
+} from '@/lib/whatsapp';
+
+const WhatsAppIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={className} fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.412c-1.935 0-3.83-.502-5.485-1.454l-.394-.227-4.078 1.07 1.089-3.975-.249-.396A9.816 9.816 0 011.942 12.07C1.942 6.656 6.355 2.24 11.77 2.24s9.829 4.417 9.829 9.831c0 5.414-4.417 9.831-9.83 9.831m11.834-11.83c0-6.521-5.303-11.825-11.825-11.825C5.461 0 0 5.461 0 11.825c0 2.083.54 4.117 1.571 5.905L0 24l6.446-1.691c1.71 1.017 3.65 1.554 5.62 1.554 6.523 0 11.825-5.303 11.825-11.825" />
+  </svg>
+);
 
 interface Order {
   _id: string;
@@ -16,8 +29,7 @@ interface Order {
   shippingAddress: string;
   status: string;
   deliveryType: string;
-  firstMileFee?: number;
-  isFirstMileFeePaid?: boolean;
+  isPaid?: boolean;
   paymentProof?: string;
   items?: any[];
   pickupPoint?: string;
@@ -29,26 +41,49 @@ interface Order {
 
 interface VendorOrdersProps {
   orders: Order[];
+  shopName?: string;
   onViewProof: (proof: string) => void;
   onShip: (id: string) => void;
   onUpdateStatus: (id: string, currentStatus: string) => void;
   onDelete: (id: string) => void;
-  onQuickSetFee: (id: string, fee: number) => void;
   onPrintLabel: (order: Order) => void;
 }
 
 export const VendorOrders: React.FC<VendorOrdersProps> = ({
   orders,
+  shopName,
   onViewProof,
   onShip,
   onUpdateStatus,
   onDelete,
-  onQuickSetFee,
   onPrintLabel
 }) => {
   const [activeTab, setActiveTab] = React.useState('All');
   const [currentPage, setCurrentPage] = React.useState(1);
   const itemsPerPage = 8;
+
+  const chatWithCustomer = (order: Order) => {
+    const phone = normalizeWhatsAppPhone(order.customerPhone);
+    if (!phone) {
+      promptMissingWhatsAppContact('customer');
+      return;
+    }
+    openWhatsAppChat(phone, buildVendorToCustomerMessage(order, shopName));
+  };
+
+  const renderCustomerWhatsApp = (order: Order, className = '') => {
+    if (!canShowOrderWhatsApp(order)) return null;
+    return (
+      <button
+        type="button"
+        onClick={() => chatWithCustomer(order)}
+        className={`inline-flex items-center justify-center gap-1.5 bg-emerald-600 text-white hover:bg-emerald-700 transition-all active:scale-95 ${className}`}
+      >
+        <WhatsAppIcon className="w-3.5 h-3.5" />
+        WhatsApp
+      </button>
+    );
+  };
 
   const filteredOrders = React.useMemo(() => {
     const ordersArray = orders || [];
@@ -174,7 +209,7 @@ export const VendorOrders: React.FC<VendorOrdersProps> = ({
                   </div>
                 </div>
 
-                <div className={`pt-2 flex flex-wrap gap-2 transition-all duration-500 ${order.status === 'cancelled' ? 'opacity-20 pointer-events-none grayscale blur-[3px]' : ''}`}>
+                <div className={`pt-2 flex flex-wrap gap-2 transition-all duration-500`}>
                   {order.paymentProof && (
                     <button
                       onClick={() => onViewProof(order.paymentProof!)}
@@ -184,7 +219,7 @@ export const VendorOrders: React.FC<VendorOrdersProps> = ({
                     </button>
                   )}
                   
-                  {order.status === 'disputed' && (
+                  {(order.status === 'disputed' || order.status === 'cancelled') && (
                     <Link
                       href={`/dispute/find?orderId=${order._id}`}
                       className="flex-1 h-11 bg-orange-500 text-white rounded-2xl flex items-center justify-center gap-2 text-[9px] font-black uppercase tracking-widest"
@@ -192,6 +227,7 @@ export const VendorOrders: React.FC<VendorOrdersProps> = ({
                       Dispute Ledger
                     </Link>
                   )}
+                  {renderCustomerWhatsApp(order, 'flex-1 h-11 rounded-2xl text-[9px] font-black uppercase tracking-widest shadow-lg shadow-emerald-600/20')}
                   <button
                     onClick={() => onUpdateStatus(order._id, order.status)}
                     className="flex-1 h-11 bg-slate-900 text-white rounded-2xl flex items-center justify-center gap-2 text-[9px] font-black uppercase tracking-widest shadow-lg shadow-slate-900/10"
@@ -304,51 +340,16 @@ export const VendorOrders: React.FC<VendorOrdersProps> = ({
                           {order.status || 'Preprocessing'}
                         </span>
                         
-                        <div className="bg-slate-50/80 p-5 rounded-[24px] border border-slate-100 flex flex-col gap-3 min-w-[180px] shadow-sm group-hover:bg-white transition-colors">
+                        <div className="bg-slate-50/80 p-5 rounded-[24px] border border-slate-100 flex flex-col gap-2 min-w-[180px] shadow-sm group-hover:bg-white transition-colors">
                           <div className="flex items-center justify-between">
-                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Logistics Tier</p>
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Logistics</p>
                             <span className="text-[8px] font-black bg-slate-900 text-white px-2 py-0.5 rounded-lg uppercase tracking-tighter shadow-xl shadow-slate-900/10">
                               {order.deliveryType === 'inter-regional' ? 'Inter-Region' : 'Intra-Region'}
                             </span>
                           </div>
-                          
-                          {order.deliveryType === 'inter-regional' ? (
-                            <>
-                              {!order.firstMileFee ? (
-                                <div className="flex items-center gap-2">
-                                  <input 
-                                    type="number" 
-                                    id={`fee-input-${order._id}`}
-                                    placeholder="GHC" 
-                                    className="w-full h-10 px-4 bg-white border border-slate-200 rounded-2xl text-[11px] font-black text-slate-900 focus:outline-none focus:ring-4 focus:ring-brand-lemon/10 transition-all shadow-sm"
-                                    onClick={(e) => e.stopPropagation()}
-                                  />
-                                  <button 
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      const input = document.getElementById(`fee-input-${order._id}`) as HTMLInputElement;
-                                      if(input.value) onQuickSetFee(order._id, parseFloat(input.value));
-                                    }}
-                                    className="h-10 px-5 bg-slate-900 text-brand-lemon rounded-2xl text-[9px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-lg shrink-0"
-                                  >
-                                    Update
-                                  </button>
-                                </div>
-                              ) : (
-                                <div className="flex items-center justify-between bg-white p-3 rounded-2xl shadow-sm border border-slate-50">
-                                  <span className="text-xs font-black text-slate-900 tracking-tighter">GH₵ {order.firstMileFee.toLocaleString()}</span>
-                                  <span className={`text-[8px] font-black uppercase px-2 py-1 rounded-lg ${order.isFirstMileFeePaid ? 'bg-emerald-500 text-white' : 'bg-orange-500 text-white'} shadow-sm`}>
-                                    {order.isFirstMileFeePaid ? 'Fee Paid' : 'Awaiting Pay'}
-                                  </span>
-                                </div>
-                              )}
-                            </>
-                          ) : (
-                            <div className="flex items-center gap-2 bg-emerald-50/50 p-2.5 rounded-xl border border-emerald-100/50">
-                              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                              <span className="text-[9px] font-black text-emerald-600 uppercase tracking-tighter">Standard Local Delivery</span>
-                            </div>
-                          )}
+                          <p className="text-[9px] font-bold text-slate-500 leading-relaxed">
+                            Delivery fees are paid outside FLA — coordinate directly with the customer.
+                          </p>
                         </div>
                       </div>
                     </td>
@@ -369,7 +370,7 @@ export const VendorOrders: React.FC<VendorOrdersProps> = ({
                       </div>
                     </td>
                     <td className="px-10 py-8 text-right">
-                      <div className={`flex justify-end gap-3 transition-all duration-500 ${order.status === 'cancelled' ? 'opacity-20 pointer-events-none grayscale blur-[3px]' : ''}`}>
+                      <div className={`flex justify-end gap-3 transition-all duration-500`}>
                         {order.paymentProof && (
                           <button
                             onClick={() => onViewProof(order.paymentProof!)}
@@ -380,7 +381,7 @@ export const VendorOrders: React.FC<VendorOrdersProps> = ({
                           </button>
                         )}
 
-                        {(order.deliveryType !== 'inter-regional' || order.isFirstMileFeePaid) && order.status !== 'shipped' && order.status !== 'delivered' && order.status !== 'cancelled' && (
+                        {order.status !== 'shipped' && order.status !== 'delivered' && order.status !== 'cancelled' && (
                           <button
                             onClick={() => onShip(order._id)}
                             className="px-6 py-3 bg-slate-900 text-brand-lemon rounded-[18px] text-[10px] font-black uppercase tracking-[0.2em] hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/10 active:scale-95 border border-white/10"
@@ -388,7 +389,9 @@ export const VendorOrders: React.FC<VendorOrdersProps> = ({
                             Initiate Launch
                           </button>
                         )}
-                        
+
+                        {renderCustomerWhatsApp(order, 'px-5 py-3 rounded-[18px] text-[10px] font-black uppercase tracking-[0.2em] shadow-lg shadow-emerald-600/20')}
+
                         <button
                           onClick={() => onPrintLabel(order)}
                           className="w-11 h-11 bg-white text-slate-400 border border-slate-100 rounded-2xl flex items-center justify-center hover:bg-slate-900 hover:text-white transition-all active:scale-90"
@@ -404,7 +407,7 @@ export const VendorOrders: React.FC<VendorOrdersProps> = ({
                           Phase Update
                         </button>
                         
-                        {order.status === 'disputed' && (
+                        {(order.status === 'disputed' || order.status === 'cancelled') && (
                           <Link
                             href={`/dispute/find?orderId=${order._id}`}
                             className="px-6 py-3 bg-orange-500 text-white rounded-[18px] text-[10px] font-black uppercase tracking-[0.2em] hover:bg-orange-600 transition-all shadow-xl shadow-orange-500/10 active:scale-95 border border-white/10"

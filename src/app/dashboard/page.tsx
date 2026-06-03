@@ -14,6 +14,14 @@ import Image from 'next/image';
 import Link from 'next/link';
 import Swal from 'sweetalert2';
 import ProductCard from '@/components/ProductCard';
+import {
+    canShowOrderWhatsApp,
+    getVendorPhoneFromOrder,
+    buildCustomerToVendorMessage,
+    openWhatsAppChat,
+    promptMissingWhatsAppContact,
+} from '@/lib/whatsapp';
+import { getMultiCheckoutQueue, clearMultiCheckoutQueue } from '@/lib/cart-vendors';
 
 const WhatsAppIcon = ({ className }: { className?: string }) => (
     <svg
@@ -50,10 +58,27 @@ export default function CustomerDashboard() {
     const [disputeDescription, setDisputeDescription] = useState('');
     const [isSubmittingDispute, setIsSubmittingDispute] = useState(false);
 
-    const handleSendOrderToWhatsApp = (order: any) => {
-        const phone = "233505112925";
-        const message = `Hello FLA Support,\n\nI would like to discuss my order:\nOrder ID: ${order.id}\nProduct: ${order.name}\nPrice: GH₵ ${order.price}\nStatus: ${order.status}\n\nThank you!`;
-        window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
+    const chatWithVendor = (order: any) => {
+        const phone = getVendorPhoneFromOrder(order);
+        if (!phone) {
+            promptMissingWhatsAppContact('vendor');
+            return;
+        }
+        openWhatsAppChat(phone, buildCustomerToVendorMessage(order, user?.name));
+    };
+
+    const renderWhatsAppButton = (order: any, className = '') => {
+        if (!canShowOrderWhatsApp(order)) return null;
+        return (
+            <button
+                type="button"
+                onClick={() => chatWithVendor(order)}
+                className={`inline-flex items-center justify-center gap-1.5 bg-emerald-600 text-white rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all active:scale-95 ${className}`}
+            >
+                <WhatsAppIcon className="w-3.5 h-3.5" />
+                WhatsApp
+            </button>
+        );
     };
 
     const handleSendMessage = () => {
@@ -83,6 +108,8 @@ export default function CustomerDashboard() {
 
     // Hydration check
     const [isHydrated, setIsHydrated] = useState(false);
+    const multiCheckoutPrompted = useRef(false);
+
     useEffect(() => {
         setIsHydrated(true);
     }, []);
@@ -145,6 +172,124 @@ export default function CustomerDashboard() {
             setProfileImage(user.profileImage || null);
         }
     }, [user, fetchDashboardData]);
+
+    useEffect(() => {
+        if (!isHydrated || loading || !token || multiCheckoutPrompted.current) return;
+
+        const queue = getMultiCheckoutQueue();
+        if (!queue?.length) return;
+
+        const runMultiCheckoutPrompt = async () => {
+            const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+            let list = orders;
+
+            try {
+                const res = await fetch(`${apiBase}/orders/my-orders`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                    credentials: 'include',
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    list = Array.isArray(data) ? data : data.orders || data.data || [];
+                    setOrders(list);
+                }
+            } catch {
+                /* use cached orders */
+            }
+
+            const unpaid = queue.filter((id) => {
+                const o = list.find((ord: { _id: string; isPaid?: boolean }) => ord._id === id);
+                return o && !o.isPaid;
+            });
+
+            if (unpaid.length === 0) {
+                clearMultiCheckoutQueue();
+                return;
+            }
+
+            const nextOrder = list.find((o: { _id: string }) => o._id === unpaid[0]);
+            if (!nextOrder) return;
+
+            multiCheckoutPrompted.current = true;
+            const paidSoFar = queue.length - unpaid.length;
+            const vendorLabel = nextOrder.vendorName || 'the next studio';
+
+            window.history.replaceState({}, '', window.location.pathname);
+
+            const result = await Swal.fire({
+                title: paidSoFar > 0 ? `PAYMENT ${paidSoFar + 1} OF ${queue.length}` : 'COMPLETE CHECKOUT',
+                html: `
+                    <p class="text-sm text-slate-600 mb-3">
+                        ${paidSoFar > 0 ? 'Great — that payment went through.' : 'Your bag has multiple studios.'}
+                        Complete payment for <strong>${vendorLabel}</strong> (GH₵ ${Number(nextOrder.totalAmount || 0).toLocaleString()}).
+                    </p>
+                    <p class="text-xs text-slate-500">Each vendor receives their own order and SMS after you pay.</p>
+                `,
+                icon: 'info',
+                showCancelButton: true,
+                confirmButtonText: 'PAY NOW',
+                cancelButtonText: 'PAY LATER',
+                confirmButtonColor: '#0f172a',
+                customClass: { popup: 'rounded-[32px]' },
+            });
+
+            if (result.isConfirmed) {
+                handlePayNow(nextOrder._id, nextOrder.totalAmount);
+            }
+        };
+
+        const timer = setTimeout(runMultiCheckoutPrompt, 800);
+        return () => clearTimeout(timer);
+    }, [isHydrated, loading, token, orders]);
+
+    useEffect(() => {
+        if (!isHydrated || loading || !orders.length) return;
+
+        const queue = getMultiCheckoutQueue();
+        if (queue?.length) {
+            const stillUnpaid = queue.some((id) => {
+                const o = orders.find((ord: { _id: string; isPaid?: boolean }) => ord._id === id);
+                return o && !o.isPaid;
+            });
+            if (stillUnpaid) return;
+        }
+
+        const params = new URLSearchParams(window.location.search);
+        const orderId = params.get('order_id');
+        if (!orderId) return;
+
+        const storageKey = `fla_wa_prompt_${orderId}`;
+        if (sessionStorage.getItem(storageKey)) {
+            window.history.replaceState({}, '', window.location.pathname);
+            return;
+        }
+
+        const order = orders.find((o: any) => o._id === orderId);
+        sessionStorage.setItem(storageKey, '1');
+        window.history.replaceState({}, '', window.location.pathname);
+
+        if (!order || !canShowOrderWhatsApp(order)) return;
+
+        const shopName = order.vendorName || 'your vendor';
+        Swal.fire({
+            title: `Message ${shopName}?`,
+            text: 'Open WhatsApp to coordinate delivery and order details with your vendor.',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'OPEN WHATSAPP',
+            cancelButtonText: 'LATER',
+            confirmButtonColor: '#059669',
+            cancelButtonColor: '#F1F5F9',
+            buttonsStyling: false,
+            customClass: {
+                popup: 'rounded-[32px]',
+                confirmButton: 'bg-emerald-600 text-white px-8 py-3 rounded-full text-[10px] font-black uppercase tracking-widest mx-2',
+                cancelButton: 'bg-slate-100 text-slate-500 px-8 py-3 rounded-full text-[10px] font-black uppercase tracking-widest mx-2',
+            },
+        }).then((result) => {
+            if (result.isConfirmed) chatWithVendor(order);
+        });
+    }, [isHydrated, loading, orders, user?.name]);
 
     // Redirect if not authenticated once loading is done
     useEffect(() => {
@@ -405,76 +550,6 @@ export default function CustomerDashboard() {
         }
     };
 
-    const handlePayDeliveryFee = async (orderId: string) => {
-        try {
-            Swal.fire({
-                title: 'INITIALIZING GATEWAY...',
-                didOpen: () => { Swal.showLoading(); }
-            });
-
-            const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-
-            const res = await fetch(`${apiBase}/orders/${orderId}/initialize-first-mile-payment`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` },
-                credentials: 'include'
-            });
-
-            if (!res.ok) throw new Error('Could not initialize payment');
-            const { paymentLink } = await res.json();
-
-            // Redirect to Paystack
-            window.location.href = paymentLink;
-        } catch (error: any) {
-            Swal.fire('ERROR', error.message, 'error');
-        }
-    };
-
-    const handleWithdrawOrder = async (orderId: string) => {
-        const result = await Swal.fire({
-            title: 'WITHDRAW ORDER?',
-            text: "Withdrawal is only permitted if you do not accept the delivery quotation. If confirmed, this order will be cancelled and a refund will be initiated if payment was already made.",
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonText: 'YES, WITHDRAW',
-            cancelButtonText: 'CANCEL',
-            buttonsStyling: false,
-            customClass: {
-                popup: 'rounded-[32px] p-10',
-                title: 'text-2xl font-black text-slate-900 uppercase',
-                confirmButton: 'bg-red-500 text-white px-8 py-4 rounded-full text-[10px] font-black uppercase tracking-widest mr-3',
-                cancelButton: 'bg-slate-100 text-slate-400 px-8 py-4 rounded-full text-[10px] font-black uppercase tracking-widest'
-            }
-        });
-
-        if (result.isConfirmed) {
-            try {
-                const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders/${orderId}`, {
-                    method: 'PATCH',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    credentials: 'include',
-                    body: JSON.stringify({ status: 'cancelled', escrowStatus: 'frozen' })
-                });
-
-                if (!response.ok) throw new Error('Failed to withdraw order');
-                
-                setOrders(prev => prev.map(o => o._id === orderId ? { ...o, status: 'cancelled', escrowStatus: 'frozen' } : o));
-                
-                Swal.fire({
-                    icon: 'success',
-                    title: 'ORDER WITHDRAWN',
-                    text: 'Our support team will contact you regarding any refunds.',
-                    customClass: { popup: 'rounded-[32px]' }
-                });
-            } catch (err: any) {
-                Swal.fire('ERROR', err.message, 'error');
-            }
-        }
-    };
-
     const sidebarItems = [
         { id: 'home', label: 'Dashboard', icon: LayoutDashboard },
         { id: 'orders', label: 'My Orders', icon: ShoppingBag },
@@ -675,15 +750,6 @@ export default function CustomerDashboard() {
                                                         target.src = '/product-1.jpg';
                                                     }}
                                                 />
-                                                    <span className={`block text-center px-1 py-0.5 rounded-md text-[7px] font-black uppercase tracking-tighter shadow-sm ${order.escrowStatus === 'released' ? 'bg-emerald-500 text-white' :
-                                                        order.escrowStatus === 'frozen' ? 'bg-red-500 text-white' :
-                                                            'bg-orange-500 text-white'
-                                                        }`}>
-                                                        {order.escrowStatus === 'released' ? 'SETTLED' :
-                                                         order.escrowStatus === 'frozen' ? 'DISPUTED' :
-                                                         order.escrowStatus === 'waiting_approval' ? 'PENDING APPROVAL' :
-                                                         'SECURED'}
-                                                    </span>
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex justify-between items-start mb-1">
@@ -699,7 +765,7 @@ export default function CustomerDashboard() {
                                                 <p className="font-sans font-black text-slate-900 mt-2">GH₵ {order.totalAmount}</p>
                                             </div>
                                         </div>
-                                        <div className={`grid grid-cols-2 gap-3 transition-all duration-500 ${order.status === 'cancelled' ? 'opacity-20 pointer-events-none grayscale blur-[3px]' : ''}`}>
+                                        <div className={`grid grid-cols-2 gap-3 transition-all duration-500`}>
 
                                             {/* First Mile payment removed as per requirements */}
                                             {order.paymentProof && !order.isPaid && (
@@ -713,21 +779,31 @@ export default function CustomerDashboard() {
                                             >
                                                 Track
                                             </button>
+                                            {renderWhatsAppButton(order, 'py-3 px-4')}
                                             <button
                                                 onClick={() => setSelectedReceipt(order)}
                                                 className="py-3 bg-slate-100 text-slate-900 rounded-full text-[10px] font-bold uppercase tracking-widest hover:bg-slate-200 transition-all active:scale-95 text-center flex items-center justify-center gap-1.5"
                                             >
                                                 <FileText className="w-3 h-3" /> Receipt
                                             </button>
-                                            <button
-                                                onClick={() => {
-                                                    setDisputeOrderId(order._id);
-                                                    setShowDisputeForm(true);
-                                                }}
-                                                className="py-3 bg-red-50 text-red-500 border border-red-100 rounded-full text-[10px] font-bold uppercase tracking-widest hover:bg-red-100 transition-all active:scale-95 text-center"
-                                            >
-                                                Report
-                                            </button>
+                                            {disputes.some(d => d.orderId === order._id || d.order?._id === order._id || d.order === order._id) ? (
+                                                <Link
+                                                    href={`/dispute/find?orderId=${order._id}`}
+                                                    className="py-3 bg-slate-900 text-white rounded-full text-[10px] font-bold uppercase tracking-widest hover:bg-slate-800 transition-all active:scale-95 text-center flex items-center justify-center"
+                                                >
+                                                    Dispute Chat
+                                                </Link>
+                                            ) : (
+                                                <button
+                                                    onClick={() => {
+                                                        setDisputeOrderId(order._id);
+                                                        setShowDisputeForm(true);
+                                                    }}
+                                                    className="py-3 bg-red-50 text-red-500 border border-red-100 rounded-full text-[10px] font-bold uppercase tracking-widest hover:bg-red-100 transition-all active:scale-95 text-center"
+                                                >
+                                                    Report
+                                                </button>
+                                            )}
                                             <div className="flex gap-3">
 
                                                 {order.status === 'shipped' && (
@@ -766,41 +842,7 @@ export default function CustomerDashboard() {
                                                     </button>
                                                 )}
 
-                                                 {order.status === 'delivered' && order.escrowStatus !== 'released' && (
-                                                    <button
-                                                        onClick={async () => {
-                                                            const result = await Swal.fire({
-                                                                title: 'Release Funds?',
-                                                                text: "Are you satisfied with the quality of the item? Clicking yes will release the payment to the vendor.",
-                                                                icon: 'question',
-                                                                showCancelButton: true,
-                                                                confirmButtonColor: '#10B981',
-                                                                confirmButtonText: 'Yes, I am Satisfied'
-                                                            });
 
-                                                            if (result.isConfirmed) {
-                                                                try {
-                                                                    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders/${order._id}/satisfied`, {
-                                                                        method: 'POST',
-                                                                        credentials: 'include'
-                                                                    });
-
-                                                                    if (!response.ok) throw new Error('Failed to release funds');
-
-                                                                    // Update local state
-                                                                    setOrders(prev => prev.map(o => o._id === order._id ? { ...o, status: 'completed', escrowStatus: 'released' } : o));
-
-                                                                    Swal.fire('Completed!', 'Thank you! The vendor has been paid.', 'success');
-                                                                } catch (error: any) {
-                                                                    Swal.fire('Error', error.message, 'error');
-                                                                }
-                                                            }
-                                                        }}
-                                                        className="flex-1 py-3 bg-slate-900 text-white rounded-full text-[10px] font-bold uppercase tracking-widest hover:bg-slate-800 transition-all text-center shadow-md shadow-slate-200"
-                                                    >
-                                                        I'm Satisfied
-                                                    </button>
-                                                )}
                                             </div>
                                         </div>
                                     </div>
@@ -817,7 +859,6 @@ export default function CustomerDashboard() {
                                         <tr className="border-b border-slate-50">
                                             <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Product</th>
                                             <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
-                                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Settlement</th>
                                             <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Vendor</th>
                                             <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Price</th>
                                             <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Action</th>
@@ -853,16 +894,6 @@ export default function CustomerDashboard() {
                                                         {order.status}
                                                     </span>
                                                 </td>
-                                                    <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${order.escrowStatus === 'released' ? 'bg-emerald-100 text-emerald-700' :
-                                                        order.escrowStatus === 'frozen' ? 'bg-red-100 text-red-700' :
-                                                            order.escrowStatus === 'waiting_approval' ? 'bg-purple-100 text-purple-700' :
-                                                                'bg-orange-100 text-orange-700'
-                                                        }`}>
-                                                        {order.escrowStatus === 'released' ? 'SETTLED' :
-                                                         order.escrowStatus === 'frozen' ? 'DISPUTED' :
-                                                         order.escrowStatus === 'waiting_approval' ? 'PENDING APPROVAL' :
-                                                         'PENDING SETTLEMENT'}
-                                                    </span>
                                                 <td className="px-8 py-6 text-sm text-slate-600 font-bold">
                                                     {order.vendorName || 'FLA Vendor'}
                                                     {order.pickupPoint && (
@@ -873,7 +904,7 @@ export default function CustomerDashboard() {
                                                     {/* Desktop delivery info removed */}
                                                 </td>
                                                 <td className="px-8 py-6 font-sans font-black text-slate-900">GH₵ {order.totalAmount}</td>
-                                                <td className={`px-8 py-6 text-right flex items-center justify-end gap-2 transition-all duration-500 ${order.status === 'cancelled' ? 'opacity-20 pointer-events-none grayscale blur-[3px]' : ''}`}>
+                                                <td className={`px-8 py-6 text-right flex items-center justify-end gap-2 transition-all duration-500`}>
                                                     {/* Desktop delivery buttons removed */}
 
                                                     <button
@@ -882,6 +913,7 @@ export default function CustomerDashboard() {
                                                     >
                                                         Track
                                                     </button>
+                                                    {renderWhatsAppButton(order, 'px-5 py-2')}
                                                     <button
                                                         onClick={() => setSelectedReceipt(order)}
                                                         className="px-6 py-2 bg-slate-100 text-slate-900 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all hover:scale-105 active:scale-95 whitespace-nowrap flex items-center gap-1.5"
@@ -924,50 +956,25 @@ export default function CustomerDashboard() {
                                                         </button>
                                                     )}
 
-                                                    {order.status === 'delivered' && order.escrowStatus !== 'released' && (
-                                                        <button
-                                                            onClick={async () => {
-                                                                const result = await Swal.fire({
-                                                                    title: 'Release Funds?',
-                                                                    text: "Are you satisfied with the quality of the item? Clicking yes will release the payment to the vendor.",
-                                                                    icon: 'question',
-                                                                    showCancelButton: true,
-                                                                    confirmButtonColor: '#10B981',
-                                                                    confirmButtonText: 'Yes, I am Satisfied'
-                                                                });
 
-                                                                if (result.isConfirmed) {
-                                                                    try {
-                                                                        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders/${order._id}/satisfied`, {
-                                                                            method: 'POST',
-                                                                            credentials: 'include'
-                                                                        });
-
-                                                                        if (!response.ok) throw new Error('Failed to release funds');
-
-                                                                        // Update local state
-                                                                        setOrders(prev => prev.map(o => o._id === order._id ? { ...o, status: 'completed', escrowStatus: 'released' } : o));
-
-                                                                        Swal.fire('Completed!', 'Thank you! The vendor has been paid.', 'success');
-                                                                    } catch (error: any) {
-                                                                        Swal.fire('Error', error.message, 'error');
-                                                                    }
-                                                                }
-                                                            }}
-                                                            className="px-6 py-2 bg-emerald-600 text-white rounded-full text-[9px] font-bold uppercase tracking-widest hover:bg-emerald-700 transition-all hover:scale-105 active:scale-95 whitespace-nowrap shadow-md shadow-emerald-200"
+                                                    {disputes.some(d => d.orderId === order._id || d.order?._id === order._id || d.order === order._id) ? (
+                                                        <Link
+                                                            href={`/dispute/find?orderId=${order._id}`}
+                                                            className="px-6 py-2 bg-slate-900 text-white rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all hover:scale-105 active:scale-95 whitespace-nowrap"
                                                         >
-                                                            I'm Satisfied
+                                                            Dispute Chat
+                                                        </Link>
+                                                    ) : (
+                                                        <button
+                                                            onClick={() => {
+                                                                setDisputeOrderId(order._id);
+                                                                setShowDisputeForm(true);
+                                                            }}
+                                                            className="px-6 py-2 bg-slate-50 text-red-500 border border-slate-100 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-red-50 hover:border-red-100 transition-all hover:scale-105 active:scale-95 whitespace-nowrap"
+                                                        >
+                                                            Complain
                                                         </button>
                                                     )}
-                                                    <button
-                                                        onClick={() => {
-                                                            setDisputeOrderId(order._id);
-                                                            setShowDisputeForm(true);
-                                                        }}
-                                                        className="px-6 py-2 bg-slate-50 text-red-500 border border-slate-100 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-red-50 hover:border-red-100 transition-all hover:scale-105 active:scale-95 whitespace-nowrap"
-                                                    >
-                                                        Complain
-                                                    </button>
                                                 </td>
                                             </tr>
                                         ))}
@@ -1523,19 +1530,22 @@ export default function CustomerDashboard() {
                             </div>
 
                             <div className="p-8 space-y-8 max-h-[70vh] overflow-y-auto">
-                                {/* Current Activity Indicator */}
+                                {/* Current Activity Indicator — hidden for unpaid pending orders */}
                                 {(() => {
+                                    if (trackingOrder.status === 'pending' && !trackingOrder.isPaid) {
+                                        return null;
+                                    }
                                     const getStatusInfo = (status: string) => {
                                         switch (status) {
-                                            case 'pending': return { label: 'Awaiting Payment', desc: 'Secure your design via Split Pay', color: 'bg-orange-500' };
-                                            case 'funds_captured': case 'payment_verified': return { label: 'Payment Verified', desc: 'Payment securely settled', color: 'bg-emerald-500' };
+                                            case 'pending': return { label: 'Order Placed', desc: 'Your order has been received', color: 'bg-brand-lemon' };
+                                            case 'funds_captured': case 'payment_verified': return { label: 'Payment Verified', desc: 'Payment secured via Paystack', color: 'bg-emerald-500' };
                                             case 'confirmed': return { label: 'Order Confirmed', desc: 'Vendor has accepted your request', color: 'bg-blue-500' };
                                             case 'processing': case 'in_printing': return { label: 'In Production', desc: 'Your bespoke design is being crafted', color: 'bg-purple-500' };
                                             case 'preparing_shipment': return { label: 'Preparing Shipment', desc: 'Vendor is packaging your items', color: 'bg-indigo-500' };
-                                            case 'in_transit_to_first_mile': return { label: 'In Transit to Hub', desc: 'Moving to the regional sorting station', color: 'bg-blue-600' };
+                                            case 'in_transit_to_first_mile': return { label: 'In Transit to Skynet', desc: 'Moving to Skynet', color: 'bg-blue-600' };
                                             case 'arrived_at_first_mile': return { label: 'At Sorting Hub', desc: 'Processing at regional station', color: 'bg-cyan-500' };
                                             case 'in_transit_to_last_mile': return { label: 'In Final Transit', desc: 'Moving to your local delivery hub', color: 'bg-blue-700' };
-                                            case 'in_transit': case 'shipped': return { label: 'In Transit', desc: 'Your package is on its way to you', color: 'bg-brand-lemon' };
+                                            case 'in_transit': case 'shipped': return { label: 'In Transit (Direct to Customer)', desc: 'Your package is on its way to you', color: 'bg-brand-lemon' };
                                             case 'delivered': return { label: 'Delivered', desc: 'Package arrived at destination', color: 'bg-emerald-600' };
                                             case 'completed': return { label: 'Order Completed', desc: 'Transaction finalized', color: 'bg-slate-900' };
                                             case 'disputed': return { label: 'In Dispute', desc: 'Resolution center is reviewing case', color: 'bg-red-500' };
@@ -1588,71 +1598,87 @@ export default function CustomerDashboard() {
                                     </div>
                                 </div>
 
+                                {canShowOrderWhatsApp(trackingOrder) && (
+                                    <button
+                                        type="button"
+                                        onClick={() => chatWithVendor(trackingOrder)}
+                                        className="w-full py-4 bg-emerald-600 text-white rounded-[24px] text-[11px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20"
+                                    >
+                                        <WhatsAppIcon className="w-5 h-5" />
+                                        Message {trackingOrder.vendorName || 'Vendor'} on WhatsApp
+                                    </button>
+                                )}
+
                                 {/* Tracking Stepper */}
                                 <div className="relative space-y-6 pl-2">
                                     <div className="absolute left-[17px] top-2 bottom-2 w-0.5 bg-slate-100" />
                                     {(() => {
                                         const status = trackingOrder.status;
-                                        const isInterRegional = trackingOrder.deliveryType === 'inter-regional';
-                                        
+                                        const isPaid = Boolean(trackingOrder.isPaid);
                                         const isPassed = (current: string, target: string[]) => target.includes(current);
+                                        const paymentComplete = isPaid || isPassed(status, ['funds_captured', 'payment_verified', 'confirmed', 'processing', 'in_printing', 'preparing_shipment', 'in_transit_to_first_mile', 'in_transit', 'arrived_at_first_mile', 'in_transit_to_last_mile', 'shipped', 'delivered', 'completed']);
 
-                                        const baseSteps = [
+                                        const trackingSteps = [
                                             { 
                                                 title: 'Order Placed', 
                                                 time: 'Recently', 
                                                 desc: 'Your fashion request has been received.', 
                                                 done: true 
                                             },
-                                            { 
+                                            ...(paymentComplete ? [{
                                                 title: 'Payment Verified', 
-                                                time: isPassed(status, ['funds_captured', 'payment_verified', 'confirmed', 'processing', 'in_printing', 'preparing_shipment', 'in_transit_to_first_mile', 'in_transit', 'arrived_at_first_mile', 'in_transit_to_last_mile', 'shipped', 'delivered', 'completed']) ? 'Done' : 'Pending',
-                                                desc: 'Transaction secured via FLA Split Payment.',
-                                                done: isPassed(status, ['funds_captured', 'payment_verified', 'confirmed', 'processing', 'in_printing', 'preparing_shipment', 'in_transit_to_first_mile', 'in_transit', 'arrived_at_first_mile', 'in_transit_to_last_mile', 'shipped', 'delivered', 'completed'])
-                                            },
+                                                time: 'Done',
+                                                desc: 'Payment secured via Paystack.',
+                                                done: true
+                                            }] : []),
                                             { 
                                                 title: 'In Production', 
-                                                time: isPassed(status, ['processing', 'in_printing', 'preparing_shipment', 'in_transit_to_first_mile', 'in_transit', 'arrived_at_first_mile', 'in_transit_to_last_mile', 'shipped', 'delivered', 'completed']) ? 'Done' : 'In Progress', 
+                                                time: isPassed(status, ['processing', 'in_printing', 'preparing_shipment', 'in_transit_to_first_mile', 'in_transit', 'arrived_at_first_mile', 'in_transit_to_last_mile', 'shipped', 'delivered', 'completed']) ? 'Done' : (status === 'processing' || status === 'in_printing') ? 'In Progress' : 'Pending', 
                                                 desc: 'Stylists are working on your design.', 
                                                 done: isPassed(status, ['processing', 'in_printing', 'preparing_shipment', 'in_transit_to_first_mile', 'in_transit', 'arrived_at_first_mile', 'in_transit_to_last_mile', 'shipped', 'delivered', 'completed']) 
                                             },
                                             { 
                                                 title: 'Preparing Shipment', 
-                                                time: isPassed(status, ['preparing_shipment', 'in_transit_to_first_mile', 'in_transit', 'arrived_at_first_mile', 'in_transit_to_last_mile', 'shipped', 'delivered', 'completed']) ? 'Done' : 'Pending', 
+                                                time: isPassed(status, ['in_transit_to_first_mile', 'in_transit', 'arrived_at_first_mile', 'in_transit_to_last_mile', 'shipped', 'delivered', 'completed']) ? 'Done' : status === 'preparing_shipment' ? 'In Progress' : 'Pending', 
                                                 desc: 'Vendor is carefully packaging your items.', 
-                                                done: isPassed(status, ['preparing_shipment', 'in_transit_to_first_mile', 'in_transit', 'arrived_at_first_mile', 'in_transit_to_last_mile', 'shipped', 'delivered', 'completed']) 
+                                                done: isPassed(status, ['in_transit_to_first_mile', 'in_transit', 'arrived_at_first_mile', 'in_transit_to_last_mile', 'shipped', 'delivered', 'completed']) 
+                                            },
+                                            { 
+                                                title: 'In Transit to Skynet', 
+                                                time: isPassed(status, ['in_transit', 'shipped', 'delivered', 'completed']) ? 'Done' : isPassed(status, ['in_transit_to_first_mile', 'arrived_at_first_mile', 'in_transit_to_last_mile']) ? 'In Progress' : 'Pending', 
+                                                desc: 'Moving to Skynet for regional sorting.', 
+                                                done: isPassed(status, ['in_transit', 'shipped', 'delivered', 'completed']) 
+                                            },
+                                            { 
+                                                title: 'In Transit (Direct to Customer)', 
+                                                time: isPassed(status, ['delivered', 'completed']) ? 'Done' : isPassed(status, ['in_transit', 'shipped']) ? 'In Progress' : 'Pending', 
+                                                desc: 'On its way directly to your location.', 
+                                                done: isPassed(status, ['delivered', 'completed']) 
+                                            },
+                                            { 
+                                                title: 'Shipment Delivered', 
+                                                time: isPassed(status, ['delivered', 'completed']) ? 'Finalized' : 'Pending', 
+                                                desc: isPassed(status, ['delivered', 'completed']) ? `Arrived via ${trackingOrder.carrier || 'FLA Logistics'} (Tracking: ${trackingOrder.trackingNumber || 'N/A'})` : 'Package handed over to recipient.', 
+                                                done: isPassed(status, ['delivered', 'completed']) 
                                             },
                                         ];
 
-                                        let trackingSteps = [];
-                                        if (isInterRegional) {
-                                            trackingSteps = [
-                                                ...baseSteps,
-                                                { title: 'In Transit to Hub', time: isPassed(status, ['in_transit_to_first_mile', 'arrived_at_first_mile', 'in_transit_to_last_mile', 'shipped', 'delivered', 'completed']) ? 'Done' : 'Pending', desc: 'Moving to the regional sorting station.', done: isPassed(status, ['in_transit_to_first_mile', 'arrived_at_first_mile', 'in_transit_to_last_mile', 'shipped', 'delivered', 'completed']) },
-                                                { title: 'Arrived at Hub', time: isPassed(status, ['arrived_at_first_mile', 'in_transit_to_last_mile', 'shipped', 'delivered', 'completed']) ? 'Done' : 'Pending', desc: 'Sorting at regional delivery station.', done: isPassed(status, ['arrived_at_first_mile', 'in_transit_to_last_mile', 'shipped', 'delivered', 'completed']) },
-                                                { title: 'Final Transit', time: isPassed(status, ['in_transit_to_last_mile', 'shipped', 'delivered', 'completed']) ? 'Done' : 'Pending', desc: 'On the way to your local hub.', done: isPassed(status, ['in_transit_to_last_mile', 'shipped', 'delivered', 'completed']) },
-                                                { title: 'Shipment Delivered', time: isPassed(status, ['delivered', 'completed']) ? 'Finalized' : 'Pending', desc: isPassed(status, ['delivered', 'completed']) ? `Arrived via ${trackingOrder.carrier || 'FLA Logistics'} (Tracking: ${trackingOrder.trackingNumber || 'N/A'})` : 'Package handed over to recipient.', done: isPassed(status, ['delivered', 'completed']) },
-                                            ];
-                                        } else {
-                                            trackingSteps = [
-                                                ...baseSteps,
-                                                { title: 'In Transit (Direct)', time: isPassed(status, ['in_transit', 'shipped', 'delivered', 'completed']) ? 'Done' : 'Pending', desc: 'On its way directly to your location.', done: isPassed(status, ['in_transit', 'shipped', 'delivered', 'completed']) },
-                                                { title: 'Shipment Delivered', time: isPassed(status, ['delivered', 'completed']) ? 'Finalized' : 'Pending', desc: isPassed(status, ['delivered', 'completed']) ? `Arrived via ${trackingOrder.carrier || 'FLA Logistics'} (Tracking: ${trackingOrder.trackingNumber || 'N/A'})` : 'Package handed over to recipient.', done: isPassed(status, ['delivered', 'completed']) },
-                                            ];
-                                        }
-
-                                        return trackingSteps.map((s, idx) => (
-                                            <div key={idx} className={`relative flex gap-6 transition-all duration-500 ${s.done ? 'opacity-100' : 'opacity-20 translate-x-1'}`}>
-                                                <div className={`w-3 h-3 rounded-full mt-1.5 z-10 border-2 border-white ring-4 transition-all duration-700 ${s.done ? 'bg-brand-lemon ring-brand-lemon/30' : 'bg-slate-200 ring-slate-50'}`} />
+                                        return trackingSteps.map((s, idx) => {
+                                            const isActive = s.time === 'In Progress';
+                                            const isHighlighted = s.done || isActive;
+                                            return (
+                                            <div key={idx} className={`relative flex gap-6 transition-all duration-500 ${isHighlighted ? 'opacity-100' : 'opacity-20 translate-x-1'}`}>
+                                                <div className={`w-3 h-3 rounded-full mt-1.5 z-10 border-2 border-white ring-4 transition-all duration-700 ${s.done ? 'bg-brand-lemon ring-brand-lemon/30' : isActive ? 'bg-brand-lemon/60 ring-brand-lemon/20 animate-pulse' : 'bg-slate-200 ring-slate-50'}`} />
                                                 <div className="flex-1">
                                                     <div className="flex justify-between items-start">
-                                                        <h4 className={`font-bold text-sm transition-colors ${s.done ? 'text-slate-900' : 'text-slate-400'}`}>{s.title}</h4>
-                                                        <span className={`text-[9px] font-black uppercase transition-colors ${s.done ? 'text-slate-500' : 'text-slate-300'}`}>{s.time}</span>
+                                                        <h4 className={`font-bold text-sm transition-colors ${isHighlighted ? 'text-slate-900' : 'text-slate-400'}`}>{s.title}</h4>
+                                                        <span className={`text-[9px] font-black uppercase transition-colors ${isHighlighted ? (isActive ? 'text-brand-lemon' : 'text-slate-500') : 'text-slate-300'}`}>{s.time}</span>
                                                     </div>
-                                                    <p className={`text-[11px] mt-0.5 transition-colors ${s.done ? 'text-slate-600' : 'text-slate-300'}`}>{s.desc}</p>
+                                                    <p className={`text-[11px] mt-0.5 transition-colors ${isHighlighted ? 'text-slate-600' : 'text-slate-300'}`}>{s.desc}</p>
                                                 </div>
                                             </div>
-                                        ));
+                                        );
+                                        });
                                     })()}
                                 </div>
 

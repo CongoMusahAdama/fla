@@ -56,13 +56,15 @@ export default function OrderTracking() {
     }
 
     const steps = [
-        { label: 'Confirmed', status: 'confirmed', icon: Clock, desc: 'Payment verified and studio notified.' },
-        { label: 'Processing', status: 'processing', icon: Box, desc: 'Your fashion piece is being prepared.' },
-        { label: 'Shipped', status: 'shipped', icon: Truck, desc: 'Package is with our courier partner.' },
-        { label: 'Delivered', status: 'delivered', icon: CheckCircle2, desc: 'Design has reached its destination.' }
+        { label: 'Confirmed', statuses: ['confirmed'], icon: Clock, desc: 'Payment verified and studio notified.' },
+        { label: 'Processing', statuses: ['processing', 'in_printing'], icon: Box, desc: 'Your fashion piece is being prepared.' },
+        { label: 'Preparing Shipment', statuses: ['preparing_shipment'], icon: Package, desc: 'Vendor is packaging your items.' },
+        { label: 'In Transit to Skynet', statuses: ['in_transit_to_first_mile', 'arrived_at_first_mile', 'in_transit_to_last_mile'], icon: Truck, desc: 'Moving to Skynet for regional sorting.' },
+        { label: 'In Transit (Direct to Customer)', statuses: ['in_transit', 'shipped'], icon: Truck, desc: 'On its way directly to your location.' },
+        { label: 'Delivered', statuses: ['delivered', 'completed'], icon: CheckCircle2, desc: 'Design has reached its destination.' }
     ];
 
-    const currentStatusIndex = steps.findIndex(s => s.status === (order.status || 'confirmed').toLowerCase());
+    const currentStatusIndex = steps.findIndex(s => s.statuses.includes((order.status || 'confirmed').toLowerCase()));
     const isPaid = order.isPaid;
 
     return (

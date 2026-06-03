@@ -7,6 +7,7 @@ import { AuthGuard } from '@nestjs/passport';
 import { UsersService } from '../users/users.service';
 import { TurnstileService } from '../common/turnstile.service';
 import { StreamService } from '../common/stream.service';
+import { FLA_TERMS_VERSION } from '../common/constants';
 
 @Controller('auth')
 export class AuthController {
@@ -62,14 +63,21 @@ export class AuthController {
       if (!isHuman) {
         throw new BadRequestException('Security verification failed. Please try again.');
       }
-    } else {
-      // In production, we might want to make this mandatory
-      // throw new BadRequestException('Security verification is required.');
+    } else if (process.env.NODE_ENV === 'production') {
+      throw new BadRequestException('Security verification is required.');
     }
 
     // SECURITY: Prevent privilege escalation. Only 'customer' and 'vendor' are allowed via public registration.
     const allowedRole = createUserDto.role === 'vendor' ? 'vendor' : 'customer';
     return this.authService.register({ ...createUserDto, role: allowedRole });
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Post('accept-terms')
+  async acceptTerms(@Request() req, @Body() body: { version?: string }) {
+    const version = body?.version || FLA_TERMS_VERSION;
+    const user = await this.authService.acceptTerms(req.user.userId, version);
+    return { success: true, user };
   }
 
   @UseGuards(AuthGuard('jwt'))

@@ -35,7 +35,6 @@ export class DashboardService {
             activeOrders,
             wishlistCount,
             walletBalance: user?.walletBalance || 0,
-            pendingEscrow: orders.filter(o => o.isPaid && o.escrowStatus === 'held').reduce((sum, o) => sum + o.totalAmount, 0),
             recentOrders: orders.slice(0, 5)
         };
     }
@@ -97,14 +96,11 @@ export class DashboardService {
         // Fetch aggregation stats from services instead of loading all data into memory
         const stats = await this.ordersService.getAdminDashboardStats();
 
-        // Users stats
-        const users = await this.usersService.findAll(); // Optimization: Could replace with countDocuments
-        const totalUsers = users.length;
-        const totalVendors = users.filter((u: any) => u.role === 'vendor').length;
-
-        // Products stats
-        const productsCount = await this.productsService.findAll({ showAll: 'true' }); // Optimization: Could replace with countDocuments
-        const totalProducts = productsCount.length;
+        const [totalUsers, totalVendors, totalProducts] = await Promise.all([
+            this.usersService.countAll(),
+            this.usersService.countByRole('vendor'),
+            this.productsService.countCatalog(),
+        ]);
 
         // Recent limit
         const recentOrders = await this.ordersService.getRecentOrders(10);
@@ -115,7 +111,6 @@ export class DashboardService {
         return {
             totalRevenue: stats.totalRevenue,
             totalCommission: stats.totalCommission,
-            escrowBalance: stats.escrowBalance,
             totalUsers,
             totalVendors,
             totalProducts,

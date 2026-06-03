@@ -105,6 +105,12 @@ export class User {
     @Prop({ default: 0 })
     reputationScore: number; // calculated score based on multiple factors
 
+    @Prop()
+    termsAcceptedAt?: Date;
+
+    @Prop()
+    termsVersion?: string;
+
     @Prop({ default: 'active' })
     status: string;
 
@@ -164,6 +170,9 @@ export class User {
     @Prop()
     verificationDeclineReason?: string;
 
+    @Prop()
+    kycApprovedAt?: Date;
+
     @Prop({ default: false })
     isEmailVerified: boolean;
 
@@ -179,3 +188,4 @@ export const UserSchema = SchemaFactory.createForClass(User);
 // Performance indexes (email and uniqueVendorId indexed via schema prop unique/sparse flags)
 UserSchema.index({ role: 1, status: 1 });
 UserSchema.index({ shopName: 'text', name: 'text' });
+UserSchema.index({ phone: 1 });

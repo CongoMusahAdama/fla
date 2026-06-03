@@ -5,8 +5,8 @@ export default function Workflow() {
     const steps = [
         {
             id: 1,
-            title: "Secure Split Payment",
-            description: "Payment is held securely. Production only begins once your order is confirmed.",
+            title: "Secure Paystack Payment",
+            description: "Pay securely via Paystack. Your vendor is paid through the platform split at checkout.",
             icon: CreditCard,
         },
         {

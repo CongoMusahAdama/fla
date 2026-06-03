@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from 'react';
 import Swal from 'sweetalert2';
 import { useRouter } from 'next/navigation';
 import { getImageUrl } from '@/lib/utils';
+import { groupCartByVendor, setMultiCheckoutQueue } from '@/lib/cart-vendors';
 
 export default function CartDrawer() {
     const { cartItems, isCartOpen, setIsCartOpen, removeFromCart, updateQuantity } = useCart();
@@ -81,27 +82,49 @@ export default function CartDrawer() {
 
         setIsCartOpen(false);
 
-        let selectedDeliveryFee = 0;
+        const vendorGroups = groupCartByVendor(cartItems);
+        if (vendorGroups.length === 0) {
+            Swal.fire({
+                title: 'CANNOT CHECK OUT',
+                text: 'Some items are missing vendor information. Remove them and add again from the shop.',
+                icon: 'warning',
+            });
+            return;
+        }
+
+        const multiVendor = vendorGroups.length > 1;
+
         const { value: formValues, isConfirmed } = await Swal.fire({
-            title: 'CONFIRM YOUR ORDER',
+            title: multiVendor ? 'CONFIRM YOUR ORDERS' : 'CONFIRM YOUR ORDER',
             html: `
                 <div class="text-left space-y-5 py-4">
+                    ${multiVendor ? `
+                    <div class="bg-amber-50 border border-amber-100 rounded-2xl p-4">
+                        <p class="text-[10px] font-black text-amber-800 uppercase tracking-widest mb-1">${vendorGroups.length} studios in your bag</p>
+                        <p class="text-xs text-amber-900 font-medium leading-relaxed">You will complete <strong>${vendorGroups.length} separate Paystack payments</strong> — one per vendor. Each studio gets their own order and SMS.</p>
+                    </div>
+                    ` : ''}
                     <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                        <p class="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-3">Order Summary</p>
-                        <div class="space-y-2 max-h-40 overflow-y-auto">
-                            ${cartItems.map(item => `
-                                <div class="flex justify-between items-center text-sm bg-white p-3 rounded-xl">
-                                    <div class="flex flex-col">
-                                        <span class="font-bold text-slate-900">${item.name}</span>
-                                        <span class="text-slate-400 text-[10px] uppercase font-black tracking-widest">
-                                            ${item.size !== 'N/A' ? `Size: ${item.size}` : ''}
-                                            ${item.color !== 'N/A' ? ` | Color: ${item.color}` : ''}
-                                        </span>
+                        <p class="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-3">${multiVendor ? 'By studio' : 'Order Summary'}</p>
+                        <div class="space-y-3 max-h-48 overflow-y-auto">
+                            ${vendorGroups.map(group => `
+                                <div class="bg-white p-3 rounded-xl border border-slate-100">
+                                    <div class="flex justify-between items-center mb-2 pb-2 border-b border-slate-50">
+                                        <span class="text-[10px] font-black text-slate-900 uppercase tracking-widest">${group.vendorName}</span>
+                                        <span class="text-xs font-black text-slate-900">GH₵ ${group.subtotal.toLocaleString()}</span>
                                     </div>
-                                    <div class="text-right">
-                                        <span class="text-[10px] font-black text-slate-400">×${item.quantity}</span>
-                                        <p class="font-black text-slate-900">GH₵${item.price * item.quantity}</p>
-                                    </div>
+                                    ${group.items.map(item => `
+                                        <div class="flex justify-between items-center text-sm py-1">
+                                            <div class="flex flex-col">
+                                                <span class="font-bold text-slate-800 text-xs">${item.name}</span>
+                                                <span class="text-slate-400 text-[9px] uppercase font-bold">
+                                                    ${item.size !== 'N/A' ? `Size: ${item.size}` : ''}
+                                                    ${item.color !== 'N/A' ? ` | ${item.color}` : ''}
+                                                </span>
+                                            </div>
+                                            <span class="text-[10px] font-black text-slate-500">×${item.quantity}</span>
+                                        </div>
+                                    `).join('')}
                                 </div>
                             `).join('')}
                         </div>
@@ -127,36 +150,25 @@ export default function CartDrawer() {
                         </div>
                     </div>
 
-                    <!-- Fee Summary -->
-                    <div id="cart-fee-summary" class="mt-6 p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-2">
+                    <!-- Payment Summary -->
+                    <div class="mt-6 p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-2">
                         <div class="flex justify-between items-center text-xs font-bold text-slate-500 uppercase tracking-wider">
-                            <span>Subtotal</span>
+                            <span>Item Total (Pay Now)</span>
                             <span>GH₵ ${subtotal.toLocaleString()}</span>
                         </div>
-                        <div class="flex justify-between items-center text-xs font-bold text-slate-500 uppercase tracking-wider">
-                            <span class="flex items-center gap-1">Delivery Fee <span class="text-[8px] bg-slate-900 text-white px-1.5 py-0.5 rounded ml-1">Pay on Delivery</span></span>
-                            <span id="cart-display-delivery-fee">GH₵ 0.00</span>
-                        </div>
-                        <div class="pt-2 border-t border-slate-200 flex justify-between items-center">
-                            <div class="flex flex-col">
-                                <span class="text-sm font-black text-slate-900 uppercase">Payable Now</span>
-                                <span class="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Item(s) Total via Digital Payment</span>
-                            </div>
-                            <span id="cart-display-total-amount" class="text-lg font-black text-slate-900">GH₵ ${subtotal.toLocaleString()}</span>
-                        </div>
+                        <p class="text-[9px] text-slate-500 font-bold leading-relaxed pt-1 border-t border-slate-200">
+                            Delivery costs are <span class="text-slate-900">not charged on FLA</span>. Arrange and pay delivery directly with the vendor or courier.
+                        </p>
                     </div>
                 </div>
             `,
             showCancelButton: true,
-            confirmButtonText: 'Pay with MoMo / Card',
+            confirmButtonText: multiVendor ? `Pay studio 1 of ${vendorGroups.length}` : 'Pay with MoMo / Card',
             cancelButtonText: 'Continue Shopping',
             buttonsStyling: false,
             didOpen: () => {
                 const cityInput = document.getElementById('delivery-city') as HTMLInputElement;
                 const suggestionsBox = document.getElementById('location-suggestions-cart') as HTMLDivElement;
-                const feeDisplay = document.getElementById('cart-display-delivery-fee') as HTMLSpanElement;
-                const totalDisplay = document.getElementById('cart-display-total-amount') as HTMLSpanElement;
-
                 let timeout: NodeJS.Timeout;
 
                 cityInput.addEventListener('input', (e) => {
@@ -175,27 +187,18 @@ export default function CartDrawer() {
 
                             if (locations.length > 0) {
                                 suggestionsBox.innerHTML = locations.map((loc: any) => `
-                                    <button class="w-full px-5 py-3 text-left hover:bg-slate-50 flex items-center justify-between border-b border-slate-50 last:border-0 transition-colors" data-name="${loc.name}" data-fee="${loc.deliveryFee}" data-zone="${loc.zone}">
+                                    <button class="w-full px-5 py-3 text-left hover:bg-slate-50 flex items-center justify-between border-b border-slate-50 last:border-0 transition-colors" data-name="${loc.name}" data-zone="${loc.zone}">
                                         <div class="flex flex-col">
                                             <span class="text-sm font-black text-slate-900">${loc.name}</span>
                                             <span class="text-[9px] text-slate-400 font-bold uppercase tracking-wider">${loc.zone} ${loc.cluster ? `(${loc.cluster})` : ''}</span>
                                         </div>
-                                        <span class="text-xs font-black text-brand-lemon bg-slate-900 px-2 py-1 rounded-lg">GH₵ ${loc.deliveryFee}</span>
                                     </button>
                                 `).join('');
                                 suggestionsBox.classList.remove('hidden');
 
                                 suggestionsBox.querySelectorAll('button').forEach(btn => {
                                     btn.addEventListener('click', () => {
-                                        const name = btn.getAttribute('data-name') || '';
-                                        const fee = parseInt(btn.getAttribute('data-fee') || '0');
-                                        
-                                        cityInput.value = name;
-                                        selectedDeliveryFee = fee;
-                                        
-                                        feeDisplay.textContent = `GH₵ ${fee.toLocaleString()}.00`;
-                                        totalDisplay.textContent = `GH₵ ${subtotal.toLocaleString()}.00`;
-                                        
+                                        cityInput.value = btn.getAttribute('data-name') || '';
                                         suggestionsBox.classList.add('hidden');
                                     });
                                 });
@@ -227,7 +230,6 @@ export default function CartDrawer() {
                     deliveryAddress, 
                     deliveryCity, 
                     deliveryRegion, 
-                    deliveryFee: selectedDeliveryFee,
                     totalProductAmount: subtotal
                 };
             },
@@ -256,42 +258,37 @@ export default function CartDrawer() {
                     }
                 });
 
-                const orderData = {
-                    items: cartItems.map(item => ({
-                        productId: item.id,
-                        name: item.name,
-                        price: item.price,
-                        quantity: item.quantity,
-                        size: item.size,
-                        color: item.color,
-                        image: item.image
-                    })),
-                    totalProductAmount: formValues.totalProductAmount,
-                    deliveryFee: formValues.deliveryFee,
-                    totalAmount: formValues.totalProductAmount + formValues.deliveryFee,
-                    vendorId: (typeof cartItems[0]?.vendorId === 'object' && cartItems[0]?.vendorId !== null)
-                        ? (cartItems[0].vendorId as any)._id || (cartItems[0].vendorId as any).id
-                        : cartItems[0]?.vendorId,
-                    vendorName: cartItems[0]?.vendorName,
+                const checkoutPayload = {
                     shippingAddress: formValues.deliveryAddress,
                     shippingCity: formValues.deliveryCity,
                     shippingRegion: formValues.deliveryRegion,
-                    deliveryType: 'skynet-express',
                     customerName: user?.name,
                     customerEmail: user?.email,
                     customerPhone: user?.phone,
-                    paymentMethod: 'paystack',
-                    notes: `Skynet Delivery to ${formValues.deliveryCity}`
+                    notes: `Delivery to ${formValues.deliveryCity}`,
+                    vendorGroups: vendorGroups.map(group => ({
+                        vendorId: group.vendorId,
+                        vendorName: group.vendorName,
+                        items: group.items.map(item => ({
+                            productId: item.id,
+                            name: item.name,
+                            price: item.price,
+                            quantity: item.quantity,
+                            size: item.size,
+                            color: item.color,
+                            image: item.image,
+                        })),
+                    })),
                 };
 
-                const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders`, {
+                const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders/checkout-cart`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${token}`
                     },
                     credentials: 'include',
-                    body: JSON.stringify(orderData)
+                    body: JSON.stringify(checkoutPayload)
                 });
 
                 if (!response.ok) {
@@ -299,10 +296,21 @@ export default function CartDrawer() {
                     throw new Error(error.message || 'Failed to initialize payment');
                 }
 
-                const { paymentLink } = await response.json();
+                const result = await response.json();
+                const orderIds = (result.orders || []).map((o: { orderId: string }) => o.orderId);
+
+                if (result.multiVendor && orderIds.length > 1) {
+                    setMultiCheckoutQueue(orderIds);
+                }
+
+                const firstPayment = result.orders?.[0]?.paymentLink;
+                if (!firstPayment) {
+                    throw new Error('No payment link returned');
+                }
+
                 cartItems.forEach(item => removeFromCart(item.id, item.size, item.color));
                 setIsCartOpen(false);
-                window.location.href = paymentLink;
+                window.location.href = firstPayment;
 
             } catch (error: any) {
                 console.error('Checkout error:', error);

@@ -1,7 +1,7 @@
 import { IsString, IsNotEmpty, IsNumber, IsOptional, IsArray, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 
-class OrderItemDto {
+export class OrderItemDto {
     @IsString()
     @IsNotEmpty()
     productId: string;
@@ -96,10 +96,6 @@ export class CreateOrderDto {
     @IsString()
     @IsOptional()
     status?: string;
-
-    @IsString()
-    @IsOptional()
-    escrowStatus?: string;
 
     @IsString()
     @IsOptional()

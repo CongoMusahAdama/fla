@@ -351,7 +351,7 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
         // No guestInfo needed as user is authenticated
         const guestInfo = null;
 
-        // Check if item is Made to Order (e.g. takes time) and warn about Escrow
+        // Made-to-order items may take longer to produce
         // We assume simple check: if stock > 0 but needs time, or just based on duration text
         const isMadeToOrder = duration && !duration.toLowerCase().includes('ready') && !duration.toLowerCase().includes('stock');
 
@@ -363,8 +363,8 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                     <div class="text-left text-sm space-y-3">
                         <p>This item requires <b class="text-slate-900 font-bold underline decoration-brand-lemon decoration-2">${duration}</b> to be tailored.</p>
                         <div class="bg-brand-lemon/10 p-3 rounded-lg border border-brand-lemon/20 text-slate-700">
-                             <p class="font-bold flex items-center gap-2"> Split Payment Protection</p>
-                            <p class="text-xs mt-1">Your payment is settled to the vendor upon successful delivery confirmation.</p>
+                             <p class="font-bold flex items-center gap-2"> Paystack Payment</p>
+                            <p class="text-xs mt-1">You pay via Paystack at checkout. Delivery fees are arranged directly with the vendor.</p>
                         </div>
                         <p class="text-center font-bold text-slate-900 mt-2">Do you accept?</p>
                     </div>
@@ -387,9 +387,6 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
 
 
     const handleDeliveryDetails = async () => {
-        let selectedDeliveryFee = 0;
-        let selectedLocationName = '';
-
         const { value: formValues, isConfirmed } = await Swal.fire({
             title: 'DELIVERY DETAILS',
             html: `
@@ -412,23 +409,15 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                         </div>
                     </div>
                     
-                    <!-- Fee Summary -->
-                    <div id="delivery-fee-summary" class="mt-6 p-4 rounded-none bg-slate-50 border border-slate-100 space-y-2">
+                    <!-- Payment Summary -->
+                    <div class="mt-6 p-4 rounded-none bg-slate-50 border border-slate-100 space-y-2">
                         <div class="flex justify-between items-center text-xs font-bold text-slate-500 uppercase tracking-wider">
-                            <span>Item Price</span>
+                            <span>Item Total (Pay Now)</span>
                             <span>GH₵ ${currentPrice.toLocaleString()}</span>
                         </div>
-                        <div class="flex justify-between items-center text-xs font-bold text-slate-500 uppercase tracking-wider">
-                            <span class="flex items-center gap-1">Delivery Fee <span class="text-[8px] bg-slate-900 text-white px-1.5 py-0.5 rounded-none ml-1">Pay on Delivery</span></span>
-                            <span id="display-delivery-fee">GH₵ 0.00</span>
-                        </div>
-                        <div class="pt-2 border-t border-slate-200 flex justify-between items-center">
-                            <div class="flex flex-col">
-                                <span class="text-sm font-black text-slate-900 uppercase">Payable Now</span>
-                                <span class="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Digital Payment for Item Only</span>
-                            </div>
-                            <span id="display-total-amount" class="text-lg font-black text-slate-900">GH₵ ${currentPrice.toLocaleString()}</span>
-                        </div>
+                        <p class="text-[9px] text-slate-500 font-bold leading-relaxed pt-1 border-t border-slate-200">
+                            Delivery is <span class="text-slate-900">not charged on FLA</span>. Pay delivery directly to the vendor or courier.
+                        </p>
                     </div>
                 </div>
             `,
@@ -439,9 +428,6 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                 const cityInput = document.getElementById('quick-delivery-city') as HTMLInputElement;
                 const suggestionsBox = document.getElementById('location-suggestions') as HTMLDivElement;
                 const regionInput = document.getElementById('quick-delivery-region') as HTMLInputElement;
-                const feeDisplay = document.getElementById('display-delivery-fee') as HTMLSpanElement;
-                const totalDisplay = document.getElementById('display-total-amount') as HTMLSpanElement;
-
                 let timeout: NodeJS.Timeout;
 
                 cityInput.addEventListener('input', (e) => {
@@ -460,32 +446,19 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
 
                             if (locations.length > 0) {
                                 suggestionsBox.innerHTML = locations.map((loc: any) => `
-                                    <button class="w-full px-5 py-3 text-left hover:bg-slate-50 flex items-center justify-between border-b border-slate-50 last:border-0 transition-colors" data-name="${loc.name}" data-fee="${loc.deliveryFee}" data-zone="${loc.zone}">
+                                    <button class="w-full px-5 py-3 text-left hover:bg-slate-50 flex items-center justify-between border-b border-slate-50 last:border-0 transition-colors" data-name="${loc.name}" data-zone="${loc.zone}">
                                         <div class="flex flex-col">
                                             <span class="text-sm font-black text-slate-900">${loc.name}</span>
                                             <span class="text-[9px] text-slate-400 font-bold uppercase tracking-wider">${loc.zone} ${loc.cluster ? `(${loc.cluster})` : ''}</span>
                                         </div>
-                                        <span class="text-xs font-black text-brand-lemon bg-slate-900 px-2 py-1 rounded-lg">GH₵ ${loc.deliveryFee}</span>
                                     </button>
                                 `).join('');
                                 suggestionsBox.classList.remove('hidden');
 
                                 // Attach click events to suggestions
                                 suggestionsBox.querySelectorAll('button').forEach(btn => {
-                                    btn.addEventListener('click', (ev) => {
-                                        const name = btn.getAttribute('data-name') || '';
-                                        const fee = parseInt(btn.getAttribute('data-fee') || '0');
-                                        const zone = btn.getAttribute('data-zone') || '';
-
-                                        cityInput.value = name;
-                                        selectedLocationName = name;
-                                        selectedDeliveryFee = fee;
-                                        
-                                        // Auto-fill region if we can infer it or just leave for user
-                                        // Update displays
-                                        feeDisplay.textContent = `GH₵ ${fee.toLocaleString()}.00`;
-                                        totalDisplay.textContent = `GH₵ ${currentPrice.toLocaleString()}.00`;
-                                        
+                                    btn.addEventListener('click', () => {
+                                        cityInput.value = btn.getAttribute('data-name') || '';
                                         suggestionsBox.classList.add('hidden');
                                     });
                                 });
@@ -519,7 +492,6 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                     deliveryAddress, 
                     deliveryCity, 
                     deliveryRegion, 
-                    deliveryFee: selectedDeliveryFee,
                     totalProductAmount: currentPrice
                 };
             },
@@ -536,7 +508,7 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
         }
     };
 
-    const handleCheckoutFlow = async (deliveryDetails: { deliveryAddress: string, deliveryCity: string, deliveryRegion: string, deliveryFee: number, totalProductAmount: number }) => {
+    const handleCheckoutFlow = async (deliveryDetails: { deliveryAddress: string, deliveryCity: string, deliveryRegion: string, totalProductAmount: number }) => {
         try {
 
             Swal.fire({
@@ -557,8 +529,8 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                     image: images[0]
                 }],
                 totalProductAmount: deliveryDetails.totalProductAmount,
-                deliveryFee: deliveryDetails.deliveryFee,
-                totalAmount: deliveryDetails.totalProductAmount + deliveryDetails.deliveryFee,
+                deliveryFee: 0,
+                totalAmount: deliveryDetails.totalProductAmount,
                 vendorId: (typeof vendorId === 'object' && vendorId !== null) ? (vendorId._id || vendorId.id) : vendorId,
                 vendorName: vendorName,
                 shippingAddress: deliveryDetails.deliveryAddress,

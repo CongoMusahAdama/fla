@@ -1,13 +1,21 @@
-import { Injectable, NotFoundException, ForbiddenException, Inject, forwardRef, Logger, BadRequestException, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, Logger, BadRequestException, InternalServerErrorException } from '@nestjs/common';
 import { InjectModel, InjectConnection } from '@nestjs/mongoose';
 import { Model, Types, Connection } from 'mongoose';
 import { CreateOrderDto } from './dto/create-order.dto';
+import { CheckoutCartDto } from './dto/checkout-cart.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { Order, OrderDocument } from './schemas/order.schema';
 import { Product, ProductDocument } from '../products/schemas/product.schema';
 import { User, UserDocument } from '../users/schemas/user.schema';
 import { PaystackService } from '../common/paystack.service';
 import { FLA_CONSTANTS } from '../common/constants';
+import {
+  normalizeWhatsAppPhone,
+  buildWaMeLink,
+  buildShortCustomerToVendorWaText,
+  buildShortVendorToCustomerWaText,
+  appendWhatsAppLinkToSms,
+} from '../common/whatsapp.util';
 
 import { NotificationsService } from '../notifications/notifications.service';
 import { EmailService } from '../email/email.service';
@@ -31,15 +39,99 @@ export class OrdersService {
   ) { }
 
   async create(createOrderDto: CreateOrderDto): Promise<{ order: Order; paymentLink: string }> {
+    return this.createOrderWithPayment(createOrderDto);
+  }
+
+  async checkoutCart(
+    customerId: string,
+    dto: CheckoutCartDto,
+  ): Promise<{
+    multiVendor: boolean;
+    vendorCount: number;
+    orders: Array<{
+      orderId: string;
+      vendorId: string;
+      vendorName: string;
+      totalAmount: number;
+      paymentLink: string;
+    }>;
+  }> {
+    if (!dto.vendorGroups?.length) {
+      throw new BadRequestException('Cart is empty');
+    }
+
+    const multiVendor = dto.vendorGroups.length > 1;
+    const results: Array<{
+      orderId: string;
+      vendorId: string;
+      vendorName: string;
+      totalAmount: number;
+      paymentLink: string;
+    }> = [];
+
+    for (const group of dto.vendorGroups) {
+      if (!group.items?.length) {
+        throw new BadRequestException('Each vendor group must have at least one item');
+      }
+
+      const totalProductAmount = group.items.reduce(
+        (sum, item) => sum + item.price * item.quantity,
+        0,
+      );
+
+      const createOrderDto: CreateOrderDto = {
+        customerId,
+        vendorId: group.vendorId,
+        vendorName: group.vendorName,
+        items: group.items,
+        totalProductAmount,
+        totalAmount: totalProductAmount,
+        deliveryFee: 0,
+        shippingAddress: dto.shippingAddress,
+        shippingCity: dto.shippingCity,
+        shippingRegion: dto.shippingRegion,
+        customerName: dto.customerName,
+        customerEmail: dto.customerEmail,
+        customerPhone: dto.customerPhone,
+        paymentMethod: 'paystack',
+        notes: dto.notes || (multiVendor ? 'Multi-vendor bag checkout' : undefined),
+      };
+
+      const { order, paymentLink } = await this.createOrderWithPayment(createOrderDto, {
+        multiCheckout: multiVendor,
+      });
+
+      results.push({
+        orderId: (order as OrderDocument)._id.toString(),
+        vendorId: group.vendorId,
+        vendorName: (order as any).vendorName || group.vendorName || 'Vendor',
+        totalAmount: order.totalAmount,
+        paymentLink,
+      });
+    }
+
+    this.logger.log(
+      `Checkout cart: ${results.length} order(s) for customer ${customerId} (multiVendor=${multiVendor})`,
+    );
+
+    return {
+      multiVendor,
+      vendorCount: results.length,
+      orders: results,
+    };
+  }
+
+  private async createOrderWithPayment(
+    createOrderDto: CreateOrderDto,
+    options?: { multiCheckout?: boolean },
+  ): Promise<{ order: Order; paymentLink: string }> {
     try {
       const orderId = new Types.ObjectId();
 
-      // Delivery Fee Logic
-      const deliveryFee = createOrderDto.deliveryFee || 0;
+      const deliveryFee = 0;
       const totalProductAmount = createOrderDto.totalProductAmount || createOrderDto.totalAmount;
-      const totalAmount = totalProductAmount + deliveryFee;
+      const totalAmount = totalProductAmount;
 
-      // Commission Logic (Based on Product Amount only)
       const fetchedRate = await this.settingsService.getSetting('platform_commission');
       const commissionRate = fetchedRate !== null && fetchedRate !== undefined ? Number(fetchedRate) : FLA_CONSTANTS.DEFAULT_COMMISSION_RATE;
       const adminCommission = totalProductAmount * (commissionRate / 100);
@@ -60,7 +152,7 @@ export class OrdersService {
         adminCommission,
         vendorShare,
         commissionRate,
-        paymentRef: orderId.toString()
+        paymentRef: orderId.toString(),
       };
 
       if (vendorId) {
@@ -73,7 +165,7 @@ export class OrdersService {
       if (createOrderDto.items && createOrderDto.items.length > 0) {
         orderData.items = createOrderDto.items.map(item => ({
           ...item,
-          productId: new Types.ObjectId(item.productId)
+          productId: new Types.ObjectId(item.productId),
         }));
       }
 
@@ -83,30 +175,34 @@ export class OrdersService {
       });
       const savedOrder = await createdOrder.save();
 
-      // Reserve stock immediately at order creation so other buyers see accurate availability
       if (createOrderDto.items && createOrderDto.items.length > 0) {
         for (const item of createOrderDto.items) {
           await this.productModel.findByIdAndUpdate(
             item.productId,
             { $inc: { stock: -item.quantity } },
-            { new: true }
+            { new: true },
           ).exec();
         }
         this.logger.log(`Stock reserved for order ${orderId.toString()}`);
       }
 
-      // Initialize Paystack Payment with Split (Subaccount)
+      const frontendBase = process.env.FRONTEND_URL || 'http://localhost:3000';
+      const callbackUrl = options?.multiCheckout
+        ? `${frontendBase}/dashboard?order_id=${orderId}&multi_checkout=1`
+        : `${frontendBase}/dashboard?order_id=${orderId}`;
+
       const paystackPayload: any = {
         reference: orderId.toString(),
         amount: totalProductAmount,
         email: createOrderDto.customerEmail || 'customer@fla.com',
-        callback_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard?order_id=${orderId}`,
+        callback_url: callbackUrl,
         metadata: {
           orderId: orderId.toString(),
           customerName: createOrderDto.customerName,
-          deliveryFee: deliveryFee,
-          paymentNotes: 'Delivery fee to be paid on arrival'
-        }
+          deliveryFee: 0,
+          paymentNotes: 'Delivery costs are arranged and paid outside FLA',
+          multiCheckout: options?.multiCheckout ? '1' : '0',
+        },
       };
 
       if (vendor?.paystackSubaccountCode) {
@@ -115,9 +211,6 @@ export class OrdersService {
       }
 
       const paymentLinkData: any = await this.paystackService.initializePayment(paystackPayload);
-
-
-      // NOTE: Vendor & Admin SMS are sent ONLY after payment is confirmed via Paystack webhook (handlePaymentSuccess)
 
       return { order: savedOrder, paymentLink: paymentLinkData.authorization_url };
     } catch (error) {
@@ -138,7 +231,7 @@ export class OrdersService {
       vendor = await this.userModel.findById(order.vendorId).exec();
     }
 
-    const totalProductAmount = order.totalAmount - (order.deliveryFee || 0);
+    const totalProductAmount = order.totalProductAmount ?? (order.totalAmount - (order.deliveryFee || 0));
     const adminCommission = order.adminCommission || (totalProductAmount * (FLA_CONSTANTS.DEFAULT_COMMISSION_RATE / 100));
 
     const paystackPayload: any = {
@@ -149,8 +242,8 @@ export class OrdersService {
       metadata: {
         orderId: orderId.toString(),
         customerName: order.customerName,
-        deliveryFee: order.deliveryFee,
-        paymentNotes: 'Delivery fee to be paid on arrival'
+        deliveryFee: 0,
+        paymentNotes: 'Delivery costs are arranged and paid outside FLA'
       }
     };
 
@@ -165,10 +258,18 @@ export class OrdersService {
   }
 
   async handlePaymentSuccess(orderId: string, transactionId: string) {
+    let resolvedOrderId = orderId;
+    if (!Types.ObjectId.isValid(resolvedOrderId)) {
+      const base = orderId.split('_')[0];
+      if (Types.ObjectId.isValid(base)) {
+        resolvedOrderId = base;
+      }
+    }
+
     const session = await this.connection.startSession();
     session.startTransaction();
     try {
-      const order = await this.orderModel.findById(orderId).session(session).exec();
+      const order = await this.orderModel.findById(resolvedOrderId).session(session).exec();
       if (!order || order.isPaid) {
         await session.abortTransaction();
         return;
@@ -177,7 +278,6 @@ export class OrdersService {
       order.isPaid = true;
       order.paidAt = new Date();
       order.status = 'payment_verified';
-      order.escrowStatus = 'completed'; // Direct split means it's effectively completed
       order.paymentId = transactionId;
 
       // Stock was already reserved at order creation — mark soldOutAt if applicable
@@ -211,50 +311,82 @@ export class OrdersService {
 
   private async sendPaymentSuccessNotifications(order: OrderDocument, customer: UserDocument) {
     try {
-      if (customer && customer.email) {
-        const message = `Payment for Order #ORD-${order._id.toString().slice(-6).toUpperCase()} verified! Your vendor has been notified to begin fulfillment.`;
-        this.emailService.sendGenericNotification(customer.email, customer.name || 'Customer', 'Payment Verified ✅', message).catch(err => this.logger.error(`Payment notification email failed: ${err.message}`));
+      const orderShortId = order._id.toString().slice(-6).toUpperCase();
+      const shopName = order.vendorName || 'your vendor';
+      const customerName = order.customerName || customer?.name || 'Customer';
+      const customerPhone =
+        order.customerPhone || customer?.phone || null;
+
+      let vendor: UserDocument | null = null;
+      if (order.vendorId) {
+        vendor = await this.userModel.findById(order.vendorId).exec();
       }
 
+      const vendorWaPhone = normalizeWhatsAppPhone(vendor?.phone);
+      const customerWaPhone = normalizeWhatsAppPhone(customerPhone);
 
-      // --- SMS + In-App Notifications (sent ONLY after Paystack confirms payment) ---
-      const orderShortId = order._id.toString().slice(-6).toUpperCase();
+      if (customer?.email) {
+        const emailBody = vendorWaPhone
+          ? `Payment for Order #ORD-${orderShortId} is verified. Message your vendor on WhatsApp: ${buildWaMeLink(vendorWaPhone, buildShortCustomerToVendorWaText(orderShortId, shopName, customerName))}`
+          : `Payment for Order #ORD-${orderShortId} verified! Your vendor has been notified to begin fulfillment.`;
+        this.emailService
+          .sendGenericNotification(customer.email, customer.name || 'Customer', 'Payment Verified ✅', emailBody)
+          .catch(err => this.logger.error(`Payment notification email failed: ${err.message}`));
+      }
 
-      // Notify Customer via SMS + in-app bell
+      // --- SMS + In-App (only after Paystack confirms payment) ---
       if (customer) {
         if (customer.phone) {
-          const customerMsg = `Payment confirmed! Your order #ORD-${orderShortId} on FLA is verified. Your vendor has been notified to begin fulfillment. Thank you for shopping!`;
-          this.smsService.sendSms(customer.phone, customerMsg).catch(err => this.logger.error(`Customer payment SMS failed: ${err.message}`));
+          let customerMsg = `FLA: Payment confirmed for #ORD-${orderShortId}. Your vendor will prepare your order.`;
+          if (vendorWaPhone) {
+            const waLink = buildWaMeLink(
+              vendorWaPhone,
+              buildShortCustomerToVendorWaText(orderShortId, shopName, customerName),
+            );
+            customerMsg = appendWhatsAppLinkToSms(customerMsg, waLink);
+          }
+          this.smsService.sendSms(customer.phone, customerMsg).catch(err =>
+            this.logger.error(`Customer payment SMS failed: ${err.message}`),
+          );
         }
         this.notificationsService.create(order.customerId.toString(), {
           title: 'Payment Confirmed ✅',
-          message: `Your payment for Order #ORD-${orderShortId} has been verified. Your vendor is now preparing your item(s).`,
+          message: vendorWaPhone
+            ? `Order #ORD-${orderShortId} is paid. Open your dashboard or use the WhatsApp link in your SMS to message ${shopName}.`
+            : `Your payment for Order #ORD-${orderShortId} has been verified. Your vendor is now preparing your item(s).`,
           type: 'order',
-          orderId: order._id
+          orderId: order._id,
         }).catch(err => this.logger.error(`Customer in-app notification failed: ${err.message}`));
       }
 
-      // Notify Vendor via SMS + in-app bell (only now that payment is confirmed)
-      if (order.vendorId) {
-        this.userModel.findById(order.vendorId).exec().then(vendor => {
-          if (vendor) {
-            if (vendor.phone) {
-              const vendorMsg = `Payment received! Order #ORD-${orderShortId} on FLA has been paid. GHS ${order.totalAmount}. Check your dashboard and begin fulfillment immediately.`;
-              this.smsService.sendSms(vendor.phone, vendorMsg).catch(err => this.logger.error(`Vendor payment SMS failed: ${err.message}`));
-            }
-            this.notificationsService.create(order.vendorId.toString(), {
-              title: 'New Order Payment Received 💰',
-              message: `Order #ORD-${orderShortId} has been paid — GHS ${order.totalAmount}. Please begin fulfillment immediately.`,
-              type: 'order',
-              orderId: order._id
-            }).catch(err => this.logger.error(`Vendor in-app notification failed: ${err.message}`));
+      if (vendor) {
+        if (vendor.phone) {
+          let vendorMsg = `FLA: New paid order #ORD-${orderShortId}. Amount GHS ${order.totalAmount}. Begin fulfillment in your dashboard.`;
+          if (customerWaPhone) {
+            const waLink = buildWaMeLink(
+              customerWaPhone,
+              buildShortVendorToCustomerWaText(orderShortId, vendor.shopName || shopName, customerName),
+            );
+            vendorMsg = appendWhatsAppLinkToSms(vendorMsg, waLink);
           }
-        }).catch(err => this.logger.error(`Vendor lookup for payment notification failed: ${err.message}`));
+          this.smsService.sendSms(vendor.phone, vendorMsg).catch(err =>
+            this.logger.error(`Vendor payment SMS failed: ${err.message}`),
+          );
+        }
+        this.notificationsService.create(order.vendorId.toString(), {
+          title: 'New Order Payment Received 💰',
+          message: customerWaPhone
+            ? `Order #ORD-${orderShortId} paid — GHS ${order.totalAmount}. WhatsApp link sent via SMS to message ${customerName}.`
+            : `Order #ORD-${orderShortId} has been paid — GHS ${order.totalAmount}. Please begin fulfillment immediately.`,
+          type: 'order',
+          orderId: order._id,
+        }).catch(err => this.logger.error(`Vendor in-app notification failed: ${err.message}`));
       }
 
-      // Notify Admin via SMS
-      const adminMsg = `Payment Confirmed for Order #ORD-${orderShortId} by ${order.customerName || 'Customer'}. Amount: GHS ${order.totalAmount}.`;
-      this.smsService.sendAdminNotification(adminMsg).catch(err => this.logger.error(`Admin payment SMS failed: ${err.message}`));
+      const adminMsg = `Payment Confirmed for Order #ORD-${orderShortId} by ${customerName}. Amount: GHS ${order.totalAmount}.`;
+      this.smsService.sendAdminNotification(adminMsg).catch(err =>
+        this.logger.error(`Admin payment SMS failed: ${err.message}`),
+      );
     } catch (err) {
       this.logger.error(`Notification failed for order ${order._id}: ${err.message}`);
     }
@@ -277,7 +409,7 @@ export class OrdersService {
   async findByUser(userId: string, page: number = 1, limit: number = 10): Promise<{ orders: Order[]; total: number }> {
     const query = { customerId: new Types.ObjectId(userId) };
     const [orders, total] = await Promise.all([
-      this.orderModel.find(query).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).exec(),
+      this.orderModel.find(query).populate('vendorId', 'shopName name phone').sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).exec(),
       this.orderModel.countDocuments(query)
     ]);
     return { orders, total };
@@ -292,14 +424,21 @@ export class OrdersService {
     return { orders, total };
   }
 
+  private userCanAccessOrder(
+    order: OrderDocument,
+    user: { role: string; userId: string },
+  ): boolean {
+    if (user.role === 'admin') return true;
+    if (order.customerId.toString() === user.userId) return true;
+    const vendorId = order.vendorId?.toString();
+    return Boolean(vendorId && vendorId === user.userId);
+  }
+
   async findOne(id: string, user: { role: string; userId: string }): Promise<Order> {
     const order = await this.orderModel.findById(id).exec();
     if (!order) throw new NotFoundException(`Order with ID ${id} not found`);
 
-    // Ownership check: customer who placed it, vendor, or admin
-    if (user.role !== 'admin' &&
-      order.customerId.toString() !== user.userId &&
-      order.vendorId.toString() !== user.userId) {
+    if (!this.userCanAccessOrder(order, user)) {
       throw new ForbiddenException('You do not have permission to view this order');
     }
     return order;
@@ -307,7 +446,7 @@ export class OrdersService {
 
   async trackOrder(id: string): Promise<Partial<Order>> {
     const order = await this.orderModel.findById(id)
-      .select('status items trackingNumber carrier createdAt updatedAt vendorName escrowStatus shippingCity shippingRegion')
+      .select('status items trackingNumber carrier createdAt updatedAt vendorName shippingCity shippingRegion')
       .exec();
     if (!order) throw new NotFoundException(`Order with ID ${id} not found`);
     return order;
@@ -320,33 +459,16 @@ export class OrdersService {
       const order = await this.orderModel.findById(id).session(session).exec();
       if (!order) throw new NotFoundException(`Order with ID ${id} not found`);
 
-      // Ownership check: Only admin or the customer/vendor related to this order can update
-      if (user.role !== 'admin' &&
-        order.customerId.toString() !== user.userId &&
-        order.vendorId.toString() !== user.userId) {
+      if (!this.userCanAccessOrder(order, user)) {
         throw new ForbiddenException('You do not have permission to update this order');
       }
 
       // Special Handling for Cancellation
       if (updateOrderDto.status === 'cancelled' && order.status !== 'cancelled') {
         // Enforce user's specific cancellation policy
-        if (user.role !== 'admin') {
-          if (user.userId === order.customerId.toString()) {
-            // Customer can only cancel if they don't accept delivery payment (for inter-regional)
-            const canCustomerCancel = order.deliveryType === 'inter-regional' && order.firstMileFee > 0 && !order.isFirstMileFeePaid;
-            if (!canCustomerCancel) {
-              throw new ForbiddenException('You can only withdraw an order if you do not accept the delivery quotation.');
-            }
-          }
-          // Vendor can cancel (e.g., if product is no more fit to sell), which is already covered by ownership check
-        }
+        // Vendor/customer cancellation rules are enforced by role ownership above
 
-        // Since payments are split directly to vendors via Paystack, the platform cannot auto-refund.
-        // It must be paid back manually by the vendor.
-        if (order.isPaid && order.escrowStatus !== 'refunded') {
-          (updateOrderDto as any).escrowStatus = 'refund_pending';
-        }
-
+        // Paystack splits payment to vendor at checkout — refunds are handled manually if needed.
         // Restore reserved stock so the items go back on sale
         if (order.items && order.items.length > 0) {
           for (const item of order.items) {
@@ -379,7 +501,7 @@ export class OrdersService {
             customer.name || 'Customer',
             'Order Cancellation Update',
             `Order #ORD-${order._id.toString().slice(-6).toUpperCase()} was cancelled. ${order.isPaid ? 'Since the payment was already sent to the vendor, they will manually process your refund shortly.' : 'No funds were charged.'}`
-          ).catch(console.error);
+          ).catch(err => this.logger.error(`Cancellation email failed: ${err.message}`));
         }
       }
 
@@ -415,10 +537,6 @@ export class OrdersService {
     const stats = await this.orderModel.aggregate([
       {
         $facet: {
-          escrow: [
-            { $match: { escrowStatus: { $in: ['held', 'frozen', 'waiting_approval'] } } },
-            { $group: { _id: null, balance: { $sum: '$totalAmount' } } }
-          ],
           revenue: [
             { $match: { isPaid: true, status: { $nin: ['cancelled', 'refunded'] } } },
             {
@@ -443,9 +561,8 @@ export class OrdersService {
       }
     ]);
 
-    const result = stats[0] || { escrow: [], revenue: [], counts: [] };
+    const result = stats[0] || { revenue: [], counts: [] };
     return {
-      escrowBalance: result.escrow?.[0]?.balance || 0,
       totalRevenue: result.revenue?.[0]?.total || 0,
       totalCommission: result.revenue?.[0]?.commission || 0,
       totalOrders: result.counts?.[0]?.total || 0,
@@ -483,17 +600,20 @@ export class OrdersService {
       ]);
 
       const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-      
+      const statsByMonth = new Map(
+        stats.map(s => [`${s._id.year}-${s._id.month}`, s] as const),
+      );
+
       // Fill in missing months to ensure a continuous 12-month graph
       const fullData: { name: string; gross: number; net: number }[] = [];
       const now = new Date();
-      
+
       for (let i = 11; i >= 0; i--) {
         const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
         const month = d.getMonth() + 1;
         const year = d.getFullYear();
-        
-        const found = stats.find(s => s._id.month === month && s._id.year === year);
+
+        const found = statsByMonth.get(`${year}-${month}`);
         fullData.push({
           name: monthNames[month - 1],
           gross: found ? found.gross : 0,
@@ -523,7 +643,8 @@ export class OrdersService {
       const caller = await this.userModel.findById(callerId).exec();
       const isAdmin = caller?.role === 'admin';
       
-      if (!isAdmin && order.vendorId.toString() !== callerId) {
+      const vendorId = order.vendorId?.toString();
+      if (!isAdmin && (!vendorId || vendorId !== callerId)) {
         throw new ForbiddenException('Unauthorized - You do not have permission to verify this payment');
       }
 
@@ -537,21 +658,17 @@ export class OrdersService {
       order.isPaid = true;
       order.paidAt = new Date();
       order.status = 'payment_verified';
-      order.escrowStatus = 'held';
 
-      // ALWAYS credit the vendor related to the order
-      await this.userModel.findByIdAndUpdate(order.vendorId, {
-        $inc: { pendingBalance: order.vendorShare }
-      }).session(session);
-
-      // Decrement stock in parallel
+      // Stock was already reserved at order creation — mark soldOutAt if applicable
       if (order.items && order.items.length > 0) {
-        const stockUpdates = order.items.map(item =>
-          this.productModel.findByIdAndUpdate(item.productId, {
-            $inc: { stock: -item.quantity }
-          }).session(session)
-        );
-        await Promise.all(stockUpdates);
+        const soldOutUpdates = order.items.map(async item => {
+          const prod = await this.productModel.findById(item.productId).session(session).exec();
+          if (prod && prod.stock <= 0 && !prod.soldOutAt) {
+            prod.soldOutAt = new Date();
+            return prod.save({ session });
+          }
+        });
+        await Promise.all(soldOutUpdates);
       }
 
       const savedOrder = await order.save({ session });
@@ -595,13 +712,6 @@ export class OrdersService {
     if (trackingNumber) order.trackingNumber = trackingNumber;
     if (carrier) order.carrier = carrier;
 
-    // Set auto-release date to 7 days from now by default
-    // If the customer doesn't confirm receipt by then, funds will be auto-released
-    const autoReleaseDays = parseInt(process.env.AUTO_RELEASE_DAYS || '7');
-    const autoReleaseDate = new Date();
-    autoReleaseDate.setDate(autoReleaseDate.getDate() + autoReleaseDays);
-    order.autoReleaseDate = autoReleaseDate;
-
     const savedOrder = await order.save();
 
     // --- Skynet Handover Logic ---
@@ -641,50 +751,6 @@ export class OrdersService {
     return savedOrder;
   }
 
-  async releaseEscrow(orderId: string): Promise<Order> {
-    const session = await this.connection.startSession();
-    session.startTransaction();
-    try {
-      const order = await this.orderModel.findById(orderId).session(session).exec();
-      if (!order) throw new NotFoundException(`Order not found`);
-      if (order.escrowStatus === 'released') {
-        await session.abortTransaction();
-        return order;
-      }
-
-      order.escrowStatus = 'released';
-      order.status = 'completed';
-      order.deliveryConfirmationDate = order.deliveryConfirmationDate || new Date();
-
-      await this.userModel.findByIdAndUpdate(order.vendorId, {
-        $inc: {
-          pendingBalance: -order.vendorShare,
-          walletBalance: order.vendorShare,
-          fulfillmentRate: 1
-        }
-      }).session(session);
-
-      const savedOrder = await order.save({ session });
-      await session.commitTransaction();
-      return savedOrder;
-    } catch (error) {
-      await session.abortTransaction();
-      throw error;
-    } finally {
-      session.endSession();
-    }
-  }
-
-  async approveEscrow(orderId: string): Promise<Order> {
-    const order = await this.orderModel.findById(orderId).exec();
-    if (!order) throw new NotFoundException(`Order not found`);
-    if (order.escrowStatus !== 'waiting_approval') {
-      throw new Error(`Order escrow status is ${order.escrowStatus}, not waiting_approval`);
-    }
-
-    return this.releaseEscrow(orderId);
-  }
-
   async confirmReceipt(orderId: string, customerId: string): Promise<Order> {
     const order = await this.orderModel.findById(orderId).exec();
     if (!order) throw new NotFoundException(`Order not found`);
@@ -694,72 +760,22 @@ export class OrdersService {
     order.deliveryConfirmationDate = new Date();
     order.deliveredAt = new Date();
 
-    // Set auto-release date to 2 days from now
-    // If the customer doesn't mark as satisfied by then, funds will be auto-released
-    const autoReleaseDate = new Date();
-    autoReleaseDate.setDate(autoReleaseDate.getDate() + 2);
-    order.autoReleaseDate = autoReleaseDate;
-
     return order.save();
   }
 
   async markAsSatisfied(orderId: string, customerId: string): Promise<Order> {
-    const session = await this.connection.startSession();
-    session.startTransaction();
-    try {
-      const order = await this.orderModel.findById(orderId).session(session).exec();
-      if (!order) throw new NotFoundException(`Order not found`);
-      if (order.customerId.toString() !== customerId) throw new ForbiddenException('Unauthorized');
+    const order = await this.orderModel.findById(orderId).exec();
+    if (!order) throw new NotFoundException(`Order not found`);
+    if (order.customerId.toString() !== customerId) throw new ForbiddenException('Unauthorized');
 
-      if (order.status !== 'delivered') {
-        throw new Error('Order must be confirmed as received before marking as satisfied');
-      }
-
-      order.status = 'completed';
-      order.escrowStatus = 'released';
-      order.deliveryConfirmationDate = order.deliveryConfirmationDate || new Date();
-
-      // Release funds to vendor
-      await this.userModel.findByIdAndUpdate(order.vendorId, {
-        $inc: {
-          pendingBalance: -order.vendorShare,
-          walletBalance: order.vendorShare,
-          fulfillmentRate: 1
-        }
-      }).session(session);
-
-      const savedOrder = await order.save({ session });
-      await session.commitTransaction();
-      return savedOrder;
-    } catch (error) {
-      await session.abortTransaction();
-      throw error;
-    } finally {
-      session.endSession();
-    }
-  }
-
-  async processAutoReleases(): Promise<number> {
-    const now = new Date();
-    const ordersToRelease = await this.orderModel.find({
-      status: { $in: ['shipped', 'delivered'] },
-      escrowStatus: 'held',
-      autoReleaseDate: { $lte: now }
-    }).exec();
-
-    this.logger.log(`Found ${ordersToRelease.length} orders for auto-release.`);
-
-    let releasedCount = 0;
-    for (const order of ordersToRelease) {
-      try {
-        await this.releaseEscrow(order._id.toString());
-        releasedCount++;
-      } catch (err) {
-        this.logger.error(`Failed to auto-release order ${order._id}: ${err.message}`);
-      }
+    if (order.status !== 'delivered') {
+      throw new Error('Order must be confirmed as received before marking as satisfied');
     }
 
-    return releasedCount;
+    order.status = 'completed';
+    order.deliveryConfirmationDate = order.deliveryConfirmationDate || new Date();
+
+    return order.save();
   }
 
   async fileDispute(orderId: string, customerId: string, reason: string): Promise<Order> {
@@ -768,7 +784,6 @@ export class OrdersService {
     if (order.customerId.toString() !== customerId) throw new NotFoundException('Unauthorized');
 
     order.status = 'disputed';
-    order.escrowStatus = 'frozen';
     order.disputeReason = reason;
 
     const savedOrder = await order.save();
@@ -802,7 +817,9 @@ export class OrdersService {
 
     // --- SMS Notification ---
     const orderShortId = order._id.toString().slice(-6).toUpperCase();
-    this.smsService.sendAdminNotification(`Dispute filed for Order #ORD-${orderShortId} by ${customer?.name || 'Customer'}. Reason: ${reason}`).catch(console.error);
+    this.smsService.sendAdminNotification(`Dispute filed for Order #ORD-${orderShortId} by ${customer?.name || 'Customer'}. Reason: ${reason}`).catch(err =>
+      this.logger.error(`Admin dispute SMS failed: ${err.message}`),
+    );
 
     return savedOrder;
   }
@@ -816,29 +833,12 @@ export class OrdersService {
       if (order.status !== 'disputed') throw new Error('Order is not in dispute');
 
       if (resolution === 'release') {
-        // Nested session usage is tricky, better to call logic directly if possible or pass session
-        // For simplicity here, we'll manually implement releaseEscrow logic with current session
-        order.escrowStatus = 'released';
         order.status = 'completed';
         order.deliveryConfirmationDate = order.deliveryConfirmationDate || new Date();
-
-        await this.userModel.findByIdAndUpdate(order.vendorId, {
-          $inc: {
-            pendingBalance: -order.vendorShare,
-            walletBalance: order.vendorShare,
-            fulfillmentRate: 1
-          }
-        }).session(session);
       } else if (resolution === 'refund') {
         order.status = 'refunded';
-        order.escrowStatus = 'refunded';
 
-        // Deduct from vendor's pending balance
-        await this.userModel.findByIdAndUpdate(order.vendorId, {
-          $inc: { pendingBalance: -order.vendorShare }
-        }).session(session);
-
-        // Credit the customer's wallet balance
+        // Record refund in customer wallet — Paystack refund may still be processed manually.
         await this.userModel.findByIdAndUpdate(order.customerId, {
           $inc: { walletBalance: order.totalAmount }
         }).session(session);
@@ -855,7 +855,7 @@ export class OrdersService {
           customer.name || 'Customer',
           order._id.toString(),
           resolution
-        ).catch(console.error);
+        ).catch(err => this.logger.error(`Dispute resolution email failed: ${err.message}`));
       }
 
       return savedOrder;
@@ -877,133 +877,36 @@ export class OrdersService {
   }
 
   async getVendorStats(vendorId: string) {
-    const orders = await this.orderModel.find({ vendorId: new Types.ObjectId(vendorId) }).exec();
-    const stats: any = {};
-    const total = orders.length;
-    const completed = orders.filter(o => o.status === 'completed').length;
-    return { total, completed };
+    const [result] = await this.orderModel.aggregate([
+      { $match: { vendorId: new Types.ObjectId(vendorId) } },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: 1 },
+          completed: { $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] } },
+        },
+      },
+    ]);
+    return { total: result?.total ?? 0, completed: result?.completed ?? 0 };
   }
 
-  async setFirstMileFee(orderId: string, vendorId: string, fee: number): Promise<Order> {
-    const order = await this.orderModel.findById(orderId).exec();
-    if (!order) throw new NotFoundException(`Order not found`);
-    if (order.vendorId.toString() !== vendorId) throw new ForbiddenException('Unauthorized');
-
-    order.firstMileFee = fee;
-    await order.save();
-
-    // Notify customer
-    await this.notificationsService.create(order.customerId.toString(), {
-      title: 'Delivery Fee Added',
-      message: `Vendor ${order.vendorName} has added a delivery fee of GH₵ ${fee} for your order. Please pay on the platform to proceed.`,
-      type: 'payment',
-      orderId: order._id
-    });
-
-    // --- SMS Notification ---
-    const customer = await this.userModel.findById(order.customerId).exec();
-    if (customer && customer.phone) {
-      const orderShortId = order._id.toString().slice(-6).toUpperCase();
-      const smsMsg = `Vendor ${order.vendorName} has added a delivery fee of GHS ${fee} for Order #ORD-${orderShortId}. Please pay on the platform to proceed with delivery.`;
-      this.smsService.sendSms(customer.phone, smsMsg).catch(console.error);
-    }
-
-    return order;
+  async setFirstMileFee(_orderId: string, _vendorId: string, _fee: number): Promise<Order> {
+    throw new BadRequestException('Delivery fees cannot be collected on FLA. Arrange delivery payment directly with the customer.');
   }
 
-  async initializeFirstMilePayment(orderId: string, customerId: string): Promise<{ paymentLink: string }> {
-    const order = await this.orderModel.findById(orderId).exec();
-    if (!order) throw new NotFoundException(`Order not found`);
-    if (order.customerId.toString() !== customerId) throw new ForbiddenException('Unauthorized');
-    if (order.firstMileFee <= 0) throw new Error('Delivery fee not set yet');
-
-    const paymentLinkData = await this.paystackService.initializePayment({
-      reference: `FM_${order._id.toString()}_${Date.now()}`,
-      amount: order.firstMileFee,
-      email: order.customerEmail || 'customer@fla.com',
-      callback_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard?order_id=${order._id}`,
-      metadata: {
-        orderId: order._id.toString(),
-        paymentType: 'first_mile_fee'
-      }
-    });
-
-    return { paymentLink: paymentLinkData.authorization_url };
+  async initializeFirstMilePayment(_orderId: string, _customerId: string): Promise<{ paymentLink: string }> {
+    throw new BadRequestException('Delivery fees cannot be paid on FLA. Pay your vendor or courier directly.');
   }
 
-  async handleFirstMilePaymentSuccess(orderId: string, transactionId: string) {
-    const order = await this.orderModel.findById(orderId).exec();
-    if (!order || order.isFirstMileFeePaid) return;
-
-    order.isFirstMileFeePaid = true;
-    order.firstMileFeePaidAt = new Date();
-    order.firstMilePaymentId = transactionId;
-    order.firstMilePaymentVerifiedByVendor = true; // Auto-verify if paid via Paystack
-    order.firstMilePaymentVerifiedAt = new Date();
-
-    await order.save();
-
-    // Side Effects: Notifications (Decoupled from main logic)
-    this.sendFirstMilePaymentNotifications(order);
+  async handleFirstMilePaymentSuccess(_orderId: string, _transactionId: string) {
+    this.logger.warn('Ignored legacy first_mile_fee Paystack webhook — delivery is off-platform');
   }
 
-  private async sendFirstMilePaymentNotifications(order: any) {
-    try {
-      // Notifications
-      await this.notificationsService.create(order.customerId.toString(), {
-        title: 'Delivery Payment Verified',
-        message: `Your payment for the delivery fee of Order #ORD-${order._id.toString().slice(-6).toUpperCase()} has been verified automatically.`,
-        type: 'payment',
-        orderId: order._id
-      });
-
-      // Notify Vendor
-      await this.notificationsService.create(order.vendorId.toString(), {
-        title: 'Delivery Fee Paid',
-        message: `The delivery fee for Order #ORD-${order._id.toString().slice(-6).toUpperCase()} has been paid via Paystack.`,
-        type: 'payment',
-        orderId: order._id
-      });
-
-      // Email to Customer
-      const customer = await this.userModel.findById(order.customerId).exec();
-      if (customer && customer.email) {
-        const message = `Your delivery payment for Order #ORD-${order._id.toString().slice(-6).toUpperCase()} has been verified. Shipping in progress!`;
-        await this.emailService.sendGenericNotification(customer.email, customer.name || 'Customer', 'Delivery Payment Verified ✅', message);
-      }
-
-      // Email to Vendor
-      const vendor = await this.userModel.findById(order.vendorId).exec();
-      if (vendor && vendor.email) {
-        const message = `Delivery fee paid for #ORD-${order._id.toString().slice(-6).toUpperCase()}. You can now ship the item to the station.`;
-        await this.emailService.sendGenericNotification(vendor.email, vendor.shopName || vendor.name, 'Action Required: Ship Your Design 🚚', message);
-      }
-    } catch (err) {
-      this.logger.error(`First mile notification failed for order ${order._id}: ${err.message}`);
-    }
+  async submitFirstMilePaymentProof(_orderId: string, _customerId: string, _proofUrl: string): Promise<Order> {
+    throw new BadRequestException('Delivery fee proofs are not accepted on FLA.');
   }
 
-  // Deprecated manual proof methods
-  async submitFirstMilePaymentProof(orderId: string, customerId: string, proofUrl: string): Promise<Order> {
-    const order = await this.orderModel.findById(orderId).exec();
-    if (!order) throw new NotFoundException(`Order not found`);
-    if (order.customerId.toString() !== customerId) throw new ForbiddenException('Unauthorized');
-
-    order.firstMilePaymentProof = proofUrl;
-    order.firstMilePaymentSubmittedAt = new Date();
-    return order.save();
-  }
-
-  async verifyFirstMilePayment(orderId: string, vendorId: string): Promise<Order> {
-    const order = await this.orderModel.findById(orderId).exec();
-    if (!order) throw new NotFoundException(`Order not found`);
-    if (order.vendorId.toString() !== vendorId) throw new ForbiddenException('Unauthorized');
-
-    order.isFirstMileFeePaid = true;
-    order.firstMileFeePaidAt = new Date();
-    order.firstMilePaymentVerifiedByVendor = true;
-    order.firstMilePaymentVerifiedAt = new Date();
-
-    return order.save();
+  async verifyFirstMilePayment(_orderId: string, _vendorId: string): Promise<Order> {
+    throw new BadRequestException('Delivery fees cannot be verified on FLA.');
   }
 }

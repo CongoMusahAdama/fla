@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class ShuftiService {
@@ -62,8 +63,24 @@ export class ShuftiService {
         }
     }
 
-    async verifyWebhook(payload: any, signature: string) {
-        // Verification logic for production signatures
-        return true;
+    verifyWebhook(payload: unknown, signature?: string): boolean {
+        if (!this.isConfigured()) {
+            return process.env.NODE_ENV !== 'production';
+        }
+        if (!signature?.trim()) {
+            return false;
+        }
+        try {
+            const raw = JSON.stringify(payload);
+            const expected = crypto.createHmac('sha256', this.secretKey).update(raw).digest('hex');
+            const sigBuf = Buffer.from(signature.trim(), 'utf8');
+            const expBuf = Buffer.from(expected, 'utf8');
+            if (sigBuf.length !== expBuf.length) {
+                return false;
+            }
+            return crypto.timingSafeEqual(sigBuf, expBuf);
+        } catch {
+            return false;
+        }
     }
 }

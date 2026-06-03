@@ -1,6 +1,7 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request, Query, ForbiddenException } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
+import { CheckoutCartDto } from './dto/checkout-cart.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { OrderPaginationDto } from './dto/order-pagination.dto';
 import { AuthGuard } from '@nestjs/passport';
@@ -20,6 +21,12 @@ export class OrdersController {
     // Ensure the customerId matches the logged in user unless admin
     createOrderDto.customerId = req.user.userId;
     return this.ordersService.create(createOrderDto);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Post('checkout-cart')
+  checkoutCart(@Body() dto: CheckoutCartDto, @Request() req) {
+    return this.ordersService.checkoutCart(req.user.userId, dto);
   }
 
   @UseGuards(AuthGuard('jwt'))
@@ -49,6 +56,13 @@ export class OrdersController {
   }
 
   @UseGuards(AuthGuard('jwt'))
+  @Get('pending-verifications/list')
+  getPendingVerifications(@Request() req) {
+    const vendorId = req.user.role === 'vendor' ? req.user.userId : undefined;
+    return this.ordersService.getPendingPaymentVerifications(vendorId);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
   @Get(':id')
   findOne(@Param('id') id: string, @Request() req) {
     return this.ordersService.findOne(id, req.user);
@@ -71,7 +85,7 @@ export class OrdersController {
   verifyPayment(@Param('id') id: string, @Request() req) {
     // Only vendors can verify their own orders
     if (req.user.role !== 'vendor' && req.user.role !== 'admin') {
-      throw new Error('Only vendors can verify payments');
+      throw new ForbiddenException('Only vendors can verify payments');
     }
     return this.ordersService.verifyPayment(id, req.user.userId);
   }
@@ -109,38 +123,15 @@ export class OrdersController {
   @UseGuards(AuthGuard('jwt'))
   @Post(':id/resolve-dispute')
   resolveDispute(@Param('id') id: string, @Body() body: { resolution: 'refund' | 'release' }, @Request() req) {
-    if (req.user.role !== 'admin') throw new Error('Unauthorized - Admin only');
+    if (req.user.role !== 'admin') throw new ForbiddenException('Admin access required');
     return this.ordersService.resolveDispute(id, body.resolution);
-  }
-
-  @UseGuards(AuthGuard('jwt'))
-  @Get('pending-verifications/list')
-  getPendingVerifications(@Request() req) {
-    // Vendors see their own, admins see all
-    const vendorId = req.user.role === 'vendor' ? req.user.userId : undefined;
-    return this.ordersService.getPendingPaymentVerifications(vendorId);
-  }
-
-  @UseGuards(AuthGuard('jwt'))
-  @Post('process-auto-releases')
-  async processAutoReleases(@Request() req) {
-    if (req.user.role !== 'admin') throw new Error('Unauthorized - Admin only');
-    const releasedCount = await this.ordersService.processAutoReleases();
-    return { message: `Processed ${releasedCount} auto-releases` };
-  }
-
-  @UseGuards(AuthGuard('jwt'))
-  @Post(':id/approve-escrow')
-  async approveEscrow(@Param('id') id: string, @Request() req) {
-    if (req.user.role !== 'admin') throw new Error('Unauthorized - Admin only');
-    return this.ordersService.approveEscrow(id);
   }
 
   @UseGuards(AuthGuard('jwt'))
   @Patch(':id/first-mile-fee')
   setFirstMileFee(@Param('id') id: string, @Body() body: { fee: number }, @Request() req) {
     if (req.user.role !== 'vendor' && req.user.role !== 'admin') {
-      throw new Error('Unauthorized - Only vendors can set delivery fees');
+      throw new ForbiddenException('Only vendors can set delivery fees');
     }
     return this.ordersService.setFirstMileFee(id, req.user.userId, body.fee);
   }
@@ -167,7 +158,7 @@ export class OrdersController {
   @Post(':id/verify-first-mile-payment')
   verifyFirstMilePayment(@Param('id') id: string, @Request() req) {
     if (req.user.role !== 'vendor' && req.user.role !== 'admin') {
-      throw new Error('Only vendors can verify delivery fees');
+      throw new ForbiddenException('Only vendors can verify delivery fees');
     }
     return this.ordersService.verifyFirstMilePayment(id, req.user.userId);
   }

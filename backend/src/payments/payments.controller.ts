@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Logger, Get, UseGuards, Request, Param, Headers } from '@nestjs/common';
+import { Controller, Post, Body, Logger, Get, UseGuards, Request, Param, Headers, UnauthorizedException } from '@nestjs/common';
 import { PaystackService } from '../common/paystack.service';
 import { ShuftiService } from '../common/shufti.service';
 import { OrdersService } from '../orders/orders.service';
@@ -28,6 +28,10 @@ export class PaymentsController {
 
     @Post('webhook/shufti')
     async handleShuftiWebhook(@Body() payload: any, @Headers('signature') signature: string) {
+        if (!this.shuftiService.verifyWebhook(payload, signature)) {
+            this.logger.warn('Shufti webhook rejected: invalid or missing signature');
+            throw new UnauthorizedException('Invalid webhook signature');
+        }
         this.logger.log(`Shufti Webhook received for ref: ${payload.reference}`);
         
         const event = payload.event;
@@ -83,7 +87,14 @@ export class PaymentsController {
     }
 
     @Post('webhook/paystack')
-    async handlePaystackWebhook(@Body() payload: any) {
+    async handlePaystackWebhook(
+        @Body() payload: any,
+        @Headers('x-paystack-signature') signature: string,
+    ) {
+        if (!signature || !this.paystackService.verifyWebhookSignature(signature, payload)) {
+            this.logger.warn('Paystack webhook rejected: invalid or missing signature');
+            throw new UnauthorizedException('Invalid webhook signature');
+        }
         // Paystack Webhook payload structure: { event: 'charge.success', data: { ... } }
         const event = payload.event;
         const data = payload.data;
@@ -101,8 +112,7 @@ export class PaymentsController {
                 const paymentType = metadata?.paymentType;
 
                 if (paymentType === 'first_mile_fee') {
-                    this.logger.log(`Paystack: First-mile delivery fee payment successful for order: ${orderId}`);
-                    await this.ordersService.handleFirstMilePaymentSuccess(orderId, transactionId);
+                    this.logger.warn(`Ignored Paystack first_mile_fee for order ${orderId} — delivery fees are off-platform`);
                 } else {
                     this.logger.log(`Paystack: Main order payment successful for order: ${orderId}`);
                     await this.ordersService.handlePaymentSuccess(orderId, transactionId);

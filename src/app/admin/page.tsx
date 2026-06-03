@@ -2,7 +2,7 @@
 
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { getImageUrl } from '@/lib/utils';
 import { getShuftiKycStatus, kycToneClasses } from '@/lib/kyc';
@@ -18,8 +18,9 @@ import Swal from 'sweetalert2';
 import { RegisterForm } from '@/app/auth/page';
 import { RevenueChart } from '@/components/admin/RevenueChart';
 import { RecentTransactionsTable } from '@/components/admin/RecentTransactionsTable';
+import { AdminDisputeCaseCard } from '@/components/admin/AdminDisputeCaseCard';
 
-type AdminSection = 'dashboard' | 'vendors' | 'customers' | 'orders' | 'escrow' | 'products' | 'disputes' | 'delivery' | 'settings' | 'reports' | 'kyc';
+type AdminSection = 'dashboard' | 'vendors' | 'customers' | 'orders' | 'products' | 'disputes' | 'delivery' | 'settings' | 'reports' | 'kyc';
 
 export default function AdminDashboard() {
     const { user, token, isAuthenticated, logout, isLoading: isAuthLoading } = useAuth();
@@ -33,7 +34,8 @@ export default function AdminDashboard() {
     const [allUsers, setAllUsers] = useState<any[]>([]);
     const [allProducts, setAllProducts] = useState<any[]>([]);
     const [allDisputes, setAllDisputes] = useState<any[]>([]);
-    const [pendingVendors, setPendingVendors] = useState<any[]>([]);
+    const [kycVendors, setKycVendors] = useState<any[]>([]);
+    const [kycFilter, setKycFilter] = useState<'pending' | 'active' | 'rejected' | 'all'>('all');
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [showAddVendorModal, setShowAddVendorModal] = useState(false);
@@ -66,6 +68,15 @@ export default function AdminDashboard() {
     const [productsPage, setProductsPage] = useState(1);
     const [dashboardTab, setDashboardTab] = useState<'graph' | 'transactions' | 'activity'>('graph');
     const itemsPerPage = 8;
+
+    const disputeByOrderId = useMemo(() => {
+        const map = new Map<string, any>();
+        (allDisputes || []).forEach((d: any) => {
+            const oid = String(d.orderId?._id ?? d.orderId ?? '');
+            if (oid) map.set(oid, d);
+        });
+        return map;
+    }, [allDisputes]);
 
     const updateSettings = async (updates: Partial<typeof settings>) => {
         const newSettings = { ...settings, ...updates };
@@ -151,9 +162,8 @@ export default function AdminDashboard() {
                 }));
             }
 
-            // Fetch Pending Vendors
-            const pendingRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/users/admin/pending`, { headers, credentials: 'include' });
-            if (pendingRes.ok) setPendingVendors(await pendingRes.json());
+            const kycRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/users/admin/kyc`, { headers, credentials: 'include' });
+            if (kycRes.ok) setKycVendors(await kycRes.json());
         } catch (error) {
             console.error('Error fetching admin data:', error);
         } finally {
@@ -214,37 +224,6 @@ export default function AdminDashboard() {
             refreshData();
         }
     }, [isAuthenticated, user, token, router, isAuthLoading]);
-
-    const handleConfirmPayment = async (orderId: string) => {
-        try {
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders/${orderId}/verify-payment`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                credentials: 'include'
-            });
-
-            if (!response.ok) {
-                const data = await response.json();
-                throw new Error(data.message || 'Failed to confirm payment');
-            }
-
-            await refreshData();
-
-            Swal.fire({
-                icon: 'success',
-                title: 'PAYMENT VERIFIED',
-                text: 'The financial transaction has been successfully recorded.',
-                timer: 2000,
-                showConfirmButton: false,
-                customClass: { popup: 'rounded-[32px]' }
-            });
-        } catch (error: any) {
-            Swal.fire({ icon: 'error', title: 'Action Failed', text: error.message });
-        }
-    };
 
     const handleUpdateUserStatus = async (userId: string, status: string) => {
         const actionText = status === 'active' ? 'ACTIVATE this user?' : 'SUSPEND this user?';
@@ -435,8 +414,8 @@ export default function AdminDashboard() {
         const result = await Swal.fire({
             title: resolution === 'refund' ? 'REFUND CUSTOMER?' : 'RELEASE TO VENDOR?',
             text: resolution === 'refund'
-                ? "This will return funds to the customer and void the transaction."
-                : "This will override the dispute and release funds to the vendor.",
+                ? "Marks the dispute resolved for the customer. Process any Paystack refund manually if needed."
+                : "Marks the dispute resolved in favor of the vendor. Paystack payment already went to the vendor at checkout.",
             icon: 'question',
             showCancelButton: true,
             confirmButtonText: 'CONFIRM RESOLUTION',
@@ -589,7 +568,6 @@ export default function AdminDashboard() {
         { id: 'vendors', label: 'Vendors', icon: Store },
         { id: 'customers', label: 'Customers', icon: Users },
         { id: 'orders', label: 'Orders', icon: ShoppingBag },
-        { id: 'escrow', label: 'Settlements & Payments', icon: Wallet },
         { id: 'products', label: 'Products', icon: Package },
         { id: 'disputes', label: 'Disputes', icon: MessageSquare },
         { id: 'delivery', label: 'Delivery', icon: Truck },
@@ -598,8 +576,8 @@ export default function AdminDashboard() {
     ] as const;
 
     const statsCards = [
-        { id: 'escrow' as const, label: 'Platform Commission', value: `GH₵ ${adminData?.totalCommission?.toLocaleString() || '0'}`, icon: ShieldCheck, color: 'text-white', bg: 'bg-gradient-to-br from-violet-500 to-indigo-600', pattern: 'opacity-10' },
-        { id: 'escrow' as const, label: 'Settlement Balance', value: `GH₵ ${adminData?.escrowBalance?.toLocaleString() || '0'}`, icon: Wallet, color: 'text-white', bg: 'bg-gradient-to-br from-amber-500 to-orange-600', pattern: 'opacity-10' },
+        { id: 'orders' as const, label: 'Platform Commission', value: `GH₵ ${adminData?.totalCommission?.toLocaleString() || '0'}`, icon: ShieldCheck, color: 'text-white', bg: 'bg-gradient-to-br from-violet-500 to-indigo-600', pattern: 'opacity-10' },
+        { id: 'orders' as const, label: 'Total Revenue', value: `GH₵ ${adminData?.totalRevenue?.toLocaleString() || '0'}`, icon: Wallet, color: 'text-white', bg: 'bg-gradient-to-br from-amber-500 to-orange-600', pattern: 'opacity-10' },
         { id: 'orders' as const, label: 'Total Orders', value: adminData?.totalOrders?.toString() || '0', icon: ShoppingBag, color: 'text-white', bg: 'bg-gradient-to-br from-blue-500 to-indigo-600', pattern: 'opacity-10' },
         { id: 'vendors' as const, label: 'Total Vendors', value: adminData?.totalVendors?.toString() || '0', icon: ShieldCheck, color: 'text-white', bg: 'bg-gradient-to-br from-purple-500 to-fuchsia-600', pattern: 'opacity-10' },
         { id: 'products' as const, label: 'Total Products', value: adminData?.totalProducts?.toString() || '0', icon: Package, color: 'text-white', bg: 'bg-gradient-to-br from-rose-500 to-pink-600', pattern: 'opacity-10' },
@@ -680,118 +658,244 @@ export default function AdminDashboard() {
                         </div>
                     </div>
                 );
-            case 'kyc':
+            case 'kyc': {
+                const kycStatusStyles: Record<string, string> = {
+                    pending: 'bg-orange-50 text-orange-600',
+                    active: 'bg-emerald-50 text-emerald-600',
+                    rejected: 'bg-rose-50 text-rose-600',
+                    banned: 'bg-slate-900 text-white',
+                };
+                const kycStatusLabels: Record<string, string> = {
+                    pending: 'Pending Review',
+                    active: 'Approved',
+                    rejected: 'Rejected',
+                    banned: 'Suspended',
+                };
+                const filteredKycVendors = kycFilter === 'all'
+                    ? kycVendors
+                    : kycVendors.filter((v) => v.status === kycFilter);
+                const pendingKycCount = kycVendors.filter((v) => v.status === 'pending').length;
+                const approvedKycCount = kycVendors.filter((v) => v.status === 'active').length;
+
+                const renderKycDetail = (label: string, value?: string | null) => (
+                    <div key={label} className="flex justify-between gap-4 py-2 border-b border-slate-50 last:border-0">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest shrink-0">{label}</span>
+                        <span className="text-xs font-bold text-slate-900 text-right break-all">{value || '—'}</span>
+                    </div>
+                );
+
                 return (
                     <div className="space-y-8 animate-in fade-in duration-500">
                         <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-6">
                             <div>
                                 <h1 className="text-2xl md:text-3xl font-black text-slate-900 uppercase tracking-tighter">KYC & Compliance Hub</h1>
-                                <p className="text-slate-500 text-xs md:text-sm mt-1">Review and authorize new vendor applications and identity documentation.</p>
+                                <p className="text-slate-500 text-xs md:text-sm mt-1">Review vendor applications, retain approved records, and audit onboarding documentation.</p>
                             </div>
-                            <div className="bg-white px-6 py-3 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
-                                <div className="text-right">
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Pending Review</p>
-                                    <p className="text-xl font-black text-slate-900 leading-none mt-1">{pendingVendors.length}</p>
+                            <div className="flex gap-3">
+                                <div className="bg-white px-6 py-3 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
+                                    <div className="text-right">
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Pending Review</p>
+                                        <p className="text-xl font-black text-slate-900 leading-none mt-1">{pendingKycCount}</p>
+                                    </div>
+                                    <div className="w-10 h-10 bg-orange-50 text-orange-500 rounded-xl flex items-center justify-center">
+                                        <Clock className="w-5 h-5" />
+                                    </div>
                                 </div>
-                                <div className="w-10 h-10 bg-orange-50 text-orange-500 rounded-xl flex items-center justify-center">
-                                    <Clock className="w-5 h-5" />
+                                <div className="bg-white px-6 py-3 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
+                                    <div className="text-right">
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Approved</p>
+                                        <p className="text-xl font-black text-slate-900 leading-none mt-1">{approvedKycCount}</p>
+                                    </div>
+                                    <div className="w-10 h-10 bg-emerald-50 text-emerald-500 rounded-xl flex items-center justify-center">
+                                        <CheckCircle2 className="w-5 h-5" />
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
-                        {pendingVendors.length === 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                            {([
+                                { id: 'all', label: 'All Records' },
+                                { id: 'pending', label: 'Pending' },
+                                { id: 'active', label: 'Approved' },
+                                { id: 'rejected', label: 'Rejected' },
+                            ] as const).map((tab) => (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => setKycFilter(tab.id)}
+                                    className={`px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border-2 ${
+                                        kycFilter === tab.id
+                                            ? 'bg-slate-900 text-brand-lemon border-slate-900'
+                                            : 'bg-white text-slate-400 border-slate-100 hover:border-slate-200'
+                                    }`}
+                                >
+                                    {tab.label}
+                                    <span className="ml-2 opacity-70">
+                                        {tab.id === 'all'
+                                            ? kycVendors.length
+                                            : kycVendors.filter((v) => v.status === tab.id).length}
+                                    </span>
+                                </button>
+                            ))}
+                        </div>
+
+                        {filteredKycVendors.length === 0 ? (
                             <div className="bg-white rounded-[40px] border border-slate-100 p-20 text-center">
                                 <ShieldCheck className="w-16 h-16 text-emerald-100 mx-auto mb-6" />
-                                <h3 className="text-lg font-black text-slate-900 uppercase tracking-tighter">All Caught Up!</h3>
-                                <p className="text-slate-400 text-sm mt-1">There are no pending vendor registrations at this time.</p>
+                                <h3 className="text-lg font-black text-slate-900 uppercase tracking-tighter">No Records Found</h3>
+                                <p className="text-slate-400 text-sm mt-1">
+                                    {kycFilter === 'pending'
+                                        ? 'There are no pending vendor registrations at this time.'
+                                        : 'No vendor KYC records match this filter.'}
+                                </p>
                             </div>
                         ) : (
                             <div className="grid gap-6">
-                                {pendingVendors.map((v) => (
-                                    <div key={v._id} className="bg-white rounded-[32px] border border-slate-100 shadow-sm overflow-hidden group hover:border-slate-200 transition-all">
-                                        <div className="p-8 flex flex-col lg:flex-row gap-8">
-                                            {/* Vendor Info */}
-                                            <div className="lg:w-1/4 space-y-4">
-                                                <div className="flex items-center gap-4">
-                                                    <div className="w-16 h-16 bg-slate-900 rounded-2xl flex items-center justify-center text-white font-black text-xl shadow-lg">
-                                                        {v.shopName?.[0] || v.name?.[0]}
+                                {filteredKycVendors.map((v) => {
+                                    const kyc = getShuftiKycStatus(v);
+                                    const momo = v.paymentMethods?.[0];
+                                    return (
+                                        <div key={v._id} className="bg-white rounded-[32px] border border-slate-100 shadow-sm overflow-hidden group hover:border-slate-200 transition-all">
+                                            <div className="p-8 space-y-8">
+                                                <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="w-16 h-16 bg-slate-900 rounded-2xl flex items-center justify-center text-white font-black text-xl shadow-lg">
+                                                            {v.shopName?.[0] || v.name?.[0]}
+                                                        </div>
+                                                        <div>
+                                                            <h3 className="font-black text-slate-900 uppercase tracking-tight">{v.shopName || v.name}</h3>
+                                                            <p className="text-xs text-slate-500 font-medium">{v.email}</p>
+                                                            <p className="text-[10px] text-slate-400 font-bold mt-1">
+                                                                Registered {v.createdAt ? new Date(v.createdAt).toLocaleString() : '—'}
+                                                                {v.kycApprovedAt ? ` • Approved ${new Date(v.kycApprovedAt).toLocaleString()}` : ''}
+                                                            </p>
+                                                        </div>
                                                     </div>
-                                                    <div>
-                                                        <h3 className="font-black text-slate-900 uppercase tracking-tight">{v.shopName || v.name}</h3>
-                                                        <p className="text-xs text-slate-500 font-medium">{v.email}</p>
-                                                    </div>
-                                                </div>
-                                                <div className="pt-4 border-t border-slate-50 space-y-2">
-                                                    <div className="flex justify-between items-center">
-                                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</span>
-                                                        <span className="bg-orange-50 text-orange-600 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest">Pending</span>
-                                                    </div>
-                                                    <div className="flex justify-between items-center">
-                                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Identity (Shufti)</span>
-                                                        {(() => {
-                                                            const kyc = getShuftiKycStatus(v);
-                                                            return (
-                                                                <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest flex items-center gap-1 ${kycToneClasses[kyc.tone]}`}>
-                                                                    {kyc.verified && <CheckCircle2 className="w-3 h-3" />}
-                                                                    {kyc.label}
-                                                                </span>
-                                                            );
-                                                        })()}
+                                                    <div className="flex flex-wrap items-center gap-2">
+                                                        <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${kycStatusStyles[v.status] || 'bg-slate-100 text-slate-600'}`}>
+                                                            {kycStatusLabels[v.status] || v.status}
+                                                        </span>
+                                                        <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest flex items-center gap-1 ${kycToneClasses[kyc.tone]}`}>
+                                                            {kyc.verified && <CheckCircle2 className="w-3 h-3" />}
+                                                            {kyc.label}
+                                                        </span>
                                                     </div>
                                                 </div>
-                                            </div>
 
-                                            {/* Documentation */}
-                                            <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-4">
-                                                {[
-                                                    { label: 'Ghana Card (F)', value: v.ghanaCardFront, icon: CreditCard },
-                                                    { label: 'Ghana Card (B)', value: v.ghanaCardBack, icon: CreditCard },
-                                                    { label: 'Selfie', value: v.selfie, icon: Camera },
-                                                    { label: 'Utility Bill', value: v.utilityBill, icon: FileText },
-                                                ].map((doc, i) => (
-                                                    <div key={i} className="space-y-2">
-                                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{doc.label}</p>
-                                                        {doc.value ? (
-                                                            <div 
-                                                                className="relative aspect-[4/3] bg-slate-50 rounded-2xl overflow-hidden border border-slate-100 group/thumb cursor-pointer"
-                                                                onClick={() => window.open(getImageUrl(doc.value), '_blank')}
+                                                <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-6">
+                                                    <div className="bg-slate-50 rounded-2xl p-4 space-y-1">
+                                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Contact & Location</p>
+                                                        {renderKycDetail('Full Name', v.name)}
+                                                        {renderKycDetail('Phone', v.phone)}
+                                                        {renderKycDetail('Location', v.location)}
+                                                        {renderKycDetail('Region', v.region)}
+                                                        {renderKycDetail('Digital Address', v.digitalAddress)}
+                                                    </div>
+                                                    <div className="bg-slate-50 rounded-2xl p-4 space-y-1">
+                                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Business Profile</p>
+                                                        {renderKycDetail('Shop Name', v.shopName)}
+                                                        {renderKycDetail('Product Types', v.productTypes)}
+                                                        {renderKycDetail('Employees', v.employeeCount)}
+                                                        {renderKycDetail('Years Active', v.yearsOfExistence)}
+                                                        {renderKycDetail('Vendor Tier', v.vendorTier)}
+                                                        {renderKycDetail('Vendor ID', v.uniqueVendorId)}
+                                                    </div>
+                                                    <div className="bg-slate-50 rounded-2xl p-4 space-y-1">
+                                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Identity</p>
+                                                        {renderKycDetail('Ghana Card No.', v.ghanaCardNumber)}
+                                                        {renderKycDetail('Date of Birth', v.dob)}
+                                                        {renderKycDetail('Utility Type', v.utilityType)}
+                                                    </div>
+                                                    <div className="bg-slate-50 rounded-2xl p-4 space-y-1">
+                                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Payout Details</p>
+                                                        {renderKycDetail('MoMo Network', momo?.network || '—')}
+                                                        {renderKycDetail('MoMo Number', v.momoNumber || momo?.accountNumber)}
+                                                        {renderKycDetail('Account Name', v.accountName || momo?.accountName)}
+                                                    </div>
+                                                </div>
+
+                                                {v.bio && (
+                                                    <div className="bg-slate-50 rounded-2xl p-4">
+                                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Business Description</p>
+                                                        <p className="text-xs font-medium text-slate-700 leading-relaxed">{v.bio}</p>
+                                                    </div>
+                                                )}
+
+                                                <div>
+                                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 ml-1">Submitted Documents</p>
+                                                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                                                        {[
+                                                            { label: 'Ghana Card (F)', value: v.ghanaCardFront, icon: CreditCard },
+                                                            { label: 'Ghana Card (B)', value: v.ghanaCardBack, icon: CreditCard },
+                                                            { label: 'Selfie', value: v.selfie, icon: Camera },
+                                                            { label: 'Utility Bill', value: v.utilityBill, icon: FileText },
+                                                            { label: 'Business Reg.', value: v.businessRegistration, icon: FileText },
+                                                        ].map((doc, i) => (
+                                                            <div key={i} className="space-y-2">
+                                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{doc.label}</p>
+                                                                {doc.value ? (
+                                                                    <div
+                                                                        className="relative aspect-[4/3] bg-slate-50 rounded-2xl overflow-hidden border border-slate-100 group/thumb cursor-pointer"
+                                                                        onClick={() => window.open(getImageUrl(doc.value), '_blank')}
+                                                                    >
+                                                                        <Image src={getImageUrl(doc.value)} alt={doc.label} fill className="object-cover group-hover/thumb:scale-110 transition-transform" />
+                                                                        <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/thumb:opacity-100 transition-opacity flex items-center justify-center">
+                                                                            <Eye className="w-6 h-6 text-white" />
+                                                                        </div>
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="aspect-[4/3] bg-slate-50 rounded-2xl border-2 border-dashed border-slate-100 flex items-center justify-center">
+                                                                        <doc.icon className="w-6 h-6 text-slate-200" />
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex flex-wrap gap-3 pt-2 border-t border-slate-50">
+                                                    {v.status === 'pending' && (
+                                                        <>
+                                                            <button
+                                                                onClick={() => handleKYCAction(v._id, 'active')}
+                                                                className="px-6 py-3 bg-slate-900 text-brand-lemon rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/10 flex items-center gap-2"
                                                             >
-                                                                <Image src={getImageUrl(doc.value)} alt={doc.label} fill className="object-cover group-hover/thumb:scale-110 transition-transform" />
-                                                                <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/thumb:opacity-100 transition-opacity flex items-center justify-center">
-                                                                    <Eye className="w-6 h-6 text-white" />
-                                                                </div>
-                                                            </div>
-                                                        ) : (
-                                                            <div className="aspect-[4/3] bg-slate-50 rounded-2xl border-2 border-dashed border-slate-100 flex items-center justify-center">
-                                                                <doc.icon className="w-6 h-6 text-slate-200" />
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                ))}
-                                            </div>
-
-                                            {/* Actions */}
-                                            <div className="lg:w-1/5 flex lg:flex-col gap-3 justify-center">
-                                                <button 
-                                                    onClick={() => handleKYCAction(v._id, 'active')}
-                                                    className="flex-1 py-4 bg-slate-900 text-brand-lemon rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/10 flex items-center justify-center gap-2"
-                                                >
-                                                    <CheckCircle2 className="w-4 h-4" /> Approve Shop
-                                                </button>
-                                                <button 
-                                                    onClick={() => handleKYCAction(v._id, 'rejected')}
-                                                    className="flex-1 py-4 bg-rose-50 text-rose-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-100 transition-all flex items-center justify-center gap-2"
-                                                >
-                                                    <XCircle className="w-4 h-4" /> Reject KYC
-                                                </button>
+                                                                <CheckCircle2 className="w-4 h-4" /> Approve Shop
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleKYCAction(v._id, 'rejected')}
+                                                                className="px-6 py-3 bg-rose-50 text-rose-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-100 transition-all flex items-center gap-2"
+                                                            >
+                                                                <XCircle className="w-4 h-4" /> Reject KYC
+                                                            </button>
+                                                        </>
+                                                    )}
+                                                    {v.status === 'active' && (
+                                                        <button
+                                                            onClick={() => handleUpdateUserStatus(v._id, 'banned')}
+                                                            className="px-6 py-3 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all flex items-center gap-2"
+                                                        >
+                                                            <ShieldAlert className="w-4 h-4" /> Suspend Vendor
+                                                        </button>
+                                                    )}
+                                                    {(v.status === 'rejected' || v.status === 'banned') && (
+                                                        <button
+                                                            onClick={() => handleKYCAction(v._id, 'active')}
+                                                            className="px-6 py-3 bg-emerald-50 text-emerald-700 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-100 transition-all flex items-center gap-2"
+                                                        >
+                                                            <CheckCircle2 className="w-4 h-4" /> Re-approve
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         )}
                     </div>
                 );
+            }
             case 'vendors':
                 const filteredVendors = (allUsers || []).filter(u => 
                     u.role === 'vendor' && (
@@ -1311,12 +1415,11 @@ export default function AdminDashboard() {
                     </div>
                 );
             case 'orders':
-            case 'delivery':
-            case 'escrow':
-                const isEscrow = activeSection === 'escrow';
+            case 'delivery': {
                 const isDelivery = activeSection === 'delivery';
-                // Escrow should show orders that are pending payment verification, OR have funds currently held in escrow
-                const displayOrders = isEscrow ? (allOrders || []).filter(o => !o.isPaid || ['held', 'frozen', 'waiting_approval'].includes(o.escrowStatus)) : isDelivery ? (allOrders || []).filter(o => ['processing', 'shipped', 'delivered'].includes(o.status)) : (allOrders || []);
+                const displayOrders = isDelivery
+                    ? (allOrders || []).filter(o => ['processing', 'shipped', 'delivered'].includes(o.status))
+                    : (allOrders || []);
                 
                 const filteredOrders = (displayOrders || []).filter(o => 
                     o._id.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -1332,10 +1435,10 @@ export default function AdminDashboard() {
                         <div className="flex justify-between items-end">
                             <div>
                                 <h1 className="text-3xl font-black text-slate-900 uppercase tracking-tighter">
-                                    {isEscrow ? 'Settlement & Verification' : isDelivery ? 'Logistics & Dispatch' : 'Order Ledger'}
+                                    {isDelivery ? 'Logistics & Dispatch' : 'Order Ledger'}
                                 </h1>
                                 <p className="text-slate-500 text-sm">
-                                    {isEscrow ? 'Verify customer payments to approve vendor payouts.' : isDelivery ? 'Monitor shipping tracking and final deliveries.' : 'Comprehensive history of platform fashion requests.'}
+                                    {isDelivery ? 'Monitor shipping tracking and final deliveries.' : 'Paystack-paid orders and platform order history.'}
                                 </p>
                             </div>
                             <div className="relative">
@@ -1366,8 +1469,8 @@ export default function AdminDashboard() {
                                                 <p className="text-[10px] font-bold text-slate-400">{new Date(o.createdAt).toLocaleDateString()}</p>
                                             </div>
                                         </div>
-                                        <span className={`text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-tighter ${o.isPaid ? 'bg-emerald-50 text-emerald-600' : 'bg-orange-50 text-orange-600'}`}>
-                                            {o.isPaid ? 'PAID' : 'PENDING'}
+                                        <span className="text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-tighter bg-slate-100 text-slate-600">
+                                            {(o.status || 'pending').replace(/_/g, ' ')}
                                         </span>
                                     </div>
                                     <div className="flex items-center gap-2 py-2">
@@ -1389,58 +1492,6 @@ export default function AdminDashboard() {
                                             <span className="text-emerald-600">GH₵ {(o.adminCommission || o.totalAmount * 0.1).toLocaleString()}</span>
                                         </div>
                                     </div>
-                                    {isEscrow && (
-                                        <div className="flex gap-2 mt-2">
-                                            {o.paymentProof && !o.isPaid && (
-                                                <button
-                                                    onClick={() => {
-                                                        Swal.fire({
-                                                            title: 'Payment Verification',
-                                                            imageUrl: getImageUrl(o.paymentProof),
-                                                            imageAlt: 'Payment Screenshot',
-                                                            confirmButtonText: 'CLOSE',
-                                                            buttonsStyling: false,
-                                                            customClass: {
-                                                                popup: 'rounded-[32px] p-8',
-                                                                confirmButton: 'bg-slate-900 text-white px-8 py-3 rounded-full text-[10px] font-black uppercase tracking-widest'
-                                                            }
-                                                        });
-                                                    }}
-                                                    className="flex-1 py-3 bg-blue-50 text-blue-600 rounded-xl text-[10px] font-black uppercase tracking-widest"
-                                                >
-                                                    View Proof
-                                                </button>
-                                            )}
-                                            {!o.isPaid && (
-                                                <button
-                                                    onClick={() => handleConfirmPayment(o._id)}
-                                                    className="flex-[2] py-3 bg-slate-900 text-brand-lemon rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-slate-900/10"
-                                                >
-                                                    Verify Payment
-                                                </button>
-                                            )}
-                                            {o.isPaid && o.escrowStatus === 'waiting_approval' && (
-                                                <button
-                                                    onClick={async () => {
-                                                        try {
-                                                            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders/${o._id}/approve-escrow`, {
-                                                                method: 'POST',
-                                                                credentials: 'include'
-                                                            });
-                                                            if (!res.ok) throw new Error('Failed to approve');
-                                                            Swal.fire({ icon: 'success', title: 'Funds Released', timer: 1500, showConfirmButton: false });
-                                                            refreshData();
-                                                        } catch (err: any) {
-                                                            Swal.fire('Error', err.message, 'error');
-                                                        }
-                                                    }}
-                                                    className="flex-1 py-3 bg-emerald-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-500/20"
-                                                >
-                                                    Approve Release
-                                                </button>
-                                            )}
-                                        </div>
-                                    )}
                                     <button
                                         onClick={() => setSelectedOrder(o)}
                                         className="w-full py-3 bg-slate-50 text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest border border-slate-100 mt-2 hover:bg-slate-900 hover:text-white transition-all"
@@ -1460,8 +1511,7 @@ export default function AdminDashboard() {
                                             <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Preview / Reference</th>
                                             <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Customer</th>
                                             <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Payment Breakdown</th>
-                                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Vendor Verification</th>
-                                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Platform Status</th>
+                                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Order Status</th>
                                             <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Context</th>
                                         </tr>
                                     </thead>
@@ -1502,98 +1552,17 @@ export default function AdminDashboard() {
                                                     </div>
                                                 </td>
                                                 <td className="px-8 py-6 border-r border-slate-50">
-                                                    {o.paymentProof ? (
-                                                        <div className="space-y-2">
-                                                            {o.paymentVerifiedByVendor ? (
-                                                                <div>
-                                                                    <span className="text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-tighter bg-emerald-50 text-emerald-600 flex items-center gap-1 w-fit">
-                                                                        <CheckCircle2 className="w-3 h-3" /> Verified
-                                                                    </span>
-                                                                    <p className="text-[9px] font-bold text-slate-400 mt-1">
-                                                                        {o.paymentVerifiedAt ? new Date(o.paymentVerifiedAt).toLocaleString() : 'Recently'}
-                                                                    </p>
-                                                                </div>
-                                                            ) : (
-                                                                <div>
-                                                                    <span className="text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-tighter bg-orange-50 text-orange-600 flex items-center gap-1 w-fit">
-                                                                        <Clock className="w-3 h-3" /> Awaiting Vendor
-                                                                    </span>
-                                                                    <p className="text-[9px] font-bold text-slate-400 mt-1">
-                                                                        {o.paymentSubmittedAt ? `Submitted ${new Date(o.paymentSubmittedAt).toLocaleTimeString()}` : 'Pending'}
-                                                                    </p>
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    ) : (
-                                                        <span className="text-[9px] font-bold text-slate-300 uppercase">No Proof</span>
-                                                    )}
-                                                </td>
-                                                <td className="px-8 py-6 border-r border-slate-50">
-                                                    <div className="space-y-2">
-                                                        <span className={`text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-tighter ${o.isPaid ? 'bg-emerald-50 text-emerald-600' : 'bg-orange-50 text-orange-600'}`}>
-                                                            {o.isPaid ? (o.escrowStatus === 'released' ? 'SETTLED' : 'HELD') : 'PENDING PAYMENT'}
-                                                        </span>
-                                                        <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest pl-1">
-                                                            {o.escrowStatus === 'waiting_approval' ? 'Pending Admin Approval' : o.status}
-                                                        </p>
-                                                    </div>
+                                                    <span className="text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-tighter bg-slate-100 text-slate-700">
+                                                        {(o.status || 'pending').replace(/_/g, ' ')}
+                                                    </span>
                                                 </td>
                                                 <td className="px-8 py-6 text-right">
-                                                    {isEscrow ? (
-                                                        <div className="flex justify-end items-center gap-3">
-                                                            {o.paymentProof && !o.isPaid && (
-                                                                <button
-                                                                    onClick={() => {
-                                                                        Swal.fire({
-                                                                            title: 'Payment Verification',
-                                                                            imageUrl: getImageUrl(o.paymentProof),
-                                                                            imageAlt: 'Payment Screenshot',
-                                                                            confirmButtonText: 'CLOSE',
-                                                                            buttonsStyling: false,
-                                                                            customClass: {
-                                                                                popup: 'rounded-[32px] p-8',
-                                                                                confirmButton: 'bg-slate-900 text-white px-8 py-3 rounded-full text-[10px] font-black uppercase tracking-widest'
-                                                                            }
-                                                                        });
-                                                                    }}
-                                                                    className="text-[10px] font-black text-blue-500 uppercase tracking-widest hover:underline"
-                                                                >
-                                                                    View Proof
-                                                                </button>
-                                                            )}
-                                                            {!o.isPaid && (
-                                                                <button onClick={() => handleConfirmPayment(o._id)} className="bg-slate-900 text-brand-lemon px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/10 whitespace-nowrap">Verify Payment</button>
-                                                            )}
-                                                            {o.isPaid && o.escrowStatus === 'waiting_approval' && (
-                                                                <button onClick={async () => {
-                                                                    try {
-                                                                        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders/${o._id}/approve-escrow`, {
-                                                                            method: 'POST',
-                                                                            credentials: 'include'
-                                                                        });
-                                                                        if (!res.ok) throw new Error('Failed to approve');
-                                                                        Swal.fire({ icon: 'success', title: 'Funds Released', timer: 1500, showConfirmButton: false });
-                                                                        refreshData();
-                                                                    } catch (err: any) {
-                                                                        Swal.fire('Error', err.message, 'error');
-                                                                    }
-                                                                }} className="bg-emerald-500 text-white px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20 whitespace-nowrap">Approve Release</button>
-                                                            )}
-                                                            <button
-                                                                onClick={() => setSelectedOrder(o)}
-                                                                className="px-5 py-2 bg-slate-50 text-slate-400 text-[10px] font-black rounded-full uppercase tracking-widest hover:bg-slate-900 hover:text-white transition-all border border-slate-100"
-                                                            >
-                                                                Details
-                                                            </button>
-                                                        </div>
-                                                    ) : (
-                                                        <button
-                                                            onClick={() => setSelectedOrder(o)}
-                                                            className="px-5 py-2 bg-slate-50 text-slate-400 text-[10px] font-black rounded-full uppercase tracking-widest hover:bg-slate-900 hover:text-white transition-all border border-slate-100"
-                                                            >
-                                                            Details
-                                                        </button>
-                                                    )}
+                                                    <button
+                                                        onClick={() => setSelectedOrder(o)}
+                                                        className="px-5 py-2 bg-slate-50 text-slate-400 text-[10px] font-black rounded-full uppercase tracking-widest hover:bg-slate-900 hover:text-white transition-all border border-slate-100"
+                                                    >
+                                                        Details
+                                                    </button>
                                                 </td>
                                             </tr>
                                         ))}
@@ -1642,138 +1611,118 @@ export default function AdminDashboard() {
                         </div>
                     </div>
                 );
-            case 'disputes':
+            }
+            case 'disputes': {
                 const disputedOrders = (allOrders || []).filter(o => o.status === 'disputed');
-                const paginatedDisputes = disputedOrders.slice(0, itemsPerPage); // Static for now as we don't have a disputesPage yet, let's just use it anyway
-                
+                const openLedgerCount = (allDisputes || []).filter(d => d.status === 'pending').length;
+                const resolvedLedgerCount = (allDisputes || []).filter(d => d.status === 'resolved').length;
+
                 return (
                     <div className="space-y-8 animate-in fade-in duration-500">
                         <div className="flex justify-between items-end gap-6 flex-wrap">
                             <div>
                                 <h1 className="text-3xl font-black text-slate-900 uppercase tracking-tighter">Dispute Resolution Center</h1>
-                                <p className="text-slate-500 text-sm">Human-in-the-loop mediation for transaction conflicts.</p>
+                                <p className="text-slate-500 text-sm">
+                                    Review the order snapshot, mediate in Dispute Center, then close the case for the customer or vendor.
+                                </p>
+                            </div>
+                            <div className="flex gap-3 flex-wrap">
+                                <div className="bg-white px-5 py-3 rounded-2xl border border-slate-100 shadow-sm text-right">
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Disputed orders</p>
+                                    <p className="text-2xl font-black text-slate-900">{disputedOrders.length}</p>
+                                </div>
+                                <div className="bg-white px-5 py-3 rounded-2xl border border-slate-100 shadow-sm text-right">
+                                    <p className="text-[10px] font-black text-orange-600 uppercase tracking-widest">Open ledgers</p>
+                                    <p className="text-2xl font-black text-orange-600">{openLedgerCount}</p>
+                                </div>
+                                <div className="bg-emerald-50 px-5 py-3 rounded-2xl border border-emerald-100 shadow-sm text-right">
+                                    <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Resolved ledgers</p>
+                                    <p className="text-2xl font-black text-emerald-600">{resolvedLedgerCount}</p>
+                                </div>
                             </div>
                         </div>
 
                         {disputedOrders.length > 0 ? (
-                            <div className="flex flex-col bg-transparent md:bg-white md:rounded-[40px] md:border md:border-slate-100 md:shadow-sm overflow-hidden">
-                                {/* Mobile View: Dispute Cards */}
-                                <div className="grid md:hidden grid-cols-1 gap-6">
-                                    {disputedOrders.map((o) => (
-                                        <div key={o._id} className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm space-y-6">
-                                            <div className="flex justify-between items-start">
-                                                <div className="flex items-center gap-3">
-                                                    {o.items?.[0] && (
-                                                        <div className="w-12 h-12 bg-slate-50 rounded-xl overflow-hidden border border-slate-100 relative shadow-sm">
-                                                            <Image src={getImageUrl(o.items[0].image)} alt="Product" fill sizes="48px" className="object-cover" />
-                                                        </div>
-                                                    )}
-                                                    <div>
-                                                        <p className="font-black text-slate-900 text-sm">#ORD-{o._id.slice(-6).toUpperCase()}</p>
-                                                        <p className="text-[10px] font-bold text-slate-400">{new Date(o.createdAt).toLocaleDateString()}</p>
-                                                    </div>
-                                                </div>
-                                                <p className="font-black text-slate-900 text-xs">GH₵ {o.totalAmount.toLocaleString()}</p>
-                                            </div>
-
-                                            <div className="space-y-2 p-4 bg-red-50/50 rounded-2xl border border-red-100/50">
-                                                <p className="text-[10px] font-black text-red-600 uppercase tracking-widest mb-1 flex items-center gap-2">
-                                                    <ShieldAlert className="w-3 h-3" /> Dispute Reason
-                                                </p>
-                                                <p className="text-xs text-slate-600 italic font-bold leading-relaxed">&quot;{o.disputeReason || 'No reason provided'}&quot;</p>
-                                            </div>
-
-                                            <div className="grid grid-cols-2 gap-2 pt-2">
-                                                <button
-                                                    onClick={() => handleResolveDispute(o._id, 'refund')}
-                                                    className="h-11 bg-red-50 text-red-600 rounded-2xl text-[9px] font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-sm"
-                                                >
-                                                    Refund
-                                                </button>
-                                                <button
-                                                    onClick={() => handleResolveDispute(o._id, 'release')}
-                                                    className="h-11 bg-emerald-50 text-emerald-600 rounded-2xl text-[9px] font-black uppercase tracking-widest hover:bg-emerald-600 hover:text-white transition-all shadow-sm"
-                                                >
-                                                    Release
-                                                </button>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-
-                                {/* Desktop View: Dispute Table */}
-                                <div className="hidden md:block overflow-x-auto">
-                                    <table className="w-full text-left">
-                                        <thead className="bg-slate-900">
-                                            <tr>
-                                                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Preview / Reference</th>
-                                                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Parties</th>
-                                                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Dispute Reason</th>
-                                                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Amount</th>
-                                                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Mediation</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-slate-50">
-                                            {disputedOrders.map((o) => (
-                                                <tr key={o._id} className="hover:bg-slate-50/50 transition-colors">
-                                                    <td className="px-8 py-6 border-r border-slate-50">
-                                                        <div className="flex items-center gap-4">
-                                                            {o.items?.[0] && (
-                                                                <div className="w-12 h-12 bg-slate-50 rounded-xl overflow-hidden border border-slate-100 flex-shrink-0 relative shadow-sm">
-                                                                    <Image src={getImageUrl(o.items[0].image)} alt="Product" fill sizes="48px" className="object-cover" />
-                                                                </div>
-                                                            )}
-                                                            <div>
-                                                                <p className="font-black text-slate-900 text-sm">#ORD-{o._id.slice(-6).toUpperCase()}</p>
-                                                                <p className="text-[10px] font-bold text-slate-400">{new Date(o.createdAt).toLocaleDateString()}</p>
-                                                            </div>
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-8 py-6 border-r border-slate-50">
-                                                        <div className="space-y-1">
-                                                            <p className="text-[10px] font-black text-slate-400 uppercase">Customer: <span className="text-slate-900">{o.customerName || 'Guest'}</span></p>
-                                                            <p className="text-[10px] font-black text-slate-400 uppercase">Vendor: <span className="text-slate-900">{o.vendorName || 'Unknown Studio'}</span></p>
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-8 py-6 border-r border-slate-50">
-                                                        <div className="max-w-xs">
-                                                            <p className="text-xs text-slate-600 italic leading-relaxed font-bold">&quot;{o.disputeReason || 'No reason provided'}&quot;</p>
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-8 py-6 border-r border-slate-50">
-                                                        <p className="font-black text-slate-900">GH₵ {o.totalAmount.toLocaleString()}</p>
-                                                    </td>
-                                                    <td className="px-8 py-6 text-right">
-                                                        <div className="flex justify-end gap-2">
-                                                            <button
-                                                                onClick={() => handleResolveDispute(o._id, 'refund')}
-                                                                className="px-4 py-2 bg-red-50 text-red-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-sm"
-                                                            >
-                                                                Refund Customer
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handleResolveDispute(o._id, 'release')}
-                                                                className="px-4 py-2 bg-emerald-50 text-emerald-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-600 hover:text-white transition-all shadow-sm"
-                                                            >
-                                                                Release to Vendor
-                                                            </button>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
+                            <div className="space-y-8">
+                                {disputedOrders.map((o) => (
+                                    <AdminDisputeCaseCard
+                                        key={o._id}
+                                        order={o}
+                                        supportDispute={disputeByOrderId.get(String(o._id))}
+                                        onRefund={() => handleResolveDispute(o._id, 'refund')}
+                                        onRelease={() => handleResolveDispute(o._id, 'release')}
+                                    />
+                                ))}
                             </div>
                         ) : (
                             <div className="py-20 text-center bg-white rounded-[40px] border border-dashed border-slate-200 mx-4 md:mx-0">
                                 <ShieldCheck className="w-16 h-16 text-slate-100 mx-auto mb-4" />
-                                <p className="text-slate-400 font-bold text-sm uppercase tracking-widest">No Active Disputes</p>
-                                <p className="text-[10px] text-slate-300 mt-1">Platform transactions are currently healthy.</p>
+                                <p className="text-slate-400 font-bold text-sm uppercase tracking-widest">No disputed orders</p>
+                                <p className="text-[10px] text-slate-300 mt-1">Orders with status &quot;disputed&quot; appear here with full snapshots.</p>
                             </div>
                         )}
+
+                        <div className="space-y-4">
+                            <h2 className="text-lg font-black text-slate-900 uppercase tracking-tight">All dispute ledgers</h2>
+                            <div className="bg-white rounded-[40px] border border-slate-100 shadow-sm overflow-hidden">
+                                <table className="w-full text-left border-collapse">
+                                    <thead className="bg-slate-900">
+                                        <tr>
+                                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Order ref</th>
+                                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Category</th>
+                                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Status</th>
+                                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-50">
+                                        {(allDisputes || []).length > 0 ? (
+                                            (allDisputes || []).map((dispute) => (
+                                                <tr key={dispute._id} className="hover:bg-slate-50/50 transition-colors">
+                                                    <td className="px-8 py-6 border-r border-slate-50">
+                                                        <p className="font-black text-slate-900 text-sm uppercase">
+                                                            #ORD-{String(dispute.orderId).slice(-8).toUpperCase()}
+                                                        </p>
+                                                        <p className="text-[10px] text-slate-400 font-bold mt-1">
+                                                            Opened {new Date(dispute.createdAt).toLocaleDateString()}
+                                                        </p>
+                                                    </td>
+                                                    <td className="px-8 py-6 border-r border-slate-50">
+                                                        <p className="font-black text-slate-900 text-xs uppercase tracking-tight">{dispute.category}</p>
+                                                        <p className="text-[10px] text-slate-400 font-medium line-clamp-1 mt-1">{dispute.description}</p>
+                                                    </td>
+                                                    <td className="px-8 py-6 border-r border-slate-50">
+                                                        <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
+                                                            dispute.status === 'resolved' ? 'bg-emerald-50 text-emerald-600' : 'bg-orange-50 text-orange-600'
+                                                        }`}>
+                                                            {dispute.status}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-8 py-6 text-right">
+                                                        <Link
+                                                            href={`/dispute/${dispute._id}`}
+                                                            className="inline-flex items-center gap-2 px-6 py-2.5 bg-slate-900 text-brand-lemon rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/10"
+                                                        >
+                                                            <MessageSquare className="w-3.5 h-3.5" />
+                                                            Open Dispute Center
+                                                        </Link>
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        ) : (
+                                            <tr>
+                                                <td colSpan={4} className="py-16 text-center">
+                                                    <MessageSquare className="w-12 h-12 text-slate-100 mx-auto mb-4" />
+                                                    <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">No dispute ledgers on file</p>
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 );
+            }
             case 'reports':
                 const reportCustomers = (allUsers || []).filter(u => u.role === 'customer');
                 const newCustomersThisMonth = (reportCustomers || []).filter(u => new Date(u.createdAt).getMonth() === new Date().getMonth()).length;
@@ -1843,86 +1792,6 @@ export default function AdminDashboard() {
                                 <span>Jan</span><span>Feb</span><span>Mar</span><span>Apr</span><span>May</span><span>Jun</span>
                                 <span>Jul</span><span>Aug</span><span>Sep</span><span>Oct</span><span>Nov</span><span>Dec</span>
                             </div>
-                        </div>
-                    </div>
-                );
-            case 'disputes':
-                return (
-                    <div className="space-y-8 animate-in fade-in duration-500">
-                        <div className="flex justify-between items-end">
-                            <div>
-                                <h1 className="text-3xl font-black text-slate-900 uppercase tracking-tighter">Resolution Center</h1>
-                                <p className="text-slate-500 text-sm">Monitor multi-party disputes and issue binding resolutions.</p>
-                            </div>
-                            <div className="flex gap-4">
-                                <div className="bg-white px-6 py-3 rounded-2xl border border-slate-100 shadow-sm">
-                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Open Cases</p>
-                                    <p className="text-xl font-black text-slate-900">{(allDisputes || []).filter(d => d.status === 'pending').length}</p>
-                                </div>
-                                <div className="bg-emerald-50 px-6 py-3 rounded-2xl border border-emerald-100 shadow-sm">
-                                    <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest mb-1">Resolved</p>
-                                    <p className="text-xl font-black text-emerald-600">{(allDisputes || []).filter(d => d.status === 'resolved').length}</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="bg-white rounded-[40px] border border-slate-100 shadow-sm overflow-hidden">
-                            <table className="w-full text-left border-collapse">
-                                <thead className="bg-slate-900">
-                                    <tr>
-                                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Order Ref</th>
-                                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Category</th>
-                                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Participants</th>
-                                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-800">Status</th>
-                                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-50">
-                                    {(allDisputes || []).length > 0 ? (
-                                        (allDisputes || []).map((dispute) => (
-                                            <tr key={dispute._id} className="hover:bg-slate-50/50 transition-colors group">
-                                                <td className="px-8 py-6 border-r border-slate-50">
-                                                    <p className="font-black text-slate-900 text-sm uppercase">#ORD-{dispute.orderId.slice(-8).toUpperCase()}</p>
-                                                    <p className="text-[10px] text-slate-400 font-bold mt-1">Opened {new Date(dispute.createdAt).toLocaleDateString()}</p>
-                                                </td>
-                                                <td className="px-8 py-6 border-r border-slate-50">
-                                                    <p className="font-black text-slate-900 text-xs uppercase tracking-tight">{dispute.category}</p>
-                                                    <p className="text-[10px] text-slate-400 font-medium line-clamp-1 mt-1">{dispute.description}</p>
-                                                </td>
-                                                <td className="px-8 py-6 border-r border-slate-50">
-                                                    <div className="flex -space-x-2">
-                                                        <div className="w-8 h-8 rounded-full bg-slate-100 border-2 border-white flex items-center justify-center text-[10px] font-black" title="Customer">C</div>
-                                                        <div className="w-8 h-8 rounded-full bg-brand-lemon border-2 border-white flex items-center justify-center text-[10px] font-black" title="Vendor">V</div>
-                                                        <div className="w-8 h-8 rounded-full bg-slate-900 text-white border-2 border-white flex items-center justify-center text-[10px] font-black" title="Admin">A</div>
-                                                    </div>
-                                                </td>
-                                                <td className="px-8 py-6 border-r border-slate-50">
-                                                    <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
-                                                        dispute.status === 'resolved' ? 'bg-emerald-50 text-emerald-600' : 'bg-orange-50 text-orange-600'
-                                                    }`}>
-                                                        {dispute.status}
-                                                    </span>
-                                                </td>
-                                                <td className="px-8 py-6 text-right">
-                                                    <Link 
-                                                        href={`/dispute/${dispute._id}`}
-                                                        className="px-6 py-2.5 bg-slate-900 text-brand-lemon rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/10"
-                                                    >
-                                                        Enter Ledger
-                                                    </Link>
-                                                </td>
-                                            </tr>
-                                        ))
-                                    ) : (
-                                        <tr>
-                                            <td colSpan={5} className="py-20 text-center bg-white">
-                                                <MessageSquare className="w-12 h-12 text-slate-100 mx-auto mb-4" />
-                                                <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">No disputes on file</p>
-                                            </td>
-                                        </tr>
-                                    )}
-                                </tbody>
-                            </table>
                         </div>
                     </div>
                 );
@@ -2402,30 +2271,8 @@ export default function AdminDashboard() {
                                 </div>
                             </div>
 
-                            {/* Payment Proof Preview if available */}
-                            {selectedOrder.paymentProof && (
-                                <div className="space-y-4">
-                                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Payment Verification Artifact</h3>
-                                    <div className="relative aspect-video bg-slate-50 rounded-3xl overflow-hidden border border-slate-100 shadow-inner group">
-                                        <Image src={getImageUrl(selectedOrder.paymentProof)} alt="Payment Proof" fill sizes="(max-width: 768px) 100vw, 600px" className="object-cover" />
-                                        <div className="absolute inset-0 bg-black/20 hover:bg-transparent transition-colors cursor-zoom-in" onClick={() => window.open(getImageUrl(selectedOrder.paymentProof), '_blank')} />
-                                    </div>
-                                </div>
-                            )}
-
                             {/* Footer / Actions */}
                             <div className="flex flex-col md:flex-row gap-4 pt-6">
-                                {!selectedOrder.isPaid && (
-                                    <button
-                                        onClick={() => {
-                                            handleConfirmPayment(selectedOrder._id);
-                                            setSelectedOrder(null);
-                                        }}
-                                        className="flex-1 py-5 bg-brand-lemon text-slate-900 font-black text-xs uppercase tracking-[0.2em] rounded-full shadow-xl shadow-brand-lemon/20 active:scale-95 transition-all"
-                                    >
-                                        Verify & Settle Payout
-                                    </button>
-                                )}
                                 <button
                                     onClick={() => setSelectedOrder(null)}
                                     className="flex-1 py-5 bg-slate-900 text-white font-black text-xs uppercase tracking-[0.2em] rounded-full active:scale-95 transition-all"

@@ -13,6 +13,8 @@ import {
 import Swal from 'sweetalert2';
 import { Suspense } from 'react';
 import { Turnstile } from '@marsidev/react-turnstile';
+import { TermsAcceptanceScreen } from '@/components/auth/TermsAcceptanceScreen';
+import { FLA_TERMS_VERSION } from '@/lib/fla-terms';
 
 // Memoized Input Component to prevent re-renders of the entire page on every keystroke
 const AuthInput = React.memo(({ label, type, placeholder, value, onChange, required, icon: Icon }: any) => {
@@ -820,6 +822,13 @@ function AuthContent() {
     const [pendingVendorPassword, setPendingVendorPassword] = useState('');
     const otpAutoSendDone = React.useRef(false);
 
+    const [showTerms, setShowTerms] = useState(false);
+    const [termsRole, setTermsRole] = useState<'customer' | 'vendor'>('customer');
+    const [termsUserEmail, setTermsUserEmail] = useState('');
+    const [termsPendingMessage, setTermsPendingMessage] = useState<string | undefined>();
+    const [termsIsLoginFlow, setTermsIsLoginFlow] = useState(false);
+    const [termsSubmitting, setTermsSubmitting] = useState(false);
+
     const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
     const normalizePhoneForApi = (phone: string) => {
@@ -835,7 +844,23 @@ function AuthContent() {
         return `***${digits.slice(-4)}`;
     };
 
-    const { login, signup } = useAuth();
+    const { login, signup, logout, acceptTerms } = useAuth();
+
+    const needsTermsAcceptance = (userRole: UserRole, termsAcceptedAt?: string | Date | null) =>
+        userRole !== 'admin' && !termsAcceptedAt;
+
+    const openTermsGate = (userRole: UserRole, email: string, isLog: boolean, extraMessage?: string, termsAcceptedAt?: string | Date | null) => {
+        if (!needsTermsAcceptance(userRole, termsAcceptedAt)) {
+            showSuccess(isLog, userRole, extraMessage);
+            return;
+        }
+        setShowOTP(false);
+        setShowTerms(true);
+        setTermsRole(userRole === 'vendor' ? 'vendor' : 'customer');
+        setTermsUserEmail(email);
+        setTermsIsLoginFlow(isLog);
+        setTermsPendingMessage(extraMessage);
+    };
     const router = useRouter();
     const searchParams = useSearchParams();
 
@@ -964,7 +989,7 @@ function AuthContent() {
     const handleLogin = async (identifier: string, pass: string) => {
         try {
             const loggedInUser = await login(identifier, pass);
-            showSuccess(true, loggedInUser.role);
+            openTermsGate(loggedInUser.role, loggedInUser.email, true, undefined, loggedInUser.termsAcceptedAt);
         } catch (error: any) {
             showError(error.message);
         }
@@ -1079,7 +1104,7 @@ function AuthContent() {
                 }).then(() => setIsLogin(true));
                 return;
             }
-            showSuccess(false, result.user.role, result.message);
+            openTermsGate(result.user.role, result.user.email, false, result.message, result.user.termsAcceptedAt);
         } catch (error: any) {
             await Swal.close();
             const msg = error.message || '';
@@ -1273,27 +1298,15 @@ function AuthContent() {
             const result = await response.json();
 
             if (result.success) {
-                await login(pendingVendorEmail, pendingVendorPassword);
-                Swal.fire({
-                    icon: 'success',
-                    iconColor: '#059669',
-                    title: 'STUDIO ACCOUNT CREATED',
-                    html: `
-                        <div class="text-center space-y-3">
-                            <p class="text-slate-600 text-sm">Your phone is verified and your studio account is now created. A confirmation SMS has been sent to your phone.</p>
-                            <div class="bg-green-50 p-3 rounded-xl border border-green-100">
-                                <p class="text-xs text-green-600">Your application is under admin review. You can access your vendor hub now.</p>
-                            </div>
-                        </div>
-                    `,
-                    timer: 3000,
-                    showConfirmButton: false,
-                    customClass: {
-                        popup: 'rounded-[32px] border-none shadow-2xl p-10 bg-white',
-                        title: 'text-2xl font-black text-slate-900 tracking-tighter uppercase mb-4'
-                    }
-                });
-                setTimeout(() => { router.push('/vendor'); }, 3000);
+                const loggedInUser = await login(pendingVendorEmail, pendingVendorPassword);
+                await Swal.close();
+                openTermsGate(
+                    'vendor',
+                    loggedInUser.email,
+                    false,
+                    'Your phone is verified. Accept the terms below to open your vendor hub.',
+                    loggedInUser.termsAcceptedAt,
+                );
             } else {
                 Swal.fire({
                     icon: 'error',
@@ -1322,6 +1335,37 @@ function AuthContent() {
         }
     };
 
+    const handleTermsAgree = async () => {
+        setTermsSubmitting(true);
+        try {
+            await acceptTerms(FLA_TERMS_VERSION);
+            setShowTerms(false);
+            showSuccess(termsIsLoginFlow, termsRole, termsPendingMessage);
+        } catch (error: any) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Could not continue',
+                text: error.message || 'Please try again.',
+                customClass: { popup: 'rounded-[32px]' },
+            });
+        } finally {
+            setTermsSubmitting(false);
+        }
+    };
+
+    const handleTermsDisagree = async () => {
+        await logout();
+        setShowTerms(false);
+        setIsLogin(true);
+        Swal.fire({
+            icon: 'info',
+            title: 'Terms required',
+            text: 'You must accept the Terms and Conditions to use FLA Purchase. You can register or sign in again when ready.',
+            confirmButtonText: 'OK',
+            customClass: { popup: 'rounded-[32px]' },
+        });
+    };
+
     return (
         <main className="min-h-screen bg-[#E5E7EB]/30 flex items-start md:items-center justify-center p-0 md:p-8 pt-20 md:pt-24">
             <div className="bg-white w-full max-w-6xl min-h-screen md:min-h-[85vh] rounded-none md:rounded-[48px] shadow-2xl overflow-hidden flex flex-col md:flex-row">
@@ -1337,7 +1381,15 @@ function AuthContent() {
                     </Link>
 
                     <div className="flex-1 max-w-2xl mx-auto w-full flex flex-col justify-center">
-                        {showOTP ? (
+                        {showTerms ? (
+                            <TermsAcceptanceScreen
+                                role={termsRole}
+                                userEmail={termsUserEmail}
+                                onAgree={handleTermsAgree}
+                                onDisagree={handleTermsDisagree}
+                                isSubmitting={termsSubmitting}
+                            />
+                        ) : showOTP ? (
                             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                                 <div className="mb-8">
                                     <div className="w-16 h-16 bg-[#D8F800]/20 text-slate-900 rounded-[24px] flex items-center justify-center mb-6">

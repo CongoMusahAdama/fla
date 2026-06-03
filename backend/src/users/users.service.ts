@@ -172,6 +172,14 @@ export class UsersService {
     return this.userModel.find().lean().exec() as unknown as User[];
   }
 
+  async countAll(): Promise<number> {
+    return this.userModel.countDocuments().exec();
+  }
+
+  async countByRole(role: string): Promise<number> {
+    return this.userModel.countDocuments({ role }).exec();
+  }
+
   async findOneById(id: string): Promise<User | null> {
     return this.userModel.findById(id).lean().exec() as unknown as User;
   }
@@ -292,22 +300,42 @@ export class UsersService {
     return { vendor: user, stats };
   }
 
-  async findPendingVendors(): Promise<User[]> {
-    const vendors = await this.userModel.find({ role: 'vendor', status: 'pending' }).lean().exec();
-    return vendors.map((v: any) => ({
+  private mapVendorKycRecord(v: any): User {
+    return {
       ...v,
-      // Correct legacy Smile ID auto-verify flags — Shufti is the source of truth
       isIdentityVerified: Boolean(
         v.ghanaCardFront &&
           v.selfie &&
           v.verificationStatus === 'verified' &&
           (v.isVerified || v.isIdentityVerified),
       ),
-    })) as unknown as User[];
+    } as unknown as User;
+  }
+
+  async findPendingVendors(): Promise<User[]> {
+    const vendors = await this.userModel.find({ role: 'vendor', status: 'pending' }).lean().exec();
+    return vendors.map((v) => this.mapVendorKycRecord(v));
+  }
+
+  async findKycVendors(status?: 'pending' | 'active' | 'rejected' | 'banned' | 'all'): Promise<User[]> {
+    const filter: Record<string, unknown> = { role: 'vendor' };
+    if (status && status !== 'all') {
+      filter.status = status;
+    }
+    const vendors = await this.userModel
+      .find(filter)
+      .select('-password -resetPasswordToken -resetPasswordExpires')
+      .sort({ createdAt: -1 })
+      .lean()
+      .exec();
+    return vendors.map((v) => this.mapVendorKycRecord(v));
   }
 
   async updateStatus(id: string, status: 'active' | 'rejected' | 'pending' | 'banned'): Promise<User | null> {
-    const update: any = { status };
+    const update: Record<string, unknown> = { status };
+    if (status === 'active') {
+      update.kycApprovedAt = new Date();
+    }
     // Shop approval is separate from Shufti identity verification — do not auto-set isIdentityVerified
     const user = await this.userModel.findByIdAndUpdate(id, { $set: update }, { new: true }).lean().exec() as unknown as User;
     

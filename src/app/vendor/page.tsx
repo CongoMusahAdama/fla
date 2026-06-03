@@ -448,10 +448,6 @@ export default function VendorDashboard() {
          // Logic handled in modular component
     };
 
-    const handleQuickSetFee = async (id: string, fee: number) => {
-        // Logic handled in modular component
-    };
-
     const resetProductForm = () => {
         setEditingProduct(null);
         setFormName('');
@@ -532,10 +528,8 @@ export default function VendorDashboard() {
                                             <select id="swal-status" class="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold">
                                                 <option value="processing">In Production</option>
                                                 <option value="preparing_shipment">Preparing Shipment</option>
-                                                <option value="in_transit_to_first_mile">In Transit to First Mile Delivery</option>
+                                                <option value="in_transit_to_first_mile">In Transit to Skynet</option>
                                                 <option value="in_transit">In Transit (Direct to Customer)</option>
-                                                <option value="arrived_at_first_mile">Arrived at First Mile Delivery</option>
-                                                <option value="in_transit_to_last_mile">In Transit to Last Mile</option>
                                                 <option value="delivered">Shipment Delivered</option>
                                                 <option value="cancelled">Cancelled</option>
                                             </select>
@@ -581,8 +575,8 @@ export default function VendorDashboard() {
                              });
                              if (res.ok) setVendorOrders(prev => prev.filter(o => o._id !== id));
                         }}
-                        onQuickSetFee={handleQuickSetFee}
                         onPrintLabel={setPrintingOrder}
+                        shopName={user?.shopName || user?.name}
                     />
                 );
             case 'wallet': return <VendorFinances user={user} dashboardData={dashboardData} commissionRate={commissionRate} handleWithdrawal={handleWithdrawal} />;
