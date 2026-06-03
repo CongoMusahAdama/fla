@@ -1,6 +1,6 @@
-import { Injectable, NotFoundException, ForbiddenException, Logger, BadRequestException, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, Logger, BadRequestException, InternalServerErrorException, OnModuleInit } from '@nestjs/common';
 import { InjectModel, InjectConnection } from '@nestjs/mongoose';
-import { Model, Types, Connection } from 'mongoose';
+import { Model, Types, Connection, ClientSession } from 'mongoose';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { CheckoutCartDto } from './dto/checkout-cart.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
@@ -23,7 +23,7 @@ import { SettingsService } from '../settings/settings.service';
 import { SmsService } from '../common/sms.service';
 
 @Injectable()
-export class OrdersService {
+export class OrdersService implements OnModuleInit {
   private readonly logger = new Logger(OrdersService.name);
 
   constructor(
@@ -37,6 +37,66 @@ export class OrdersService {
     private readonly settingsService: SettingsService,
     private readonly smsService: SmsService,
   ) { }
+
+  onModuleInit() {
+    const intervalMs = 30 * 60 * 1000;
+    setInterval(() => {
+      this.purgeAbandonedCheckouts().catch(err =>
+        this.logger.error(`Abandoned checkout purge failed: ${err.message}`),
+      );
+    }, intervalMs);
+  }
+
+  /** Paystack checkout started but never paid — not shown in customer/vendor lists */
+  private isAbandonedCheckoutFilter() {
+    return {
+      status: 'pending',
+      isPaid: false,
+      $or: [{ paymentProof: { $exists: false } }, { paymentProof: null }],
+    };
+  }
+
+  /** Orders that belong in dashboards (paid, MoMo proof submitted, or past checkout) */
+  private listableOrdersFilter(base: Record<string, unknown> = {}) {
+    return {
+      ...base,
+      $nor: [this.isAbandonedCheckoutFilter()],
+    };
+  }
+
+  private async decrementOrderStock(
+    items: Array<{ productId: Types.ObjectId; quantity: number }>,
+    session?: ClientSession,
+  ) {
+    for (const item of items) {
+      await this.productModel
+        .findByIdAndUpdate(item.productId, { $inc: { stock: -item.quantity } }, { session })
+        .exec();
+      const q = this.productModel.findById(item.productId);
+      const prod = session ? await q.session(session).exec() : await q.exec();
+      if (prod && prod.stock <= 0 && !prod.soldOutAt) {
+        prod.soldOutAt = new Date();
+        await prod.save({ session });
+      }
+    }
+  }
+
+  /** Remove unpaid Paystack drafts so they do not appear as real orders */
+  async purgeAbandonedCheckouts(): Promise<number> {
+    const cutoff = new Date(
+      Date.now() - FLA_CONSTANTS.ABANDONED_CHECKOUT_HOURS * 60 * 60 * 1000,
+    );
+    const result = await this.orderModel
+      .deleteMany({
+        ...this.isAbandonedCheckoutFilter(),
+        createdAt: { $lt: cutoff },
+      })
+      .exec();
+    if (result.deletedCount > 0) {
+      this.logger.log(`Purged ${result.deletedCount} abandoned checkout(s)`);
+    }
+    return result.deletedCount;
+  }
 
   async create(createOrderDto: CreateOrderDto): Promise<{ order: Order; paymentLink: string }> {
     return this.createOrderWithPayment(createOrderDto);
@@ -175,17 +235,6 @@ export class OrdersService {
       });
       const savedOrder = await createdOrder.save();
 
-      if (createOrderDto.items && createOrderDto.items.length > 0) {
-        for (const item of createOrderDto.items) {
-          await this.productModel.findByIdAndUpdate(
-            item.productId,
-            { $inc: { stock: -item.quantity } },
-            { new: true },
-          ).exec();
-        }
-        this.logger.log(`Stock reserved for order ${orderId.toString()}`);
-      }
-
       const frontendBase = process.env.FRONTEND_URL || 'http://localhost:3000';
       const callbackUrl = options?.multiCheckout
         ? `${frontendBase}/dashboard?order_id=${orderId}&multi_checkout=1`
@@ -210,7 +259,13 @@ export class OrdersService {
         paystackPayload.transaction_charge = Math.round(adminCommission * 100);
       }
 
-      const paymentLinkData: any = await this.paystackService.initializePayment(paystackPayload);
+      let paymentLinkData: any;
+      try {
+        paymentLinkData = await this.paystackService.initializePayment(paystackPayload);
+      } catch (paystackError) {
+        await this.orderModel.findByIdAndDelete(orderId).exec();
+        throw paystackError;
+      }
 
       return { order: savedOrder, paymentLink: paymentLinkData.authorization_url };
     } catch (error) {
@@ -280,16 +335,8 @@ export class OrdersService {
       order.status = 'payment_verified';
       order.paymentId = transactionId;
 
-      // Stock was already reserved at order creation — mark soldOutAt if applicable
       if (order.items && order.items.length > 0) {
-        const soldOutUpdates = order.items.map(async item => {
-          const prod = await this.productModel.findById(item.productId).session(session).exec();
-          if (prod && prod.stock <= 0 && !prod.soldOutAt) {
-            prod.soldOutAt = new Date();
-            return prod.save({ session });
-          }
-        });
-        await Promise.all(soldOutUpdates);
+        await this.decrementOrderStock(order.items, session);
       }
 
       await order.save({ session });
@@ -407,7 +454,8 @@ export class OrdersService {
   }
 
   async findByUser(userId: string, page: number = 1, limit: number = 10): Promise<{ orders: Order[]; total: number }> {
-    const query = { customerId: new Types.ObjectId(userId) };
+    await this.purgeAbandonedCheckouts();
+    const query = this.listableOrdersFilter({ customerId: new Types.ObjectId(userId) });
     const [orders, total] = await Promise.all([
       this.orderModel.find(query).populate('vendorId', 'shopName name phone').sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).exec(),
       this.orderModel.countDocuments(query)
@@ -416,7 +464,8 @@ export class OrdersService {
   }
 
   async findByVendor(vendorId: string, page: number = 1, limit: number = 10): Promise<{ orders: Order[]; total: number }> {
-    const query = { vendorId: new Types.ObjectId(vendorId) };
+    await this.purgeAbandonedCheckouts();
+    const query = this.listableOrdersFilter({ vendorId: new Types.ObjectId(vendorId) });
     const [orders, total] = await Promise.all([
       this.orderModel.find(query).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).exec(),
       this.orderModel.countDocuments(query)
@@ -468,15 +517,13 @@ export class OrdersService {
         // Enforce user's specific cancellation policy
         // Vendor/customer cancellation rules are enforced by role ownership above
 
-        // Paystack splits payment to vendor at checkout — refunds are handled manually if needed.
-        // Restore reserved stock so the items go back on sale
-        if (order.items && order.items.length > 0) {
+        // Restore stock only when payment had completed (stock was decremented on pay)
+        if (order.isPaid && order.items && order.items.length > 0) {
           for (const item of order.items) {
             await this.productModel.findByIdAndUpdate(
               item.productId,
               {
                 $inc: { stock: item.quantity },
-                // Clear soldOutAt if stock is being restored
                 $unset: { soldOutAt: '' }
               },
               { new: true }
@@ -659,16 +706,8 @@ export class OrdersService {
       order.paidAt = new Date();
       order.status = 'payment_verified';
 
-      // Stock was already reserved at order creation — mark soldOutAt if applicable
       if (order.items && order.items.length > 0) {
-        const soldOutUpdates = order.items.map(async item => {
-          const prod = await this.productModel.findById(item.productId).session(session).exec();
-          if (prod && prod.stock <= 0 && !prod.soldOutAt) {
-            prod.soldOutAt = new Date();
-            return prod.save({ session });
-          }
-        });
-        await Promise.all(soldOutUpdates);
+        await this.decrementOrderStock(order.items, session);
       }
 
       const savedOrder = await order.save({ session });
