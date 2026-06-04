@@ -1,7 +1,12 @@
 "use client";
 
 import React from "react";
-import { normalizeWhatsAppPhone, openWhatsAppChat, promptMissingWhatsAppContact } from "@/lib/whatsapp";
+import {
+  buildWhatsAppUrl,
+  normalizeWhatsAppPhone,
+  openWhatsAppChat,
+  promptMissingWhatsAppContact,
+} from "@/lib/whatsapp";
 
 export const WhatsAppIcon = ({ className }: { className?: string }) => (
   <svg
@@ -23,6 +28,8 @@ type WhatsAppButtonProps = {
   fullWidth?: boolean;
   size?: "sm" | "md" | "lg";
   missingContactRole?: "vendor" | "customer";
+  /** When set, runs instead of default wa.me open (e.g. admin report handler). */
+  onClick?: () => void;
 };
 
 const sizeClasses = {
@@ -39,8 +46,13 @@ export function WhatsAppButton({
   fullWidth = false,
   size = "md",
   missingContactRole = "vendor",
+  onClick,
 }: WhatsAppButtonProps) {
   const handleClick = () => {
+    if (onClick) {
+      onClick();
+      return;
+    }
     const normalized = normalizeWhatsAppPhone(phone);
     if (!normalized) {
       promptMissingWhatsAppContact(missingContactRole);

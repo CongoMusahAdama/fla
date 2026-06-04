@@ -19,25 +19,39 @@ import {
     getVendorPhoneFromOrder,
     buildCustomerToVendorMessage,
     buildDisputeWhatsAppMessage,
+    getAdminReportWhatsAppUrl,
+    getFlaAdminWhatsAppPhone,
     openWhatsAppChat,
     promptMissingWhatsAppContact,
 } from '@/lib/whatsapp';
-import { WhatsAppButton } from '@/components/WhatsAppButton';
+import { WhatsAppButton, WhatsAppIcon } from '@/components/WhatsAppButton';
 import { getMultiCheckoutQueue, clearMultiCheckoutQueue } from '@/lib/cart-vendors';
 import { getOrderEstimatedDelivery } from '@/lib/utils';
 
-const WhatsAppIcon = ({ className }: { className?: string }) => (
-    <svg
-        viewBox="0 0 24 24"
-        className={className}
-        fill="currentColor"
-        xmlns="http://www.w3.org/2000/svg"
-    >
-        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.412c-1.935 0-3.83-.502-5.485-1.454l-.394-.227-4.078 1.07 1.089-3.975-.249-.396A9.816 9.816 0 011.942 12.07C1.942 6.656 6.355 2.24 11.77 2.24s9.829 4.417 9.829 9.831c0 5.414-4.417 9.831-9.83 9.831m11.834-11.83c0-6.521-5.303-11.825-11.825-11.825C5.461 0 0 5.461 0 11.825c0 2.083.54 4.117 1.571 5.905L0 24l6.446-1.691c1.71 1.017 3.65 1.554 5.62 1.554 6.523 0 11.825-5.303 11.825-11.825" />
-    </svg>
-);
-
 type DashboardSection = 'home' | 'orders' | 'wishlist' | 'notifications' | 'profile' | 'help';
+
+const reportBtnClass =
+    'inline-flex items-center justify-center gap-1.5 font-black uppercase tracking-widest text-white bg-[#25D366] hover:bg-[#20BD5A] shadow-lg shadow-[#25D366]/25 transition-all active:scale-[0.98] rounded-full';
+
+function ReportToAdminLink({
+    order,
+    customerName,
+    className = '',
+}: {
+    order: Parameters<typeof getAdminReportWhatsAppUrl>[0];
+    customerName?: string;
+    className?: string;
+}) {
+    return (
+        <a
+            href={getAdminReportWhatsAppUrl(order, customerName)}
+            className={`${reportBtnClass} gap-1.5 px-4 py-2.5 text-[9px] ${className}`}
+        >
+            <WhatsAppIcon className="w-3.5 h-3.5" />
+            Report
+        </a>
+    );
+}
 
 export default function CustomerDashboard() {
     const { user, token, logout, updateUser, isAuthenticated, isLoading } = useAuth();
@@ -70,25 +84,37 @@ export default function CustomerDashboard() {
         openWhatsAppChat(phone, buildCustomerToVendorMessage(order, user?.name));
     };
 
-    const renderWhatsAppButton = (order: any, className = '') => {
+    const renderVendorWhatsAppButton = (order: any, className = '') => {
         if (!canShowOrderWhatsApp(order)) return null;
         return (
-            <button
-                type="button"
-                onClick={() => chatWithVendor(order)}
-                className={`inline-flex items-center justify-center gap-1.5 bg-emerald-600 text-white rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all active:scale-95 ${className}`}
-            >
-                <WhatsAppIcon className="w-3.5 h-3.5" />
-                WhatsApp
-            </button>
+            <WhatsAppButton
+                phone={getVendorPhoneFromOrder(order)}
+                message={buildCustomerToVendorMessage(order, user?.name)}
+                label="WhatsApp"
+                size="sm"
+                className={className}
+            />
         );
+    };
+
+    const reportToFlaAdmin = (order?: any) => {
+        const target =
+            order ||
+            orders[0] || {
+                _id: 'support',
+                items: [{ name: 'General inquiry' }],
+                vendorName: '—',
+                status: '—',
+            };
+        const url = getAdminReportWhatsAppUrl(target, user?.name);
+        window.location.href = url;
     };
 
     const handleSendMessage = () => {
         if (!chatInput.trim()) return;
-        const phone = "233505112925"; // Store owner's number
-        const text = encodeURIComponent(`Hello FLA Support, I am ${user?.name || 'a customer'}. ${chatInput}`);
-        window.open(`https://wa.me/${phone}?text=${text}`, '_blank');
+        const phone = getFlaAdminWhatsAppPhone();
+        const text = `Hello FLA Support, I am ${user?.name || 'a customer'}. ${chatInput}`;
+        openWhatsAppChat(phone, text);
         setChatInput('');
     };
 
@@ -281,12 +307,12 @@ export default function CustomerDashboard() {
             showCancelButton: true,
             confirmButtonText: 'OPEN WHATSAPP',
             cancelButtonText: 'LATER',
-            confirmButtonColor: '#059669',
+            confirmButtonColor: '#25D366',
             cancelButtonColor: '#F1F5F9',
             buttonsStyling: false,
             customClass: {
                 popup: 'rounded-[32px]',
-                confirmButton: 'bg-emerald-600 text-white px-8 py-3 rounded-full text-[10px] font-black uppercase tracking-widest mx-2',
+                confirmButton: 'bg-[#25D366] text-white px-8 py-3 rounded-full text-[10px] font-black uppercase tracking-widest mx-2',
                 cancelButton: 'bg-slate-100 text-slate-500 px-8 py-3 rounded-full text-[10px] font-black uppercase tracking-widest mx-2',
             },
         }).then((result) => {
@@ -695,9 +721,13 @@ export default function CustomerDashboard() {
                                     <div className="bg-slate-900 p-6 rounded-[32px] text-white shadow-xl shadow-slate-900/10">
                                         <MessageSquare className="w-6 h-6 text-brand-lemon mb-4" />
                                         <h3 className="font-bold mb-1">Need Assistance?</h3>
-                                        <p className="text-slate-400 text-xs leading-relaxed mb-4">Chat with our styling experts or open a dispute regarding an order.</p>
-                                        <button className="w-full py-3 bg-brand-lemon text-slate-900 rounded-full text-xs font-bold hover:opacity-90 transition-all">
-                                            Contact Support
+                                        <p className="text-slate-400 text-xs leading-relaxed mb-4">Report an order issue to FLA admin on WhatsApp — fastest way to resolve.</p>
+                                        <button
+                                            type="button"
+                                            onClick={() => reportToFlaAdmin()}
+                                            className="w-full py-3 bg-[#25D366] text-white rounded-full text-xs font-bold hover:bg-[#20BD5A] transition-all"
+                                        >
+                                            Report on WhatsApp
                                         </button>
                                     </div>
                                     <div className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm">
@@ -782,7 +812,7 @@ export default function CustomerDashboard() {
                                             >
                                                 Track
                                             </button>
-                                            {renderWhatsAppButton(order, 'py-3 px-4')}
+                                            {renderVendorWhatsAppButton(order, 'py-3 flex-1')}
                                             <button
                                                 onClick={() => setSelectedReceipt(order)}
                                                 className="py-3 bg-slate-100 text-slate-900 rounded-full text-[10px] font-bold uppercase tracking-widest hover:bg-slate-200 transition-all active:scale-95 text-center flex items-center justify-center gap-1.5"
@@ -811,15 +841,13 @@ export default function CustomerDashboard() {
                                                     </Link>
                                                 </div>
                                             ) : (
-                                                <button
-                                                    onClick={() => {
-                                                        setDisputeOrderId(order._id);
-                                                        setShowDisputeForm(true);
-                                                    }}
-                                                    className="py-3 bg-red-50 text-red-500 border border-red-100 rounded-full text-[10px] font-bold uppercase tracking-widest hover:bg-red-100 transition-all active:scale-95 text-center"
-                                                >
-                                                    Report
-                                                </button>
+                                                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                                                    <ReportToAdminLink
+                                                        order={order}
+                                                        customerName={user?.name}
+                                                        className="flex-1 py-3"
+                                                    />
+                                                </div>
                                             )}
                                             <div className="flex gap-3">
 
@@ -930,7 +958,7 @@ export default function CustomerDashboard() {
                                                     >
                                                         Track
                                                     </button>
-                                                    {renderWhatsAppButton(order, 'px-5 py-2')}
+                                                    {renderVendorWhatsAppButton(order, '')}
                                                     <button
                                                         onClick={() => setSelectedReceipt(order)}
                                                         className="px-6 py-2 bg-slate-100 text-slate-900 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all hover:scale-105 active:scale-95 whitespace-nowrap flex items-center gap-1.5"
@@ -995,15 +1023,12 @@ export default function CustomerDashboard() {
                                                             </Link>
                                                         </div>
                                                     ) : (
-                                                        <button
-                                                            onClick={() => {
-                                                                setDisputeOrderId(order._id);
-                                                                setShowDisputeForm(true);
-                                                            }}
-                                                            className="px-6 py-2 bg-slate-50 text-red-500 border border-slate-100 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-red-50 hover:border-red-100 transition-all hover:scale-105 active:scale-95 whitespace-nowrap"
-                                                        >
-                                                            Complain
-                                                        </button>
+                                                        <div className="flex flex-wrap items-center gap-2 justify-end">
+                                                            <ReportToAdminLink
+                                                                order={order}
+                                                                customerName={user?.name}
+                                                            />
+                                                        </div>
                                                     )}
                                                 </td>
                                             </tr>
@@ -1206,7 +1231,7 @@ export default function CustomerDashboard() {
                         </div>
                         <div className="grid md:grid-cols-2 gap-6">
                             {[
-                                { title: 'Open Dispute', label: 'Order Issues', icon: ShieldAlert, color: 'text-red-500', action: () => setShowDisputeForm(true) },
+                                { title: 'Report Issue', label: 'WhatsApp FLA Admin', icon: ShieldAlert, color: 'text-red-500', action: () => reportToFlaAdmin() },
                                 { title: 'Live Support', label: 'Stylist Advice', icon: MessageSquare, color: 'text-blue-500', action: () => setShowLiveSupport(true) },
                             ].map((s, i) => (
                                 <button key={i} onClick={s.action} className="flex items-center gap-5 p-6 bg-white rounded-[32px] border border-slate-100 shadow-sm hover:shadow-xl transition-all cursor-pointer group text-left">
@@ -1221,6 +1246,17 @@ export default function CustomerDashboard() {
                                 </button>
                             ))}
                         </div>
+
+                        <p className="text-center text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                            Need a formal case in the app?{' '}
+                            <button
+                                type="button"
+                                onClick={() => setShowDisputeForm(true)}
+                                className="text-slate-600 underline hover:text-slate-900"
+                            >
+                                File dispute in Dispute Center
+                            </button>
+                        </p>
 
                         {/* Recent Disputes List */}
                         <div className="mt-8">
@@ -1648,14 +1684,13 @@ export default function CustomerDashboard() {
                                 </div>
 
                                 {canShowOrderWhatsApp(trackingOrder) && (
-                                    <button
-                                        type="button"
-                                        onClick={() => chatWithVendor(trackingOrder)}
-                                        className="w-full py-4 bg-emerald-600 text-white rounded-[24px] text-[11px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20"
-                                    >
-                                        <WhatsAppIcon className="w-5 h-5" />
-                                        Message {trackingOrder.vendorName || 'Vendor'} on WhatsApp
-                                    </button>
+                                    <WhatsAppButton
+                                        fullWidth
+                                        size="lg"
+                                        phone={getVendorPhoneFromOrder(trackingOrder)}
+                                        message={buildCustomerToVendorMessage(trackingOrder, user?.name)}
+                                        label={`WhatsApp ${trackingOrder.vendorName || 'Vendor'}`}
+                                    />
                                 )}
 
                                 {/* Tracking Stepper */}

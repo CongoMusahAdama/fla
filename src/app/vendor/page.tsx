@@ -563,7 +563,33 @@ export default function VendorDashboard() {
                                         credentials: 'include',
                                         body: JSON.stringify({ status, carrier })
                                     });
-                                    setVendorOrders(prev => prev.map(o => o._id === id ? { ...o, status, carrier } : o));
+                                    const updated = vendorOrders.map(o => o._id === id ? { ...o, status, carrier } : o);
+                                    setVendorOrders(updated);
+
+                                    if (status === 'cancelled') {
+                                        const order = updated.find(o => o._id === id);
+                                        if (order?.customerPhone) {
+                                            const { default: Swal } = await import('sweetalert2');
+                                            const shop = user?.shopName || user?.name || 'FLA Vendor';
+                                            const { buildVendorCancelledOrderToCustomerMessage, normalizeWhatsAppPhone, openWhatsAppChat } = await import('@/lib/whatsapp');
+                                            const wa = await Swal.fire({
+                                                title: 'Notify customer?',
+                                                text: 'Open WhatsApp with a prefilled message about this cancellation.',
+                                                icon: 'question',
+                                                showCancelButton: true,
+                                                confirmButtonText: 'OPEN WHATSAPP',
+                                                cancelButtonText: 'LATER',
+                                                confirmButtonColor: '#25D366',
+                                                customClass: { popup: 'rounded-[32px]' },
+                                            });
+                                            if (wa.isConfirmed) {
+                                                const phone = normalizeWhatsAppPhone(order.customerPhone);
+                                                if (phone) {
+                                                    openWhatsAppChat(phone, buildVendorCancelledOrderToCustomerMessage(order, shop));
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                             });
                         }}

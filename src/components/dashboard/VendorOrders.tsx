@@ -9,6 +9,7 @@ import {
   canShowOrderWhatsApp,
   normalizeWhatsAppPhone,
   buildVendorToCustomerMessage,
+  buildVendorCancelledOrderToCustomerMessage,
   buildDisputeWhatsAppMessage,
   openWhatsAppChat,
   promptMissingWhatsAppContact,
@@ -225,12 +226,16 @@ export const VendorOrders: React.FC<VendorOrdersProps> = ({
                     <>
                       <WhatsAppButton
                         phone={order.customerPhone}
-                        message={buildDisputeWhatsAppMessage({
-                          orderRef: order._id.slice(-6).toUpperCase(),
-                          category: 'dispute',
-                          senderName: shopName,
-                          talkingTo: 'customer',
-                        })}
+                        message={
+                          order.status === 'cancelled'
+                            ? buildVendorCancelledOrderToCustomerMessage(order, shopName)
+                            : buildDisputeWhatsAppMessage({
+                                orderRef: order._id.slice(-6).toUpperCase(),
+                                category: 'dispute',
+                                senderName: shopName,
+                                talkingTo: 'customer',
+                              })
+                        }
                         label="WhatsApp"
                         size="sm"
                         missingContactRole="customer"
@@ -429,12 +434,16 @@ export const VendorOrders: React.FC<VendorOrdersProps> = ({
                           <>
                             <WhatsAppButton
                               phone={order.customerPhone}
-                              message={buildDisputeWhatsAppMessage({
-                                orderRef: order._id.slice(-6).toUpperCase(),
-                                category: 'dispute',
-                                senderName: shopName,
-                                talkingTo: 'customer',
-                              })}
+                              message={
+                                order.status === 'cancelled'
+                                  ? buildVendorCancelledOrderToCustomerMessage(order, shopName)
+                                  : buildDisputeWhatsAppMessage({
+                                      orderRef: order._id.slice(-6).toUpperCase(),
+                                      category: 'dispute',
+                                      senderName: shopName,
+                                      talkingTo: 'customer',
+                                    })
+                              }
                               label="WhatsApp"
                               size="sm"
                               missingContactRole="customer"
