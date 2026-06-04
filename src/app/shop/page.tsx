@@ -372,6 +372,7 @@ function ShopContent() {
                                                 colors={product.colors}
                                                 duration={product.tailoringTime}
                                                 vendorRegion={group.region}
+                                                vendorCity={product.vendorLocation}
                                                 vendorBio={product.vendorBio}
                                             />
                                         ))}
@@ -402,6 +403,7 @@ function ShopContent() {
                                     colors={product.colors}
                                     duration={product.tailoringTime}
                                     vendorRegion={product.region}
+                                    vendorCity={product.vendorLocation}
                                     vendorBio={product.vendorBio}
                                 />
                             ))}

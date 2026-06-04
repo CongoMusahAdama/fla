@@ -95,7 +95,7 @@ export class ProductsService implements OnModuleInit {
     }
 
     let q = this.productModel.find(filters)
-      .populate('vendorId', 'uniqueVendorId region bio shopName')
+      .populate('vendorId', 'uniqueVendorId region location bio shopName')
       .lean(); // ← lean() makes this 3-5x faster
 
     if (query.sort === 'latest' || query.filter === 'New Arrival') {
@@ -116,6 +116,9 @@ export class ProductsService implements OnModuleInit {
       }
       if (!p.region && p.vendorId && (p.vendorId as any).region) {
         p.region = (p.vendorId as any).region;
+      }
+      if (!p.vendorLocation && p.vendorId && (p.vendorId as any).location) {
+        p.vendorLocation = (p.vendorId as any).location;
       }
       if (!p.vendorBio && p.vendorId && (p.vendorId as any).bio) {
         p.vendorBio = (p.vendorId as any).bio;
@@ -140,7 +143,7 @@ export class ProductsService implements OnModuleInit {
   }
 
   async findByVendor(vendorId: string): Promise<Product[]> {
-    const products = await this.productModel.find({ vendorId: vendorId }).populate('vendorId', 'uniqueVendorId region bio shopName').exec();
+    const products = await this.productModel.find({ vendorId: vendorId }).populate('vendorId', 'uniqueVendorId region location bio shopName').exec();
     return products.map(p => {
       const productObj = p.toObject();
       if (!productObj.uniqueVendorId && productObj.vendorId && (productObj.vendorId as any).uniqueVendorId) {
@@ -155,12 +158,15 @@ export class ProductsService implements OnModuleInit {
       if (!productObj.vendorName && productObj.vendorId && (productObj.vendorId as any).shopName) {
         productObj.vendorName = (productObj.vendorId as any).shopName;
       }
+      if (!productObj.vendorLocation && productObj.vendorId && (productObj.vendorId as any).location) {
+        productObj.vendorLocation = (productObj.vendorId as any).location;
+      }
       return productObj;
     });
   }
 
   async findOne(id: string): Promise<Product> {
-    const product = await this.productModel.findById(id).populate('vendorId', 'uniqueVendorId region bio shopName').exec();
+    const product = await this.productModel.findById(id).populate('vendorId', 'uniqueVendorId region location bio shopName').exec();
     if (!product) {
       throw new NotFoundException(`Product with ID ${id} not found`);
     }
@@ -176,6 +182,9 @@ export class ProductsService implements OnModuleInit {
     }
     if (!productObj.vendorName && productObj.vendorId && (productObj.vendorId as any).shopName) {
       productObj.vendorName = (productObj.vendorId as any).shopName;
+    }
+    if (!productObj.vendorLocation && productObj.vendorId && (productObj.vendorId as any).location) {
+      productObj.vendorLocation = (productObj.vendorId as any).location;
     }
     return productObj as any;
   }

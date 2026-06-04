@@ -29,10 +29,11 @@ interface ProductCardProps {
     hasColors?: boolean;
     colors?: string[];
     vendorRegion?: string;
+    vendorCity?: string;
     vendorBio?: string;
 }
 
-export default function ProductCard({ id, name, price, images, sizes = [], imageLabels, duration = '6-7 working days', stock, index, vendorId, initialWishlistState = false, description, vendorName, uniqueVendorId, hasSizes = true, hasColors = true, colors = [], vendorRegion, vendorBio }: ProductCardProps) {
+export default function ProductCard({ id, name, price, images, sizes = [], imageLabels, duration = '6-7 working days', stock, index, vendorId, initialWishlistState = false, description, vendorName, uniqueVendorId, hasSizes = true, hasColors = true, colors = [], vendorRegion, vendorCity, vendorBio }: ProductCardProps) {
     const isBatch = false;
     const currentPrice = price;
 
@@ -82,7 +83,10 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
 
             const resolvedProfileImage = getImageUrl(vendor.profileImage);
             const resolvedBannerImage = vendor.bannerImage ? getImageUrl(vendor.bannerImage) : null;
-            const displayLocation = getVendorDisplayLocation(vendor, vendorRegion);
+            const displayLocation = getVendorDisplayLocation(
+                { location: vendor.location || vendorCity, region: vendor.region },
+                vendorRegion,
+            );
 
             Swal.fire({
                 html: `
@@ -676,10 +680,12 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
 
                     {/* Region & Shipping Info Badge */}
                     <div className="flex items-center gap-4 text-slate-400">
-                        {vendorRegion && (
+                        {getVendorDisplayLocation({ location: vendorCity, region: vendorRegion }) && (
                             <div className="flex items-center gap-1.5">
                                 <MapPin className="w-3 h-3 text-brand-lemon" />
-                                <span className="text-[10px] font-black uppercase tracking-widest">{vendorRegion}</span>
+                                <span className="text-[10px] font-black uppercase tracking-widest">
+                                    {getVendorDisplayLocation({ location: vendorCity, region: vendorRegion })}
+                                </span>
                             </div>
                         )}
                         {duration && (

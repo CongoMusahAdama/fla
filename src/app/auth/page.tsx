@@ -15,6 +15,7 @@ import { Suspense } from 'react';
 import { Turnstile } from '@marsidev/react-turnstile';
 import { TermsAcceptanceScreen } from '@/components/auth/TermsAcceptanceScreen';
 import { FLA_TERMS_VERSION } from '@/lib/fla-terms';
+import { GHANA_REGIONS } from '@/lib/ghana-regions';
 
 // Memoized Input Component to prevent re-renders of the entire page on every keystroke
 const AuthInput = React.memo(({ label, type, placeholder, value, onChange, required, icon: Icon }: any) => {
@@ -374,6 +375,27 @@ export const RegisterForm = ({ role, onSignup }: { role: UserRole, onSignup: (da
 
     const totalSteps = role === 'vendor' ? 6 : 2;
 
+    const renderRegionSelect = () => (
+        <div className="space-y-1.5">
+            <label className="text-xs font-bold text-slate-700 ml-1">Region</label>
+            <div className="relative">
+                <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                <select
+                    value={region}
+                    onChange={(e) => setRegion(e.target.value)}
+                    required
+                    className="w-full pl-11 pr-4 py-4 bg-white border-2 border-slate-100 rounded-2xl text-base md:text-sm transition-all focus:border-slate-900 outline-none appearance-none cursor-pointer"
+                >
+                    <option value="" disabled>Select your region</option>
+                    {GHANA_REGIONS.map((r) => (
+                        <option key={r} value={r}>{r}</option>
+                    ))}
+                </select>
+                <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 rotate-90 pointer-events-none" />
+            </div>
+        </div>
+    );
+
     const renderStepContent = () => {
         switch (step) {
             case 1:
@@ -387,40 +409,16 @@ export const RegisterForm = ({ role, onSignup }: { role: UserRole, onSignup: (da
                             <AuthInput label="Full Name" type="text" placeholder="Eg. Yasir Noori" required value={name} onChange={setName} icon={User} />
                             <AuthInput label="Email Address" type="email" placeholder="you@email.com" required value={email} onChange={setEmail} icon={Mail} />
                             <AuthInput label="Phone Number" type="tel" placeholder="024XXXXXXX" required value={phone} onChange={setPhone} icon={Phone} />
-                            <div className="space-y-1.5">
-                                <label className="text-xs font-bold text-slate-700 ml-1">Region</label>
-                                <div className="relative">
-                                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                                    <select 
-                                        value={region} 
-                                        onChange={(e) => setRegion(e.target.value)} 
-                                        required
-                                        className="w-full pl-11 pr-4 py-4 bg-white border-2 border-slate-100 rounded-2xl text-base md:text-sm transition-all focus:border-slate-900 outline-none appearance-none cursor-pointer"
-                                    >
-                                        <option value="" disabled>Select your region</option>
-                                        <option value="Greater Accra">Greater Accra</option>
-                                        <option value="Ashanti">Ashanti</option>
-                                        <option value="Western">Western</option>
-                                        <option value="Western North">Western North</option>
-                                        <option value="Central">Central</option>
-                                        <option value="Eastern">Eastern</option>
-                                        <option value="Volta">Volta</option>
-                                        <option value="Oti">Oti</option>
-                                        <option value="Northern">Northern</option>
-                                        <option value="North East">North East</option>
-                                        <option value="Savannah">Savannah</option>
-                                        <option value="Upper East">Upper East</option>
-                                        <option value="Upper West">Upper West</option>
-                                        <option value="Bono">Bono</option>
-                                        <option value="Bono East">Bono East</option>
-                                        <option value="Ahafo">Ahafo</option>
-                                    </select>
-                                    <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 rotate-90 pointer-events-none" />
-                                </div>
-                            </div>
-                            {role === 'customer' && (
-                                <AuthInput label="Location" type="text" placeholder="Eg. East Legon, Accra" required value={location} onChange={setLocation} icon={MapPin} />
-                            )}
+                            {renderRegionSelect()}
+                            <AuthInput
+                                label="City / Town"
+                                type="text"
+                                placeholder={role === 'vendor' ? 'Eg. Tamale' : 'Eg. East Legon'}
+                                required
+                                value={location}
+                                onChange={setLocation}
+                                icon={MapPin}
+                            />
                         </div>
                     </div>
                 );
@@ -475,6 +473,18 @@ export const RegisterForm = ({ role, onSignup }: { role: UserRole, onSignup: (da
                                         className="w-full px-4 py-3 bg-white border-2 border-slate-100 rounded-2xl text-sm focus:border-slate-900 outline-none transition-all min-h-[100px] resize-none"
                                     />
                                 </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <AuthInput
+                                        label="City / Town"
+                                        type="text"
+                                        placeholder="Eg. Tamale"
+                                        required
+                                        value={location}
+                                        onChange={setLocation}
+                                        icon={MapPin}
+                                    />
+                                    {renderRegionSelect()}
+                                </div>
                                 <AuthInput label="Digital Address" type="text" placeholder="GA-123-4567" required value={digitalAddress} onChange={setDigitalAddress} icon={MapPin} />
                                 <AuthInput label="Date of Birth" type="date" required value={dob} onChange={setDob} icon={Calendar} />
                                 <div className="grid grid-cols-2 gap-4">
@@ -511,7 +521,7 @@ export const RegisterForm = ({ role, onSignup }: { role: UserRole, onSignup: (da
                             <AuthInput label="Ghana Card Number" type="text" placeholder="GHA-XXXXXXXXX-X" required value={ghanaCardNumber} onChange={setGhanaCardNumber} icon={Hash} />
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <AuthInput label="Date of Birth" type="date" required value={dob} onChange={setDob} icon={Calendar} />
-                                <AuthInput label="Location" type="text" placeholder="City" required value={location} onChange={setLocation} icon={MapPin} />
+                                <AuthInput label="City / Town" type="text" placeholder="Eg. East Legon" required value={location} onChange={setLocation} icon={MapPin} />
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <FileInput label="Ghana Card Front" value={ghanaCardFront} onChange={setGhanaCardFront} icon={CreditCard} description="Upload front" />

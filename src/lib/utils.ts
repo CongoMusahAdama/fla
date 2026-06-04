@@ -4,10 +4,11 @@ export function getVendorDisplayLocation(
     vendor?: { location?: string | null; region?: string | null } | null,
     productRegion?: string | null,
 ): string | null {
-    for (const candidate of [vendor?.location, vendor?.region, productRegion]) {
-        const trimmed = candidate?.trim();
-        if (trimmed) return trimmed;
-    }
+    const city = vendor?.location?.trim();
+    const region = (vendor?.region || productRegion)?.trim();
+    if (city && region) return `${city}, ${region}`;
+    if (city) return city;
+    if (region) return region;
     return null;
 }
 

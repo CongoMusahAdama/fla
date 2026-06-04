@@ -14,6 +14,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import Swal from 'sweetalert2';
 import ProductCard from '@/components/ProductCard';
+import { GHANA_REGIONS } from '@/lib/ghana-regions';
 import {
     canShowOrderWhatsApp,
     getVendorPhoneFromOrder,
@@ -132,6 +133,7 @@ export default function CustomerDashboard() {
     const [profileEmail, setProfileEmail] = useState(user?.email || '');
     const [profilePhone, setProfilePhone] = useState(user?.phone || '+233 24 000 0000');
     const [profileCity, setProfileCity] = useState(user?.location || 'Accra');
+    const [profileRegion, setProfileRegion] = useState(user?.region || '');
     const [profileAddress, setProfileAddress] = useState('');
     const [profileImage, setProfileImage] = useState<string | null>(null);
 
@@ -197,6 +199,7 @@ export default function CustomerDashboard() {
             setProfileEmail(user.email || '');
             setProfilePhone(user.phone || '');
             setProfileCity(user.location || '');
+            setProfileRegion(user.region || '');
             setProfileAddress(user.address || '');
             setProfileImage(user.profileImage || null);
         }
@@ -392,6 +395,7 @@ export default function CustomerDashboard() {
                     email: profileEmail,
                     phone: profilePhone,
                     location: profileCity,
+                    region: profileRegion,
                     address: profileAddress,
                     profileImage: profileImage
                 })
@@ -411,6 +415,7 @@ export default function CustomerDashboard() {
                 email: updatedUser.email,
                 phone: updatedUser.phone,
                 location: updatedUser.location,
+                region: updatedUser.region,
                 address: updatedUser.address,
                 profileImage: updatedUser.profileImage
             });
@@ -1117,13 +1122,27 @@ export default function CustomerDashboard() {
                                     />
                                 </div>
                                 <div className="space-y-1.5">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Delivery City</label>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">City / Town</label>
                                     <input
                                         type="text"
                                         value={profileCity}
                                         onChange={(e) => setProfileCity(e.target.value)}
+                                        placeholder="Eg. East Legon"
                                         className="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20 transition-all"
                                     />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Region</label>
+                                    <select
+                                        value={profileRegion}
+                                        onChange={(e) => setProfileRegion(e.target.value)}
+                                        className="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20 transition-all appearance-none cursor-pointer"
+                                    >
+                                        <option value="" disabled>Select region</option>
+                                        {GHANA_REGIONS.map((r) => (
+                                            <option key={r} value={r}>{r}</option>
+                                        ))}
+                                    </select>
                                 </div>
                                 <div className="md:col-span-2 space-y-1.5">
                                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Full Delivery Address</label>
