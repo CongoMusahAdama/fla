@@ -96,9 +96,9 @@ npm run dev
 5. Configure:
    - **Name**: fla-backend
    - **Environment**: Node
-   - **Build Command**: `npm install`
+   - **Root Directory**: `backend` (required)
+   - **Build Command**: `npm install && npm run build`
    - **Start Command**: `npm run start:prod`
-   - **Root Directory**: `backend`
 6. Add Environment Variables:
    - `MONGO_URI`
    - `JWT_SECRET`

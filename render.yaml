@@ -1,0 +1,12 @@
+# Render Blueprint — backend API (fla-be)
+# Dashboard can also set Root Directory: backend, Build: npm install && npm run build, Start: npm run start:prod
+services:
+  - type: web
+    name: fla-be
+    runtime: node
+    rootDir: backend
+    buildCommand: npm install && npm run build
+    startCommand: npm run start:prod
+    envVars:
+      - key: NODE_ENV
+        value: production
