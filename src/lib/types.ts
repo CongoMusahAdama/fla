@@ -15,5 +15,6 @@ export interface Product {
   colors?: string[];
   tailoringTime?: string;
   region?: string;
+  vendorLocation?: string;
   vendorBio?: string;
 }
