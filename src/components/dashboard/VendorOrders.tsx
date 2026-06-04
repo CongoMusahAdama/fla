@@ -9,9 +9,11 @@ import {
   canShowOrderWhatsApp,
   normalizeWhatsAppPhone,
   buildVendorToCustomerMessage,
+  buildDisputeWhatsAppMessage,
   openWhatsAppChat,
   promptMissingWhatsAppContact,
 } from '@/lib/whatsapp';
+import { WhatsAppButton } from '@/components/WhatsAppButton';
 
 const WhatsAppIcon = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 24 24" className={className} fill="currentColor" xmlns="http://www.w3.org/2000/svg">
@@ -147,7 +149,7 @@ export const VendorOrders: React.FC<VendorOrdersProps> = ({
         ))}
       </div>
 
-      <div className="bg-transparent md:bg-white md:rounded-[48px] md:border md:border-slate-100 md:shadow-xl overflow-hidden flex flex-col min-h-[600px]">
+      <div className="bg-white rounded-[32px] md:rounded-[48px] border border-slate-100 shadow-xl overflow-hidden flex flex-col min-h-[600px]">
         {/* Mobile View: Cards */}
         <div className="grid md:hidden grid-cols-1 gap-6">
           {paginatedOrders.length > 0 ? (
@@ -219,15 +221,31 @@ export const VendorOrders: React.FC<VendorOrdersProps> = ({
                     </button>
                   )}
                   
-                  {(order.status === 'disputed' || order.status === 'cancelled') && (
-                    <Link
-                      href={`/dispute/find?orderId=${order._id}`}
-                      className="flex-1 h-11 bg-orange-500 text-white rounded-2xl flex items-center justify-center gap-2 text-[9px] font-black uppercase tracking-widest"
-                    >
-                      Dispute Ledger
-                    </Link>
+                  {(order.status === 'disputed' || order.status === 'cancelled') ? (
+                    <>
+                      <WhatsAppButton
+                        phone={order.customerPhone}
+                        message={buildDisputeWhatsAppMessage({
+                          orderRef: order._id.slice(-6).toUpperCase(),
+                          category: 'dispute',
+                          senderName: shopName,
+                          talkingTo: 'customer',
+                        })}
+                        label="WhatsApp"
+                        size="sm"
+                        missingContactRole="customer"
+                        className="flex-1 !py-0 h-11"
+                      />
+                      <Link
+                        href={`/dispute/find?orderId=${order._id}`}
+                        className="flex-1 h-11 bg-orange-500 text-white rounded-full flex items-center justify-center gap-2 text-[9px] font-black uppercase tracking-widest"
+                      >
+                        Dispute Center
+                      </Link>
+                    </>
+                  ) : (
+                    renderCustomerWhatsApp(order, 'flex-1 h-11 rounded-2xl text-[9px] font-black uppercase tracking-widest shadow-lg shadow-emerald-600/20')
                   )}
-                  {renderCustomerWhatsApp(order, 'flex-1 h-11 rounded-2xl text-[9px] font-black uppercase tracking-widest shadow-lg shadow-emerald-600/20')}
                   <button
                     onClick={() => onUpdateStatus(order._id, order.status)}
                     className="flex-1 h-11 bg-slate-900 text-white rounded-2xl flex items-center justify-center gap-2 text-[9px] font-black uppercase tracking-widest shadow-lg shadow-slate-900/10"
@@ -408,12 +426,26 @@ export const VendorOrders: React.FC<VendorOrdersProps> = ({
                         </button>
                         
                         {(order.status === 'disputed' || order.status === 'cancelled') && (
-                          <Link
-                            href={`/dispute/find?orderId=${order._id}`}
-                            className="px-6 py-3 bg-orange-500 text-white rounded-[18px] text-[10px] font-black uppercase tracking-[0.2em] hover:bg-orange-600 transition-all shadow-xl shadow-orange-500/10 active:scale-95 border border-white/10"
-                          >
-                            Dispute Ledger
-                          </Link>
+                          <>
+                            <WhatsAppButton
+                              phone={order.customerPhone}
+                              message={buildDisputeWhatsAppMessage({
+                                orderRef: order._id.slice(-6).toUpperCase(),
+                                category: 'dispute',
+                                senderName: shopName,
+                                talkingTo: 'customer',
+                              })}
+                              label="WhatsApp"
+                              size="sm"
+                              missingContactRole="customer"
+                            />
+                            <Link
+                              href={`/dispute/find?orderId=${order._id}`}
+                              className="px-6 py-3 bg-orange-500 text-white rounded-full text-[10px] font-black uppercase tracking-[0.2em] hover:bg-orange-600 transition-all shadow-xl shadow-orange-500/10 active:scale-95 border border-white/10"
+                            >
+                              Dispute Center
+                            </Link>
+                          </>
                         )}
                         <button
                           onClick={() => onDelete(order._id)}

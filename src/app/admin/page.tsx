@@ -593,7 +593,7 @@ export default function AdminDashboard() {
                                 <button
                                     key={i}
                                     onClick={() => setActiveSection(stat.id)}
-                                    className={`${stat.bg} p-4 md:p-6 rounded-none shadow-xl shadow-slate-200/50 relative overflow-hidden group hover:-translate-y-1 transition-all duration-500 text-left border-none outline-none focus:ring-4 focus:ring-brand-lemon/20`}
+                                    className={`${stat.bg} p-4 md:p-6 rounded-3xl shadow-xl shadow-slate-200/50 relative overflow-hidden group hover:-translate-y-1 transition-all duration-500 text-left border-none outline-none focus:ring-4 focus:ring-brand-lemon/20`}
                                 >
                                     {/* Decorative Pattern */}
                                     <div className={`absolute -right-4 -bottom-4 w-16 h-16 md:w-24 md:h-24 ${stat.pattern} transform rotate-12 pointer-events-none group-hover:scale-110 transition-transform duration-700`}>
@@ -643,7 +643,7 @@ export default function AdminDashboard() {
                             )}
 
                             {dashboardTab === 'activity' && (
-                                <div className="bg-white border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
+                                <div className="bg-white border border-slate-100 shadow-sm rounded-3xl overflow-hidden flex flex-col min-h-[500px]">
                                     <div className="p-8 border-b border-slate-50 flex justify-between items-center">
                                         <h2 className="font-black text-slate-900 uppercase text-sm tracking-widest">System Audit Log</h2>
                                         <BarChart3 className="w-4 h-4 text-slate-300" />

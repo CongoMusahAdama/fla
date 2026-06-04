@@ -5,6 +5,10 @@
   --color-brand-lemon: #D8F800;
   --font-sans: "Outfit", "Helvetica Neue", "Helvetica", "Arial", sans-serif;
   --font-heading: "Outfit", "Helvetica Neue", "Helvetica", "Arial", sans-serif;
+  --radius-fla-sm: 0.75rem;
+  --radius-fla-md: 1rem;
+  --radius-fla-lg: 1.5rem;
+  --radius-fla-xl: 2rem;
 
   @keyframes marquee {
     0% {
@@ -40,6 +44,25 @@
   --animate-text-shine: text-shine 4s linear infinite;
   --animate-fade-up-word: fade-up-word 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   --animate-scale-in: scale-in 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* FLA rounded UI — cards, buttons, inputs (mobile + desktop) */
+@layer components {
+  .fla-card {
+    border-radius: var(--radius-fla-lg);
+  }
+
+  .fla-card-lg {
+    border-radius: var(--radius-fla-xl);
+  }
+
+  .fla-btn {
+    border-radius: 9999px;
+  }
+
+  .fla-input {
+    border-radius: var(--radius-fla-md);
+  }
 }
 
 /* Custom Utilities if needed */

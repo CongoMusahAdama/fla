@@ -13,7 +13,7 @@ export default function Footer() {
                                 alt="FLA Logo" 
                                 width={60} 
                                 height={60} 
-                                className="h-10 w-auto object-contain rounded-none shadow-xl shadow-white/5"
+                                className="h-10 w-auto object-contain rounded-2xl shadow-xl shadow-white/5"
                             />
                         </Link>
                         <p className="text-slate-400 text-sm leading-relaxed">
@@ -45,9 +45,9 @@ export default function Footer() {
                             <input
                                 type="email"
                                 placeholder="Email address"
-                                className="flex-1 px-4 py-2 bg-white/5 border border-white/10 rounded-none focus:outline-none focus:border-white text-sm text-white placeholder:text-slate-500"
+                                className="flex-1 px-4 py-2 bg-white/5 border border-white/10 rounded-2xl focus:outline-none focus:border-white text-sm text-white placeholder:text-slate-500"
                             />
-                            <button className="bg-white text-slate-900 px-4 py-2 rounded-none text-sm font-bold hover:bg-slate-200 transition-colors cursor-pointer">
+                            <button className="bg-white text-slate-900 px-4 py-2 rounded-2xl text-sm font-bold hover:bg-slate-200 transition-colors cursor-pointer">
                                 Join
                             </button>
                         </div>
@@ -64,9 +64,9 @@ export default function Footer() {
                     </div>
                     <div className="flex gap-6">
                         {/* Social Icons Placeholder */}
-                        <div className="w-4 h-4 bg-slate-800 rounded-none hover:bg-white transition-colors cursor-pointer"></div>
-                        <div className="w-4 h-4 bg-slate-800 rounded-none hover:bg-white transition-colors cursor-pointer"></div>
-                        <div className="w-4 h-4 bg-slate-800 rounded-none hover:bg-white transition-colors cursor-pointer"></div>
+                        <div className="w-4 h-4 bg-slate-800 rounded-2xl hover:bg-white transition-colors cursor-pointer"></div>
+                        <div className="w-4 h-4 bg-slate-800 rounded-2xl hover:bg-white transition-colors cursor-pointer"></div>
+                        <div className="w-4 h-4 bg-slate-800 rounded-2xl hover:bg-white transition-colors cursor-pointer"></div>
                     </div>
                 </div>
             </div>

@@ -25,6 +25,9 @@ export class OrderItem {
 
     @Prop()
     image?: string;
+
+    @Prop()
+    tailoringTime?: string;
 }
 
 @Schema({ timestamps: true })

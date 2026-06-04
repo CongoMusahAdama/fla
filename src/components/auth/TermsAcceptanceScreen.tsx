@@ -77,7 +77,7 @@ export function TermsAcceptanceScreen({
         type="button"
         disabled={isSubmitting}
         onClick={() => onAgree()}
-        className="w-full py-4 rounded-xl bg-blue-600 text-white font-semibold text-base hover:bg-blue-700 transition-colors disabled:opacity-50 shadow-lg shadow-blue-600/20"
+        className="w-full py-4 rounded-full bg-blue-600 text-white font-semibold text-base hover:bg-blue-700 transition-colors disabled:opacity-50 shadow-lg shadow-blue-600/20"
       >
         {isSubmitting ? "Saving…" : "Agree"}
       </button>
@@ -85,7 +85,7 @@ export function TermsAcceptanceScreen({
         type="button"
         disabled={isSubmitting}
         onClick={onDisagree}
-        className="w-full py-4 mt-2 text-slate-900 font-semibold text-base hover:bg-slate-50 rounded-xl transition-colors disabled:opacity-50"
+        className="w-full py-4 mt-2 text-slate-900 font-semibold text-base hover:bg-slate-50 rounded-full transition-colors disabled:opacity-50"
       >
         Disagree
       </button>

@@ -18,10 +18,13 @@ import {
     canShowOrderWhatsApp,
     getVendorPhoneFromOrder,
     buildCustomerToVendorMessage,
+    buildDisputeWhatsAppMessage,
     openWhatsAppChat,
     promptMissingWhatsAppContact,
 } from '@/lib/whatsapp';
+import { WhatsAppButton } from '@/components/WhatsAppButton';
 import { getMultiCheckoutQueue, clearMultiCheckoutQueue } from '@/lib/cart-vendors';
+import { getOrderEstimatedDelivery } from '@/lib/utils';
 
 const WhatsAppIcon = ({ className }: { className?: string }) => (
     <svg
@@ -787,12 +790,26 @@ export default function CustomerDashboard() {
                                                 <FileText className="w-3 h-3" /> Receipt
                                             </button>
                                             {disputes.some(d => d.orderId === order._id || d.order?._id === order._id || d.order === order._id) ? (
-                                                <Link
-                                                    href={`/dispute/find?orderId=${order._id}`}
-                                                    className="py-3 bg-slate-900 text-white rounded-full text-[10px] font-bold uppercase tracking-widest hover:bg-slate-800 transition-all active:scale-95 text-center flex items-center justify-center"
-                                                >
-                                                    Dispute Chat
-                                                </Link>
+                                                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                                                    <WhatsAppButton
+                                                        phone={getVendorPhoneFromOrder(order)}
+                                                        message={buildDisputeWhatsAppMessage({
+                                                            orderRef: order._id.slice(-6).toUpperCase(),
+                                                            category: disputes.find(d => d.orderId === order._id)?.category,
+                                                            senderName: user?.name,
+                                                            talkingTo: 'vendor',
+                                                        })}
+                                                        label="WhatsApp"
+                                                        size="sm"
+                                                        className="flex-1 py-3"
+                                                    />
+                                                    <Link
+                                                        href={`/dispute/find?orderId=${order._id}`}
+                                                        className="py-3 px-4 bg-slate-900 text-white rounded-full text-[10px] font-bold uppercase tracking-widest hover:bg-slate-800 transition-all active:scale-95 text-center flex items-center justify-center flex-1"
+                                                    >
+                                                        Dispute Center
+                                                    </Link>
+                                                </div>
                                             ) : (
                                                 <button
                                                     onClick={() => {
@@ -958,12 +975,25 @@ export default function CustomerDashboard() {
 
 
                                                     {disputes.some(d => d.orderId === order._id || d.order?._id === order._id || d.order === order._id) ? (
-                                                        <Link
-                                                            href={`/dispute/find?orderId=${order._id}`}
-                                                            className="px-6 py-2 bg-slate-900 text-white rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all hover:scale-105 active:scale-95 whitespace-nowrap"
-                                                        >
-                                                            Dispute Chat
-                                                        </Link>
+                                                        <div className="flex flex-wrap items-center gap-2 justify-end">
+                                                            <WhatsAppButton
+                                                                phone={getVendorPhoneFromOrder(order)}
+                                                                message={buildDisputeWhatsAppMessage({
+                                                                    orderRef: order._id.slice(-6).toUpperCase(),
+                                                                    category: disputes.find(d => d.orderId === order._id)?.category,
+                                                                    senderName: user?.name,
+                                                                    talkingTo: 'vendor',
+                                                                })}
+                                                                label="WhatsApp"
+                                                                size="sm"
+                                                            />
+                                                            <Link
+                                                                href={`/dispute/find?orderId=${order._id}`}
+                                                                className="px-6 py-2 bg-slate-900 text-white rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all hover:scale-105 active:scale-95 whitespace-nowrap"
+                                                            >
+                                                                Dispute Center
+                                                            </Link>
+                                                        </div>
                                                     ) : (
                                                         <button
                                                             onClick={() => {
@@ -1216,12 +1246,25 @@ export default function CustomerDashboard() {
                                                     <span className="font-bold text-slate-400">Order #{dispute.orderId.slice(-6).toUpperCase()}</span> — {dispute.description}
                                                 </p>
                                             </div>
-                                            <Link 
-                                                href={`/dispute/${dispute._id}`}
-                                                className="px-6 py-2.5 bg-slate-900 text-white rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all text-center"
-                                            >
-                                                Enter Ledger
-                                            </Link>
+                                            <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+                                                <WhatsAppButton
+                                                    phone={getVendorPhoneFromOrder(orders.find((o) => o._id === dispute.orderId) || {})}
+                                                    message={buildDisputeWhatsAppMessage({
+                                                        orderRef: dispute.orderId?.slice(-6).toUpperCase(),
+                                                        category: dispute.category,
+                                                        senderName: user?.name,
+                                                        talkingTo: 'vendor',
+                                                    })}
+                                                    label="WhatsApp Vendor"
+                                                    size="sm"
+                                                />
+                                                <Link
+                                                    href={`/dispute/${dispute._id}`}
+                                                    className="px-6 py-2.5 bg-slate-900 text-white rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all text-center flex items-center justify-center"
+                                                >
+                                                    Dispute Center
+                                                </Link>
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
@@ -1592,10 +1635,16 @@ export default function CustomerDashboard() {
                                         <h3 className="font-bold text-slate-900">{trackingOrder.items[0]?.name || 'Multiple Items'}</h3>
                                         <p className="text-xs text-slate-500 font-medium">Bespoke Production • GH₵ {trackingOrder.totalAmount}</p>
                                     </div>
-                                    <div className="ml-auto text-right">
-                                        <p className="text-[10px] font-black text-brand-lemon uppercase tracking-wider">Estimated Delivery</p>
-                                        <p className="text-sm font-black text-slate-900">6-7 Working Days</p>
-                                    </div>
+                                    {(() => {
+                                        const estimatedDelivery = getOrderEstimatedDelivery(trackingOrder);
+                                        if (!estimatedDelivery) return null;
+                                        return (
+                                            <div className="ml-auto text-right">
+                                                <p className="text-[10px] font-black text-brand-lemon uppercase tracking-wider">Estimated Delivery</p>
+                                                <p className="text-sm font-black text-slate-900">{estimatedDelivery}</p>
+                                            </div>
+                                        );
+                                    })()}
                                 </div>
 
                                 {canShowOrderWhatsApp(trackingOrder) && (

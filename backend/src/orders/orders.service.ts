@@ -64,6 +64,64 @@ export class OrdersService implements OnModuleInit {
     };
   }
 
+  private async resolveItemsTailoringTime(
+    items: Array<{ productId: Types.ObjectId | string; tailoringTime?: string }>,
+  ): Promise<void> {
+    const missing = items.filter((item) => !item.tailoringTime);
+    if (!missing.length) return;
+
+    const productIds = missing.map((item) => new Types.ObjectId(item.productId));
+    const products = await this.productModel
+      .find({ _id: { $in: productIds } })
+      .select('tailoringTime')
+      .exec();
+    const tailoringByProductId = new Map(
+      products.map((product) => [product._id.toString(), product.tailoringTime]),
+    );
+
+    for (const item of missing) {
+      const tailoringTime = tailoringByProductId.get(item.productId.toString());
+      if (tailoringTime) {
+        item.tailoringTime = tailoringTime;
+      }
+    }
+  }
+
+  private async attachTailoringTimeToOrderItems(orders: OrderDocument[]): Promise<void> {
+    const itemsNeedingLookup: Array<{
+      item: { productId: Types.ObjectId; tailoringTime?: string };
+      productId: Types.ObjectId;
+    }> = [];
+
+    for (const order of orders) {
+      for (const item of order.items || []) {
+        if (!item.tailoringTime && item.productId) {
+          itemsNeedingLookup.push({ item, productId: item.productId });
+        }
+      }
+    }
+
+    if (!itemsNeedingLookup.length) return;
+
+    const productIds = [...new Set(itemsNeedingLookup.map((entry) => entry.productId.toString()))].map(
+      (id) => new Types.ObjectId(id),
+    );
+    const products = await this.productModel
+      .find({ _id: { $in: productIds } })
+      .select('tailoringTime')
+      .exec();
+    const tailoringByProductId = new Map(
+      products.map((product) => [product._id.toString(), product.tailoringTime]),
+    );
+
+    for (const { item, productId } of itemsNeedingLookup) {
+      const tailoringTime = tailoringByProductId.get(productId.toString());
+      if (tailoringTime) {
+        item.tailoringTime = tailoringTime;
+      }
+    }
+  }
+
   private async decrementOrderStock(
     items: Array<{ productId: Types.ObjectId; quantity: number }>,
     session?: ClientSession,
@@ -223,10 +281,12 @@ export class OrdersService implements OnModuleInit {
       }
 
       if (createOrderDto.items && createOrderDto.items.length > 0) {
-        orderData.items = createOrderDto.items.map(item => ({
+        const mappedItems = createOrderDto.items.map(item => ({
           ...item,
           productId: new Types.ObjectId(item.productId),
         }));
+        await this.resolveItemsTailoringTime(mappedItems);
+        orderData.items = mappedItems;
       }
 
       const createdOrder = new this.orderModel({
@@ -460,6 +520,7 @@ export class OrdersService implements OnModuleInit {
       this.orderModel.find(query).populate('vendorId', 'shopName name phone').sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).exec(),
       this.orderModel.countDocuments(query)
     ]);
+    await this.attachTailoringTimeToOrderItems(orders);
     return { orders, total };
   }
 
@@ -490,6 +551,7 @@ export class OrdersService implements OnModuleInit {
     if (!this.userCanAccessOrder(order, user)) {
       throw new ForbiddenException('You do not have permission to view this order');
     }
+    await this.attachTailoringTimeToOrderItems([order]);
     return order;
   }
 
@@ -498,6 +560,7 @@ export class OrdersService implements OnModuleInit {
       .select('status items trackingNumber carrier createdAt updatedAt vendorName shippingCity shippingRegion')
       .exec();
     if (!order) throw new NotFoundException(`Order with ID ${id} not found`);
+    await this.attachTailoringTimeToOrderItems([order]);
     return order;
   }
 

@@ -105,7 +105,9 @@ export const VendorProducts: React.FC<VendorProductsProps> = ({
                   </div>
                   <div className="flex items-center gap-1.5 min-w-0 text-right">
                       <MapPin className="w-3.5 h-3.5 text-slate-300" />
-                      <span className="text-[9px] font-bold text-slate-500 uppercase truncate">{product.region || 'Accra'}</span>
+                      {product.region && (
+                        <span className="text-[9px] font-bold text-slate-500 uppercase truncate">{product.region}</span>
+                      )}
                   </div>
               </div>
               

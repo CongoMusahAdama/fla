@@ -13,6 +13,7 @@ export type CartItem = {
     vendorId?: string;
     vendorName?: string;
     vendorRegion?: string;
+    tailoringTime?: string;
 };
 
 type CartContextType = {

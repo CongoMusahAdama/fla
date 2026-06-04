@@ -34,7 +34,7 @@ export default function Hero() {
                                     <textPath xlinkHref="#curve">Official Logistics Partner • Skynet Express • </textPath>
                                 </text>
                             </svg>
-                            <div className="w-20 h-20 bg-white rounded-none flex items-center justify-center shadow-2xl border border-slate-100 group-hover:scale-110 transition-transform p-4">
+                            <div className="w-20 h-20 bg-white rounded-2xl flex items-center justify-center shadow-2xl border border-slate-100 group-hover:scale-110 transition-transform p-4">
                                 <div className="relative w-full h-full">
                                     <Image src="/skynet.png" alt="Skynet Express" fill className="object-contain" />
                                 </div>
@@ -55,10 +55,10 @@ export default function Hero() {
                     </h1>
 
                     <div className="flex flex-row justify-center gap-4 mt-12 w-full px-6 md:px-0 animate-scale-in" style={{ animationDelay: '1s' }}>
-                        <Link href="/shop" className="flex-1 md:flex-none md:w-36 bg-slate-900 text-white py-4 rounded-none text-[11px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-xl hover:scale-105 active:scale-95 flex items-center justify-center">
+                        <Link href="/shop" className="flex-1 md:flex-none md:w-36 bg-slate-900 text-white py-4 rounded-full text-[11px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-xl hover:scale-105 active:scale-95 flex items-center justify-center">
                             Shop Now
                         </Link>
-                        <Link href="/auth?role=vendor" className="flex-1 md:flex-none md:w-36 bg-white text-slate-900 border-2 border-slate-900 py-4 rounded-none text-[11px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all shadow-lg hover:scale-105 active:scale-95 flex items-center justify-center">
+                        <Link href="/auth?role=vendor" className="flex-1 md:flex-none md:w-36 bg-white text-slate-900 border-2 border-slate-900 py-4 rounded-full text-[11px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all shadow-lg hover:scale-105 active:scale-95 flex items-center justify-center">
                             Sell Now
                         </Link>
                     </div>
@@ -66,11 +66,11 @@ export default function Hero() {
                     {/* Avatar Group - Desktop Only */}
                     <div className="hidden lg:flex absolute right-0 top-1/2 -translate-y-1/2 items-center -space-x-4 z-20">
                         {[1, 2, 3].map((i) => (
-                            <div key={i} className="w-14 h-14 rounded-none border-4 border-white overflow-hidden bg-slate-100 shadow-xl">
+                            <div key={i} className="w-14 h-14 rounded-full border-4 border-white overflow-hidden bg-slate-100 shadow-xl">
                                 <Image src={`/hero/${i === 1 ? 'sunglasses' : i === 2 ? 'center' : 'green'}.png`} alt="User" width={56} height={56} className="object-cover" />
                             </div>
                         ))}
-                        <div className="w-14 h-14 rounded-none border-4 border-white bg-slate-900 flex items-center justify-center text-white text-[10px] font-black shadow-xl">
+                        <div className="w-14 h-14 rounded-full border-4 border-white bg-slate-900 flex items-center justify-center text-white text-[10px] font-black shadow-xl">
                             +
                         </div>
                     </div>
@@ -81,44 +81,44 @@ export default function Hero() {
                     
                     {/* Far Left - Column 1 */}
                     <div className="flex flex-col gap-2 md:gap-6 h-full justify-between">
-                        <div className="relative flex-1 rounded-none overflow-hidden group shadow-sm">
+                        <div className="relative flex-1 rounded-2xl overflow-hidden group shadow-sm">
                             <Image src="/hero/orange.png" alt="Fashion" fill className="object-cover group-hover:scale-110 transition-transform duration-1000" />
                         </div>
-                        <div className="relative h-1/4 md:h-1/3 rounded-none overflow-hidden bg-brand-lemon group shadow-sm">
+                        <div className="relative h-1/4 md:h-1/3 rounded-2xl overflow-hidden bg-brand-lemon group shadow-sm">
                              <Image src="/hero/blue.png" alt="Fashion" fill className="object-cover" />
                         </div>
                     </div>
 
                     {/* Inner Left - Column 2 */}
-                    <div className="relative h-[80%] md:h-[95%] rounded-none overflow-hidden group shadow-lg">
-                         <div className="absolute top-0 left-0 right-0 h-4 md:h-14 bg-white/20 backdrop-blur-xl rounded-none z-10" />
+                    <div className="relative h-[80%] md:h-[95%] rounded-3xl overflow-hidden group shadow-lg">
+                         <div className="absolute top-0 left-0 right-0 h-4 md:h-14 bg-white/20 backdrop-blur-xl rounded-2xl z-10" />
                          <Image src="/hero/green.png" alt="Fashion" fill className="object-cover group-hover:scale-110 transition-transform duration-1000" />
                     </div>
 
                     {/* Center Piece - Column 3 */}
                     <div className="relative flex flex-col gap-2 md:gap-6 h-full justify-center">
-                        <div className="relative h-[70%] md:h-[65%] rounded-none overflow-hidden shadow-2xl group border-[4px] md:border-[12px] border-white z-10">
+                        <div className="relative h-[70%] md:h-[65%] rounded-2xl overflow-hidden shadow-2xl group border-[4px] md:border-[12px] border-white z-10">
                              <Image src="/hero/center.png" alt="Fashion" fill className="object-cover" />
                         </div>
                         <div className="hidden md:flex justify-center -mt-10 z-20">
-                            <Link href="/shop" className="bg-slate-900 text-white px-10 py-5 rounded-none text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-3 shadow-2xl hover:bg-black transition-all group">
+                            <Link href="/shop" className="bg-slate-900 text-white px-10 py-5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-3 shadow-2xl hover:bg-black transition-all group">
                                 Explore <ArrowRight className="w-4 h-4 text-brand-lemon group-hover:translate-x-1 transition-transform" />
                             </Link>
                         </div>
                     </div>
 
                     {/* Inner Right - Column 4 */}
-                    <div className="relative h-[80%] md:h-[95%] rounded-none overflow-hidden group shadow-lg">
-                        <div className="absolute top-0 left-0 right-0 h-4 md:h-14 bg-white/20 backdrop-blur-xl rounded-none z-10" />
+                    <div className="relative h-[80%] md:h-[95%] rounded-3xl overflow-hidden group shadow-lg">
+                        <div className="absolute top-0 left-0 right-0 h-4 md:h-14 bg-white/20 backdrop-blur-xl rounded-2xl z-10" />
                         <Image src="/hero/blue.png" alt="Fashion" fill className="object-cover group-hover:scale-110 transition-transform duration-1000" />
                     </div>
 
                     {/* Far Right - Column 5 */}
                     <div className="flex flex-col gap-2 md:gap-6 h-full justify-between">
-                         <div className="relative h-[70%] md:h-[65%] rounded-none overflow-hidden group shadow-sm">
+                         <div className="relative h-[70%] md:h-[65%] rounded-2xl overflow-hidden group shadow-sm">
                              <Image src="/hero/sunglasses.png" alt="Fashion" fill className="object-cover" />
                         </div>
-                        <div className="relative flex-1 rounded-none overflow-hidden bg-slate-900 group shadow-sm">
+                        <div className="relative flex-1 rounded-2xl overflow-hidden bg-slate-900 group shadow-sm">
                              <Image src="/hero/green.png" alt="Fashion" fill className="object-cover" />
                         </div>
                     </div>

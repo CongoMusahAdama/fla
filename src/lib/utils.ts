@@ -1,3 +1,30 @@
+type OrderItemWithTailoring = { tailoringTime?: string | null };
+
+export function getVendorDisplayLocation(
+    vendor?: { location?: string | null; region?: string | null } | null,
+    productRegion?: string | null,
+): string | null {
+    for (const candidate of [vendor?.location, vendor?.region, productRegion]) {
+        const trimmed = candidate?.trim();
+        if (trimmed) return trimmed;
+    }
+    return null;
+}
+
+export function getOrderEstimatedDelivery(
+    order?: { items?: OrderItemWithTailoring[] } | null,
+): string | null {
+    const items = order?.items || [];
+    const times = items
+        .map((item) => item.tailoringTime?.trim())
+        .filter((time): time is string => Boolean(time));
+    if (!times.length) return null;
+
+    const unique = [...new Set(times)];
+    if (unique.length === 1) return unique[0];
+    return unique.join(' · ');
+}
+
 export const getImageUrl = (url: string | undefined | null) => {
     if (!url || url === '/product-1.jpg') return '/product-1.jpg';
     

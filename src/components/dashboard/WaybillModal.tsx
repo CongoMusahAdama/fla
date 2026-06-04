@@ -3,6 +3,7 @@
 import React, { useRef } from 'react';
 import { X, Printer, Truck, MapPin, User, Package, Phone } from 'lucide-react';
 import { useReactToPrint } from 'react-to-print';
+import { getVendorDisplayLocation } from '@/lib/utils';
 
 interface WaybillModalProps {
   order: any;
@@ -19,6 +20,8 @@ export const WaybillModal: React.FC<WaybillModalProps> = ({ order, vendor, onClo
   });
 
   if (!order) return null;
+
+  const vendorLocation = getVendorDisplayLocation(vendor);
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -79,7 +82,9 @@ export const WaybillModal: React.FC<WaybillModalProps> = ({ order, vendor, onClo
                   <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">Origin (Vendor)</span>
                 </div>
                 <p className="text-[10px] font-black uppercase truncate">{vendor.shopName || 'Studio'}</p>
-                <p className="text-[9px] font-bold text-slate-500">{vendor.location || 'Accra, Ghana'}</p>
+                {vendorLocation && (
+                  <p className="text-[9px] font-bold text-slate-500">{vendorLocation}</p>
+                )}
               </div>
               <div className="p-3 border-2 border-slate-900 rounded-xl bg-white">
                 <div className="flex items-center gap-1.5 mb-1.5">

@@ -277,6 +277,7 @@ export default function CartDrawer() {
                             size: item.size,
                             color: item.color,
                             image: item.image,
+                            tailoringTime: item.tailoringTime,
                         })),
                     })),
                 };
@@ -412,8 +413,8 @@ export default function CartDrawer() {
                                             </button>
                                         </div>
                                         <div className="flex flex-wrap gap-2 mt-1">
-                                            {item.size !== 'N/A' && <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 bg-slate-50 px-2 py-0.5 rounded border border-slate-100">Size: <span className="text-slate-900">{item.size}</span></p>}
-                                            {item.color !== 'N/A' && <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 bg-slate-50 px-2 py-0.5 rounded border border-slate-100">Color: <span className="text-slate-900">{item.color}</span></p>}
+                                            {item.size !== 'N/A' && <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-100">Size: <span className="text-slate-900">{item.size}</span></p>}
+                                            {item.color !== 'N/A' && <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-100">Color: <span className="text-slate-900">{item.color}</span></p>}
                                         </div>
                                     </div>
 

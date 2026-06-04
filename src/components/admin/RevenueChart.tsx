@@ -44,7 +44,7 @@ export const RevenueChart = ({ initialData = [] }: { initialData?: any[] }) => {
     }, [year, view]);
 
     return (
-        <div className="bg-white p-8 md:p-10 border border-slate-100 shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <div className="bg-white p-8 md:p-10 border border-slate-100 shadow-sm rounded-3xl animate-in fade-in slide-in-from-bottom-4 duration-700">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
                 <div className="flex flex-wrap items-start gap-12">
                     <div className="space-y-2">

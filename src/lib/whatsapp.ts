@@ -92,6 +92,37 @@ export function openWhatsAppChat(phone: string, message: string): void {
   window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');
 }
 
+export function buildDisputeWhatsAppMessage(options: {
+    orderRef: string;
+    category?: string;
+    senderName?: string;
+    talkingTo: 'vendor' | 'customer';
+}): string {
+    const ref = options.orderRef;
+    const issue = options.category || 'an order issue';
+    const who = options.senderName || 'FLA user';
+
+    if (options.talkingTo === 'vendor') {
+        return [
+            `Hello,`,
+            ``,
+            `I opened a dispute on FLA for order #ORD-${ref} (${issue}).`,
+            `I'd like to resolve this together. Please check the FLA Dispute Center or reply here.`,
+            ``,
+            `— ${who}`,
+        ].join('\n');
+    }
+
+    return [
+        `Hello,`,
+        ``,
+        `There is an open dispute on FLA for order #ORD-${ref} (${issue}).`,
+        `Please review the case in FLA or reply here so we can resolve it.`,
+        ``,
+        `— ${who}`,
+    ].join('\n');
+}
+
 export function promptMissingWhatsAppContact(role: 'vendor' | 'customer'): void {
   const label = role === 'vendor' ? 'vendor' : 'customer';
   if (typeof window !== 'undefined') {

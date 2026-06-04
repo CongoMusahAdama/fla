@@ -13,6 +13,8 @@ import {
   Phone,
 } from 'lucide-react';
 import { getImageUrl } from '@/lib/utils';
+import { WhatsAppButton } from '@/components/WhatsAppButton';
+import { buildDisputeWhatsAppMessage, getVendorPhoneFromOrder } from '@/lib/whatsapp';
 
 type SupportDispute = {
   _id: string;
@@ -34,6 +36,8 @@ type OrderSnapshot = {
   customerEmail?: string;
   customerPhone?: string;
   vendorName?: string;
+  vendorId?: { phone?: string; name?: string; shopName?: string } | string;
+  vendorPhone?: string;
   items?: Array<{ name?: string; image?: string; quantity?: number; size?: string; price?: number }>;
   totalAmount?: number;
   vendorShare?: number;
@@ -75,6 +79,14 @@ export function AdminDisputeCaseCard({
     ? `/dispute/${supportDispute._id}`
     : `/dispute/find?orderId=${order._id}`;
   const messageCount = supportDispute?.messages?.length ?? 0;
+  const vendorPhone = getVendorPhoneFromOrder(order);
+  const disputeWa = (talkingTo: 'vendor' | 'customer') =>
+    buildDisputeWhatsAppMessage({
+      orderRef,
+      category: supportDispute?.category || order.disputeReason,
+      senderName: 'FLA Admin',
+      talkingTo,
+    });
 
   return (
     <div className="bg-white rounded-[32px] border border-slate-100 shadow-sm overflow-hidden">
@@ -101,12 +113,26 @@ export function AdminDisputeCaseCard({
           </div>
         </div>
         <div className="flex flex-wrap gap-2 md:justify-end">
+          <WhatsAppButton
+            phone={order.customerPhone}
+            message={disputeWa('customer')}
+            label="WhatsApp Customer"
+            size="sm"
+            missingContactRole="customer"
+          />
+          <WhatsAppButton
+            phone={vendorPhone}
+            message={disputeWa('vendor')}
+            label="WhatsApp Vendor"
+            size="sm"
+            missingContactRole="vendor"
+          />
           <Link
             href={disputeChatHref}
-            className="inline-flex items-center gap-2 px-5 py-3 bg-slate-900 text-brand-lemon rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/10"
+            className="inline-flex items-center gap-2 px-5 py-3 bg-slate-900 text-brand-lemon rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/10"
           >
             <MessageSquare className="w-4 h-4" />
-            Open Dispute Center
+            Dispute Center
             <ExternalLink className="w-3 h-3 opacity-60" />
           </Link>
           <button

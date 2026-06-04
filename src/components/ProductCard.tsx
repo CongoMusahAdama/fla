@@ -5,7 +5,7 @@ import { Clock, ChevronLeft, ChevronRight, X, MessageSquare, ShoppingBag, Star, 
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
-import { getImageUrl } from '@/lib/utils';
+import { getImageUrl, getVendorDisplayLocation } from '@/lib/utils';
 
 import Swal from 'sweetalert2';
 
@@ -82,6 +82,7 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
 
             const resolvedProfileImage = getImageUrl(vendor.profileImage);
             const resolvedBannerImage = vendor.bannerImage ? getImageUrl(vendor.bannerImage) : null;
+            const displayLocation = getVendorDisplayLocation(vendor, vendorRegion);
 
             Swal.fire({
                 html: `
@@ -99,31 +100,33 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                             
                             <div class="relative inline-block mb-4">
                                 ${vendor.profileImage
-                                    ? `<img src="${resolvedProfileImage}" class="w-24 h-24 md:w-28 md:h-28 rounded-none object-cover border-2 border-[#E5FF7F] shadow-2xl mx-auto relative z-10">`
-                                    : `<div class="w-24 h-24 md:w-28 md:h-28 rounded-none bg-slate-800 flex items-center justify-center text-[#E5FF7F] border-2 border-slate-700 shadow-2xl mx-auto relative z-10">
+                                    ? `<img src="${resolvedProfileImage}" class="w-24 h-24 md:w-28 md:h-28 rounded-2xl object-cover border-2 border-[#E5FF7F] shadow-2xl mx-auto relative z-10">`
+                                    : `<div class="w-24 h-24 md:w-28 md:h-28 rounded-2xl bg-slate-800 flex items-center justify-center text-[#E5FF7F] border-2 border-slate-700 shadow-2xl mx-auto relative z-10">
                                             <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
                                        </div>`
                                 }
-                                <div class="absolute -bottom-1 -right-1 bg-[#E5FF7F] p-1.5 rounded-none shadow-lg border-2 border-slate-900 z-20">
+                                <div class="absolute -bottom-1 -right-1 bg-[#E5FF7F] p-1.5 rounded-2xl shadow-lg border-2 border-slate-900 z-20">
                                     <svg class="w-4 h-4 text-slate-900" viewBox="0 0 24 24" fill="currentColor"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                 </div>
                             </div>
                             
                             <div class="flex flex-col items-center gap-1.5 relative z-10">
                                 <h2 class="text-2xl md:text-3xl font-black text-white uppercase tracking-tighter">${vendor.shopName || vendor.name}</h2>
-                                <span class="bg-[#E5FF7F]/10 text-[#E5FF7F] text-[8px] font-black uppercase tracking-[0.2em] px-3 py-1 rounded-none border border-[#E5FF7F]/20 backdrop-blur-md">
+                                <span class="bg-[#E5FF7F]/10 text-[#E5FF7F] text-[8px] font-black uppercase tracking-[0.2em] px-3 py-1 rounded-2xl border border-[#E5FF7F]/20 backdrop-blur-md">
                                     ID: ${vendor.uniqueVendorId}
                                 </span>
                             </div>
 
+                            ${displayLocation ? `
                             <div class="flex items-center justify-center gap-1.5 text-[#E5FF7F] text-[10px] font-black uppercase tracking-[0.2em] opacity-80 mt-3 relative z-10">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
-                                ${vendor.location || 'Accra, Ghana'}
+                                ${displayLocation}
                             </div>
+                            ` : ''}
                         </div>
 
                         <!-- Content Area -->
-                        <div class="bg-white px-4 md:px-6 py-8 -mt-6 rounded-none relative z-10 flex flex-col gap-6 md:gap-8 border-x border-slate-100">
+                        <div class="bg-white px-4 md:px-6 py-8 -mt-6 rounded-2xl relative z-10 flex flex-col gap-6 md:gap-8 border-x border-slate-100">
                             <div class="text-center">
                                 <p class="text-slate-500 text-xs md:text-sm font-medium leading-relaxed italic px-2">
                                     "${vendor.bio || "Your studio's narrative is shared here with patrons in the marketplace."}"
@@ -132,11 +135,11 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
 
                             <!-- Performance Grid -->
                             <div class="flex justify-center">
-                                <div class="bg-slate-50 w-full px-10 py-5 rounded-none border border-slate-100 flex flex-col items-center shadow-sm">
+                                <div class="bg-slate-50 w-full px-10 py-5 rounded-2xl border border-slate-100 flex flex-col items-center shadow-sm">
                                     <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Shipping Time</span>
                                     <div class="flex items-center gap-2">
                                         <span class="text-xl font-black text-slate-900">${duration || '6-7 Days'}</span>
-                                        <div class="w-1.5 h-1.5 rounded-none bg-emerald-500 animate-pulse"></div>
+                                        <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
                                     </div>
                                     <span class="text-[8px] font-black text-slate-400 uppercase tracking-widest mt-1 opacity-60 italic">Secure Split Pay</span>
                                 </div>
@@ -150,7 +153,7 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                 background: 'white',
                 padding: '0',
                 customClass: {
-                    popup: 'rounded-none overflow-hidden border border-slate-100 mx-2 shadow-2xl',
+                    popup: 'rounded-3xl overflow-hidden border border-slate-100 mx-2 shadow-2xl',
                 }
             });
         } catch (error) {
@@ -230,6 +233,7 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                 vendorId: finalVendorId,
                 vendorName: vendorName,
                 vendorRegion: vendorRegion,
+                tailoringTime: duration,
             });
             setIsAdding(false);
             const Toast = Swal.mixin({
@@ -393,24 +397,24 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                 <div class="text-left space-y-4 py-4">
                     <div class="space-y-2">
                         <label class="text-[10px] text-slate-400 font-black uppercase tracking-widest ml-1">Delivery Address</label>
-                        <input id="quick-delivery-address" type="text" placeholder="e.g. 123 Main St, East Legon" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-none text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20" value="${user?.address || ''}" />
+                        <input id="quick-delivery-address" type="text" placeholder="e.g. 123 Main St, East Legon" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20" value="${user?.address || ''}" />
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div class="space-y-2 relative">
                             <label class="text-[10px] text-slate-400 font-black uppercase tracking-widest ml-1">Search Location (Skynet)</label>
-                            <input id="quick-delivery-city" type="text" placeholder="Start typing your area..." class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-none text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20" value="${user?.location || ''}" autocomplete="off" />
-                            <div id="location-suggestions" class="absolute left-0 right-0 top-full mt-2 bg-white shadow-2xl rounded-none border border-slate-100 overflow-hidden z-[100] hidden">
+                            <input id="quick-delivery-city" type="text" placeholder="Start typing your area..." class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20" value="${user?.location || ''}" autocomplete="off" />
+                            <div id="location-suggestions" class="absolute left-0 right-0 top-full mt-2 bg-white shadow-2xl rounded-2xl border border-slate-100 overflow-hidden z-[100] hidden">
                                 <!-- Suggestions will appear here -->
                             </div>
                         </div>
                         <div class="space-y-2">
                             <label class="text-[10px] text-slate-400 font-black uppercase tracking-widest ml-1">Region</label>
-                            <input id="quick-delivery-region" type="text" placeholder="e.g. Greater Accra" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-none text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20" value="${user?.region || ''}" />
+                            <input id="quick-delivery-region" type="text" placeholder="e.g. Greater Accra" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20" value="${user?.region || ''}" />
                         </div>
                     </div>
                     
                     <!-- Payment Summary -->
-                    <div class="mt-6 p-4 rounded-none bg-slate-50 border border-slate-100 space-y-2">
+                    <div class="mt-6 p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-2">
                         <div class="flex justify-between items-center text-xs font-bold text-slate-500 uppercase tracking-wider">
                             <span>Item Total (Pay Now)</span>
                             <span>GH₵ ${currentPrice.toLocaleString()}</span>
@@ -496,10 +500,10 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                 };
             },
             customClass: {
-                popup: 'rounded-none border border-slate-100 shadow-2xl p-10 bg-white',
+                popup: 'rounded-3xl border border-slate-100 shadow-2xl p-10 bg-white',
                 title: 'text-2xl font-black text-slate-900 tracking-tighter uppercase mb-6',
-                confirmButton: 'bg-slate-900 text-white rounded-none px-10 py-4 text-[11px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all mx-2 shadow-lg',
-                cancelButton: 'bg-slate-100 text-slate-500 rounded-none px-10 py-4 text-[11px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all mx-2'
+                confirmButton: 'bg-slate-900 text-white rounded-full px-10 py-4 text-[11px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all mx-2 shadow-lg',
+                cancelButton: 'bg-slate-100 text-slate-500 rounded-full px-10 py-4 text-[11px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all mx-2'
             },
         });
 
@@ -526,7 +530,8 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                     quantity: 1,
                     size: selectedSize || 'Universal',
                     color: selectedColor || 'Universal',
-                    image: images[0]
+                    image: images[0],
+                    tailoringTime: duration,
                 }],
                 totalProductAmount: deliveryDetails.totalProductAmount,
                 deliveryFee: 0,
@@ -609,19 +614,19 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                 onMouseEnter={handleMouseEnter}
                 onMouseLeave={handleMouseLeave}
                 onClick={() => setIsDetailModalOpen(true)}
-                className={`bg-white p-4 rounded-none group hover:shadow-2xl transition-all duration-700 ease-out border border-slate-100 hover:border-slate-300 cursor-pointer ${isVisible ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-10 scale-95'
+                className={`bg-white p-4 rounded-3xl group hover:shadow-2xl transition-all duration-700 ease-out border border-slate-100 hover:border-slate-300 cursor-pointer ${isVisible ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-10 scale-95'
                     }`}>
                 {/* Image Container */}
-                <div className="relative w-full aspect-[4/5] bg-[#F7F7F7] rounded-none overflow-hidden mb-5 group/image transition-all duration-500 hover:shadow-inner">
+                <div className="relative w-full aspect-[4/5] bg-[#F7F7F7] rounded-2xl overflow-hidden mb-5 group/image transition-all duration-500 hover:shadow-inner">
                     {/* New Arrival Badge & Sold Out Overlay */}
                     <div className="absolute top-4 left-4 z-20 flex flex-col gap-2">
                         {!isSoldOut && (
-                            <div className="bg-[#DFEA73] text-[#2C3E02] text-[10px] font-black px-3 py-1.5 rounded-none uppercase tracking-tighter shadow-sm w-fit">
+                            <div className="bg-[#DFEA73] text-[#2C3E02] text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-tighter shadow-sm w-fit">
                                 New Arrival
                             </div>
                         )}
                         {isSoldOut && (
-                            <div className="bg-slate-900/90 backdrop-blur-md text-white text-[10px] font-black px-4 py-2 rounded-none uppercase tracking-[0.2em] border border-white/20 w-fit shadow-xl">
+                            <div className="bg-slate-900/90 backdrop-blur-md text-white text-[10px] font-black px-4 py-2 rounded-full uppercase tracking-[0.2em] border border-white/20 w-fit shadow-xl">
                                 Sold Out
                             </div>
                         )}
@@ -659,13 +664,13 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                     {vendorName && (
                         <div
                             onClick={handleVendorProfile}
-                            className="flex items-center gap-2 w-fit cursor-pointer group/vendor relative z-30 -ml-1 p-2 rounded-none hover:bg-slate-50 transition-all border border-transparent hover:border-slate-100"
+                            className="flex items-center gap-2 w-fit cursor-pointer group/vendor relative z-30 -ml-1 p-2 rounded-2xl hover:bg-slate-50 transition-all border border-transparent hover:border-slate-100"
                         >
                             <span className="text-[11px] font-black text-slate-400 uppercase tracking-[0.15em] group-hover/vendor:text-slate-900 transition-colors">
                                 by <span className="underline decoration-brand-lemon decoration-2 underline-offset-2">{vendorName}</span>
-                                {uniqueVendorId && <span className="text-slate-900 ml-2 bg-brand-lemon px-2 py-0.5 rounded-none text-[8px] font-black shadow-sm">{uniqueVendorId}</span>}
+                                {uniqueVendorId && <span className="text-slate-900 ml-2 bg-brand-lemon px-2 py-0.5 rounded-full text-[8px] font-black shadow-sm">{uniqueVendorId}</span>}
                             </span>
-                            <div className="w-1.5 h-1.5 rounded-none bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)] group-hover/vendor:animate-pulse"></div>
+                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)] group-hover/vendor:animate-pulse"></div>
                         </div>
                     )}
 
@@ -723,7 +728,7 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                                     key={size}
                                     onClick={() => !isSoldOut && setSelectedSize(size)}
                                     disabled={isSoldOut}
-                                    className={`flex-none w-8 h-8 rounded-none text-[10px] font-black border transition-all active:scale-90
+                                    className={`flex-none w-8 h-8 rounded-xl text-[10px] font-black border transition-all active:scale-90
                                         ${selectedSize === size
                                             ? 'bg-brand-lemon text-slate-900 border-brand-lemon shadow-sm'
                                             : 'bg-white text-slate-400 border-slate-100 hover:border-slate-200'
@@ -740,13 +745,13 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                     <div className="flex flex-col md:grid md:grid-cols-2 gap-2 mt-4 relative z-20" onClick={(e) => e.stopPropagation()}>
                         <button
                             onClick={() => setIsDetailModalOpen(true)}
-                            className="flex items-center justify-center py-3.5 px-6 rounded-none border border-slate-900 text-[11px] font-bold text-slate-900 bg-white hover:bg-slate-50 transition-all active:scale-[0.98] whitespace-nowrap touch-manipulation relative z-50 !cursor-pointer !pointer-events-auto"
+                            className="flex items-center justify-center py-3.5 px-6 rounded-full border border-slate-900 text-[11px] font-bold text-slate-900 bg-white hover:bg-slate-50 transition-all active:scale-[0.98] whitespace-nowrap touch-manipulation relative z-50 !cursor-pointer !pointer-events-auto"
                         >
                             Learn More
                         </button>
                         <button
                             onClick={handleBuyNow}
-                            className="flex items-center justify-center py-3.5 px-6 rounded-none bg-brand-lemon text-slate-900 text-[11px] font-bold transition-all active:scale-[0.98] whitespace-nowrap touch-manipulation relative z-50 !cursor-pointer !pointer-events-auto"
+                            className="flex items-center justify-center py-3.5 px-6 rounded-full bg-brand-lemon text-slate-900 text-[11px] font-bold transition-all active:scale-[0.98] whitespace-nowrap touch-manipulation relative z-50 !cursor-pointer !pointer-events-auto"
                         >
                             Quick Checkout
                         </button>
@@ -761,18 +766,18 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                         className="absolute inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity duration-500"
                         onClick={() => setIsDetailModalOpen(false)}
                     />
-                    <div className="relative bg-white w-full max-w-4xl h-[92vh] md:h-[85vh] rounded-none shadow-2xl flex flex-col md:flex-row animate-in slide-in-from-bottom md:zoom-in-95 duration-500 pointer-events-auto overflow-hidden border border-slate-100">
+                    <div className="relative bg-white w-full max-w-4xl h-[92vh] md:h-[85vh] rounded-3xl shadow-2xl flex flex-col md:flex-row animate-in slide-in-from-bottom md:zoom-in-95 duration-500 pointer-events-auto overflow-hidden border border-slate-100">
                         {/* Top Actions - Absolute */}
                         <div className="absolute top-6 right-6 z-[60] flex items-center gap-3">
                             <button
                                 onClick={toggleWishlist}
-                                className={`w-12 h-12 bg-white/95 backdrop-blur-xl flex items-center justify-center rounded-none shadow-2xl border border-slate-100 transition-all hover:scale-110 active:scale-90 ${isWishlisted ? 'text-red-500' : 'text-slate-400 hover:text-red-500'}`}
+                                className={`w-12 h-12 bg-white/95 backdrop-blur-xl flex items-center justify-center rounded-2xl shadow-2xl border border-slate-100 transition-all hover:scale-110 active:scale-90 ${isWishlisted ? 'text-red-500' : 'text-slate-400 hover:text-red-500'}`}
                             >
                                 <Heart className={`w-5 h-5 ${isWishlisted ? 'fill-current' : ''}`} />
                             </button>
                             <button
                                 onClick={() => setIsDetailModalOpen(false)}
-                                className="w-12 h-12 bg-white/95 backdrop-blur-xl flex items-center justify-center text-slate-900 rounded-none shadow-2xl transition-all hover:scale-110 active:scale-90 border border-slate-100"
+                                className="w-12 h-12 bg-white/95 backdrop-blur-xl flex items-center justify-center text-slate-900 rounded-2xl shadow-2xl transition-all hover:scale-110 active:scale-90 border border-slate-100"
                             >
                                 <X className="w-5 h-5" />
                             </button>
@@ -823,7 +828,7 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                                     <button
                                         key={idx}
                                         onClick={() => setCurrentImageIndex(idx)}
-                                        className={`relative flex-shrink-0 w-12 h-16 md:w-14 md:h-20 rounded-none overflow-hidden border-2 transition-all duration-300 ${idx === currentImageIndex
+                                        className={`relative flex-shrink-0 w-12 h-16 md:w-14 md:h-20 rounded-2xl overflow-hidden border-2 transition-all duration-300 ${idx === currentImageIndex
                                             ? 'border-brand-lemon shadow-lg shadow-brand-lemon/20 scale-105 opacity-100 ring-2 ring-brand-lemon/20'
                                             : 'border-transparent opacity-60 hover:opacity-100 hover:scale-105 bg-slate-100'
                                             }`}
@@ -858,7 +863,7 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                             <div className="p-6 md:p-10 pb-32">
                                 <div className="space-y-4">
                                     <div className="flex flex-wrap items-center gap-3">
-                                        <div className="px-4 py-1.5 bg-slate-900 text-[9px] font-black uppercase tracking-[0.2em] text-brand-lemon rounded-none shadow-xl shadow-slate-900/10 border border-slate-800">
+                                        <div className="px-4 py-1.5 bg-slate-900 text-[9px] font-black uppercase tracking-[0.2em] text-brand-lemon rounded-2xl shadow-xl shadow-slate-900/10 border border-slate-800">
                                             Verified Design
                                         </div>
                                         <div className="flex items-center gap-1.5 text-blue-500 text-[10px] font-black uppercase tracking-[0.2em]">
@@ -875,8 +880,8 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                                                 <p className="text-3xl md:text-4xl font-black text-slate-900 tracking-tighter">GH₵{price}</p>
                                             </div>
                                             <div className="text-right">
-                                                <div className={`px-4 py-1.5 rounded-none inline-flex items-center gap-2 ${stock > 5 ? 'bg-emerald-50 text-emerald-600' : 'bg-orange-50 text-orange-600'}`}>
-                                                    <div className={`w-1.5 h-1.5 rounded-none ${stock > 5 ? 'bg-emerald-500' : 'bg-orange-500'} animate-pulse`} />
+                                                <div className={`px-4 py-1.5 rounded-2xl inline-flex items-center gap-2 ${stock > 5 ? 'bg-emerald-50 text-emerald-600' : 'bg-orange-50 text-orange-600'}`}>
+                                                    <div className={`w-1.5 h-1.5 rounded-full ${stock > 5 ? 'bg-emerald-500' : 'bg-orange-500'} animate-pulse`} />
                                                     <span className="text-[10px] font-black uppercase tracking-widest">
                                                         {stock > 0 ? `${stock} PIECES IN STOCK` : 'SOLD OUT'}
                                                     </span>
@@ -906,7 +911,7 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                                                     <button
                                                         key={size}
                                                         onClick={() => setSelectedSize(size)}
-                                                        className={`min-w-[3.5rem] h-12 md:h-14 px-4 rounded-none font-black border-2 transition-all text-xs md:text-sm
+                                                        className={`min-w-[3.5rem] h-12 md:h-14 px-4 rounded-xl font-black border-2 transition-all text-xs md:text-sm
                                                             ${selectedSize === size
                                                                 ? 'border-slate-900 bg-slate-900 text-white shadow-xl shadow-slate-900/20 scale-105'
                                                                 : 'border-slate-100 text-slate-400 hover:border-slate-200 bg-white hover:scale-105'
@@ -937,14 +942,14 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                                                     <button
                                                         key={color}
                                                         onClick={() => setSelectedColor(color)}
-                                                        className={`h-12 md:h-14 px-5 rounded-none font-black border-2 transition-all text-xs flex items-center gap-2
+                                                        className={`h-12 md:h-14 px-5 rounded-xl font-black border-2 transition-all text-xs flex items-center gap-2
                                                             ${selectedColor === color
                                                                 ? 'border-slate-900 bg-slate-900 text-white shadow-xl shadow-slate-900/20 scale-105'
                                                                 : 'border-slate-100 text-slate-400 hover:border-slate-200 bg-white hover:scale-105'
                                                             }
                                                         `}
                                                     >
-                                                        <div className={`w-3 h-3 rounded-none border border-black/10`} style={{ 
+                                                        <div className={`w-3 h-3 rounded-md border border-black/10`} style={{ 
                                                             backgroundColor: color.toLowerCase() === 'pattern' ? 'transparent' : color.toLowerCase(),
                                                             backgroundImage: color.toLowerCase() === 'pattern' ? 'conic-gradient(from 0deg,#ff0000,#ffff00,#00ff00,#00ffff,#0000ff,#ff00ff,#ff0000)' : 'none'
                                                         }} />
@@ -963,13 +968,13 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                                                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-1">Storytelling</span>
                                                 <h3 className="font-heading font-black text-2xl text-slate-900 uppercase tracking-tighter">The Narrative</h3>
                                             </div>
-                                            <div className="flex items-center gap-1.5 px-4 py-2 bg-emerald-50 rounded-none border border-emerald-100 shadow-sm">
-                                                <div className="w-1.5 h-1.5 rounded-none bg-emerald-500 animate-pulse"></div>
+                                            <div className="flex items-center gap-1.5 px-4 py-2 bg-emerald-50 rounded-2xl border border-emerald-100 shadow-sm">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
                                                 <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Ethically Crafted</span>
                                             </div>
                                         </div>
                                         
-                                        <div className="relative p-6 bg-slate-50/50 rounded-none border border-slate-100 overflow-hidden">
+                                        <div className="relative p-6 bg-slate-50/50 rounded-2xl border border-slate-100 overflow-hidden">
                                             {/* Luxury Pattern */}
                                             <div className="absolute inset-0 opacity-[0.03] pointer-events-none">
                                                 <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="narrativeGrid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M 40 0 L 0 0 0 40" fill="none" stroke="black" stroke-width="1"/></pattern></defs><rect width="100%" height="100%" fill="url(#narrativeGrid)" /></svg>
@@ -983,13 +988,13 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                                         {/* Trust Badges */}
                                         <div className="flex flex-wrap gap-4 py-2">
                                             <div className="flex items-center gap-2 text-slate-500">
-                                                <div className="w-8 h-8 rounded-none bg-slate-50 flex items-center justify-center">
+                                                <div className="w-8 h-8 rounded-xl bg-slate-50 flex items-center justify-center">
                                                     <Shield className="w-4 h-4 text-slate-900" />
                                                 </div>
                                                 <span className="text-[10px] font-bold uppercase tracking-tight">Authentic FLA</span>
                                             </div>
                                             <div className="flex items-center gap-2 text-slate-500">
-                                                <div className="w-8 h-8 rounded-none bg-slate-50 flex items-center justify-center">
+                                                <div className="w-8 h-8 rounded-xl bg-slate-50 flex items-center justify-center">
                                                     <Zap className="w-4 h-4 text-slate-900" />
                                                 </div>
                                                 <span className="text-[10px] font-bold uppercase tracking-tight">Fast Customization</span>
@@ -1001,7 +1006,7 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                                             <div className="space-y-4">
                                                 <div
                                                     onClick={handleVendorProfile}
-                                                    className="mt-6 flex items-center gap-5 p-6 bg-slate-900 text-white rounded-none cursor-pointer hover:bg-black active:scale-[0.98] transition-all shadow-2xl shadow-slate-900/20 group/vendor relative overflow-hidden"
+                                                    className="mt-6 flex items-center gap-5 p-6 bg-slate-900 text-white rounded-2xl cursor-pointer hover:bg-black active:scale-[0.98] transition-all shadow-2xl shadow-slate-900/20 group/vendor relative overflow-hidden"
                                                 >
                                                     {/* Subtle Pattern Background */}
                                                     <div className="absolute inset-0 opacity-5 pointer-events-none">
@@ -1009,10 +1014,10 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                                                     </div>
 
                                                     <div className="relative">
-                                                        <div className="w-16 h-16 rounded-none bg-brand-lemon flex items-center justify-center text-slate-900 font-black text-3xl group-hover/vendor:scale-105 transition-transform duration-500">
+                                                        <div className="w-16 h-16 rounded-2xl bg-brand-lemon flex items-center justify-center text-slate-900 font-black text-3xl group-hover/vendor:scale-105 transition-transform duration-500">
                                                             {vendorName.charAt(0)}
                                                         </div>
-                                                        <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-emerald-500 rounded-none border-[3px] border-slate-900 flex items-center justify-center">
+                                                        <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-emerald-500 rounded-full border-[3px] border-slate-900 flex items-center justify-center">
                                                             <Check className="w-3.5 h-3.5 text-white" />
                                                         </div>
                                                     </div>
@@ -1023,13 +1028,13 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                                                         </p>
                                                         {uniqueVendorId && <span className="text-[9px] text-brand-lemon/40 font-black tracking-widest mt-1 inline-block">#{uniqueVendorId}</span>}
                                                     </div>
-                                                    <div className="bg-white/10 w-12 h-12 flex items-center justify-center rounded-none group-hover/vendor:bg-brand-lemon group-hover/vendor:text-slate-900 transition-all duration-500">
+                                                    <div className="bg-white/10 w-12 h-12 flex items-center justify-center rounded-2xl group-hover/vendor:bg-brand-lemon group-hover/vendor:text-slate-900 transition-all duration-500">
                                                         <ChevronRight className="w-5 h-5" />
                                                     </div>
                                                 </div>
 
                                                 {/* Refund & Store Policy Section (Transparent for Paystack Compliance) */}
-                                                <div className="bg-slate-50 rounded-none p-6 border border-slate-100 space-y-4">
+                                                <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100 space-y-4">
                                                     <div className="flex items-center justify-between">
                                                         <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-900">Store & Refund Policy</h4>
                                                         <div className="px-2 py-1 bg-brand-lemon text-slate-900 text-[8px] font-black rounded-md uppercase tracking-widest">Mediator Protected</div>
@@ -1052,14 +1057,14 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
 
                                     {/* Details Grid */}
                                     <div className="grid grid-cols-2 gap-4">
-                                        <div className="flex items-center gap-3 p-4 rounded-none bg-white border border-slate-100 shadow-sm">
+                                        <div className="flex items-center gap-3 p-4 rounded-2xl bg-white border border-slate-100 shadow-sm">
                                             <Clock className="w-5 h-5 text-slate-900" />
                                             <div className="flex flex-col">
                                                 <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Prep Time</span>
                                                 <span className="text-[11px] font-black text-slate-900">{duration}</span>
                                             </div>
                                         </div>
-                                        <div className="flex items-center gap-3 p-4 rounded-none bg-white border border-slate-100 shadow-sm">
+                                        <div className="flex items-center gap-3 p-4 rounded-2xl bg-white border border-slate-100 shadow-sm">
                                             <Shield className="w-5 h-5 text-slate-900" />
                                             <div className="flex flex-col">
                                                 <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Quality</span>
@@ -1075,14 +1080,14 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                                 <button
                                     onClick={handleAddToCart}
                                     disabled={isAdding}
-                                    className="flex-1 py-5 rounded-none bg-slate-50 border border-slate-200 font-black text-[10px] uppercase tracking-[0.2em] text-slate-900 hover:bg-slate-100 transition-all flex items-center justify-center gap-3 active:scale-95"
+                                    className="flex-1 py-5 rounded-full bg-slate-50 border border-slate-200 font-black text-[10px] uppercase tracking-[0.2em] text-slate-900 hover:bg-slate-100 transition-all flex items-center justify-center gap-3 active:scale-95"
                                 >
                                     <ShoppingBag className="w-4 h-4" />
                                     {isAdding ? 'Adding...' : 'Add to Bag'}
                                 </button>
                                 <button
                                     onClick={handleBuyNow}
-                                    className="flex-[1.5] py-5 rounded-none bg-brand-lemon text-slate-900 font-black text-[10px] uppercase tracking-[0.2em] shadow-xl hover:shadow-brand-lemon/20 hover:scale-[1.02] transition-all active:scale-95 relative overflow-hidden group/btn"
+                                    className="flex-[1.5] py-5 rounded-full bg-brand-lemon text-slate-900 font-black text-[10px] uppercase tracking-[0.2em] shadow-xl hover:shadow-brand-lemon/20 hover:scale-[1.02] transition-all active:scale-95 relative overflow-hidden group/btn"
                                 >
                                     <span className="relative z-10">Quick Checkout</span>
                                     <div className="absolute inset-0 bg-white opacity-0 group-hover/btn:opacity-20 transition-opacity" />

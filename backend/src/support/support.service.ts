@@ -86,7 +86,11 @@ export class SupportService {
     }
 
     async findOne(id: string): Promise<Support> {
-        const dispute = await this.supportModel.findById(id).exec();
+        const dispute = await this.supportModel
+            .findById(id)
+            .populate('userId', 'name phone email')
+            .populate('vendorId', 'name phone shopName email')
+            .exec();
         if (!dispute) throw new NotFoundException('Dispute not found');
         return dispute;
     }

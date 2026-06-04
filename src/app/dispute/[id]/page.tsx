@@ -11,6 +11,8 @@ import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Swal from 'sweetalert2';
 import { DisputeChat } from '@/components/dashboard/DisputeChat';
+import { WhatsAppButton } from '@/components/WhatsAppButton';
+import { buildDisputeWhatsAppMessage } from '@/lib/whatsapp';
 
 export default function DisputeCenter() {
     const { id } = useParams();
@@ -164,6 +166,17 @@ export default function DisputeCenter() {
 
     const isAdmin = user?.role === 'admin';
     const isVendor = user?.role === 'vendor';
+    const customer = typeof dispute.userId === 'object' ? dispute.userId : null;
+    const vendor = typeof dispute.vendorId === 'object' ? dispute.vendorId : null;
+    const orderRef = dispute.orderId?.toString().slice(-6).toUpperCase() || '------';
+    const senderName = user?.shopName || user?.name;
+    const disputeMessage = (talkingTo: 'vendor' | 'customer') =>
+        buildDisputeWhatsAppMessage({
+            orderRef,
+            category: dispute.category,
+            senderName,
+            talkingTo,
+        });
 
     return (
         <div className="min-h-screen bg-slate-50 flex flex-col">
@@ -243,7 +256,7 @@ export default function DisputeCenter() {
             <main className="flex-1 max-w-5xl w-full mx-auto p-4 md:p-6 grid md:grid-cols-3 gap-6">
                 {/* Real-time Stream Chat Section */}
                 <div className="md:col-span-2 flex flex-col h-[calc(100vh-180px)]">
-                    <div className="bg-slate-50 rounded-3xl p-4 border border-slate-100 mb-6">
+                    <div className="bg-slate-50 rounded-3xl p-4 border border-slate-100 mb-4">
                         <div className="flex items-center gap-2 mb-2">
                             <AlertCircle className="w-4 h-4 text-orange-500" />
                             <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Case Summary</span>
@@ -252,6 +265,41 @@ export default function DisputeCenter() {
                         <p className="text-sm text-slate-600 font-medium leading-relaxed">{dispute.description}</p>
                     </div>
 
+                    {!isAdmin && dispute.status !== 'resolved' && (
+                        <div className="rounded-3xl border border-[#25D366]/30 bg-[#25D366]/10 p-4 mb-4">
+                            <p className="text-[10px] font-black text-slate-900 uppercase tracking-widest mb-1">Quick chat</p>
+                            <p className="text-xs text-slate-600 mb-3">Tap WhatsApp to message {isVendor ? 'the customer' : 'your vendor'} about this dispute.</p>
+                            <WhatsAppButton
+                                fullWidth
+                                size="lg"
+                                phone={isVendor ? customer?.phone : vendor?.phone}
+                                message={disputeMessage(isVendor ? 'customer' : 'vendor')}
+                                label={isVendor ? 'WhatsApp Customer' : 'WhatsApp Vendor'}
+                                missingContactRole={isVendor ? 'customer' : 'vendor'}
+                            />
+                        </div>
+                    )}
+
+                    {isAdmin && dispute.status !== 'resolved' && (
+                        <div className="rounded-3xl border border-[#25D366]/30 bg-[#25D366]/10 p-4 mb-4 space-y-2">
+                            <p className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Contact parties</p>
+                            <WhatsAppButton
+                                fullWidth
+                                phone={customer?.phone}
+                                message={disputeMessage('customer')}
+                                label="WhatsApp Customer"
+                                missingContactRole="customer"
+                            />
+                            <WhatsAppButton
+                                fullWidth
+                                phone={vendor?.phone}
+                                message={disputeMessage('vendor')}
+                                label="WhatsApp Vendor"
+                                missingContactRole="vendor"
+                            />
+                        </div>
+                    )}
+
                     <div className="flex-1">
                         <DisputeChat disputeId={id as string} />
                     </div>
@@ -259,6 +307,24 @@ export default function DisputeCenter() {
 
                 {/* Sidebar Info */}
                 <div className="space-y-6">
+                    {dispute.status !== 'resolved' && (
+                        <div className="bg-[#25D366] rounded-[32px] p-6 text-white shadow-xl shadow-[#25D366]/20 md:hidden">
+                            <h2 className="text-[10px] font-black uppercase tracking-[0.2em] mb-2 opacity-90">Resolve faster</h2>
+                            <p className="text-xs font-medium mb-4 opacity-90">Use WhatsApp for a quick conversation alongside FLA chat.</p>
+                            {!isAdmin && (
+                                <WhatsAppButton
+                                    fullWidth
+                                    size="lg"
+                                    phone={isVendor ? customer?.phone : vendor?.phone}
+                                    message={disputeMessage(isVendor ? 'customer' : 'vendor')}
+                                    label={isVendor ? 'Message Customer' : 'Message Vendor'}
+                                    missingContactRole={isVendor ? 'customer' : 'vendor'}
+                                    className="!bg-white !text-[#128C7E] hover:!bg-slate-50"
+                                />
+                            )}
+                        </div>
+                    )}
+
                     <div className="bg-white rounded-[32px] border border-slate-100 shadow-sm p-6">
                         <h2 className="text-[10px] font-black text-slate-900 uppercase tracking-[0.2em] mb-4">Dispute Status</h2>
                         <div className="space-y-4">

@@ -42,7 +42,7 @@ export default function ProblemSolution() {
                             <div className="space-y-4">
                                 <div className="h-10 bg-slate-700/50 rounded-xl w-3/4"></div>
                                 <div className="h-40 bg-slate-700/30 rounded-2xl w-full border border-slate-700/50"></div>
-                                <button className="w-full py-5 bg-brand-lemon rounded-2xl font-black text-[10px] text-slate-900 mt-6 hover:shadow-xl hover:shadow-brand-lemon/10 transition-all uppercase tracking-[0.2em] transform active:scale-[0.98]">
+                                <button className="w-full py-5 bg-brand-lemon rounded-full font-black text-[10px] text-slate-900 mt-6 hover:shadow-xl hover:shadow-brand-lemon/10 transition-all uppercase tracking-[0.2em] transform active:scale-[0.98]">
                                     Start Production
                                 </button>
                             </div>

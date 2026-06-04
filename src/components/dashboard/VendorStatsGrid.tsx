@@ -69,7 +69,7 @@ export const VendorStatsGrid: React.FC<VendorStatsGridProps> = ({
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
       {stats.map((stat, idx) => (
-        <div key={idx} className={`${stat.bg} p-8 rounded-none relative overflow-hidden shadow-xl shadow-slate-200 transition-all hover:-translate-y-1 hover:shadow-2xl`}>
+        <div key={idx} className={`${stat.bg} p-8 rounded-3xl relative overflow-hidden shadow-xl shadow-slate-200 transition-all hover:-translate-y-1 hover:shadow-2xl`}>
           <div className="relative z-10">
             <p className="text-[10px] font-black uppercase tracking-widest text-white/60 mb-2">{stat.label}</p>
             <h3 className="text-3xl font-black text-white tracking-tighter mb-4">{stat.value}</h3>

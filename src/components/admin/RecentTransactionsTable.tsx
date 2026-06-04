@@ -38,7 +38,7 @@ export const RecentTransactionsTable = ({ orders }: { orders: any[] }) => {
     const totalPages = Math.ceil(transactions.length / itemsPerPage);
 
     return (
-        <div className="bg-white border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[600px]">
+        <div className="bg-white border border-slate-100 shadow-sm rounded-3xl overflow-hidden flex flex-col min-h-[600px]">
             <div className="p-8 border-b border-slate-50 flex justify-between items-center">
                 <h2 className="font-black text-slate-900 uppercase text-sm tracking-widest">Recent Transactions</h2>
             </div>

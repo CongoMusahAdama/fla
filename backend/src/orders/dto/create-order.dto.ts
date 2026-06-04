@@ -29,6 +29,10 @@ export class OrderItemDto {
     @IsString()
     @IsOptional()
     image?: string;
+
+    @IsString()
+    @IsOptional()
+    tailoringTime?: string;
 }
 
 export class CreateOrderDto {

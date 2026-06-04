@@ -163,7 +163,7 @@ export default function Navbar() {
                                     alt="FLA Logo" 
                                     width={40} 
                                     height={40} 
-                                    className="h-8 w-auto object-contain rounded-none shadow-sm"
+                                    className="h-8 w-auto object-contain rounded-2xl shadow-sm"
                                 />
                             </Link>
 
@@ -174,13 +174,13 @@ export default function Navbar() {
                                         placeholder="Search..."
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
-                                        className="w-full px-3 py-1.5 text-[10px] bg-slate-50 border border-slate-200 rounded-none focus:outline-none focus:border-slate-900"
+                                        className="w-full px-3 py-1.5 text-[10px] bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-900"
                                         onKeyDown={handleSearch}
                                         autoFocus={isSearchOpen}
                                     />
                                     {/* Mobile Suggestions */}
                                     {isSearchOpen && (suggestions || []).length > 0 && (
-                                        <div className="absolute top-full left-0 right-0 mt-2 bg-white shadow-2xl rounded-none border border-slate-100 overflow-hidden z-[300] animate-in slide-in-from-top-2 duration-200">
+                                        <div className="absolute top-full left-0 right-0 mt-2 bg-white shadow-2xl rounded-2xl border border-slate-100 overflow-hidden z-[300] animate-in slide-in-from-top-2 duration-200">
                                             {(suggestions || []).map((s, idx) => (
                                                 <button
                                                     key={idx}
@@ -188,7 +188,7 @@ export default function Navbar() {
                                                     className="w-full px-4 py-3 text-left hover:bg-slate-50 flex items-center justify-between border-b border-slate-50 last:border-0"
                                                 >
                                                     <span className="text-[10px] font-bold text-slate-900">{s.text}</span>
-                                                    <span className="text-[8px] font-black uppercase text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-none">{s.type}</span>
+                                                    <span className="text-[8px] font-black uppercase text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-2xl">{s.type}</span>
                                                 </button>
                                             ))}
                                         </div>
@@ -224,7 +224,7 @@ export default function Navbar() {
  
                                 <button
                                     onClick={() => setIsMenuOpen(true)}
-                                    className="ml-2 flex items-center gap-1.5 bg-slate-900 text-white px-3.5 py-2 rounded-none shadow-lg active:scale-95 transition-all"
+                                    className="ml-2 flex items-center gap-1.5 bg-slate-900 text-white px-3.5 py-2 rounded-full shadow-lg active:scale-95 transition-all"
                                 >
                                     <span className="text-[9px] font-black uppercase tracking-widest">Menu</span>
                                     <Menu className="h-4 w-4" />
@@ -263,7 +263,7 @@ export default function Navbar() {
                                         alt="FLA Logo" 
                                         width={80} 
                                         height={80} 
-                                        className="h-12 w-auto object-contain rounded-none shadow-sm"
+                                        className="h-12 w-auto object-contain rounded-2xl shadow-sm"
                                         priority
                                     />
                                 </Link>
@@ -284,14 +284,14 @@ export default function Navbar() {
                                                 placeholder="Search products or vendors..."
                                                 value={searchQuery}
                                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                                className="w-full px-5 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-none focus:outline-none focus:border-slate-900 focus:bg-white transition-all shadow-inner"
+                                                className="w-full px-5 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-900 focus:bg-white transition-all shadow-inner"
                                                 onKeyDown={handleSearch}
                                                 autoFocus={isSearchOpen}
                                             />
                                             
                                             {/* Desktop Suggestions */}
                                             {isSearchOpen && (suggestions.length > 0 || isSuggestionsLoading) && (
-                                                <div className="absolute top-full left-0 right-0 mt-3 bg-white shadow-2xl rounded-none border border-slate-100 overflow-hidden z-[300] animate-in slide-in-from-top-4 duration-300">
+                                                <div className="absolute top-full left-0 right-0 mt-3 bg-white shadow-2xl rounded-2xl border border-slate-100 overflow-hidden z-[300] animate-in slide-in-from-top-4 duration-300">
                                                     {isSuggestionsLoading ? (
                                                         <div className="p-6 flex items-center justify-center">
                                                             <div className="w-5 h-5 border-2 border-slate-200 border-t-slate-900 rounded-full animate-spin"></div>
@@ -311,7 +311,7 @@ export default function Navbar() {
                                                                         <Search className="w-3.5 h-3.5 text-slate-300 group-hover:text-slate-900 transition-colors" />
                                                                         <span className="text-xs font-bold text-slate-700 group-hover:text-slate-900">{s.text}</span>
                                                                     </div>
-                                                                    <span className="text-[8px] font-black uppercase px-2 py-1 bg-slate-100 text-slate-400 rounded-none group-hover:bg-brand-lemon group-hover:text-slate-900 transition-all">
+                                                                    <span className="text-[8px] font-black uppercase px-2 py-1 bg-slate-100 text-slate-400 rounded-2xl group-hover:bg-brand-lemon group-hover:text-slate-900 transition-all">
                                                                         {s.type}
                                                                     </span>
                                                                 </button>
@@ -399,7 +399,7 @@ export default function Navbar() {
                                     <Link
                                         href="/auth"
                                         onClick={() => setIsMenuOpen(false)}
-                                        className="block w-full py-4 px-6 bg-blue-600 text-white text-center rounded-none font-bold text-xs mb-4"
+                                        className="block w-full py-4 px-6 bg-blue-600 text-white text-center rounded-full font-bold text-xs mb-4"
                                     >
                                         Sell on FLA Purchase
                                     </Link>
@@ -409,7 +409,7 @@ export default function Navbar() {
                                         setIsSupportOpen(true);
                                         setIsMenuOpen(false);
                                     }}
-                                    className="flex items-center justify-center gap-3 w-full py-4 px-6 bg-slate-900 text-white text-center rounded-none font-bold text-xs hover:bg-slate-800 transition-colors"
+                                    className="flex items-center justify-center gap-3 w-full py-4 px-6 bg-slate-900 text-white text-center rounded-full font-bold text-xs hover:bg-slate-800 transition-colors"
                                 >
                                     <Headset className="w-4 h-4 text-brand-lemon" />
                                     Contact Support

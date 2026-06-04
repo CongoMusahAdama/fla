@@ -347,8 +347,14 @@ export const RegisterForm = ({ role, onSignup }: { role: UserRole, onSignup: (da
             return;
         }
 
-        if (!turnstileToken && role !== 'vendor') { // Vendors have Turnstile on Step 5
-             // Skip check here for vendors as they check in step 5 submit or we can check step 5 here
+        if (role === 'customer' && !turnstileToken) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Security check',
+                text: 'Please complete the verification checkbox before continuing.',
+                confirmButtonColor: '#0f172a',
+            });
+            return;
         }
 
         onSignup({ 
@@ -790,7 +796,7 @@ export const RegisterForm = ({ role, onSignup }: { role: UserRole, onSignup: (da
                         <button
                             type="button"
                             onClick={nextStep}
-                            className="flex-1 py-4 bg-slate-900 text-white rounded-2xl font-bold text-sm tracking-wide hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/10 flex items-center justify-center gap-2 active:scale-[0.98]"
+                            className="flex-1 py-4 bg-slate-900 text-white rounded-full font-bold text-sm tracking-wide hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/10 flex items-center justify-center gap-2 active:scale-[0.98]"
                         >
                             Next <ArrowRight className="w-4 h-4" />
                         </button>
@@ -1368,7 +1374,7 @@ function AuthContent() {
 
     return (
         <main className="min-h-screen bg-[#E5E7EB]/30 flex items-start md:items-center justify-center p-0 md:p-8 pt-20 md:pt-24">
-            <div className="bg-white w-full max-w-6xl min-h-screen md:min-h-[85vh] rounded-none md:rounded-[48px] shadow-2xl overflow-hidden flex flex-col md:flex-row">
+            <div className="bg-white w-full max-w-6xl min-h-screen md:min-h-[85vh] rounded-3xl md:rounded-[48px] shadow-2xl overflow-hidden flex flex-col md:flex-row">
                 <div className="w-full p-8 md:p-16 flex flex-col justify-between relative bg-white">
                     <Link href="/" className="inline-flex items-center gap-3 mb-8">
                         <Image 
