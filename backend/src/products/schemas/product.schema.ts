@@ -68,6 +68,9 @@ export class Product {
     @Prop()
     region: string;
 
+    /** Vendor city/town (filled from User.location when listing products) */
+    vendorLocation?: string;
+
     @Prop()
     uniqueVendorId: string;
 
