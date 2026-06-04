@@ -28,6 +28,8 @@ import {
 import { WhatsAppButton, WhatsAppIcon } from '@/components/WhatsAppButton';
 import { getMultiCheckoutQueue, clearMultiCheckoutQueue } from '@/lib/cart-vendors';
 import { getOrderEstimatedDelivery } from '@/lib/utils';
+import { TableSearch } from '@/components/ui/TableSearch';
+import { matchesTableSearch, customerOrderSearchValues } from '@/lib/table-search';
 
 type DashboardSection = 'home' | 'orders' | 'wishlist' | 'notifications' | 'profile' | 'help';
 
@@ -62,6 +64,7 @@ export default function CustomerDashboard() {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [trackingOrder, setTrackingOrder] = useState<any>(null);
     const [orderFilter, setOrderFilter] = useState('All');
+    const [tableSearch, setTableSearch] = useState('');
     const [selectedReceipt, setSelectedReceipt] = useState<any>(null);
 
     // Help Center States
@@ -343,14 +346,46 @@ export default function CustomerDashboard() {
 
     const filteredOrders = React.useMemo(() => {
         if (!Array.isArray(orders)) return [];
-        return orders.filter(order => {
-            if (orderFilter === 'All') return true;
-            if (orderFilter === 'In delivery') return ![ 'delivered', 'completed', 'cancelled' ].includes(order.status);
-            if (orderFilter === 'Completed') return [ 'delivered', 'completed' ].includes(order.status);
-            if (orderFilter === 'Cancelled') return order.status === 'cancelled';
-            return true;
+        return orders.filter((order) => {
+            let statusMatch = true;
+            if (orderFilter === 'In delivery') statusMatch = !['delivered', 'completed', 'cancelled'].includes(order.status);
+            else if (orderFilter === 'Completed') statusMatch = ['delivered', 'completed'].includes(order.status);
+            else if (orderFilter === 'Cancelled') statusMatch = order.status === 'cancelled';
+            if (!statusMatch) return false;
+            return matchesTableSearch(tableSearch, ...customerOrderSearchValues(order));
         });
-    }, [orders, orderFilter]);
+    }, [orders, orderFilter, tableSearch]);
+
+    const filteredWishlistItems = React.useMemo(() => {
+        const items = wishlist?.items || [];
+        if (!tableSearch.trim()) return items;
+        return items.filter((item: { productId?: { name?: string; vendorName?: string; category?: string } }) =>
+            matchesTableSearch(
+                tableSearch,
+                item.productId?.name,
+                item.productId?.vendorName,
+                item.productId?.category,
+            ),
+        );
+    }, [wishlist, tableSearch]);
+
+    const filteredNotifications = React.useMemo(() => {
+        if (!tableSearch.trim()) return notifications;
+        return notifications.filter((n) =>
+            matchesTableSearch(tableSearch, n.title, n.message, n.status),
+        );
+    }, [notifications, tableSearch]);
+
+    const filteredDisputes = React.useMemo(() => {
+        if (!tableSearch.trim()) return disputes;
+        return disputes.filter((d) =>
+            matchesTableSearch(tableSearch, d.orderId, d.category, d.description, d.status),
+        );
+    }, [disputes, tableSearch]);
+
+    React.useEffect(() => {
+        setTableSearch('');
+    }, [activeSection]);
 
     const getImageUrl = (url: string | undefined | null) => {
         if (!url || url === '/product-1.jpg') return '/product-1.jpg';
@@ -770,10 +805,21 @@ export default function CustomerDashboard() {
                             </div>
                         </div>
 
+                        <TableSearch
+                            value={tableSearch}
+                            onChange={setTableSearch}
+                            placeholder="Search orders by product, vendor, status, ref..."
+                            className="md:hidden"
+                        />
+
                         <div className="bg-white rounded-[40px] border border-slate-100 shadow-sm overflow-hidden">
                             {/* Mobile Card View */}
                             <div className="md:hidden">
-                                {filteredOrders.map((order) => (
+                                {filteredOrders.length === 0 ? (
+                                    <div className="p-10 text-center text-slate-400 font-bold text-sm">
+                                        {orders.length > 0 ? 'No orders match your search.' : 'No orders found.'}
+                                    </div>
+                                ) : filteredOrders.map((order) => (
                                     <div key={order._id} className="p-5 border-b border-slate-50 last:border-none">
                                         <div className="flex gap-4 mb-4">
                                             <div className="relative w-24 h-28 bg-slate-50 rounded-2xl overflow-hidden flex-shrink-0 border border-slate-100">
@@ -897,9 +943,6 @@ export default function CustomerDashboard() {
                                         </div>
                                     </div>
                                 ))}
-                                {orders.length === 0 && (
-                                    <div className="p-10 text-center text-slate-400 font-bold text-sm">No orders found.</div>
-                                )}
                             </div>
 
                             {/* Desktop Table View */}
@@ -915,7 +958,13 @@ export default function CustomerDashboard() {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-50">
-                                        {filteredOrders.map((order) => (
+                                        {filteredOrders.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={5} className="px-8 py-16 text-center text-slate-400 font-bold text-sm">
+                                                    {orders.length > 0 ? 'No orders match your search.' : 'No orders found.'}
+                                                </td>
+                                            </tr>
+                                        ) : filteredOrders.map((order) => (
                                             <tr key={order._id} className="group hover:bg-slate-50/50 transition-colors">
                                                 <td className="px-8 py-6">
                                                     <div className="flex items-center gap-4">
@@ -1175,9 +1224,14 @@ export default function CustomerDashboard() {
                             <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">My Wishlist</h1>
                             <p className="text-slate-500 text-sm mt-1">Designs you've saved for later.</p>
                         </div>
+                        <TableSearch
+                            value={tableSearch}
+                            onChange={setTableSearch}
+                            placeholder="Search wishlist by name or vendor..."
+                        />
                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6">
-                            {wishlist?.items?.length > 0 ? (
-                                wishlist.items.map((item: any, i: number) => (
+                            {filteredWishlistItems.length > 0 ? (
+                                filteredWishlistItems.map((item: any, i: number) => (
                                     <ProductCard
                                         key={item._id || i}
                                         id={item.productId?._id}
@@ -1202,8 +1256,12 @@ export default function CustomerDashboard() {
                             ) : (
                                 <div className="col-span-full py-20 text-center">
                                     <Heart className="w-16 h-16 text-slate-100 mx-auto mb-4" />
-                                    <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Your wishlist is lonely.</p>
-                                    <Link href="/" className="text-sm font-black text-slate-900 underline mt-2 inline-block tracking-tighter uppercase">Browse Collection</Link>
+                                    <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">
+                                        {(wishlist?.items?.length ?? 0) > 0 ? 'No items match your search.' : 'Your wishlist is lonely.'}
+                                    </p>
+                                    {(wishlist?.items?.length ?? 0) === 0 && (
+                                        <Link href="/" className="text-sm font-black text-slate-900 underline mt-2 inline-block tracking-tighter uppercase">Browse Collection</Link>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -1215,9 +1273,14 @@ export default function CustomerDashboard() {
                         <div>
                             <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Notifications</h1>
                         </div>
+                        <TableSearch
+                            value={tableSearch}
+                            onChange={setTableSearch}
+                            placeholder="Search notifications..."
+                        />
                         <div className="space-y-4">
-                            {notifications.length > 0 ? (
-                                notifications.map((n, i) => (
+                            {filteredNotifications.length > 0 ? (
+                                filteredNotifications.map((n, i) => (
                                     <div key={n._id || i} className={`p-5 rounded-[24px] flex gap-4 items-start transition-all border ${!n.isRead ? 'bg-white border-brand-lemon shadow-md' : 'bg-white border-slate-100 shadow-sm opacity-70'}`}>
                                         <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${!n.isRead ? 'bg-brand-lemon text-slate-900' : 'bg-slate-50 text-slate-400'}`}>
                                             <Bell className="w-5 h-5" />
@@ -1234,8 +1297,12 @@ export default function CustomerDashboard() {
                             ) : (
                                 <div className="py-20 text-center bg-white rounded-[32px] border border-slate-100 shadow-sm">
                                     <MessageSquare className="w-12 h-12 text-slate-100 mx-auto mb-4" />
-                                    <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">No new notifications.</p>
-                                    <p className="text-slate-300 text-xs mt-1">We'll notify you here about your orders and messages.</p>
+                                    <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">
+                                        {notifications.length > 0 ? 'No notifications match your search.' : 'No new notifications.'}
+                                    </p>
+                                    {notifications.length === 0 && (
+                                        <p className="text-slate-300 text-xs mt-1">We'll notify you here about your orders and messages.</p>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -1279,10 +1346,16 @@ export default function CustomerDashboard() {
 
                         {/* Recent Disputes List */}
                         <div className="mt-8">
-                            <h2 className="text-xl font-black text-slate-900 uppercase tracking-tighter mb-6">Recent Disputes</h2>
-                            {disputes.length > 0 ? (
+                            <h2 className="text-xl font-black text-slate-900 uppercase tracking-tighter mb-4">Recent Disputes</h2>
+                            <TableSearch
+                                value={tableSearch}
+                                onChange={setTableSearch}
+                                placeholder="Search disputes by order, category..."
+                                className="mb-6"
+                            />
+                            {filteredDisputes.length > 0 ? (
                                 <div className="bg-white rounded-[32px] border border-slate-100 shadow-sm overflow-hidden">
-                                    {disputes.map((dispute) => (
+                                    {filteredDisputes.map((dispute) => (
                                         <div key={dispute._id} className="p-6 border-b border-slate-50 last:border-none flex flex-col md:flex-row gap-4 justify-between items-start md:items-center hover:bg-slate-50/50 transition-colors">
                                             <div className="flex-1">
                                                 <div className="flex items-center gap-2 mb-1">
@@ -1326,8 +1399,12 @@ export default function CustomerDashboard() {
                             ) : (
                                 <div className="text-center py-12 px-6 bg-white rounded-[32px] border border-slate-100 border-dashed">
                                     <ShieldAlert className="w-10 h-10 text-slate-200 mx-auto mb-4" />
-                                    <p className="text-xs font-black text-slate-400 uppercase tracking-widest">No Active Disputes</p>
-                                    <p className="text-xs text-slate-300 mt-1">If you have issues with an order, report it above.</p>
+                                    <p className="text-xs font-black text-slate-400 uppercase tracking-widest">
+                                        {disputes.length > 0 ? 'No disputes match your search.' : 'No Active Disputes'}
+                                    </p>
+                                    {disputes.length === 0 && (
+                                        <p className="text-xs text-slate-300 mt-1">If you have issues with an order, report it above.</p>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -1465,8 +1542,20 @@ export default function CustomerDashboard() {
                 {/* Fixed Top Bar (Desktop Only) */}
                 <header className="hidden md:flex sticky top-0 z-50 bg-[#FDFDFF]/80 backdrop-blur-md px-10 py-6 items-center justify-between border-b border-slate-100/50">
                     <div className="relative w-96 max-w-sm">
-                        <input type="text" placeholder="Search orders, receipts, help..." className="w-full bg-white py-3 pl-12 pr-6 rounded-full border border-slate-100 text-xs font-bold focus:ring-2 focus:ring-brand-lemon/20 transition-all shadow-sm" />
-                        <Search className="w-4 h-4 text-slate-300 absolute left-5 top-1/2 -translate-y-1/2" />
+                        <input
+                            type="search"
+                            placeholder={
+                                activeSection === 'orders' ? 'Search orders...' :
+                                activeSection === 'wishlist' ? 'Search wishlist...' :
+                                activeSection === 'notifications' ? 'Search notifications...' :
+                                activeSection === 'help' ? 'Search disputes...' :
+                                'Search orders...'
+                            }
+                            value={tableSearch}
+                            onChange={(e) => setTableSearch(e.target.value)}
+                            className="w-full bg-white py-3 pl-12 pr-6 rounded-full border border-slate-100 text-xs font-bold focus:ring-2 focus:ring-brand-lemon/20 transition-all shadow-sm"
+                        />
+                        <Search className="w-4 h-4 text-slate-300 absolute left-5 top-1/2 -translate-y-1/2 pointer-events-none" />
                     </div>
                     <div className="flex items-center gap-4">
                         <div className="text-right">

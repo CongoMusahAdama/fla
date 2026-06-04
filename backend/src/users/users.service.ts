@@ -11,6 +11,11 @@ import { ShuftiService } from '../common/shufti.service';
 import { EmailService } from '../email/email.service';
 import { TempVerification } from '../common/schemas/temp-verification.schema';
 import { SmsService } from '../common/sms.service';
+import { SettingsService } from '../settings/settings.service';
+import {
+  paystackMainAccountPercentage,
+  resolveCommissionRate,
+} from '../common/paystack-split.util';
 
 import * as crypto from 'crypto';
 
@@ -29,7 +34,21 @@ export class UsersService {
     private readonly shuftiService: ShuftiService,
     private readonly emailService: EmailService,
     private readonly smsService: SmsService,
+    private readonly settingsService: SettingsService,
   ) { }
+
+  private async getPlatformCommissionRate(): Promise<number> {
+    const value = await this.settingsService.getSetting('platform_commission');
+    return resolveCommissionRate(value);
+  }
+
+  private async applyPaystackSplitToSubaccount(subaccountCode: string): Promise<void> {
+    const rate = await this.getPlatformCommissionRate();
+    await this.paystackService.updateSubaccount(subaccountCode, { percentage_charge: rate });
+    this.logger.log(
+      `Paystack split for ${subaccountCode}: ${rate}% platform (admin), ${100 - rate}% vendor`,
+    );
+  }
 
   /** Fire-and-forget safe: logs mNotify errors but never throws (user already saved). */
   private sendRegistrationSms(phone: string, message: string, context: string): void {
@@ -206,13 +225,17 @@ export class UsersService {
     const user = await this.userModel.findById(userId).exec();
     if (!user || user.role !== 'vendor') return;
 
-    // Skip if subaccount already exists
     if (user.paystackSubaccountCode) {
-        this.logger.log(`User ${userId} already has a Paystack subaccount: ${user.paystackSubaccountCode}. Skipping.`);
-        return;
+      try {
+        await this.applyPaystackSplitToSubaccount(user.paystackSubaccountCode);
+      } catch (error) {
+        this.logger.error(
+          `Failed to update Paystack split for vendor ${userId}: ${error.response?.data?.message || error.message}`,
+        );
+      }
+      return;
     }
 
-    // Get primary payment method
     const primaryMethod = user.paymentMethods?.[0];
     if (!primaryMethod || !primaryMethod.accountNumber) {
         this.logger.warn(`No primary payment method found for vendor ${userId}. Cannot sync subaccount.`);
@@ -220,6 +243,7 @@ export class UsersService {
     }
 
     try {
+      const commissionRate = await this.getPlatformCommissionRate();
       const bankMapping: Record<string, string> = {
         'MTN': 'MTN',
         'Vodafone': 'VOD',
@@ -244,7 +268,7 @@ export class UsersService {
         business_name: user.shopName || user.name,
         settlement_bank: bankCode,
         account_number: primaryMethod.accountNumber,
-        percentage_charge: 0, 
+        percentage_charge: paystackMainAccountPercentage(commissionRate),
       });
 
       if (subaccount && subaccount.subaccount_code) {
@@ -257,6 +281,48 @@ export class UsersService {
     } catch (error) {
       this.logger.error(`Paystack Subaccount Sync Error for user ${userId}: ${error.response?.data?.message || error.message}`);
     }
+  }
+
+  /** Fix existing Paystack subaccounts that were created with 0% platform / 100% vendor split. */
+  async resyncAllVendorPaystackSplits(): Promise<{
+    total: number;
+    updated: number;
+    skipped: number;
+    failed: Array<{ vendorId: string; code: string; error: string }>;
+  }> {
+    const rate = await this.getPlatformCommissionRate();
+    const vendors = await this.userModel
+      .find({ role: 'vendor', paystackSubaccountCode: { $exists: true, $ne: null } })
+      .select('_id paystackSubaccountCode shopName')
+      .exec();
+
+    let updated = 0;
+    let skipped = 0;
+    const failed: Array<{ vendorId: string; code: string; error: string }> = [];
+
+    for (const vendor of vendors) {
+      const code = vendor.paystackSubaccountCode;
+      if (!code) {
+        skipped++;
+        continue;
+      }
+      try {
+        await this.paystackService.updateSubaccount(code, { percentage_charge: rate });
+        updated++;
+      } catch (error: any) {
+        failed.push({
+          vendorId: vendor._id.toString(),
+          code,
+          error: error.response?.data?.message || error.message,
+        });
+      }
+    }
+
+    this.logger.log(
+      `Paystack split resync (${rate}% admin): ${updated} updated, ${skipped} skipped, ${failed.length} failed`,
+    );
+
+    return { total: vendors.length, updated, skipped, failed };
   }
 
   async findByUniqueVendorId(vendorId: string): Promise<User | null> {

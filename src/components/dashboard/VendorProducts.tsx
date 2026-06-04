@@ -4,6 +4,8 @@ import React from 'react';
 import Image from 'next/image';
 import { Package, Plus, Search, Edit2, Eye, EyeOff, Trash2, ShoppingBag, Clock, MapPin } from 'lucide-react';
 import { getImageUrl } from '@/lib/utils';
+import { TableSearch } from '@/components/ui/TableSearch';
+import { matchesTableSearch } from '@/lib/table-search';
 
 export interface Product {
   id: any;
@@ -41,6 +43,15 @@ export const VendorProducts: React.FC<VendorProductsProps> = ({
   onToggleStatus,
   onAddNew
 }) => {
+  const [searchQuery, setSearchQuery] = React.useState('');
+
+  const filteredProducts = React.useMemo(() => {
+    if (!searchQuery.trim()) return products;
+    return products.filter((p) =>
+      matchesTableSearch(searchQuery, p.name, p.category, p.region, p.status, p.price, p.tailoringTime),
+    );
+  }, [products, searchQuery]);
+
   return (
     <div className="space-y-12 animate-in fade-in duration-700">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -57,8 +68,14 @@ export const VendorProducts: React.FC<VendorProductsProps> = ({
         </button>
       </div>
 
+      <TableSearch
+        value={searchQuery}
+        onChange={setSearchQuery}
+        placeholder="Search products by name, category, region..."
+      />
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-        {products.map((product) => (
+        {filteredProducts.length > 0 ? filteredProducts.map((product) => (
           <div key={product.id} className="group bg-white p-6 rounded-[40px] border border-slate-100 shadow-sm hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 relative overflow-hidden">
             <div className="aspect-[3/4] rounded-[28px] overflow-hidden bg-slate-50 relative mb-6 shadow-inner border border-slate-50">
               <Image
@@ -142,19 +159,23 @@ export const VendorProducts: React.FC<VendorProductsProps> = ({
               product.quantity > 5 ? 'bg-emerald-400' : 'bg-red-400'
             }`} />
           </div>
-        ))}
-
-        {products.length === 0 && (
+        )) : (
           <div className="col-span-full py-32 text-center bg-slate-50/50 rounded-[40px] border border-dashed border-slate-200">
             <Package className="w-16 h-16 text-slate-200 mx-auto mb-6" />
-            <h3 className="text-xl font-black text-slate-400 uppercase tracking-tighter">No Designs Found</h3>
-            <p className="text-slate-400 text-sm mt-1 mb-8">Your digital atelier is currently empty.</p>
-            <button
-              onClick={onAddNew}
-              className="bg-slate-900 text-white px-8 py-4 rounded-full font-black text-[10px] uppercase tracking-widest hover:bg-slate-800 transition-all shadow-lg active:scale-95"
-            >
-              Initialize Store
-            </button>
+            <h3 className="text-xl font-black text-slate-400 uppercase tracking-tighter">
+              {products.length > 0 ? 'No products match your search' : 'No Designs Found'}
+            </h3>
+            <p className="text-slate-400 text-sm mt-1 mb-8">
+              {products.length > 0 ? 'Try a different keyword.' : 'Your digital atelier is currently empty.'}
+            </p>
+            {products.length === 0 && (
+              <button
+                onClick={onAddNew}
+                className="bg-slate-900 text-white px-8 py-4 rounded-full font-black text-[10px] uppercase tracking-widest hover:bg-slate-800 transition-all shadow-lg active:scale-95"
+              >
+                Initialize Store
+              </button>
+            )}
           </div>
         )}
       </div>

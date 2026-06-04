@@ -51,12 +51,31 @@ export class PaystackService {
         }
     }
 
+    async updateSubaccount(
+        subaccountCode: string,
+        data: { percentage_charge?: number; business_name?: string; active?: boolean },
+    ) {
+        try {
+            const response = await axios.put(`${this.baseUrl}/subaccount/${subaccountCode}`, data, {
+                headers: this.headers,
+                timeout: 10000,
+            });
+            return response.data.data;
+        } catch (error) {
+            this.logger.error(
+                `Failed to update Paystack subaccount ${subaccountCode}: ${error.response?.data?.message || error.message}`,
+            );
+            throw error;
+        }
+    }
+
     async initializePayment(data: {
         email: string;
         amount: number;
         reference: string;
         subaccount?: string;
         transaction_charge?: number;
+        bearer?: 'account' | 'subaccount';
         callback_url?: string;
         metadata?: any;
     }) {

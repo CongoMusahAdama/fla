@@ -14,6 +14,8 @@ import {
   promptMissingWhatsAppContact,
 } from '@/lib/whatsapp';
 import { WhatsAppButton } from '@/components/WhatsAppButton';
+import { TableSearch } from '@/components/ui/TableSearch';
+import { matchesTableSearch, vendorOrderSearchValues } from '@/lib/table-search';
 
 const WhatsAppIcon = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 24 24" className={className} fill="currentColor" xmlns="http://www.w3.org/2000/svg">
@@ -61,6 +63,7 @@ export const VendorOrders: React.FC<VendorOrdersProps> = ({
   onPrintLabel
 }) => {
   const [activeTab, setActiveTab] = React.useState('All');
+  const [searchQuery, setSearchQuery] = React.useState('');
   const [currentPage, setCurrentPage] = React.useState(1);
   const itemsPerPage = 8;
 
@@ -89,24 +92,31 @@ export const VendorOrders: React.FC<VendorOrdersProps> = ({
 
   const filteredOrders = React.useMemo(() => {
     const ordersArray = orders || [];
+    let byStatus: Order[];
     switch (activeTab) {
       case 'In delivery':
-        return ordersArray.filter(o => [
-          'preparing_shipment', 
-          'in_transit_to_first_mile', 
-          'in_transit', 
-          'arrived_at_first_mile', 
-          'in_transit_to_last_mile', 
-          'shipped'
+        byStatus = ordersArray.filter(o => [
+          'preparing_shipment',
+          'in_transit_to_first_mile',
+          'in_transit',
+          'arrived_at_first_mile',
+          'in_transit_to_last_mile',
+          'shipped',
         ].includes(o.status));
+        break;
       case 'completed':
-        return ordersArray.filter(o => ['delivered', 'completed'].includes(o.status));
+        byStatus = ordersArray.filter(o => ['delivered', 'completed'].includes(o.status));
+        break;
       case 'cancelled':
-        return ordersArray.filter(o => ['cancelled'].includes(o.status));
+        byStatus = ordersArray.filter(o => ['cancelled'].includes(o.status));
+        break;
       default:
-        return ordersArray;
+        byStatus = ordersArray;
     }
-  }, [orders, activeTab]);
+    return byStatus.filter((o) =>
+      matchesTableSearch(searchQuery, ...vendorOrderSearchValues(o)),
+    );
+  }, [orders, activeTab, searchQuery]);
 
   const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -115,7 +125,7 @@ export const VendorOrders: React.FC<VendorOrdersProps> = ({
   // Reset to first page if orders length changes (e.g. on search/filter)
   React.useEffect(() => {
     setCurrentPage(1);
-  }, [filteredOrders.length]);
+  }, [filteredOrders.length, searchQuery, activeTab]);
 
   const tabs = ['All', 'In delivery', 'completed', 'cancelled'];
 
@@ -148,6 +158,12 @@ export const VendorOrders: React.FC<VendorOrdersProps> = ({
           </button>
         ))}
       </div>
+
+      <TableSearch
+        value={searchQuery}
+        onChange={setSearchQuery}
+        placeholder="Search orders by customer, ref, location, status..."
+      />
 
       <div className="bg-white rounded-[32px] md:rounded-[48px] border border-slate-100 shadow-xl overflow-hidden flex flex-col min-h-[600px]">
         {/* Mobile View: Cards */}
@@ -254,7 +270,9 @@ export const VendorOrders: React.FC<VendorOrdersProps> = ({
           ) : (
             <div className="bg-white p-20 text-center rounded-[32px] border border-slate-100">
               <ShoppingBag className="w-12 h-12 text-slate-100 mx-auto mb-4" />
-              <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">No orders found</p>
+              <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">
+                {(orders || []).length > 0 ? 'No orders match your search.' : 'No orders found'}
+              </p>
             </div>
           )}
         </div>

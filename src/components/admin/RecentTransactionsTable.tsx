@@ -2,6 +2,8 @@
 import React from 'react';
 import Image from 'next/image';
 import { getImageUrl } from '@/lib/utils';
+import { TableSearch } from '@/components/ui/TableSearch';
+import { matchesTableSearch } from '@/lib/table-search';
 
 interface Transaction {
     id: string;
@@ -17,6 +19,7 @@ interface Transaction {
 
 export const RecentTransactionsTable = ({ orders }: { orders: any[] }) => {
     const [currentPage, setCurrentPage] = React.useState(1);
+    const [searchQuery, setSearchQuery] = React.useState('');
     const itemsPerPage = 10;
 
     // Transform orders to transactions format
@@ -34,13 +37,44 @@ export const RecentTransactionsTable = ({ orders }: { orders: any[] }) => {
         amount: order.totalAmount
     }));
 
-    const paginatedTransactions = transactions.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
-    const totalPages = Math.ceil(transactions.length / itemsPerPage);
+    const filteredTransactions = React.useMemo(
+        () =>
+            transactions.filter((tx) =>
+                matchesTableSearch(
+                    searchQuery,
+                    tx.id,
+                    tx.customerName,
+                    tx.customerEmail,
+                    tx.type,
+                    tx.status,
+                    tx.accountData,
+                    tx.date,
+                    tx.amount,
+                ),
+            ),
+        [transactions, searchQuery],
+    );
+
+    const paginatedTransactions = filteredTransactions.slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage,
+    );
+    const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
+
+    React.useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery, filteredTransactions.length]);
 
     return (
         <div className="bg-white border border-slate-100 shadow-sm rounded-3xl overflow-hidden flex flex-col min-h-[600px]">
-            <div className="p-8 border-b border-slate-50 flex justify-between items-center">
+            <div className="p-8 border-b border-slate-50 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
                 <h2 className="font-black text-slate-900 uppercase text-sm tracking-widest">Recent Transactions</h2>
+                <TableSearch
+                    value={searchQuery}
+                    onChange={setSearchQuery}
+                    placeholder="Search transactions..."
+                    className="max-w-sm"
+                />
             </div>
             <div className="flex-1 overflow-x-auto">
                 <table className="w-full text-left border-collapse">
@@ -56,7 +90,13 @@ export const RecentTransactionsTable = ({ orders }: { orders: any[] }) => {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
-                        {paginatedTransactions.map((tx, i) => (
+                        {paginatedTransactions.length === 0 ? (
+                            <tr>
+                                <td colSpan={7} className="px-8 py-16 text-center text-slate-400 text-xs font-bold uppercase tracking-widest">
+                                    {transactions.length > 0 ? 'No transactions match your search.' : 'No transactions yet.'}
+                                </td>
+                            </tr>
+                        ) : paginatedTransactions.map((tx, i) => (
                             <tr key={i} className="hover:bg-slate-50/50 transition-colors group">
                                 <td className="px-8 py-6 text-xs font-black text-slate-400 tabular-nums">{tx.sn}</td>
                                 <td className="px-8 py-6">
@@ -104,7 +144,7 @@ export const RecentTransactionsTable = ({ orders }: { orders: any[] }) => {
             {totalPages > 1 && (
                 <div className="px-10 py-6 bg-slate-50 border-t border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                        Displaying <span className="text-slate-900">{(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, transactions.length)}</span> of <span className="text-slate-900">{transactions.length}</span> Records
+                        Displaying <span className="text-slate-900">{(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, filteredTransactions.length)}</span> of <span className="text-slate-900">{filteredTransactions.length}</span> Records
                     </p>
                     <div className="flex items-center gap-2">
                         <button

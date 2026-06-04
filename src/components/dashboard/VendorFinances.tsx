@@ -3,6 +3,8 @@
 import React from 'react';
 import { Wallet, ArrowUpRight } from 'lucide-react';
 import Swal from 'sweetalert2';
+import { TableSearch } from '@/components/ui/TableSearch';
+import { matchesTableSearch } from '@/lib/table-search';
 
 interface VendorFinancesProps {
   user: any;
@@ -17,6 +19,23 @@ export const VendorFinances: React.FC<VendorFinancesProps> = ({
   commissionRate,
   handleWithdrawal
 }) => {
+  const [searchQuery, setSearchQuery] = React.useState('');
+  const withdrawals = dashboardData?.withdrawalHistory || [];
+
+  const filteredWithdrawals = React.useMemo(() => {
+    if (!searchQuery.trim()) return withdrawals;
+    return withdrawals.filter((w: { status?: string; paymentMethod?: string; amount?: number; netAmount?: number; adminCommission?: number }) =>
+      matchesTableSearch(
+        searchQuery,
+        w.status,
+        w.paymentMethod,
+        w.amount,
+        w.netAmount,
+        w.adminCommission,
+      ),
+    );
+  }, [withdrawals, searchQuery]);
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500 max-w-5xl">
         <div>
@@ -57,9 +76,14 @@ export const VendorFinances: React.FC<VendorFinancesProps> = ({
             </div>
             <div className="space-y-6">
                 <h3 className="font-black text-slate-900 uppercase tracking-tighter">Withdrawal History</h3>
+                <TableSearch
+                    value={searchQuery}
+                    onChange={setSearchQuery}
+                    placeholder="Search withdrawals by status, amount..."
+                />
                 <div className="bg-white rounded-[32px] border border-slate-100 overflow-hidden divide-y divide-slate-50">
-                    {(dashboardData?.withdrawalHistory || []).length > 0 ? (
-                        dashboardData.withdrawalHistory.map((w: any, i: number) => (
+                    {filteredWithdrawals.length > 0 ? (
+                        filteredWithdrawals.map((w: any, i: number) => (
                             <div key={i} className="p-6 flex justify-between items-center hover:bg-slate-50 transition-colors">
                                 <div>
                                     <div className="flex items-center gap-2 mb-1">
@@ -83,7 +107,11 @@ export const VendorFinances: React.FC<VendorFinancesProps> = ({
                         ))
                     ) : (
                         <div className="p-10 text-center">
-                            <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest leading-relaxed">No withdrawals<br />recorded yet.</p>
+                            <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest leading-relaxed">
+                                {withdrawals.length > 0
+                                    ? 'No withdrawals match your search.'
+                                    : <>No withdrawals<br />recorded yet.</>}
+                            </p>
                         </div>
                     )}
                 </div>

@@ -671,9 +671,26 @@ export default function AdminDashboard() {
                     rejected: 'Rejected',
                     banned: 'Suspended',
                 };
-                const filteredKycVendors = kycFilter === 'all'
+                const filteredKycVendors = (kycFilter === 'all'
                     ? kycVendors
-                    : kycVendors.filter((v) => v.status === kycFilter);
+                    : kycVendors.filter((v) => v.status === kycFilter)
+                ).filter((v) => {
+                    if (!searchQuery.trim()) return true;
+                    const momo = v.paymentMethods?.[0];
+                    const q = searchQuery.toLowerCase();
+                    return [
+                        v.name,
+                        v.email,
+                        v.shopName,
+                        v.phone,
+                        v.location,
+                        v.region,
+                        v.uniqueVendorId,
+                        v.ghanaCardNumber,
+                        momo?.accountNumber,
+                        momo?.network,
+                    ].some((f) => f?.toLowerCase().includes(q));
+                });
                 const pendingKycCount = kycVendors.filter((v) => v.status === 'pending').length;
                 const approvedKycCount = kycVendors.filter((v) => v.status === 'active').length;
 
@@ -737,6 +754,17 @@ export default function AdminDashboard() {
                                     </span>
                                 </button>
                             ))}
+                        </div>
+
+                        <div className="relative max-w-md">
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
+                            <input
+                                type="search"
+                                placeholder="Search KYC records..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="w-full bg-white py-3 pl-11 pr-4 rounded-2xl border border-slate-100 text-xs font-bold focus:ring-2 focus:ring-brand-lemon/20 transition-all shadow-sm"
+                            />
                         </div>
 
                         {filteredKycVendors.length === 0 ? (
@@ -1311,7 +1339,14 @@ export default function AdminDashboard() {
                     </div>
                 );
             case 'products':
-                const filteredProducts = (allProducts || []).filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
+                const filteredProducts = (allProducts || []).filter((p) => {
+                    const q = searchQuery.toLowerCase();
+                    if (!q) return true;
+                    const vendor = (allUsers || []).find((u) => String(u._id) === String(p.vendorId));
+                    return [p.name, p.category, vendor?.shopName, vendor?.name].some((f) =>
+                        f?.toLowerCase().includes(q),
+                    );
+                });
                 const paginatedProducts = (filteredProducts || []).slice((productsPage - 1) * itemsPerPage, productsPage * itemsPerPage);
                 const productsTotalPages = Math.ceil((filteredProducts || []).length / itemsPerPage);
 
@@ -1614,6 +1649,24 @@ export default function AdminDashboard() {
             }
             case 'disputes': {
                 const disputedOrders = (allOrders || []).filter(o => o.status === 'disputed');
+                const q = searchQuery.trim().toLowerCase();
+                const filteredDisputedOrders = disputedOrders.filter((o) => {
+                    if (!q) return true;
+                    const itemNames = o.items?.map((i: { name?: string }) => i.name).join(' ');
+                    return [
+                        o._id,
+                        o.customerName,
+                        o.customerEmail,
+                        o.vendorName,
+                        itemNames,
+                    ].some((f) => f?.toLowerCase().includes(q));
+                });
+                const filteredDisputeLedgers = (allDisputes || []).filter((d) => {
+                    if (!q) return true;
+                    return [d.orderId, d.category, d.description, d.status].some((f) =>
+                        String(f ?? '').toLowerCase().includes(q),
+                    );
+                });
                 const openLedgerCount = (allDisputes || []).filter(d => d.status === 'pending').length;
                 const resolvedLedgerCount = (allDisputes || []).filter(d => d.status === 'resolved').length;
 
@@ -1642,9 +1695,20 @@ export default function AdminDashboard() {
                             </div>
                         </div>
 
-                        {disputedOrders.length > 0 ? (
+                        <div className="relative max-w-md">
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
+                            <input
+                                type="search"
+                                placeholder="Search disputes..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="w-full bg-white py-3 pl-11 pr-4 rounded-2xl border border-slate-100 text-xs font-bold focus:ring-2 focus:ring-brand-lemon/20 transition-all shadow-sm"
+                            />
+                        </div>
+
+                        {filteredDisputedOrders.length > 0 ? (
                             <div className="space-y-8">
-                                {disputedOrders.map((o) => (
+                                {filteredDisputedOrders.map((o) => (
                                     <AdminDisputeCaseCard
                                         key={o._id}
                                         order={o}
@@ -1653,6 +1717,10 @@ export default function AdminDashboard() {
                                         onRelease={() => handleResolveDispute(o._id, 'release')}
                                     />
                                 ))}
+                            </div>
+                        ) : disputedOrders.length > 0 ? (
+                            <div className="py-12 text-center bg-white rounded-[40px] border border-dashed border-slate-200">
+                                <p className="text-slate-400 font-bold text-sm uppercase tracking-widest">No disputed orders match your search</p>
                             </div>
                         ) : (
                             <div className="py-20 text-center bg-white rounded-[40px] border border-dashed border-slate-200 mx-4 md:mx-0">
@@ -1675,8 +1743,8 @@ export default function AdminDashboard() {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-50">
-                                        {(allDisputes || []).length > 0 ? (
-                                            (allDisputes || []).map((dispute) => (
+                                        {filteredDisputeLedgers.length > 0 ? (
+                                            filteredDisputeLedgers.map((dispute) => (
                                                 <tr key={dispute._id} className="hover:bg-slate-50/50 transition-colors">
                                                     <td className="px-8 py-6 border-r border-slate-50">
                                                         <p className="font-black text-slate-900 text-sm uppercase">
@@ -1712,7 +1780,11 @@ export default function AdminDashboard() {
                                             <tr>
                                                 <td colSpan={4} className="py-16 text-center">
                                                     <MessageSquare className="w-12 h-12 text-slate-100 mx-auto mb-4" />
-                                                    <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">No dispute ledgers on file</p>
+                                                    <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">
+                                                        {(allDisputes || []).length > 0
+                                                            ? 'No dispute ledgers match your search'
+                                                            : 'No dispute ledgers on file'}
+                                                    </p>
                                                 </td>
                                             </tr>
                                         )}

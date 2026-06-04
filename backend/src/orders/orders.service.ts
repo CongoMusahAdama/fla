@@ -9,6 +9,7 @@ import { Product, ProductDocument } from '../products/schemas/product.schema';
 import { User, UserDocument } from '../users/schemas/user.schema';
 import { PaystackService } from '../common/paystack.service';
 import { FLA_CONSTANTS } from '../common/constants';
+import { resolveCommissionRate } from '../common/paystack-split.util';
 import {
   normalizeWhatsAppPhone,
   buildWaMeLink,
@@ -251,7 +252,7 @@ export class OrdersService implements OnModuleInit {
       const totalAmount = totalProductAmount;
 
       const fetchedRate = await this.settingsService.getSetting('platform_commission');
-      const commissionRate = fetchedRate !== null && fetchedRate !== undefined ? Number(fetchedRate) : FLA_CONSTANTS.DEFAULT_COMMISSION_RATE;
+      const commissionRate = resolveCommissionRate(fetchedRate);
       const adminCommission = totalProductAmount * (commissionRate / 100);
       const vendorShare = totalProductAmount - adminCommission;
 
@@ -316,7 +317,6 @@ export class OrdersService implements OnModuleInit {
 
       if (vendor?.paystackSubaccountCode) {
         paystackPayload.subaccount = vendor.paystackSubaccountCode;
-        paystackPayload.transaction_charge = Math.round(adminCommission * 100);
       }
 
       let paymentLinkData: any;
@@ -347,7 +347,6 @@ export class OrdersService implements OnModuleInit {
     }
 
     const totalProductAmount = order.totalProductAmount ?? (order.totalAmount - (order.deliveryFee || 0));
-    const adminCommission = order.adminCommission || (totalProductAmount * (FLA_CONSTANTS.DEFAULT_COMMISSION_RATE / 100));
 
     const paystackPayload: any = {
       reference: `${orderId.toString()}_${Date.now()}`,
@@ -364,7 +363,6 @@ export class OrdersService implements OnModuleInit {
 
     if (vendor?.paystackSubaccountCode) {
       paystackPayload.subaccount = vendor.paystackSubaccountCode;
-      paystackPayload.transaction_charge = Math.round(adminCommission * 100);
     }
 
     const paymentLinkData: any = await this.paystackService.initializePayment(paystackPayload);

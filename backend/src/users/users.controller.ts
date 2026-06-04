@@ -69,6 +69,13 @@ export class UsersController {
     return this.usersService.getPublicVendorProfile(id);
   }
 
+  @Post('admin/resync-paystack-splits')
+  @UseGuards(AuthGuard('jwt'))
+  resyncPaystackSplits(@Request() req) {
+    this.assertAdmin(req);
+    return this.usersService.resyncAllVendorPaystackSplits();
+  }
+
   @Patch('admin/:id/status')
   @UseGuards(AuthGuard('jwt'))
   updateStatus(
