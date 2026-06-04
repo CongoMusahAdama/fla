@@ -3,7 +3,6 @@
 import React from 'react';
 import { ShoppingBag, User, MapPin, Eye, Printer, Trash2 } from 'lucide-react';
 import { getImageUrl } from '@/lib/utils';
-import Link from 'next/link';
 import Swal from 'sweetalert2';
 import {
   canShowOrderWhatsApp,
@@ -223,7 +222,6 @@ export const VendorOrders: React.FC<VendorOrdersProps> = ({
                   )}
                   
                   {(order.status === 'disputed' || order.status === 'cancelled') ? (
-                    <>
                       <WhatsAppButton
                         phone={order.customerPhone}
                         message={
@@ -241,13 +239,6 @@ export const VendorOrders: React.FC<VendorOrdersProps> = ({
                         missingContactRole="customer"
                         className="flex-1 !py-0 h-11"
                       />
-                      <Link
-                        href={`/dispute/find?orderId=${order._id}`}
-                        className="flex-1 h-11 bg-orange-500 text-white rounded-full flex items-center justify-center gap-2 text-[9px] font-black uppercase tracking-widest"
-                      >
-                        Dispute Center
-                      </Link>
-                    </>
                   ) : (
                     renderCustomerWhatsApp(order, 'flex-1 h-11 rounded-2xl text-[9px] font-black uppercase tracking-widest shadow-lg shadow-emerald-600/20')
                   )}
@@ -431,7 +422,6 @@ export const VendorOrders: React.FC<VendorOrdersProps> = ({
                         </button>
                         
                         {(order.status === 'disputed' || order.status === 'cancelled') && (
-                          <>
                             <WhatsAppButton
                               phone={order.customerPhone}
                               message={
@@ -448,13 +438,6 @@ export const VendorOrders: React.FC<VendorOrdersProps> = ({
                               size="sm"
                               missingContactRole="customer"
                             />
-                            <Link
-                              href={`/dispute/find?orderId=${order._id}`}
-                              className="px-6 py-3 bg-orange-500 text-white rounded-full text-[10px] font-black uppercase tracking-[0.2em] hover:bg-orange-600 transition-all shadow-xl shadow-orange-500/10 active:scale-95 border border-white/10"
-                            >
-                              Dispute Center
-                            </Link>
-                          </>
                         )}
                         <button
                           onClick={() => onDelete(order._id)}
