@@ -22,6 +22,19 @@ import { AdminDisputeCaseCard } from '@/components/admin/AdminDisputeCaseCard';
 
 type AdminSection = 'dashboard' | 'vendors' | 'customers' | 'orders' | 'products' | 'disputes' | 'delivery' | 'settings' | 'reports' | 'kyc';
 
+/** Products API may return vendorId as ObjectId string or populated user object. */
+function resolveProductVendorId(product: { vendorId?: string | { _id?: string } | null }): string {
+    const v = product.vendorId;
+    if (!v) return '';
+    if (typeof v === 'object') return String(v._id ?? '');
+    return String(v);
+}
+
+function countVendorProducts(products: any[] | undefined, vendorId: string): number {
+    const id = String(vendorId);
+    return (products || []).filter((p) => resolveProductVendorId(p) === id).length;
+}
+
 export default function AdminDashboard() {
     const { user, token, isAuthenticated, logout, isLoading: isAuthLoading } = useAuth();
     const router = useRouter();
@@ -993,7 +1006,7 @@ export default function AdminDashboard() {
                                     <div className="flex justify-between items-center py-3 border-y border-slate-50">
                                         <div className="flex items-center gap-2">
                                             <Package className="w-3 h-3 text-slate-400" />
-                                            <span className="text-xs font-bold text-slate-700">{(allProducts || []).filter(p => p.vendorId === u._id).length} Products</span>
+                                            <span className="text-xs font-bold text-slate-700">{countVendorProducts(allProducts, u._id)} Products</span>
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <Wallet className="w-3 h-3 text-slate-400" />
@@ -1077,7 +1090,7 @@ export default function AdminDashboard() {
                                             <td className="px-8 py-6 border-r border-slate-50">
                                                 <div className="flex items-center gap-2">
                                                     <Package className="w-4 h-4 text-brand-lemon" />
-                                                    <span className="text-sm font-black text-slate-900">{(allProducts || []).filter(p => p.vendorId === u._id).length}</span>
+                                                    <span className="text-sm font-black text-slate-900">{countVendorProducts(allProducts, u._id)}</span>
                                                     <span className="text-[9px] font-bold text-slate-400 uppercase">Items</span>
                                                 </div>
                                             </td>
@@ -1343,7 +1356,7 @@ export default function AdminDashboard() {
                 const filteredProducts = (allProducts || []).filter((p) => {
                     const q = searchQuery.toLowerCase();
                     if (!q) return true;
-                    const vendor = (allUsers || []).find((u) => String(u._id) === String(p.vendorId));
+                    const vendor = (allUsers || []).find((u) => String(u._id) === resolveProductVendorId(p));
                     return [p.name, p.category, vendor?.shopName, vendor?.name].some((f) =>
                         f?.toLowerCase().includes(q),
                     );
