@@ -8,6 +8,7 @@ import { UsersService } from '../users/users.service';
 import { TurnstileService } from '../common/turnstile.service';
 import { StreamService } from '../common/stream.service';
 import { FLA_TERMS_VERSION } from '../common/constants';
+import { setAuthCookie, clearAuthCookie } from './auth-cookie.util';
 
 @Controller('auth')
 export class AuthController {
@@ -29,28 +30,13 @@ export class AuthController {
   @Post('login')
   async login(@Request() req, @Res({ passthrough: true }) res: Response) {
     const loginResult = await this.authService.login(req.user);
-    
-    // Set the JWT token in an httpOnly cookie
-    res.cookie('fla_token', loginResult.access_token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days instead of 15 mins for stability
-      path: '/',
-    });
-    
+    setAuthCookie(res, loginResult.access_token);
     return loginResult;
   }
 
   @Post('logout')
   async logout(@Res({ passthrough: true }) res: Response) {
-    // Clear the JWT cookie
-    res.clearCookie('fla_token', {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
-      path: '/',
-    });
+    clearAuthCookie(res);
     return { message: 'Logged out' };
   }
 
@@ -78,6 +64,19 @@ export class AuthController {
     const version = body?.version || FLA_TERMS_VERSION;
     const user = await this.authService.acceptTerms(req.user.userId, version);
     return { success: true, user };
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Get('me')
+  async getMe(@Request() req, @Res({ passthrough: true }) res: Response) {
+    const user = await this.authService.getSessionForUser(req.user.userId);
+    const access_token = this.authService.issueAccessToken({
+      id: user.id,
+      email: user.email,
+      role: user.role,
+    });
+    setAuthCookie(res, access_token);
+    return { user, access_token };
   }
 
   @UseGuards(AuthGuard('jwt'))

@@ -18,7 +18,6 @@ export type User = {
     role: UserRole;
     profileImage?: string;
     bannerImage?: string;
-    // Vendor specific
     shopName?: string;
     productTypes?: string;
     accountName?: string;
@@ -31,7 +30,6 @@ export type User = {
     walletBalance?: number;
     pendingBalance?: number;
     region?: string;
-    // KYC / Identity fields
     ghanaCardNumber?: string;
     ghanaCardFront?: string;
     ghanaCardBack?: string;
@@ -63,14 +61,44 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-function parseStoredUser(): User | null {
-    try {
-        const raw = localStorage.getItem('fla_user');
-        if (!raw) return null;
-        return JSON.parse(raw) as User;
-    } catch {
-        return null;
+function mapApiUser(raw: Record<string, unknown>): User {
+    return {
+        id: String(raw.id || raw._id || ''),
+        name: String(raw.name || ''),
+        email: String(raw.email || ''),
+        phone: raw.phone as string | undefined,
+        location: raw.location as string | undefined,
+        address: raw.address as string | undefined,
+        role: (raw.role as UserRole) || 'customer',
+        profileImage: raw.profileImage as string | undefined,
+        bannerImage: raw.bannerImage as string | undefined,
+        shopName: raw.shopName as string | undefined,
+        momoNumber: raw.momoNumber as string | undefined,
+        accountName: raw.accountName as string | undefined,
+        bio: raw.bio as string | undefined,
+        productTypes: raw.productTypes as string | undefined,
+        status: raw.status as string | undefined,
+        uniqueVendorId: raw.uniqueVendorId as string | undefined,
+        walletBalance: raw.walletBalance as number | undefined,
+        pendingBalance: raw.pendingBalance as number | undefined,
+        region: raw.region as string | undefined,
+        vendorTier: raw.vendorTier as 'low' | 'high' | undefined,
+        termsAcceptedAt: raw.termsAcceptedAt as string | Date | null | undefined,
+        termsVersion: raw.termsVersion as string | undefined,
+        paymentMethods: raw.paymentMethods as any[] | undefined,
+    };
+}
+
+function persistSession(user: User, accessToken: string | null) {
+    localStorage.setItem('fla_user', JSON.stringify(user));
+    if (accessToken) {
+        localStorage.setItem('fla_token', accessToken);
     }
+}
+
+function clearStoredSession() {
+    localStorage.removeItem('fla_user');
+    localStorage.removeItem('fla_token');
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -78,47 +106,62 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [token, setToken] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
-    // Initialize from localStorage on mount
+    // Restore session on mount: validate with API before marking ready (prevents refresh logout)
     useEffect(() => {
-        const storedUser = parseStoredUser();
-        const storedToken = localStorage.getItem('fla_token');
-        
-        if (storedUser && storedToken) {
-            setUser(storedUser);
-            setToken(storedToken);
-        }
-        setIsLoading(false);
-    }, []);
+        let cancelled = false;
 
-    // Validate token silently in the background — if invalid, clear session
-    useEffect(() => {
-        const storedToken = localStorage.getItem('fla_token');
-        if (!storedToken) return;
-
-        // Non-blocking background token validation
-        const controller = new AbortController();
-        const timer = setTimeout(async () => {
-            try {
-                const res = await fetch(`${API_URL}/auth/profile`, {
-                    headers: { Authorization: `Bearer ${storedToken}` },
-                    credentials: 'include',
-                    signal: controller.signal,
-                });
-                if (!res.ok) {
-                    // Token expired — clear silently
-                    setUser(null);
-                    setToken(null);
-                    localStorage.removeItem('fla_user');
-                    localStorage.removeItem('fla_token');
-                }
-            } catch (e) {
-                // Network error — keep local session, don't log out
+        async function restoreSession() {
+            const storedToken = localStorage.getItem('fla_token');
+            const headers: HeadersInit = {};
+            if (storedToken) {
+                headers.Authorization = `Bearer ${storedToken}`;
             }
-        }, 2000); // Check after 2s so page loads first
 
+            try {
+                const res = await fetch(`${API_URL}/auth/me`, {
+                    headers,
+                    credentials: 'include',
+                });
+
+                if (cancelled) return;
+
+                if (res.ok) {
+                    const data = await res.json();
+                    const restoredUser = mapApiUser(data.user || {});
+                    const accessToken = data.access_token || storedToken;
+                    setUser(restoredUser);
+                    setToken(accessToken);
+                    persistSession(restoredUser, accessToken);
+                    return;
+                }
+
+                // Invalid or expired session
+                setUser(null);
+                setToken(null);
+                clearStoredSession();
+            } catch {
+                // Offline / API unreachable — fall back to cached session so refresh still works
+                if (cancelled) return;
+                try {
+                    const raw = localStorage.getItem('fla_user');
+                    if (raw && storedToken) {
+                        setUser(JSON.parse(raw) as User);
+                        setToken(storedToken);
+                        return;
+                    }
+                } catch {
+                    /* ignore */
+                }
+                setUser(null);
+                setToken(null);
+            } finally {
+                if (!cancelled) setIsLoading(false);
+            }
+        }
+
+        restoreSession();
         return () => {
-            clearTimeout(timer);
-            controller.abort();
+            cancelled = true;
         };
     }, []);
 
@@ -128,9 +171,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
             body: JSON.stringify({
-                // Always send lowercase email to match backend storage
                 email: identifier.toLowerCase().trim(),
-                password
+                password,
             }),
         });
 
@@ -140,36 +182,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         const data = await response.json();
-
-        const loggedInUser: User = {
-            id: data.user.id || data.user._id,
-            name: data.user.name,
-            email: data.user.email,
-            phone: data.user.phone,
-            location: data.user.location,
-            address: data.user.address,
-            role: data.user.role || 'customer',
-            profileImage: data.user.profileImage,
-            bannerImage: data.user.bannerImage,
-            shopName: data.user.shopName,
-            momoNumber: data.user.momoNumber,
-            accountName: data.user.accountName,
-            bio: data.user.bio,
-            productTypes: data.user.productTypes,
-            status: data.user.status,
-            uniqueVendorId: data.user.uniqueVendorId,
-            walletBalance: data.user.walletBalance,
-            pendingBalance: data.user.pendingBalance,
-            region: data.user.region,
-            vendorTier: data.user.vendorTier,
-            termsAcceptedAt: data.user.termsAcceptedAt,
-            termsVersion: data.user.termsVersion,
-        };
+        const loggedInUser = mapApiUser(data.user || {});
 
         setUser(loggedInUser);
         setToken(data.access_token);
-        localStorage.setItem('fla_user', JSON.stringify(loggedInUser));
-        localStorage.setItem('fla_token', data.access_token);
+        persistSession(loggedInUser, data.access_token);
         return loggedInUser;
     }, []);
 
@@ -186,7 +203,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 email: email.toLowerCase().trim(),
                 password, name, phone, location, region, role,
                 turnstileToken,
-                ...vendorData
+                ...vendorData,
             }),
         });
 
@@ -201,17 +218,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const raw = data.user || data;
         const registeredRole = (raw.role || role) as UserRole;
         const registeredUser: User = {
-            id: raw._id || raw.id,
-            name: raw.name,
-            email: raw.email,
-            phone: raw.phone,
-            location: raw.location,
+            ...mapApiUser(raw),
             role: registeredRole,
-            shopName: raw.shopName,
-            status: raw.status,
-            region: raw.region,
-            termsAcceptedAt: raw.termsAcceptedAt,
-            termsVersion: raw.termsVersion,
         };
 
         const needsEmailVerification = data.requiresEmailVerification === true;
@@ -232,8 +240,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 requiresEmailVerification: false,
                 message: data.message,
             };
-        } catch (loginError: any) {
-            // Account was created; login alone failed (e.g. network) — still show success and ask to sign in
+        } catch {
             return {
                 user: registeredUser,
                 requiresEmailVerification: false,
@@ -249,13 +256,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
             await fetch(`${API_URL}/auth/logout`, {
                 method: 'POST',
-                credentials: 'include'
+                credentials: 'include',
             });
         } catch { /* ignore */ }
         setUser(null);
         setToken(null);
-        localStorage.removeItem('fla_user');
-        localStorage.removeItem('fla_token');
+        clearStoredSession();
     }, []);
 
     const updateUser = useCallback((updatedData: Partial<User>) => {
@@ -313,7 +319,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             updateUser,
             acceptTerms,
             isAuthenticated: !!user && !!token,
-            isLoading
+            isLoading,
         }}>
             {children}
         </AuthContext.Provider>
@@ -326,4 +332,9 @@ export function useAuth() {
         throw new Error('useAuth must be used within an AuthProvider');
     }
     return context;
+}
+
+export function getStoredAuthToken(): string | null {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem('fla_token');
 }

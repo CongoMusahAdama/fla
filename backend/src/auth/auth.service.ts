@@ -55,41 +55,65 @@ export class AuthService {
   }
 
   async login(user: any) {
-    const payload = { username: user.username, sub: user._id, role: user.role };
+    const payload = { username: user.username || user.email, sub: user._id, role: user.role };
     return {
       access_token: this.jwtService.sign(payload),
-      user: {
-        id: user._id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        phone: user.phone,
-        location: user.location,
-        address: user.address,
-        profileImage: user.profileImage,
-        shopName: user.shopName,
-        paymentMethods: user.paymentMethods,
-        bio: user.bio,
-        productTypes: user.productTypes,
-        momoNumber: user.momoNumber,
-        accountName: user.accountName,
-        status: user.status,
-        region: user.region,
-        ghanaCardFront: user.ghanaCardFront,
-        ghanaCardBack: user.ghanaCardBack,
-        selfie: user.selfie,
-        utilityBill: user.utilityBill,
-        utilityType: user.utilityType,
-        businessRegistration: user.businessRegistration,
-        digitalAddress: user.digitalAddress,
-        dob: user.dob,
-        employeeCount: user.employeeCount,
-        yearsOfExistence: user.yearsOfExistence,
-        vendorTier: user.vendorTier,
-        termsAcceptedAt: user.termsAcceptedAt,
-        termsVersion: user.termsVersion,
-      }
+      user: this.mapPublicUser(user),
     };
+  }
+
+  /** Safe user payload for client session restore (no password). */
+  mapPublicUser(user: any) {
+    const id = user._id?.toString?.() || user.id;
+    return {
+      id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      phone: user.phone,
+      location: user.location,
+      address: user.address,
+      profileImage: user.profileImage,
+      bannerImage: user.bannerImage,
+      shopName: user.shopName,
+      paymentMethods: user.paymentMethods,
+      bio: user.bio,
+      productTypes: user.productTypes,
+      momoNumber: user.momoNumber,
+      accountName: user.accountName,
+      status: user.status,
+      region: user.region,
+      uniqueVendorId: user.uniqueVendorId,
+      walletBalance: user.walletBalance,
+      pendingBalance: user.pendingBalance,
+      ghanaCardFront: user.ghanaCardFront,
+      ghanaCardBack: user.ghanaCardBack,
+      selfie: user.selfie,
+      utilityBill: user.utilityBill,
+      utilityType: user.utilityType,
+      businessRegistration: user.businessRegistration,
+      digitalAddress: user.digitalAddress,
+      dob: user.dob,
+      employeeCount: user.employeeCount,
+      yearsOfExistence: user.yearsOfExistence,
+      vendorTier: user.vendorTier,
+      termsAcceptedAt: user.termsAcceptedAt,
+      termsVersion: user.termsVersion,
+    };
+  }
+
+  async getSessionForUser(userId: string) {
+    const user = await this.usersService.findOneById(userId);
+    if (!user) {
+      throw new UnauthorizedException('Session invalid');
+    }
+    const raw = user as any;
+    return this.mapPublicUser(raw);
+  }
+
+  issueAccessToken(user: { id: string; email: string; role: string }) {
+    const payload = { username: user.email, sub: user.id, role: user.role };
+    return this.jwtService.sign(payload);
   }
 
   async acceptTerms(userId: string, version: string) {

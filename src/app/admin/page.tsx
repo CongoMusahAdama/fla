@@ -124,13 +124,14 @@ export default function AdminDashboard() {
     };
 
     const refreshData = async () => {
-        if (!token) return;
+        const authToken = token || (typeof window !== 'undefined' ? localStorage.getItem('fla_token') : null);
+        if (!authToken) return;
         setLoading(true);
         try {
 
             const headers = {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
+                'Authorization': `Bearer ${authToken}`
             };
 
             const [statsRes, ordersRes, usersRes, productsRes, allDisputesRes, settingsRes] = await Promise.all([
