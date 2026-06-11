@@ -45,3 +45,22 @@ export const kycToneClasses = {
   rose: 'bg-rose-50 text-rose-600',
   amber: 'bg-amber-50 text-amber-600',
 };
+
+/** Customer-facing: green badge = documented vendor, yellow = not yet documented. */
+export function isVendorDocumented(vendor?: {
+  status?: string;
+  ghanaCardFront?: string;
+  selfie?: string;
+  isVerified?: boolean;
+  isIdentityVerified?: boolean;
+  kycApprovedAt?: string | Date | null;
+  verificationStatus?: string;
+} | null): boolean {
+  if (!vendor) return false;
+  const hasDocs = Boolean(vendor.ghanaCardFront && vendor.selfie);
+  if (!hasDocs) return false;
+  if (vendor.status === 'active' || vendor.kycApprovedAt) return true;
+  if (vendor.isVerified || vendor.isIdentityVerified) return true;
+  if (vendor.verificationStatus === 'verified') return true;
+  return false;
+}

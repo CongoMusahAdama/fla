@@ -5,6 +5,10 @@ import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { Product, ProductDocument } from './schemas/product.schema';
 import { User, UserDocument } from '../users/schemas/user.schema';
+import { isVendorDocumented } from '../common/vendor-trust.util';
+
+const VENDOR_POPULATE_FIELDS =
+  'uniqueVendorId region location bio shopName status ghanaCardFront selfie isVerified isIdentityVerified verificationStatus kycApprovedAt';
 
 @Injectable()
 export class ProductsService implements OnModuleInit {
@@ -45,8 +49,29 @@ export class ProductsService implements OnModuleInit {
     return createdProduct.save();
   }
 
-  async findAll(query: any = {}): Promise<Product[]> {
-    const filters: any = {};
+  private mapProductForClient(p: any) {
+    const vendor = p.vendorId && typeof p.vendorId === 'object' ? p.vendorId : null;
+    if (!p.uniqueVendorId && vendor?.uniqueVendorId) {
+      p.uniqueVendorId = vendor.uniqueVendorId;
+    }
+    if (!p.region && vendor?.region) {
+      p.region = vendor.region;
+    }
+    if (!p.vendorLocation && vendor?.location) {
+      p.vendorLocation = vendor.location;
+    }
+    if (!p.vendorBio && vendor?.bio) {
+      p.vendorBio = vendor.bio;
+    }
+    if (!p.vendorName && vendor?.shopName) {
+      p.vendorName = vendor.shopName;
+    }
+    p.vendorDocumented = isVendorDocumented(vendor);
+    return p;
+  }
+
+  private async buildProductFilters(query: any): Promise<Record<string, unknown>> {
+    const filters: Record<string, unknown> = {};
 
     if (query.showAll !== 'true') {
       filters.isActive = true;
@@ -69,24 +94,23 @@ export class ProductsService implements OnModuleInit {
     }
 
     if (query.search) {
-      // Run vendor and product search in parallel for speed
       const matchingVendors = await this.userModel.find({
         role: 'vendor',
         $or: [
           { name: { $regex: query.search, $options: 'i' } },
           { shopName: { $regex: query.search, $options: 'i' } },
-          { businessName: { $regex: query.search, $options: 'i' } }
-        ]
+          { businessName: { $regex: query.search, $options: 'i' } },
+        ],
       }).select('_id').lean().exec();
 
-      const matchingVendorIds = matchingVendors.map(v => v._id);
+      const matchingVendorIds = matchingVendors.map((v) => v._id);
 
       filters.$or = [
         { name: { $regex: query.search, $options: 'i' } },
         { vendorName: { $regex: query.search, $options: 'i' } },
         { description: { $regex: query.search, $options: 'i' } },
         { region: { $regex: query.search, $options: 'i' } },
-        { vendorId: { $in: matchingVendorIds } }
+        { vendorId: { $in: matchingVendorIds } },
       ];
     }
 
@@ -94,40 +118,55 @@ export class ProductsService implements OnModuleInit {
       filters.vendorId = query.vendorId;
     }
 
+    return filters;
+  }
+
+  async findAll(query: any = {}): Promise<Product[] | {
+    products: Product[];
+    total: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+  }> {
+    const filters = await this.buildProductFilters(query);
+    const paginate = query.page !== undefined && query.page !== '';
+
     let q = this.productModel.find(filters)
-      .populate('vendorId', 'uniqueVendorId region location bio shopName')
-      .lean(); // ← lean() makes this 3-5x faster
+      .populate('vendorId', VENDOR_POPULATE_FIELDS)
+      .lean();
 
     if (query.sort === 'latest' || query.filter === 'New Arrival') {
       q = q.sort({ createdAt: -1 });
     } else if (query.sort === 'best' || query.filter === 'Best Seller') {
       q = q.sort({ rating: -1, reviewCount: -1 });
+    } else {
+      q = q.sort({ createdAt: -1 });
+    }
+
+    if (paginate) {
+      const page = Math.max(1, parseInt(String(query.page), 10) || 1);
+      const pageSize = Math.min(48, Math.max(1, parseInt(String(query.limit), 10) || 12));
+      const total = await this.productModel.countDocuments(filters).exec();
+      const products = await q
+        .skip((page - 1) * pageSize)
+        .limit(pageSize)
+        .exec() as any[];
+
+      return {
+        products: products.map((p) => this.mapProductForClient(p)),
+        total,
+        page,
+        pageSize,
+        totalPages: Math.max(1, Math.ceil(total / pageSize)),
+      };
     }
 
     if (query.limit) {
-      q = q.limit(parseInt(query.limit));
+      q = q.limit(parseInt(query.limit, 10));
     }
 
     const products = await q.exec() as any[];
-
-    return products.map(p => {
-      if (!p.uniqueVendorId && p.vendorId && (p.vendorId as any).uniqueVendorId) {
-        p.uniqueVendorId = (p.vendorId as any).uniqueVendorId;
-      }
-      if (!p.region && p.vendorId && (p.vendorId as any).region) {
-        p.region = (p.vendorId as any).region;
-      }
-      if (!p.vendorLocation && p.vendorId && (p.vendorId as any).location) {
-        p.vendorLocation = (p.vendorId as any).location;
-      }
-      if (!p.vendorBio && p.vendorId && (p.vendorId as any).bio) {
-        p.vendorBio = (p.vendorId as any).bio;
-      }
-      if (!p.vendorName && p.vendorId && (p.vendorId as any).shopName) {
-        p.vendorName = (p.vendorId as any).shopName;
-      }
-      return p;
-    });
+    return products.map((p) => this.mapProductForClient(p));
   }
 
   async countAll(query: any = {}): Promise<number> {
@@ -143,7 +182,7 @@ export class ProductsService implements OnModuleInit {
   }
 
   async findByVendor(vendorId: string): Promise<Product[]> {
-    const products = await this.productModel.find({ vendorId: vendorId }).populate('vendorId', 'uniqueVendorId region location bio shopName').exec();
+    const products = await this.productModel.find({ vendorId: vendorId }).populate('vendorId', VENDOR_POPULATE_FIELDS).exec();
     return products.map(p => {
       const productObj = p.toObject();
       if (!productObj.uniqueVendorId && productObj.vendorId && (productObj.vendorId as any).uniqueVendorId) {

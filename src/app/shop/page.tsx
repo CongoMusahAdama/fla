@@ -18,36 +18,20 @@ const GHANA_REGIONS = [
     'Upper East', 'Upper West', 'Volta', 'Western', 'Western North'
 ];
 
+const PRODUCTS_PER_PAGE = 12;
+
 function ShopContent() {
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const [products, setProducts] = useState<any[]>([]);
-    const [groupedProducts, setGroupedProducts] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [totalProducts, setTotalProducts] = useState(0);
     const [activeCategory, setActiveCategory] = useState('All Product');
     const [openDropdown, setOpenDropdown] = useState<string | null>(null);
     const [activeFilters, setActiveFilters] = useState<Record<string, string>>({});
     const [localSearch, setLocalSearch] = useState('');
     const [suggestions, setSuggestions] = useState<any[]>([]);
-
-    useEffect(() => {
-        const fetchGroupedProducts = async () => {
-            if (activeCategory !== 'All Product' || localSearch || activeFilters.Region) {
-                setGroupedProducts([]);
-                return;
-            }
-            try {
-                const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-                const res = await fetch(`${api}/products/grouped`);
-                if (res.ok) {
-                    const data = await res.json();
-                    setGroupedProducts(data);
-                }
-            } catch (err) {
-                console.error("Grouped fetch error:", err);
-            }
-        };
-        fetchGroupedProducts();
-    }, [activeCategory, localSearch, activeFilters.Region]);
 
     useEffect(() => {
         const fetchSuggestions = async () => {
@@ -73,21 +57,37 @@ function ShopContent() {
     }, [localSearch]);
 
     useEffect(() => {
+        setCurrentPage(1);
+    }, [activeCategory, localSearch, activeFilters.Region]);
+
+    useEffect(() => {
         const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
         const controller = new AbortController();
 
         const fetchProducts = async () => {
             setLoading(true);
             try {
-                let url = `${api}/products?`;
-                if (activeCategory !== 'All Product') url += `category=${encodeURIComponent(activeCategory)}&`;
-                if (localSearch) url += `search=${encodeURIComponent(localSearch)}&`;
-                if (activeFilters.Region) url += `region=${encodeURIComponent(activeFilters.Region)}&`;
+                const params = new URLSearchParams();
+                params.set('page', String(currentPage));
+                params.set('limit', String(PRODUCTS_PER_PAGE));
+                if (activeCategory !== 'All Product') params.set('category', activeCategory);
+                if (localSearch) params.set('search', localSearch);
+                if (activeFilters.Region) params.set('region', activeFilters.Region);
 
-                const response = await fetch(url, { signal: controller.signal });
+                const response = await fetch(`${api}/products?${params.toString()}`, {
+                    signal: controller.signal,
+                });
                 if (response.ok) {
                     const data = await response.json();
-                    setProducts(data);
+                    if (Array.isArray(data)) {
+                        setProducts(data);
+                        setTotalPages(1);
+                        setTotalProducts(data.length);
+                    } else {
+                        setProducts(data.products || []);
+                        setTotalPages(data.totalPages || 1);
+                        setTotalProducts(data.total ?? data.products?.length ?? 0);
+                    }
                 }
             } catch (error: any) {
                 if (error.name !== 'AbortError') {
@@ -98,7 +98,6 @@ function ShopContent() {
             }
         };
 
-        // Immediate load for category/filter changes; debounce only for search typing
         const delay = localSearch ? 400 : 0;
         const timer = setTimeout(fetchProducts, delay);
 
@@ -106,7 +105,7 @@ function ShopContent() {
             clearTimeout(timer);
             controller.abort();
         };
-    }, [activeCategory, localSearch, activeFilters.Region]);
+    }, [activeCategory, localSearch, activeFilters.Region, currentPage]);
 
 
     const searchParams = useSearchParams();
@@ -308,81 +307,39 @@ function ShopContent() {
                 </div>
             </section>
 
-            {/* Product Grid / Grouped View */}
-            <section className="px-4 md:px-8 py-12 md:py-24 min-h-[800px] bg-slate-50/30">
+            {/* Product Grid */}
+            <section className="px-4 md:px-8 py-12 md:py-16 min-h-[600px] bg-slate-50/30">
                 <div className="max-w-7xl mx-auto">
-                    {loading ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-                            {Array(8).fill(0).map((_, i) => (
-                                <div key={i} className="aspect-[3/4] bg-white animate-pulse rounded-[32px] border border-slate-100 shadow-sm" />
-                            ))}
-                        </div>
-                    ) : (groupedProducts || []).length > 0 && activeCategory === 'All Product' && !localSearch && !activeFilters.Region ? (
-                        /* Grouped View - 9 Products Per Vendor */
-                        <div className="space-y-32">
-                            {(groupedProducts || []).map((group, idx) => (
-                                <div key={group.vendorId} className="animate-in fade-in slide-in-from-bottom-10 duration-1000" style={{ animationDelay: `${idx * 150}ms` }}>
-                                    {/* Vendor Header */}
-                                    <div className="flex flex-col md:flex-row justify-between items-end gap-6 mb-12 px-2">
-                                        <div className="space-y-4">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-8 h-[2px] bg-brand-lemon" />
-                                                <span className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-400">Merchant Collection</span>
-                                            </div>
-                                            <h2 className="text-4xl md:text-5xl font-black text-slate-900 uppercase tracking-tighter leading-none">
-                                                {group.vendorName || "Premium Vendor"} <br />
-                                                <span className="text-slate-300">Catalog.</span>
-                                            </h2>
-                                            <div className="flex items-center gap-4">
-                                                <div className="px-4 py-1.5 bg-white border border-slate-100 rounded-full shadow-sm flex items-center gap-2">
-                                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                                    <span className="text-[9px] font-black text-slate-900 uppercase tracking-widest">{group.region || "Ghana"}</span>
-                                                </div>
-                                                <Link href={`/vendor/${group.uniqueVendorId}`} className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] hover:text-slate-900 transition-colors">
-                                                    Visit Storefront →
-                                                </Link>
-                                            </div>
-                                        </div>
-                                        <div className="hidden lg:block h-[1px] flex-1 bg-slate-100 mx-12 mb-4" />
-                                        <div className="text-right pb-1">
-                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Stock Status</p>
-                                            <p className="text-xs font-black text-slate-900 uppercase">Latest 9 Arrivals</p>
-                                        </div>
-                                    </div>
+                    <div className="flex flex-wrap items-center gap-4 mb-8 text-[9px] font-black uppercase tracking-widest text-slate-500">
+                        <span className="text-slate-400">Vendor trust:</span>
+                        <span className="inline-flex items-center gap-1.5">
+                            <span className="w-4 h-4 rounded-full bg-emerald-500 inline-flex items-center justify-center"><Check className="w-2.5 h-2.5 text-white" strokeWidth={3} /></span>
+                            Documented
+                        </span>
+                        <span className="inline-flex items-center gap-1.5">
+                            <span className="w-4 h-4 rounded-full bg-amber-400 inline-flex items-center justify-center"><Check className="w-2.5 h-2.5 text-white" strokeWidth={3} /></span>
+                            Pending docs
+                        </span>
+                    </div>
+                    {!loading && totalProducts > 0 && (
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6">
+                            Showing {(currentPage - 1) * PRODUCTS_PER_PAGE + 1}–
+                            {Math.min(currentPage * PRODUCTS_PER_PAGE, totalProducts)} of {totalProducts} products
+                        </p>
+                    )}
 
-                                    {/* Vendor Product Grid */}
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-8">
-                                        {(group.products || []).map((product: any, pIdx: number) => (
-                                            <ProductCard
-                                                key={product._id}
-                                                id={product._id}
-                                                name={product.name}
-                                                price={product.price}
-                                                images={product.images || ['/product-1.jpg']}
-                                                imageLabels={product.imageLabels}
-                                                sizes={product.sizes}
-                                                stock={product.stock}
-                                                vendorId={product.vendorId}
-                                                index={pIdx}
-                                                description={product.description}
-                                                vendorName={group.vendorName}
-                                                uniqueVendorId={group.uniqueVendorId}
-                                                hasSizes={product.hasSizes}
-                                                hasColors={product.hasColors}
-                                                colors={product.colors}
-                                                duration={product.tailoringTime}
-                                                vendorRegion={group.region}
-                                                vendorCity={product.vendorLocation}
-                                                vendorBio={product.vendorBio}
-                                            />
-                                        ))}
-                                    </div>
-                                </div>
+                    {loading ? (
+                        <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                            {Array(6).fill(0).map((_, i) => (
+                                <div key={i} className="aspect-[3/4] bg-white animate-pulse rounded-2xl border border-slate-100 shadow-sm" />
                             ))}
                         </div>
                     ) : (products || []).length > 0 ? (
-                        /* Standard Filter View */
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-12">
+                        <div className={
+                            viewMode === 'list'
+                                ? 'flex flex-col gap-6'
+                                : 'grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6'
+                        }>
                             {(products || []).map((product, index) => (
                                 <ProductCard
                                     key={product._id}
@@ -405,6 +362,7 @@ function ShopContent() {
                                     vendorRegion={product.region}
                                     vendorCity={product.vendorLocation}
                                     vendorBio={product.vendorBio}
+                                    vendorDocumented={product.vendorDocumented}
                                 />
                             ))}
                         </div>
@@ -425,12 +383,57 @@ function ShopContent() {
                         </div>
                     )}
 
-                    {/* Pagination - Only show if not in grouped mode */}
-                    {(!groupedProducts.length || activeCategory !== 'All Product' || localSearch || activeFilters.Region) && products.length > 0 && (
-                        <div className="flex justify-center mt-32 gap-3">
-                            <button className="w-12 h-12 rounded-2xl bg-slate-900 text-white flex items-center justify-center text-sm font-bold cursor-pointer hover:bg-black transition-colors shadow-lg">1</button>
-                            <button className="w-12 h-12 rounded-2xl bg-white border border-slate-100 text-slate-500 hover:bg-slate-50 flex items-center justify-center text-sm font-medium cursor-pointer transition-colors">2</button>
-                            <button className="w-12 h-12 rounded-2xl bg-white border border-slate-100 text-slate-500 hover:bg-slate-50 flex items-center justify-center text-sm font-medium cursor-pointer transition-colors">→</button>
+                    {!loading && totalPages > 1 && (
+                        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-12 pt-8 border-t border-slate-100">
+                            <button
+                                type="button"
+                                disabled={currentPage <= 1}
+                                onClick={() => {
+                                    setCurrentPage((p) => Math.max(1, p - 1));
+                                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                                }}
+                                className="px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-widest border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                            >
+                                Previous
+                            </button>
+                            <div className="flex items-center gap-2 flex-wrap justify-center">
+                                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                                    .filter((p) => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
+                                    .map((pageNum, idx, arr) => {
+                                        const prev = arr[idx - 1];
+                                        const showEllipsis = prev !== undefined && pageNum - prev > 1;
+                                        return (
+                                            <React.Fragment key={pageNum}>
+                                                {showEllipsis && <span className="text-slate-300 px-1">…</span>}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setCurrentPage(pageNum);
+                                                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                                                    }}
+                                                    className={`w-10 h-10 rounded-xl text-xs font-black transition-all ${
+                                                        currentPage === pageNum
+                                                            ? 'bg-slate-900 text-brand-lemon shadow-lg'
+                                                            : 'bg-white border border-slate-100 text-slate-500 hover:bg-slate-50'
+                                                    }`}
+                                                >
+                                                    {pageNum}
+                                                </button>
+                                            </React.Fragment>
+                                        );
+                                    })}
+                            </div>
+                            <button
+                                type="button"
+                                disabled={currentPage >= totalPages}
+                                onClick={() => {
+                                    setCurrentPage((p) => Math.min(totalPages, p + 1));
+                                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                                }}
+                                className="px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-widest border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                            >
+                                Next
+                            </button>
                         </div>
                     )}
                 </div>

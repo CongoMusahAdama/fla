@@ -6,6 +6,8 @@ import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { getImageUrl, getVendorDisplayLocation } from '@/lib/utils';
+import { isVendorDocumented } from '@/lib/kyc';
+import { VendorTrustBadge } from '@/components/VendorTrustBadge';
 
 import Swal from 'sweetalert2';
 
@@ -31,9 +33,10 @@ interface ProductCardProps {
     vendorRegion?: string;
     vendorCity?: string;
     vendorBio?: string;
+    vendorDocumented?: boolean;
 }
 
-export default function ProductCard({ id, name, price, images, sizes = [], imageLabels, duration = '6-7 working days', stock, index, vendorId, initialWishlistState = false, description, vendorName, uniqueVendorId, hasSizes = true, hasColors = true, colors = [], vendorRegion, vendorCity, vendorBio }: ProductCardProps) {
+export default function ProductCard({ id, name, price, images, sizes = [], imageLabels, duration = '6-7 working days', stock, index, vendorId, initialWishlistState = false, description, vendorName, uniqueVendorId, hasSizes = true, hasColors = true, colors = [], vendorRegion, vendorCity, vendorBio, vendorDocumented }: ProductCardProps) {
     const isBatch = false;
     const currentPrice = price;
 
@@ -49,7 +52,11 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
     const [imgError, setImgError] = useState(false);
     const router = useRouter();
 
-
+    const vendorDocStatus =
+        vendorDocumented ??
+        (typeof vendorId === 'object' && vendorId !== null
+            ? isVendorDocumented(vendorId as Parameters<typeof isVendorDocumented>[0])
+            : false);
 
     const handleVendorProfile = async (e: React.MouseEvent | React.TouchEvent) => {
         if (e) {
@@ -674,7 +681,7 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                                 by <span className="underline decoration-brand-lemon decoration-2 underline-offset-2">{vendorName}</span>
                                 {uniqueVendorId && <span className="text-slate-900 ml-2 bg-brand-lemon px-2 py-0.5 rounded-full text-[8px] font-black shadow-sm">{uniqueVendorId}</span>}
                             </span>
-                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)] group-hover/vendor:animate-pulse"></div>
+                            <VendorTrustBadge documented={vendorDocStatus} />
                         </div>
                     )}
 
@@ -1023,8 +1030,8 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                                                         <div className="w-16 h-16 rounded-2xl bg-brand-lemon flex items-center justify-center text-slate-900 font-black text-3xl group-hover/vendor:scale-105 transition-transform duration-500">
                                                             {vendorName.charAt(0)}
                                                         </div>
-                                                        <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-emerald-500 rounded-full border-[3px] border-slate-900 flex items-center justify-center">
-                                                            <Check className="w-3.5 h-3.5 text-white" />
+                                                        <div className="absolute -bottom-1 -right-1 border-[3px] border-slate-900 rounded-full">
+                                                            <VendorTrustBadge documented={vendorDocStatus} size="md" />
                                                         </div>
                                                     </div>
                                                     <div className="flex-1 relative z-10">

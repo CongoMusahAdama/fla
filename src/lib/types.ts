@@ -17,4 +17,5 @@ export interface Product {
   region?: string;
   vendorLocation?: string;
   vendorBio?: string;
+  vendorDocumented?: boolean;
 }
