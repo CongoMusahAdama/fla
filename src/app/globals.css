@@ -3,8 +3,8 @@
 @theme inline {
   --color-brand-blue: #0f2744;
   --color-brand-lemon: #D8F800;
-  --font-sans: "Outfit", "Helvetica Neue", "Helvetica", "Arial", sans-serif;
-  --font-heading: "Outfit", "Helvetica Neue", "Helvetica", "Arial", sans-serif;
+  --font-sans: var(--font-jakarta), "Plus Jakarta Sans", system-ui, sans-serif;
+  --font-heading: var(--font-jakarta), "Plus Jakarta Sans", system-ui, sans-serif;
   --radius-fla-sm: 0.75rem;
   --radius-fla-md: 1rem;
   --radius-fla-lg: 1.5rem;

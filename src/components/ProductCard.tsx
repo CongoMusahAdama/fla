@@ -46,6 +46,15 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
     const [isVisible, setIsVisible] = useState(false);
     const [isAdding, setIsAdding] = useState(false);
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+    const [vendorModal, setVendorModal] = useState<{
+        shopName: string;
+        uniqueVendorId?: string;
+        bio?: string;
+        profileImage?: string;
+        location?: string | null;
+        documented?: boolean;
+    } | null>(null);
+    const [vendorModalLoading, setVendorModalLoading] = useState(false);
     const { addToCart } = useCart();
     const { isAuthenticated, user, token } = useAuth();
     const [isWishlisted, setIsWishlisted] = useState(initialWishlistState);
@@ -81,91 +90,24 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
             return;
         }
 
+        setVendorModalLoading(true);
         try {
             const apiBase = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api');
             const response = await fetch(`${apiBase}/users/vendor/${validVendorId}/profile`);
             if (!response.ok) throw new Error('Failed to fetch vendor profile');
             const data = await response.json();
-            const { vendor, stats } = data;
+            const { vendor } = data;
 
-            const resolvedProfileImage = getImageUrl(vendor.profileImage);
-            const resolvedBannerImage = vendor.bannerImage ? getImageUrl(vendor.bannerImage) : null;
-            const displayLocation = getVendorDisplayLocation(
-                { location: vendor.location || vendorCity, region: vendor.region },
-                vendorRegion,
-            );
-
-            Swal.fire({
-                html: `
-                    <div class="flex flex-col -m-3 md:-m-6 overflow-hidden max-w-full">
-                        <!-- Luxury Header -->
-                        <div class="relative pt-12 pb-10 px-6 text-center overflow-hidden min-h-[180px] flex flex-col items-center justify-center">
-                            ${resolvedBannerImage 
-                                ? `<img src="${resolvedBannerImage}" class="absolute inset-0 w-full h-full object-cover" />
-                                   <div class="absolute inset-0 bg-slate-900/60"></div>`
-                                : `<div class="absolute inset-0 bg-slate-900"></div>
-                                   <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
-                                       <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M 20 0 L 0 0 0 20" fill="none" stroke="white" stroke-width="0.5"/></pattern></defs><rect width="100%" height="100%" fill="url(#grid)" /></svg>
-                                   </div>`
-                            }
-                            
-                            <div class="relative inline-block mb-4">
-                                ${vendor.profileImage
-                                    ? `<img src="${resolvedProfileImage}" class="w-24 h-24 md:w-28 md:h-28 rounded-2xl object-cover border-2 border-[#E5FF7F] shadow-2xl mx-auto relative z-10">`
-                                    : `<div class="w-24 h-24 md:w-28 md:h-28 rounded-2xl bg-slate-800 flex items-center justify-center text-[#E5FF7F] border-2 border-slate-700 shadow-2xl mx-auto relative z-10">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-                                       </div>`
-                                }
-                                <div class="absolute -bottom-1 -right-1 bg-[#E5FF7F] p-1.5 rounded-2xl shadow-lg border-2 border-slate-900 z-20">
-                                    <svg class="w-4 h-4 text-slate-900" viewBox="0 0 24 24" fill="currentColor"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                </div>
-                            </div>
-                            
-                            <div class="flex flex-col items-center gap-1.5 relative z-10">
-                                <h2 class="text-2xl md:text-3xl font-black text-white uppercase tracking-tighter">${vendor.shopName || vendor.name}</h2>
-                                <span class="bg-[#E5FF7F]/10 text-[#E5FF7F] text-[8px] font-black uppercase tracking-[0.2em] px-3 py-1 rounded-2xl border border-[#E5FF7F]/20 backdrop-blur-md">
-                                    ID: ${vendor.uniqueVendorId}
-                                </span>
-                            </div>
-
-                            ${displayLocation ? `
-                            <div class="flex items-center justify-center gap-1.5 text-[#E5FF7F] text-[10px] font-black uppercase tracking-[0.2em] opacity-80 mt-3 relative z-10">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
-                                ${displayLocation}
-                            </div>
-                            ` : ''}
-                        </div>
-
-                        <!-- Content Area -->
-                        <div class="bg-white px-4 md:px-6 py-8 -mt-6 rounded-2xl relative z-10 flex flex-col gap-6 md:gap-8 border-x border-slate-100">
-                            <div class="text-center">
-                                <p class="text-slate-500 text-xs md:text-sm font-medium leading-relaxed italic px-2">
-                                    "${vendor.bio || "Your studio's narrative is shared here with patrons in the marketplace."}"
-                                </p>
-                            </div>
-
-                            <!-- Performance Grid -->
-                            <div class="flex justify-center">
-                                <div class="bg-slate-50 w-full px-10 py-5 rounded-2xl border border-slate-100 flex flex-col items-center shadow-sm">
-                                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Shipping Time</span>
-                                    <div class="flex items-center gap-2">
-                                        <span class="text-xl font-black text-slate-900">${duration || '6-7 Days'}</span>
-                                        <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
-                                    </div>
-                                    <span class="text-[8px] font-black text-slate-400 uppercase tracking-widest mt-1 opacity-60 italic">Secure Split Pay</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                `,
-                showCloseButton: true,
-                showConfirmButton: false,
-                width: window.innerWidth < 768 ? '95%' : '480px',
-                background: 'white',
-                padding: '0',
-                customClass: {
-                    popup: 'rounded-3xl overflow-hidden border border-slate-100 mx-2 shadow-2xl',
-                }
+            setVendorModal({
+                shopName: vendor.shopName || vendor.name || vendorName || 'Vendor',
+                uniqueVendorId: vendor.uniqueVendorId,
+                bio: vendor.bio,
+                profileImage: vendor.profileImage ? getImageUrl(vendor.profileImage) : undefined,
+                location: getVendorDisplayLocation(
+                    { location: vendor.location || vendorCity, region: vendor.region },
+                    vendorRegion,
+                ),
+                documented: isVendorDocumented(vendor),
             });
         } catch (error) {
             console.error(error);
@@ -177,12 +119,36 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                 showConfirmButton: false,
                 timer: 3000
             });
+        } finally {
+            setVendorModalLoading(false);
         }
     };
 
     useEffect(() => {
         setImgError(false);
     }, [currentImageIndex, images]);
+
+    useEffect(() => {
+        if (!isDetailModalOpen && !vendorModal && !vendorModalLoading) return;
+
+        const scrollY = window.scrollY;
+        document.body.style.position = 'fixed';
+        document.body.style.top = `-${scrollY}px`;
+        document.body.style.left = '0';
+        document.body.style.right = '0';
+        document.body.style.overflow = 'hidden';
+        document.body.style.width = '100%';
+
+        return () => {
+            document.body.style.position = '';
+            document.body.style.top = '';
+            document.body.style.left = '';
+            document.body.style.right = '';
+            document.body.style.overflow = '';
+            document.body.style.width = '';
+            window.scrollTo(0, scrollY);
+        };
+    }, [isDetailModalOpen, vendorModal, vendorModalLoading]);
 
 
     const isSoldOut = stock === 0;
@@ -774,340 +740,309 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
 
             {/* Detail Modal */}
             {isDetailModalOpen && (
-                <div className="fixed inset-0 z-[1000] flex items-end md:items-center justify-center p-0 md:p-8">
+                <div className="fixed inset-0 z-[1000] flex items-end md:items-center justify-center p-0 md:p-6 overscroll-none">
                     <div
-                        className="absolute inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity duration-500"
+                        className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
                         onClick={() => setIsDetailModalOpen(false)}
+                        aria-hidden
                     />
-                    <div className="relative bg-white w-full max-w-4xl h-[92vh] md:h-[85vh] rounded-3xl shadow-2xl flex flex-col md:flex-row animate-in slide-in-from-bottom md:zoom-in-95 duration-500 pointer-events-auto overflow-hidden border border-slate-100">
-                        {/* Top Actions - Absolute */}
-                        <div className="absolute top-6 right-6 z-[60] flex items-center gap-3">
-                            <button
-                                onClick={toggleWishlist}
-                                className={`w-12 h-12 bg-white/95 backdrop-blur-xl flex items-center justify-center rounded-2xl shadow-2xl border border-slate-100 transition-all hover:scale-110 active:scale-90 ${isWishlisted ? 'text-red-500' : 'text-slate-400 hover:text-red-500'}`}
-                            >
-                                <Heart className={`w-5 h-5 ${isWishlisted ? 'fill-current' : ''}`} />
-                            </button>
-                            <button
-                                onClick={() => setIsDetailModalOpen(false)}
-                                className="w-12 h-12 bg-white/95 backdrop-blur-xl flex items-center justify-center text-slate-900 rounded-2xl shadow-2xl transition-all hover:scale-110 active:scale-90 border border-slate-100"
-                            >
-                                <X className="w-5 h-5" />
-                            </button>
-                        </div>
-
-                        {/* Left: Gallery */}
-                        <div className="w-full md:w-1/2 bg-[#f8f8f8] flex flex-col flex-shrink-0">
-                            <div className="relative w-full h-[40vh] md:h-full group/gallery">
+                    <div className="relative bg-white w-full max-w-5xl max-h-[94vh] md:max-h-[88vh] rounded-t-3xl md:rounded-2xl shadow-2xl flex flex-col md:flex-row animate-in slide-in-from-bottom md:zoom-in-95 duration-300 pointer-events-auto overflow-hidden">
+                        {/* Gallery */}
+                        <div className="w-full md:w-[48%] bg-slate-50 flex flex-col shrink-0 border-b md:border-b-0 md:border-r border-slate-100">
+                            <div className="relative aspect-square md:aspect-auto md:flex-1 min-h-[280px] group/gallery">
                                 <Image
                                     src={imgError ? '/product-1.jpg' : getImageUrl(images[currentImageIndex])}
                                     alt={name}
                                     fill
-                                    unoptimized={true}
-                                    className="object-contain p-8 transition-all duration-700 group-hover/gallery:scale-105"
+                                    unoptimized
+                                    className="object-contain p-6 md:p-10"
                                     onError={() => setImgError(true)}
                                 />
-
-                                {/* Image Count Indicator - Dash Style */}
-                                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-1.5 z-20">
-                                    {images.map((_, i) => (
-                                        <div
-                                            key={i}
-                                            className={`h-1 rounded-full transition-all duration-300 ${i === currentImageIndex ? 'w-8 bg-slate-900' : 'w-2 bg-slate-300'}`}
-                                        />
+                                {images.length > 1 && (
+                                    <>
+                                        <button
+                                            onClick={prevImage}
+                                            className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/90 shadow-md border border-slate-100 flex items-center justify-center text-slate-700 hover:bg-white"
+                                            aria-label="Previous image"
+                                        >
+                                            <ChevronLeft className="w-5 h-5" />
+                                        </button>
+                                        <button
+                                            onClick={nextImage}
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/90 shadow-md border border-slate-100 flex items-center justify-center text-slate-700 hover:bg-white"
+                                            aria-label="Next image"
+                                        >
+                                            <ChevronRight className="w-5 h-5" />
+                                        </button>
+                                    </>
+                                )}
+                            </div>
+                            {images.length > 1 && (
+                                <div className="px-4 py-3 flex gap-2 overflow-x-auto no-scrollbar bg-white">
+                                    {images.map((img, idx) => (
+                                        <button
+                                            key={idx}
+                                            onClick={() => setCurrentImageIndex(idx)}
+                                            className={`flex flex-col items-center gap-1 shrink-0 ${idx === currentImageIndex ? 'opacity-100' : 'opacity-50 hover:opacity-80'}`}
+                                        >
+                                            <div className={`relative w-12 h-14 rounded-lg overflow-hidden border-2 ${idx === currentImageIndex ? 'border-slate-900' : 'border-transparent'}`}>
+                                                <Image
+                                                    src={getImageUrl(img)}
+                                                    alt=""
+                                                    fill
+                                                    sizes="48px"
+                                                    unoptimized
+                                                    className="object-cover"
+                                                    onError={(e) => { (e.target as HTMLImageElement).src = '/product-1.jpg'; }}
+                                                />
+                                            </div>
+                                            {imageLabels?.[idx] && (
+                                                <span className="text-[10px] font-medium text-slate-500">{imageLabels[idx]}</span>
+                                            )}
+                                        </button>
                                     ))}
                                 </div>
-
-                                {/* Quick Gallery Nav - Desktop Only */}
-                                <div className="hidden md:flex absolute inset-x-4 top-1/2 -translate-y-1/2 justify-between pointer-events-none">
-                                    <button
-                                        onClick={prevImage}
-                                        className="w-10 h-10 rounded-full bg-white/80 backdrop-blur-md flex items-center justify-center text-slate-900 shadow-sm border border-slate-100 pointer-events-auto opacity-0 group-hover/gallery:opacity-100 transition-all hover:bg-white active:scale-90"
-                                    >
-                                        <ChevronLeft className="w-5 h-5" />
-                                    </button>
-                                    <button
-                                        onClick={nextImage}
-                                        className="w-10 h-10 rounded-full bg-white/80 backdrop-blur-md flex items-center justify-center text-slate-900 shadow-sm border border-slate-100 pointer-events-auto opacity-0 group-hover/gallery:opacity-100 transition-all hover:bg-white active:scale-90"
-                                    >
-                                        <ChevronRight className="w-5 h-5" />
-                                    </button>
-                                </div>
-                            </div>
-
-                            {/* Thumbnails - Now properly positioned below image */}
-                            <div className="w-full px-6 py-4 flex gap-3 overflow-x-auto no-scrollbar items-center justify-center bg-white border-t border-slate-100/50">
-                                {images.map((img, idx) => (
-                                    <button
-                                        key={idx}
-                                        onClick={() => setCurrentImageIndex(idx)}
-                                        className={`relative flex-shrink-0 w-12 h-16 md:w-14 md:h-20 rounded-2xl overflow-hidden border-2 transition-all duration-300 ${idx === currentImageIndex
-                                            ? 'border-brand-lemon shadow-lg shadow-brand-lemon/20 scale-105 opacity-100 ring-2 ring-brand-lemon/20'
-                                            : 'border-transparent opacity-60 hover:opacity-100 hover:scale-105 bg-slate-100'
-                                            }`}
-                                    >
-                                        <Image
-                                            src={getImageUrl(img)}
-                                            alt="thumb"
-                                            fill
-                                            sizes="64px"
-                                            unoptimized={true}
-                                            className="object-cover"
-
-                                            onError={(e) => {
-                                                const target = e.target as HTMLImageElement;
-                                                target.src = '/product-1.jpg';
-                                            }}
-                                        />
-                                        {imageLabels && imageLabels[idx] && (
-                                            <div className="absolute inset-0 bg-black/40 flex items-end justify-center pb-1">
-                                                <span className="text-[7px] font-black text-white uppercase tracking-tighter bg-black/50 px-1 rounded-sm backdrop-blur-sm">
-                                                    {imageLabels[idx]}
-                                                </span>
-                                            </div>
-                                        )}
-                                    </button>
-                                ))}
-                            </div>
+                            )}
                         </div>
 
-                        {/* Right: Info */}
-                        <div className="flex-1 flex flex-col relative overflow-y-auto overscroll-contain bg-white">
-                            <div className="p-6 md:p-10 pb-32">
-                                <div className="space-y-4">
-                                    <div className="flex flex-wrap items-center gap-3">
-                                        <div className="px-4 py-1.5 bg-slate-900 text-[9px] font-black uppercase tracking-[0.2em] text-brand-lemon rounded-2xl shadow-xl shadow-slate-900/10 border border-slate-800">
-                                            Verified Design
-                                        </div>
-                                        <div className="flex items-center gap-1.5 text-blue-500 text-[10px] font-black uppercase tracking-[0.2em]">
-                                            <Zap className="w-3.5 h-3.5 fill-current" />
-                                            Marketplace Choice
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <h2 className="font-heading text-3xl md:text-5xl font-black text-slate-900 leading-[0.9] tracking-tighter uppercase">{name}</h2>
-                                        <div className="flex items-end justify-between border-b border-slate-100 pb-4">
-                                            <div className="flex flex-col">
-                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Price Point</span>
-                                                <p className="text-3xl md:text-4xl font-black text-slate-900 tracking-tighter">GH₵{price}</p>
-                                            </div>
-                                            <div className="text-right">
-                                                <div className={`px-4 py-1.5 rounded-2xl inline-flex items-center gap-2 ${stock > 5 ? 'bg-emerald-50 text-emerald-600' : 'bg-orange-50 text-orange-600'}`}>
-                                                    <div className={`w-1.5 h-1.5 rounded-full ${stock > 5 ? 'bg-emerald-500' : 'bg-orange-500'} animate-pulse`} />
-                                                    <span className="text-[10px] font-black uppercase tracking-widest">
-                                                        {stock > 0 ? `${stock} PIECES IN STOCK` : 'SOLD OUT'}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
+                        {/* Details */}
+                        <div className="flex-1 flex flex-col min-h-0 bg-white">
+                            <div className="flex items-start justify-between gap-4 px-5 pt-5 md:px-8 md:pt-8 shrink-0">
+                                <div className="min-w-0 flex-1">
+                                    {vendorName && (
+                                        <button
+                                            type="button"
+                                            onClick={handleVendorProfile}
+                                            className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-900 transition-colors mb-2"
+                                        >
+                                            <span className="font-medium">{vendorName}</span>
+                                            <VendorTrustBadge documented={vendorDocStatus} size="sm" />
+                                            <ChevronRight className="w-4 h-4" />
+                                        </button>
+                                    )}
+                                    <h2 className="text-xl md:text-2xl font-semibold text-slate-900 leading-snug">{name}</h2>
                                 </div>
-
-                                {/* Size Selection - Refined */}
-                                {hasSizes && (
-                                    <div className="space-y-4 pt-6 border-t border-slate-50">
-                                        <div className="flex justify-between items-center px-1">
-                                            <div className="flex items-center gap-2">
-                                                <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Select Silhouette</h4>
-                                                {!selectedSize && <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping"></span>}
-                                            </div>
-                                            <button className="flex items-center gap-1.5 text-[10px] font-black text-slate-900 uppercase tracking-widest group/guide">
-                                                <span className="underline decoration-brand-lemon decoration-2 underline-offset-4 group-hover/guide:text-brand-lemon transition-colors">Size Guide</span>
-                                                <ChevronRight className="w-3 h-3" />
-                                            </button>
-                                        </div>
-                                        <div className="flex flex-wrap gap-3">
-                                            {(() => {
-                                                const safeSizes = (Array.isArray(sizes) && sizes.length > 0) ? sizes : ['S', 'M', 'L', 'XL', '2XL', '3XL'];
-                                                return safeSizes.map(size => (
-                                                    <button
-                                                        key={size}
-                                                        onClick={() => setSelectedSize(size)}
-                                                        className={`min-w-[3.5rem] h-12 md:h-14 px-4 rounded-xl font-black border-2 transition-all text-xs md:text-sm
-                                                            ${selectedSize === size
-                                                                ? 'border-slate-900 bg-slate-900 text-white shadow-xl shadow-slate-900/20 scale-105'
-                                                                : 'border-slate-100 text-slate-400 hover:border-slate-200 bg-white hover:scale-105'
-                                                            }
-                                                        `}
-                                                    >
-                                                        {size}
-                                                    </button>
-                                                ));
-                                            })()}
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Color Selection (NEW) */}
-                                {hasColors && (
-                                    <div className="space-y-4 pt-6 border-t border-slate-50">
-                                        <div className="flex justify-between items-center px-1">
-                                            <div className="flex items-center gap-2">
-                                                <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Select Finish</h4>
-                                                {!selectedColor && <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping"></span>}
-                                            </div>
-                                        </div>
-                                        <div className="flex flex-wrap gap-3">
-                                            {(() => {
-                                                const safeColors = (Array.isArray(colors) && colors.length > 0) ? colors : ['Black', 'White', 'Cream', 'Gold'];
-                                                return safeColors.map(color => (
-                                                    <button
-                                                        key={color}
-                                                        onClick={() => setSelectedColor(color)}
-                                                        className={`h-12 md:h-14 px-5 rounded-xl font-black border-2 transition-all text-xs flex items-center gap-2
-                                                            ${selectedColor === color
-                                                                ? 'border-slate-900 bg-slate-900 text-white shadow-xl shadow-slate-900/20 scale-105'
-                                                                : 'border-slate-100 text-slate-400 hover:border-slate-200 bg-white hover:scale-105'
-                                                            }
-                                                        `}
-                                                    >
-                                                        <div className={`w-3 h-3 rounded-md border border-black/10`} style={{ 
-                                                            backgroundColor: color.toLowerCase() === 'pattern' ? 'transparent' : color.toLowerCase(),
-                                                            backgroundImage: color.toLowerCase() === 'pattern' ? 'conic-gradient(from 0deg,#ff0000,#ffff00,#00ff00,#00ffff,#0000ff,#ff00ff,#ff0000)' : 'none'
-                                                        }} />
-                                                        {color}
-                                                    </button>
-                                                ));
-                                            })()}
-                                        </div>
-                                    </div>
-                                )}
-
-                                <div className="space-y-8">
-                                    <div className="space-y-6 relative">
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex flex-col">
-                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-1">Storytelling</span>
-                                                <h3 className="font-heading font-black text-2xl text-slate-900 uppercase tracking-tighter">The Narrative</h3>
-                                            </div>
-                                            <div className="flex items-center gap-1.5 px-4 py-2 bg-emerald-50 rounded-2xl border border-emerald-100 shadow-sm">
-                                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
-                                                <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Ethically Crafted</span>
-                                            </div>
-                                        </div>
-                                        
-                                        <div className="relative p-6 bg-slate-50/50 rounded-2xl border border-slate-100 overflow-hidden">
-                                            {/* Luxury Pattern */}
-                                            <div className="absolute inset-0 opacity-[0.03] pointer-events-none">
-                                                <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="narrativeGrid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M 40 0 L 0 0 0 40" fill="none" stroke="black" stroke-width="1"/></pattern></defs><rect width="100%" height="100%" fill="url(#narrativeGrid)" /></svg>
-                                            </div>
-                                            
-                                            <p className="relative z-10 text-slate-600 text-sm md:text-base leading-relaxed text-left font-medium">
-                                                {description || `Crafted with precision using premium heritage craftsmanship techniques. This piece features our signature ${name.toLowerCase()} design, combining traditional aesthetics with modern comfort. Every detail is a testament to our commitment to excellence.`}
-                                            </p>
-                                        </div>
-
-                                        {/* Trust Badges */}
-                                        <div className="flex flex-wrap gap-4 py-2">
-                                            <div className="flex items-center gap-2 text-slate-500">
-                                                <div className="w-8 h-8 rounded-xl bg-slate-50 flex items-center justify-center">
-                                                    <Shield className="w-4 h-4 text-slate-900" />
-                                                </div>
-                                                <span className="text-[10px] font-bold uppercase tracking-tight">Authentic FLA</span>
-                                            </div>
-                                            <div className="flex items-center gap-2 text-slate-500">
-                                                <div className="w-8 h-8 rounded-xl bg-slate-50 flex items-center justify-center">
-                                                    <Zap className="w-4 h-4 text-slate-900" />
-                                                </div>
-                                                <span className="text-[10px] font-bold uppercase tracking-tight">Fast Customization</span>
-                                            </div>
-                                        </div>
-
-                                        {/* Vendor Info Section - Luxury Card */}
-                                        {vendorName && (
-                                            <div className="space-y-4">
-                                                <div
-                                                    onClick={handleVendorProfile}
-                                                    className="mt-6 flex items-center gap-5 p-6 bg-slate-900 text-white rounded-2xl cursor-pointer hover:bg-black active:scale-[0.98] transition-all shadow-2xl shadow-slate-900/20 group/vendor relative overflow-hidden"
-                                                >
-                                                    {/* Subtle Pattern Background */}
-                                                    <div className="absolute inset-0 opacity-5 pointer-events-none">
-                                                        <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="vendorGrid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M 20 0 L 0 0 0 20" fill="none" stroke="white" stroke-width="0.5"/></pattern></defs><rect width="100%" height="100%" fill="url(#vendorGrid)" /></svg>
-                                                    </div>
-
-                                                    <div className="relative">
-                                                        <div className="w-16 h-16 rounded-2xl bg-brand-lemon flex items-center justify-center text-slate-900 font-black text-3xl group-hover/vendor:scale-105 transition-transform duration-500">
-                                                            {vendorName.charAt(0)}
-                                                        </div>
-                                                        <div className="absolute -bottom-1 -right-1 border-[3px] border-slate-900 rounded-full">
-                                                            <VendorTrustBadge documented={vendorDocStatus} size="md" />
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex-1 relative z-10">
-                                                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-1">Studio Partner</p>
-                                                        <p className="text-xl font-black group-hover:text-brand-lemon transition-colors leading-none tracking-tight uppercase">
-                                                            {vendorName}
-                                                        </p>
-                                                        {uniqueVendorId && <span className="text-[9px] text-brand-lemon/40 font-black tracking-widest mt-1 inline-block">#{uniqueVendorId}</span>}
-                                                    </div>
-                                                    <div className="bg-white/10 w-12 h-12 flex items-center justify-center rounded-2xl group-hover/vendor:bg-brand-lemon group-hover/vendor:text-slate-900 transition-all duration-500">
-                                                        <ChevronRight className="w-5 h-5" />
-                                                    </div>
-                                                </div>
-
-                                                {/* Refund & Store Policy Section (Transparent for Paystack Compliance) */}
-                                                <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100 space-y-4">
-                                                    <div className="flex items-center justify-between">
-                                                        <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-900">Store & Refund Policy</h4>
-                                                        <div className="px-2 py-1 bg-brand-lemon text-slate-900 text-[8px] font-black rounded-md uppercase tracking-widest">Mediator Protected</div>
-                                                    </div>
-                                                    <div className="space-y-3">
-                                                        <p className="text-slate-600 text-xs leading-relaxed font-medium">
-                                                            {vendorBio || "The vendor has not specified a detailed policy yet. By purchasing, you agree to the standard FLA mediation terms."}
-                                                        </p>
-                                                        <div className="pt-2 flex items-start gap-2 border-t border-slate-200/50">
-                                                            <Shield className="w-3.5 h-3.5 text-slate-400 mt-0.5" />
-                                                            <p className="text-[9px] text-slate-400 italic leading-tight">
-                                                                Funds are split directly to vendors. FLA acts as a mediator to assist in dispute resolution and fund retrieval if needed.
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* Details Grid */}
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="flex items-center gap-3 p-4 rounded-2xl bg-white border border-slate-100 shadow-sm">
-                                            <Clock className="w-5 h-5 text-slate-900" />
-                                            <div className="flex flex-col">
-                                                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Prep Time</span>
-                                                <span className="text-[11px] font-black text-slate-900">{duration}</span>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center gap-3 p-4 rounded-2xl bg-white border border-slate-100 shadow-sm">
-                                            <Shield className="w-5 h-5 text-slate-900" />
-                                            <div className="flex flex-col">
-                                                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Quality</span>
-                                                <span className="text-[11px] font-black text-slate-900">Signature</span>
-                                            </div>
-                                        </div>
-                                    </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                    <button
+                                        onClick={toggleWishlist}
+                                        className={`w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center transition-colors ${isWishlisted ? 'text-red-500 border-red-100 bg-red-50' : 'text-slate-400 hover:text-slate-700'}`}
+                                        aria-label="Wishlist"
+                                    >
+                                        <Heart className={`w-5 h-5 ${isWishlisted ? 'fill-current' : ''}`} />
+                                    </button>
+                                    <button
+                                        onClick={() => setIsDetailModalOpen(false)}
+                                        className="w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50"
+                                        aria-label="Close"
+                                    >
+                                        <X className="w-5 h-5" />
+                                    </button>
                                 </div>
                             </div>
 
-                            {/* Modal Actions - Sticky Bottom */}
-                            <div className="sticky bottom-0 left-0 right-0 p-6 md:p-8 bg-white/90 backdrop-blur-xl border-t border-slate-100 flex gap-4 z-50 mt-auto">
+                            <div className="flex-1 overflow-y-auto overscroll-contain px-5 md:px-8 py-4 space-y-6">
+                                <div className="flex flex-wrap items-baseline gap-x-4 gap-y-2">
+                                    <p className="text-2xl md:text-3xl font-bold text-slate-900">GH₵{price.toLocaleString()}</p>
+                                    <span className={`text-sm font-medium ${stock > 0 ? (stock <= 5 ? 'text-amber-600' : 'text-emerald-600') : 'text-red-500'}`}>
+                                        {stock > 0 ? `${stock} in stock` : 'Sold out'}
+                                    </span>
+                                </div>
+
+                                <div className="flex flex-wrap gap-3 text-sm text-slate-500">
+                                    <span className="inline-flex items-center gap-1.5">
+                                        <Clock className="w-4 h-4" />
+                                        {duration}
+                                    </span>
+                                    {getVendorDisplayLocation({ location: vendorCity, region: vendorRegion }) && (
+                                        <span className="inline-flex items-center gap-1.5">
+                                            <MapPin className="w-4 h-4" />
+                                            {getVendorDisplayLocation({ location: vendorCity, region: vendorRegion })}
+                                        </span>
+                                    )}
+                                </div>
+
+                                {hasSizes && (
+                                    <div>
+                                        <p className="text-sm font-medium text-slate-900 mb-2">
+                                            Size{!selectedSize && <span className="text-red-500 ml-1">*</span>}
+                                        </p>
+                                        <div className="flex flex-wrap gap-2">
+                                            {(sizes?.length ? sizes : ['S', 'M', 'L', 'XL']).map((size) => (
+                                                <button
+                                                    key={size}
+                                                    type="button"
+                                                    onClick={() => setSelectedSize(size)}
+                                                    className={`min-w-[2.75rem] h-10 px-3 rounded-lg text-sm font-medium border transition-colors ${
+                                                        selectedSize === size
+                                                            ? 'border-slate-900 bg-slate-900 text-white'
+                                                            : 'border-slate-200 text-slate-600 hover:border-slate-400'
+                                                    }`}
+                                                >
+                                                    {size}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {hasColors && (
+                                    <div>
+                                        <p className="text-sm font-medium text-slate-900 mb-2">
+                                            Color{!selectedColor && <span className="text-red-500 ml-1">*</span>}
+                                        </p>
+                                        <div className="flex flex-wrap gap-2">
+                                            {(colors?.length ? colors : ['Black', 'White', 'Cream', 'Gold']).map((color) => (
+                                                <button
+                                                    key={color}
+                                                    type="button"
+                                                    onClick={() => setSelectedColor(color)}
+                                                    className={`h-10 px-3 rounded-lg text-sm font-medium border flex items-center gap-2 transition-colors ${
+                                                        selectedColor === color
+                                                            ? 'border-slate-900 bg-slate-900 text-white'
+                                                            : 'border-slate-200 text-slate-600 hover:border-slate-400'
+                                                    }`}
+                                                >
+                                                    <span
+                                                        className="w-3.5 h-3.5 rounded-full border border-black/10 shrink-0"
+                                                        style={{
+                                                            backgroundColor: color.toLowerCase() === 'pattern' ? 'transparent' : color.toLowerCase(),
+                                                            backgroundImage: color.toLowerCase() === 'pattern' ? 'conic-gradient(from 0deg,#ff0000,#ffff00,#00ff00,#00ffff,#0000ff,#ff00ff,#ff0000)' : 'none',
+                                                        }}
+                                                    />
+                                                    {color}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div>
+                                    <h3 className="text-sm font-medium text-slate-900 mb-2">Description</h3>
+                                    <p className="text-sm text-slate-600 leading-relaxed">
+                                        {description || 'No description provided for this product.'}
+                                    </p>
+                                </div>
+
+                                {vendorName && (
+                                    <div className="rounded-xl border border-slate-100 bg-slate-50/80 p-4 space-y-3">
+                                        <button
+                                            type="button"
+                                            onClick={handleVendorProfile}
+                                            className="w-full flex items-center gap-3 text-left group"
+                                        >
+                                            <div className="w-11 h-11 rounded-xl bg-slate-900 text-brand-lemon flex items-center justify-center text-lg font-semibold shrink-0">
+                                                {vendorName.charAt(0)}
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <p className="text-xs text-slate-500">Sold by</p>
+                                                <p className="text-sm font-semibold text-slate-900 truncate group-hover:underline">{vendorName}</p>
+                                            </div>
+                                            <ChevronRight className="w-5 h-5 text-slate-400 shrink-0" />
+                                        </button>
+                                        <p className="text-xs text-slate-500 leading-relaxed border-t border-slate-200/80 pt-3">
+                                            {vendorBio || 'Standard FLA buyer protection applies. FLA can help mediate disputes if needed.'}
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="shrink-0 p-5 md:p-6 border-t border-slate-100 bg-white flex gap-3">
                                 <button
                                     onClick={handleAddToCart}
-                                    disabled={isAdding}
-                                    className="flex-1 py-5 rounded-full bg-slate-50 border border-slate-200 font-black text-[10px] uppercase tracking-[0.2em] text-slate-900 hover:bg-slate-100 transition-all flex items-center justify-center gap-3 active:scale-95"
+                                    disabled={isAdding || stock <= 0}
+                                    className="flex-1 h-12 rounded-full border border-slate-300 text-sm font-semibold text-slate-900 hover:bg-slate-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
                                 >
                                     <ShoppingBag className="w-4 h-4" />
-                                    {isAdding ? 'Adding...' : 'Add to Bag'}
+                                    {isAdding ? 'Adding…' : 'Add to bag'}
                                 </button>
                                 <button
                                     onClick={handleBuyNow}
-                                    className="flex-[1.5] py-5 rounded-full bg-brand-lemon text-slate-900 font-black text-[10px] uppercase tracking-[0.2em] shadow-xl hover:shadow-brand-lemon/20 hover:scale-[1.02] transition-all active:scale-95 relative overflow-hidden group/btn"
+                                    disabled={stock <= 0}
+                                    className="flex-[1.2] h-12 rounded-full bg-slate-900 text-white text-sm font-semibold hover:bg-black transition-colors disabled:opacity-50"
                                 >
-                                    <span className="relative z-10">Quick Checkout</span>
-                                    <div className="absolute inset-0 bg-white opacity-0 group-hover/btn:opacity-20 transition-opacity" />
-                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover/btn:translate-x-full transition-transform duration-1000" />
+                                    Buy now
                                 </button>
                             </div>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Vendor profile modal — matches product modal style */}
+            {(vendorModalLoading || vendorModal) && (
+                <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4 overscroll-none">
+                    <div
+                        className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+                        onClick={() => !vendorModalLoading && setVendorModal(null)}
+                        aria-hidden
+                    />
+                    <div className="relative bg-white w-full max-w-md max-h-[85vh] rounded-2xl shadow-2xl border border-slate-100 flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+                        <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-slate-100 shrink-0">
+                            <h3 className="text-sm font-semibold text-slate-900">Vendor profile</h3>
+                            <button
+                                type="button"
+                                onClick={() => setVendorModal(null)}
+                                disabled={vendorModalLoading}
+                                className="w-9 h-9 rounded-full border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 disabled:opacity-50"
+                                aria-label="Close"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+
+                        {vendorModalLoading && !vendorModal ? (
+                            <div className="py-16 flex items-center justify-center text-sm text-slate-500">
+                                Loading vendor…
+                            </div>
+                        ) : vendorModal && (
+                            <div className="flex-1 overflow-y-auto overscroll-contain px-5 py-5 space-y-5">
+                                <div className="flex items-start gap-4">
+                                    <div className="relative shrink-0">
+                                        {vendorModal.profileImage ? (
+                                            <div className="relative w-14 h-14 rounded-xl overflow-hidden border border-slate-100">
+                                                <Image src={vendorModal.profileImage} alt="" fill className="object-cover" unoptimized />
+                                            </div>
+                                        ) : (
+                                            <div className="w-14 h-14 rounded-xl bg-slate-900 text-brand-lemon flex items-center justify-center text-xl font-semibold">
+                                                {vendorModal.shopName.charAt(0)}
+                                            </div>
+                                        )}
+                                        <div className="absolute -bottom-1 -right-1">
+                                            <VendorTrustBadge documented={vendorModal.documented ?? false} size="sm" />
+                                        </div>
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-lg font-semibold text-slate-900 leading-snug">{vendorModal.shopName}</p>
+                                        {vendorModal.uniqueVendorId && (
+                                            <p className="text-xs text-slate-500 mt-1">ID: {vendorModal.uniqueVendorId}</p>
+                                        )}
+                                        {vendorModal.location && (
+                                            <p className="text-sm text-slate-500 mt-2 inline-flex items-center gap-1">
+                                                <MapPin className="w-3.5 h-3.5 shrink-0" />
+                                                {vendorModal.location}
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {vendorModal.bio && (
+                                    <div>
+                                        <p className="text-sm font-medium text-slate-900 mb-1.5">About</p>
+                                        <p className="text-sm text-slate-600 leading-relaxed">{vendorModal.bio}</p>
+                                    </div>
+                                )}
+
+                                <div className="rounded-xl border border-slate-100 bg-slate-50/80 p-4 space-y-3">
+                                    <div className="flex items-center justify-between text-sm">
+                                        <span className="text-slate-500">Prep time</span>
+                                        <span className="font-medium text-slate-900">{duration}</span>
+                                    </div>
+                                    <p className="text-xs text-slate-500 leading-relaxed border-t border-slate-200/80 pt-3">
+                                        Payments are processed securely. FLA can help mediate disputes if needed.
+                                    </p>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}

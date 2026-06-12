@@ -1,20 +1,15 @@
 import type { Metadata } from "next";
-import { Montserrat, Outfit } from "next/font/google";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import ChatSupport from "@/components/ChatSupport";
 import Navbar from "@/components/Navbar";
 import CartDrawer from "@/components/CartDrawer";
 
-const montserrat = Montserrat({
+const plusJakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
-  variable: "--font-montserrat",
+  variable: "--font-jakarta",
   display: "swap",
-});
-
-const outfit = Outfit({
-  subsets: ["latin"],
-  variable: "--font-outfit",
-  display: "swap",
+  weight: ["400", "500", "600", "700", "800"],
 });
 
 export const metadata: Metadata = {
@@ -41,7 +36,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${montserrat.variable} ${outfit.variable} antialiased bg-white text-slate-800 font-sans`}
+        className={`${plusJakarta.variable} antialiased bg-white text-slate-800 font-sans`}
       >
         <AuthProvider>
           <CartProvider>

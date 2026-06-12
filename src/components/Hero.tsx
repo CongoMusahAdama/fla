@@ -1,129 +1,207 @@
 
 "use client";
-import React from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { ArrowRight } from 'lucide-react';
+import { ShieldCheck, CreditCard } from 'lucide-react';
+import { getImageUrl } from '@/lib/utils';
 
-const AnimatedText = ({ text, delayOffset = 0 }: { text: string; delayOffset?: number }) => (
-    <>
-        {text.split(" ").map((word, i) => (
-            <span
-                key={i}
-                className="inline-block animate-fade-up-word"
-                style={{ animationDelay: `${delayOffset + i * 0.08}s` }}
-            >
-                {word}&nbsp;
-            </span>
-        ))}
-    </>
-);
+const CATEGORIES = ['Electronics', 'Accessories', 'Beauty/cosmetics', 'Home goods', 'Food/beverages', 'Furniture', 'Children/Toys'];
+
+const HERO_POOL_SIZE = 36;
+const HERO_VISIBLE = 3;
+
+type HeroProduct = {
+    id: string;
+    name: string;
+    image: string;
+};
+
+const FALLBACK_POOL: HeroProduct[] = [
+    { id: 'fb-1', name: 'Heritage print shirt', image: '/product-3.png' },
+    { id: 'fb-2', name: 'Signature graphic tee', image: '/product-4.png' },
+    { id: 'fb-3', name: 'Bold pattern top', image: '/product-5.png' },
+    { id: 'fb-4', name: 'Classic kente style', image: '/product-1.jpg' },
+    { id: 'fb-5', name: 'Urban streetwear', image: '/product-2.jpg' },
+];
+
+function pickForHour(pool: HeroProduct[], hour: number): HeroProduct[] {
+    if (!pool.length) return FALLBACK_POOL.slice(0, HERO_VISIBLE);
+    if (pool.length <= HERO_VISIBLE) return pool.slice(0, HERO_VISIBLE);
+
+    const start = (hour * HERO_VISIBLE) % pool.length;
+    const picked: HeroProduct[] = [];
+    for (let i = 0; i < HERO_VISIBLE; i++) {
+        picked.push(pool[(start + i) % pool.length]);
+    }
+    return picked;
+}
+
+const TILE_LAYOUT = [
+    {
+        span: 'col-span-2 row-span-1 sm:row-span-2',
+        minH: 'min-h-[200px] sm:min-h-[380px] lg:min-h-[420px]',
+    },
+    {
+        span: 'col-span-1 row-span-1',
+        minH: 'min-h-[110px] sm:min-h-[180px]',
+    },
+    {
+        span: 'col-span-1 row-span-1',
+        minH: 'min-h-[110px] sm:min-h-[180px]',
+    },
+];
 
 export default function Hero() {
+    const [pool, setPool] = useState<HeroProduct[]>(FALLBACK_POOL);
+    const [visible, setVisible] = useState<HeroProduct[]>(() => pickForHour(FALLBACK_POOL, new Date().getHours()));
+    const [rotationKey, setRotationKey] = useState(0);
+
+    const applyHourlyRotation = useCallback((productPool: HeroProduct[]) => {
+        const hour = new Date().getHours();
+        setVisible(pickForHour(productPool, hour));
+        setRotationKey((k) => k + 1);
+    }, []);
+
+    useEffect(() => {
+        const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+        fetch(`${api}/products?limit=${HERO_POOL_SIZE}`)
+            .then((res) => (res.ok ? res.json() : null))
+            .then((data) => {
+                const list = Array.isArray(data) ? data : data?.products;
+                if (!list?.length) return;
+
+                const withImages = list
+                    .filter((p: { images?: string[] }) => p.images?.[0])
+                    .map((p: { _id: string; name: string; images?: string[] }) => ({
+                        id: p._id,
+                        name: p.name,
+                        image: getImageUrl(p.images?.[0]),
+                    }));
+
+                if (withImages.length) setPool(withImages);
+            })
+            .catch(() => {});
+    }, []);
+
+    useEffect(() => {
+        applyHourlyRotation(pool);
+
+        const now = new Date();
+        const msToNextHour =
+            (60 - now.getMinutes()) * 60 * 1000 -
+            now.getSeconds() * 1000 -
+            now.getMilliseconds();
+
+        let hourlyTimer: ReturnType<typeof setInterval>;
+
+        const alignTimer = setTimeout(() => {
+            applyHourlyRotation(pool);
+            hourlyTimer = setInterval(() => applyHourlyRotation(pool), 60 * 60 * 1000);
+        }, msToNextHour);
+
+        return () => {
+            clearTimeout(alignTimer);
+            if (hourlyTimer) clearInterval(hourlyTimer);
+        };
+    }, [pool, applyHourlyRotation]);
+
     return (
-        <section className="relative w-full bg-white pt-24 md:pt-40 pb-20 overflow-hidden">
-            <div className="max-w-[1440px] mx-auto px-6 md:px-12">
-                {/* Content Header */}
-                <div className="flex flex-col items-center text-center mb-10 relative">
-                    {/* Skynet Partnership Badge - Desktop Only */}
-                    <div className="hidden lg:flex absolute left-0 top-1/2 -translate-y-1/2 flex-col items-center gap-4 group cursor-pointer z-20">
-                        <div className="relative w-32 h-32 flex items-center justify-center">
-                             <svg viewBox="0 0 100 100" className="absolute w-full h-full animate-spin-slow">
-                                <path id="curve" d="M 50, 50 m -40, 0 a 40,40 0 1,1 80,0 a 40,40 0 1,1 -80,0" fill="transparent" />
-                                <text className="text-[8px] font-black uppercase tracking-[0.3em] fill-slate-900 transition-colors">
-                                    <textPath xlinkHref="#curve">Official Logistics Partner • Skynet Express • </textPath>
-                                </text>
-                            </svg>
-                            <div className="w-20 h-20 bg-white rounded-2xl flex items-center justify-center shadow-2xl border border-slate-100 group-hover:scale-110 transition-transform p-4">
-                                <div className="relative w-full h-full">
-                                    <Image src="/skynet.png" alt="Skynet Express" fill className="object-contain" />
-                                </div>
-                            </div>
+        <section className="relative w-full bg-[#FAFAF9] border-b border-slate-100">
+            <div className="max-w-[1440px] mx-auto px-5 sm:px-10 lg:px-14 xl:px-20 pt-28 md:pt-32 pb-14 md:pb-28">
+                <div className="grid lg:grid-cols-12 gap-10 lg:gap-20 items-center">
+                    {/* Products first on mobile */}
+                    <div className="lg:col-span-7 xl:col-span-7 order-1 lg:order-2">
+                        <div className="grid grid-cols-2 grid-rows-2 gap-2.5 sm:gap-4 lg:gap-5 max-w-lg mx-auto lg:max-w-none lg:mx-0">
+                            {visible.map((product, i) => {
+                                const layout = TILE_LAYOUT[i] ?? TILE_LAYOUT[2];
+                                return (
+                                    <Link
+                                        key={`${rotationKey}-${product.id}`}
+                                        href="/shop"
+                                        className={`relative overflow-hidden rounded-xl sm:rounded-3xl bg-slate-100 shadow-sm border border-slate-100/80 group animate-in fade-in duration-500 ${layout.span} ${layout.minH}`}
+                                    >
+                                        <Image
+                                            src={product.image}
+                                            alt={product.name}
+                                            fill
+                                            className="object-cover object-center transition-transform duration-700 group-hover:scale-[1.03]"
+                                            sizes={i === 0 ? '(max-width: 1024px) 90vw, 560px' : '(max-width: 1024px) 45vw, 280px'}
+                                            priority={i === 0}
+                                            unoptimized
+                                        />
+                                        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/55 to-transparent pt-10 pb-2.5 px-3 sm:pb-3 sm:px-4">
+                                            <p className="text-[11px] sm:text-sm font-semibold text-white line-clamp-2 leading-snug">
+                                                {product.name}
+                                            </p>
+                                        </div>
+                                    </Link>
+                                );
+                            })}
                         </div>
                     </div>
 
-                    <h1 className="text-4xl md:text-7xl lg:text-8xl font-black text-slate-900 tracking-tighter leading-[0.9] max-w-5xl uppercase">
-                        <AnimatedText text="The Fastest Way" delayOffset={0.1} /> <br />
-                        <AnimatedText text="To Get" delayOffset={0.34} />
-                        <span 
-                            className="bg-gradient-to-r from-brand-lemon via-slate-400 to-brand-lemon bg-[length:200%_auto] bg-clip-text text-transparent animate-text-shine inline-block animate-fade-up-word"
-                            style={{ animationDelay: '0.5s' }}
-                        >
-                            Exactly
-                        </span> <br />
-                        <AnimatedText text="What You've Ordered" delayOffset={0.58} />
-                    </h1>
+                    <div className="lg:col-span-5 xl:col-span-5 text-left order-2 lg:order-1">
+                        <p className="text-sm font-medium text-slate-500 mb-4 sm:mb-5 tracking-wide">
+                            Ghana&apos;s marketplace for everything you need
+                        </p>
+                        <h1 className="text-[1.75rem] sm:text-4xl xl:text-[3.25rem] font-bold text-slate-900 tracking-tight leading-[1.12] max-w-xl">
+                            The fastest way to get{' '}
+                            <span className="underline decoration-brand-lemon decoration-[3px] underline-offset-[6px]">
+                                exactly
+                            </span>{' '}
+                            what you&apos;ve ordered
+                        </h1>
+                        <p className="mt-4 sm:mt-6 text-sm sm:text-lg text-slate-600 leading-relaxed max-w-lg">
+                            Fashion, electronics, accessories, home goods &amp; more — from verified vendors nationwide.
+                        </p>
 
-                    <div className="flex flex-row justify-center gap-4 mt-12 w-full px-6 md:px-0 animate-scale-in" style={{ animationDelay: '1s' }}>
-                        <Link href="/shop" className="flex-1 md:flex-none md:w-36 bg-slate-900 text-white py-4 rounded-full text-[11px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-xl hover:scale-105 active:scale-95 flex items-center justify-center">
-                            Shop Now
-                        </Link>
-                        <Link href="/auth?role=vendor" className="flex-1 md:flex-none md:w-36 bg-white text-slate-900 border-2 border-slate-900 py-4 rounded-full text-[11px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all shadow-lg hover:scale-105 active:scale-95 flex items-center justify-center">
-                            Sell Now
-                        </Link>
-                    </div>
-
-                    {/* Avatar Group - Desktop Only */}
-                    <div className="hidden lg:flex absolute right-0 top-1/2 -translate-y-1/2 items-center -space-x-4 z-20">
-                        {[1, 2, 3].map((i) => (
-                            <div key={i} className="w-14 h-14 rounded-full border-4 border-white overflow-hidden bg-slate-100 shadow-xl">
-                                <Image src={`/hero/${i === 1 ? 'sunglasses' : i === 2 ? 'center' : 'green'}.png`} alt="User" width={56} height={56} className="object-cover" />
-                            </div>
-                        ))}
-                        <div className="w-14 h-14 rounded-full border-4 border-white bg-slate-900 flex items-center justify-center text-white text-[10px] font-black shadow-xl">
-                            +
+                        <div className="mt-5 sm:mt-6 flex flex-wrap gap-2">
+                            {CATEGORIES.map((cat) => (
+                                <Link
+                                    key={cat}
+                                    href={`/shop?category=${encodeURIComponent(cat)}`}
+                                    className="text-[11px] sm:text-xs font-medium text-slate-600 bg-white border border-slate-200 px-2.5 sm:px-3 py-1.5 rounded-full hover:border-slate-400 hover:text-slate-900 transition-colors"
+                                >
+                                    {cat}
+                                </Link>
+                            ))}
                         </div>
-                    </div>
-                </div>
 
-                {/* Dynamic Image Grid - Now with Mobile Collage */}
-                <div className="relative grid grid-cols-5 gap-2 md:gap-6 items-end h-[350px] md:h-[650px] mt-4 md:mt-0 animate-scale-in" style={{ animationDelay: '0.4s' }}>
-                    
-                    {/* Far Left - Column 1 */}
-                    <div className="flex flex-col gap-2 md:gap-6 h-full justify-between">
-                        <div className="relative flex-1 rounded-2xl overflow-hidden group shadow-sm">
-                            <Image src="/hero/orange.png" alt="Fashion" fill className="object-cover group-hover:scale-110 transition-transform duration-1000" />
-                        </div>
-                        <div className="relative h-1/4 md:h-1/3 rounded-2xl overflow-hidden bg-brand-lemon group shadow-sm">
-                             <Image src="/hero/blue.png" alt="Fashion" fill className="object-cover" />
-                        </div>
-                    </div>
-
-                    {/* Inner Left - Column 2 */}
-                    <div className="relative h-[80%] md:h-[95%] rounded-3xl overflow-hidden group shadow-lg">
-                         <div className="absolute top-0 left-0 right-0 h-4 md:h-14 bg-white/20 backdrop-blur-xl rounded-2xl z-10" />
-                         <Image src="/hero/green.png" alt="Fashion" fill className="object-cover group-hover:scale-110 transition-transform duration-1000" />
-                    </div>
-
-                    {/* Center Piece - Column 3 */}
-                    <div className="relative flex flex-col gap-2 md:gap-6 h-full justify-center">
-                        <div className="relative h-[70%] md:h-[65%] rounded-2xl overflow-hidden shadow-2xl group border-[4px] md:border-[12px] border-white z-10">
-                             <Image src="/hero/center.png" alt="Fashion" fill className="object-cover" />
-                        </div>
-                        <div className="hidden md:flex justify-center -mt-10 z-20">
-                            <Link href="/shop" className="bg-slate-900 text-white px-10 py-5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-3 shadow-2xl hover:bg-black transition-all group">
-                                Explore <ArrowRight className="w-4 h-4 text-brand-lemon group-hover:translate-x-1 transition-transform" />
+                        {/* Side by side on mobile — opposite each other */}
+                        <div className="mt-8 sm:mt-10 flex flex-row gap-3">
+                            <Link
+                                href="/shop"
+                                className="flex-1 inline-flex items-center justify-center h-11 sm:h-12 rounded-full bg-slate-900 text-white text-sm font-semibold hover:bg-black transition-colors"
+                            >
+                                Shop now
+                            </Link>
+                            <Link
+                                href="/auth?role=vendor"
+                                className="flex-1 inline-flex items-center justify-center h-11 sm:h-12 rounded-full border border-slate-300 bg-white text-slate-900 text-sm font-semibold hover:bg-slate-50 transition-colors"
+                            >
+                                Sell on FLA
                             </Link>
                         </div>
-                    </div>
 
-                    {/* Inner Right - Column 4 */}
-                    <div className="relative h-[80%] md:h-[95%] rounded-3xl overflow-hidden group shadow-lg">
-                        <div className="absolute top-0 left-0 right-0 h-4 md:h-14 bg-white/20 backdrop-blur-xl rounded-2xl z-10" />
-                        <Image src="/hero/blue.png" alt="Fashion" fill className="object-cover group-hover:scale-110 transition-transform duration-1000" />
-                    </div>
-
-                    {/* Far Right - Column 5 */}
-                    <div className="flex flex-col gap-2 md:gap-6 h-full justify-between">
-                         <div className="relative h-[70%] md:h-[65%] rounded-2xl overflow-hidden group shadow-sm">
-                             <Image src="/hero/sunglasses.png" alt="Fashion" fill className="object-cover" />
-                        </div>
-                        <div className="relative flex-1 rounded-2xl overflow-hidden bg-slate-900 group shadow-sm">
-                             <Image src="/hero/green.png" alt="Fashion" fill className="object-cover" />
-                        </div>
+                        <ul className="mt-8 sm:mt-12 flex flex-col sm:flex-row flex-wrap gap-x-8 gap-y-3">
+                            <li className="flex items-center gap-2 text-sm text-slate-600">
+                                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                                Verified vendors
+                            </li>
+                            <li className="flex items-center gap-2 text-sm text-slate-600">
+                                <CreditCard className="w-4 h-4 text-slate-900 shrink-0" />
+                                Secure payments
+                            </li>
+                            <li className="flex items-center gap-2 text-sm text-slate-600">
+                                <div className="relative w-5 h-5 shrink-0">
+                                    <Image src="/skynet.png" alt="" fill className="object-contain" />
+                                </div>
+                                Skynet delivery
+                            </li>
+                        </ul>
                     </div>
                 </div>
-
             </div>
         </section>
     );

@@ -110,6 +110,7 @@ function ShopContent() {
 
     const searchParams = useSearchParams();
     const searchQuery = searchParams.get('search');
+    const categoryQuery = searchParams.get('category');
 
     // Sync localSearch with URL search param
     useEffect(() => {
@@ -117,6 +118,12 @@ function ShopContent() {
             setLocalSearch(searchQuery);
         }
     }, [searchQuery]);
+
+    useEffect(() => {
+        if (categoryQuery) {
+            setActiveCategory(categoryQuery);
+        }
+    }, [categoryQuery]);
 
     const filterData: Record<string, string[]> = {
         Region: GHANA_REGIONS,
