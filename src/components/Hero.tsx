@@ -40,15 +40,15 @@ function pickForHour(pool: HeroProduct[], hour: number): HeroProduct[] {
 const TILE_LAYOUT = [
     {
         span: 'col-span-2 row-span-1 sm:row-span-2',
-        minH: 'min-h-[200px] sm:min-h-[380px] lg:min-h-[420px]',
+        minH: 'min-h-[160px] sm:min-h-[380px] lg:min-h-[420px]',
     },
     {
         span: 'col-span-1 row-span-1',
-        minH: 'min-h-[110px] sm:min-h-[180px]',
+        minH: 'min-h-[90px] sm:min-h-[180px]',
     },
     {
         span: 'col-span-1 row-span-1',
-        minH: 'min-h-[110px] sm:min-h-[180px]',
+        minH: 'min-h-[90px] sm:min-h-[180px]',
     },
 ];
 
@@ -108,10 +108,70 @@ export default function Hero() {
 
     return (
         <section className="relative w-full bg-[#FAFAF9] border-b border-slate-100">
-            <div className="max-w-[1440px] mx-auto px-5 sm:px-10 lg:px-14 xl:px-20 pt-28 md:pt-32 pb-14 md:pb-28">
-                <div className="grid lg:grid-cols-12 gap-10 lg:gap-20 items-center">
-                    {/* Products first on mobile */}
-                    <div className="lg:col-span-7 xl:col-span-7 order-1 lg:order-2">
+            <div className="max-w-[1440px] mx-auto px-5 sm:px-10 lg:px-14 xl:px-20 pt-24 md:pt-32 pb-14 md:pb-28">
+                <div className="grid lg:grid-cols-12 gap-8 lg:gap-20 items-center">
+                    {/* Copy first on mobile so CTAs are visible without scrolling */}
+                    <div className="lg:col-span-5 xl:col-span-5 text-left order-1 lg:order-1">
+                        <p className="text-sm font-medium text-slate-500 mb-3 sm:mb-5 tracking-wide">
+                            Ghana&apos;s marketplace for everything you need
+                        </p>
+                        <h1 className="text-[1.625rem] sm:text-4xl xl:text-[3.25rem] font-bold text-slate-900 tracking-tight leading-[1.12] max-w-xl">
+                            The fastest way to get{' '}
+                            <span className="underline decoration-brand-lemon decoration-[3px] underline-offset-[6px]">
+                                exactly
+                            </span>{' '}
+                            what you&apos;ve ordered
+                        </h1>
+                        <p className="mt-3 sm:mt-6 text-sm sm:text-lg text-slate-600 leading-relaxed max-w-lg">
+                            Fashion, electronics, accessories &amp; more from verified vendors.
+                        </p>
+
+                        <div className="mt-5 sm:mt-8 flex flex-row gap-3">
+                            <Link
+                                href="/shop"
+                                className="flex-1 inline-flex items-center justify-center h-11 sm:h-12 rounded-full bg-slate-900 text-white text-sm font-semibold hover:bg-black transition-colors"
+                            >
+                                Shop now
+                            </Link>
+                            <Link
+                                href="/auth?role=vendor"
+                                className="flex-1 inline-flex items-center justify-center h-11 sm:h-12 rounded-full border border-slate-300 bg-white text-slate-900 text-sm font-semibold hover:bg-slate-50 transition-colors"
+                            >
+                                Sell on FLA
+                            </Link>
+                        </div>
+
+                        <ul className="mt-5 sm:mt-8 flex flex-wrap gap-x-5 gap-y-2 sm:gap-x-8 sm:gap-y-3">
+                            <li className="flex items-center gap-2 text-xs sm:text-sm text-slate-600">
+                                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                                Verified vendors
+                            </li>
+                            <li className="flex items-center gap-2 text-xs sm:text-sm text-slate-600">
+                                <CreditCard className="w-4 h-4 text-slate-900 shrink-0" />
+                                Secure payments
+                            </li>
+                            <li className="flex items-center gap-2 text-xs sm:text-sm text-slate-600">
+                                <div className="relative w-5 h-5 shrink-0">
+                                    <Image src="/skynet.png" alt="" fill className="object-contain" />
+                                </div>
+                                Skynet delivery
+                            </li>
+                        </ul>
+
+                        <div className="mt-6 sm:mt-8 hidden md:flex flex-wrap gap-2">
+                            {CATEGORIES.map((cat) => (
+                                <Link
+                                    key={cat}
+                                    href={`/shop?category=${encodeURIComponent(cat)}`}
+                                    className="text-xs font-medium text-slate-600 bg-white border border-slate-200 px-3 py-1.5 rounded-full hover:border-slate-400 hover:text-slate-900 transition-colors"
+                                >
+                                    {cat}
+                                </Link>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="lg:col-span-7 xl:col-span-7 order-2 lg:order-2">
                         <div className="grid grid-cols-2 grid-rows-2 gap-2.5 sm:gap-4 lg:gap-5 max-w-lg mx-auto lg:max-w-none lg:mx-0">
                             {visible.map((product, i) => {
                                 const layout = TILE_LAYOUT[i] ?? TILE_LAYOUT[2];
@@ -139,67 +199,6 @@ export default function Hero() {
                                 );
                             })}
                         </div>
-                    </div>
-
-                    <div className="lg:col-span-5 xl:col-span-5 text-left order-2 lg:order-1">
-                        <p className="text-sm font-medium text-slate-500 mb-4 sm:mb-5 tracking-wide">
-                            Ghana&apos;s marketplace for everything you need
-                        </p>
-                        <h1 className="text-[1.75rem] sm:text-4xl xl:text-[3.25rem] font-bold text-slate-900 tracking-tight leading-[1.12] max-w-xl">
-                            The fastest way to get{' '}
-                            <span className="underline decoration-brand-lemon decoration-[3px] underline-offset-[6px]">
-                                exactly
-                            </span>{' '}
-                            what you&apos;ve ordered
-                        </h1>
-                        <p className="mt-4 sm:mt-6 text-sm sm:text-lg text-slate-600 leading-relaxed max-w-lg">
-                            Fashion, electronics, accessories, home goods &amp; more — from verified vendors nationwide.
-                        </p>
-
-                        <div className="mt-5 sm:mt-6 flex flex-wrap gap-2">
-                            {CATEGORIES.map((cat) => (
-                                <Link
-                                    key={cat}
-                                    href={`/shop?category=${encodeURIComponent(cat)}`}
-                                    className="text-[11px] sm:text-xs font-medium text-slate-600 bg-white border border-slate-200 px-2.5 sm:px-3 py-1.5 rounded-full hover:border-slate-400 hover:text-slate-900 transition-colors"
-                                >
-                                    {cat}
-                                </Link>
-                            ))}
-                        </div>
-
-                        {/* Side by side on mobile — opposite each other */}
-                        <div className="mt-8 sm:mt-10 flex flex-row gap-3">
-                            <Link
-                                href="/shop"
-                                className="flex-1 inline-flex items-center justify-center h-11 sm:h-12 rounded-full bg-slate-900 text-white text-sm font-semibold hover:bg-black transition-colors"
-                            >
-                                Shop now
-                            </Link>
-                            <Link
-                                href="/auth?role=vendor"
-                                className="flex-1 inline-flex items-center justify-center h-11 sm:h-12 rounded-full border border-slate-300 bg-white text-slate-900 text-sm font-semibold hover:bg-slate-50 transition-colors"
-                            >
-                                Sell on FLA
-                            </Link>
-                        </div>
-
-                        <ul className="mt-8 sm:mt-12 flex flex-col sm:flex-row flex-wrap gap-x-8 gap-y-3">
-                            <li className="flex items-center gap-2 text-sm text-slate-600">
-                                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-                                Verified vendors
-                            </li>
-                            <li className="flex items-center gap-2 text-sm text-slate-600">
-                                <CreditCard className="w-4 h-4 text-slate-900 shrink-0" />
-                                Secure payments
-                            </li>
-                            <li className="flex items-center gap-2 text-sm text-slate-600">
-                                <div className="relative w-5 h-5 shrink-0">
-                                    <Image src="/skynet.png" alt="" fill className="object-contain" />
-                                </div>
-                                Skynet delivery
-                            </li>
-                        </ul>
                     </div>
                 </div>
             </div>
