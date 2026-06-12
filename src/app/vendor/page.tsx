@@ -73,6 +73,9 @@ export default function VendorDashboard() {
     const [formColors, setFormColors] = useState<string[]>([]);
     const [formImageLabels, setFormImageLabels] = useState<string[]>(['Front', 'Back', 'Side', 'Details']);
     const [customColorInput, setCustomColorInput] = useState('');
+    const [customSizeInput, setCustomSizeInput] = useState('');
+
+    const PRESET_SIZES = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL'];
 
     // Profile States
     const [shopName, setShopName] = useState('');
@@ -464,6 +467,16 @@ export default function VendorDashboard() {
         setFormColors([]);
         setFormImageLabels(['Front', 'Back', 'Side', 'Details']);
         setCustomColorInput('');
+        setCustomSizeInput('');
+    };
+
+    const addCustomSize = () => {
+        const size = customSizeInput.trim();
+        if (!size) return;
+        if (!formSizes.includes(size)) {
+            setFormSizes((prev) => [...prev, size]);
+        }
+        setCustomSizeInput('');
     };
 
     const renderContent = () => {
@@ -489,6 +502,7 @@ export default function VendorDashboard() {
                             setFormNarrative(p.description);
                             setFormImages(p.images?.map((img: any) => typeof img === 'string' ? img : img.url) || []);
                             setFormSizes(p.sizes || []);
+                            setCustomSizeInput('');
                             setFormHasSizes(p.hasSizes !== undefined ? p.hasSizes : true);
                             setFormHasColors(p.hasColors !== undefined ? p.hasColors : true);
                             setFormColors(p.colors || []);
@@ -836,17 +850,57 @@ export default function VendorDashboard() {
                                     </div>
 
                                     {formHasSizes && (
-                                        <div className="flex flex-wrap gap-2">
-                                            {['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', 'Custom'].map((size) => (
+                                        <div className="space-y-4">
+                                            <div className="flex flex-wrap gap-2">
+                                                {PRESET_SIZES.map((size) => (
+                                                    <button
+                                                        key={size}
+                                                        type="button"
+                                                        onClick={() => setFormSizes(prev => prev.includes(size) ? prev.filter(s => s !== size) : [...prev, size])}
+                                                        className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border ${formSizes.includes(size) ? 'bg-slate-900 text-brand-lemon border-slate-900 shadow-lg' : 'bg-white text-slate-400 border-slate-100 hover:border-slate-200'}`}
+                                                    >
+                                                        {size}
+                                                    </button>
+                                                ))}
+                                            </div>
+
+                                            <div className="flex gap-2">
+                                                <input
+                                                    type="text"
+                                                    placeholder="Add custom size (e.g. 42, UK 9, Free Size)..."
+                                                    value={customSizeInput}
+                                                    onChange={(e) => setCustomSizeInput(e.target.value)}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter') {
+                                                            e.preventDefault();
+                                                            addCustomSize();
+                                                        }
+                                                    }}
+                                                    className="flex-1 px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-[10px] font-bold focus:ring-2 focus:ring-slate-900/10 placeholder:text-slate-300"
+                                                />
                                                 <button
-                                                    key={size}
                                                     type="button"
-                                                    onClick={() => setFormSizes(prev => prev.includes(size) ? prev.filter(s => s !== size) : [...prev, size])}
-                                                    className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border ${formSizes.includes(size) ? 'bg-slate-900 text-brand-lemon border-slate-900 shadow-lg' : 'bg-white text-slate-400 border-slate-100 hover:border-slate-200'}`}
+                                                    onClick={addCustomSize}
+                                                    className="px-6 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/10"
                                                 >
-                                                    {size}
+                                                    Add
                                                 </button>
-                                            ))}
+                                            </div>
+
+                                            {formSizes.filter((s) => !PRESET_SIZES.includes(s)).length > 0 && (
+                                                <div className="flex flex-wrap gap-2">
+                                                    {formSizes.filter((s) => !PRESET_SIZES.includes(s)).map((size) => (
+                                                        <button
+                                                            key={size}
+                                                            type="button"
+                                                            onClick={() => setFormSizes((prev) => prev.filter((s) => s !== size))}
+                                                            className="px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border bg-slate-900 text-brand-lemon border-slate-900 shadow-lg"
+                                                        >
+                                                            {size} ×
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
                                     )}
                                 </div>
