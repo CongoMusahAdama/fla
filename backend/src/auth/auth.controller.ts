@@ -89,7 +89,10 @@ export class AuthController {
   @Patch('profile')
   async updateProfile(@Request() req, @Body() updateUserDto: UpdateUserDto) {
     const result = await this.usersService.update(req.user.userId, updateUserDto);
-    return result;
+    if (!result) {
+      throw new BadRequestException('Profile update failed');
+    }
+    return this.authService.mapPublicUser(result);
   }
 
   @Post('send-otp')

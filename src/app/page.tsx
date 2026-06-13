@@ -238,6 +238,7 @@ export default function Home() {
                     vendorCity={product.vendorLocation}
                     vendorBio={product.vendorBio}
                     vendorDocumented={product.vendorDocumented}
+                    vendorTier={product.vendorTier}
                   />
                 ))
               ) : (

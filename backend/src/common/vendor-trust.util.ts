@@ -1,18 +1,10 @@
-/** Green badge on storefront: vendor submitted KYC docs and is approved/verified. */
+/** Green badge on storefront: high-tier vendor (business registration on file). */
 export function isVendorDocumented(vendor?: {
-  status?: string;
-  ghanaCardFront?: string;
-  selfie?: string;
-  isVerified?: boolean;
-  isIdentityVerified?: boolean;
-  kycApprovedAt?: Date | string | null;
-  verificationStatus?: string;
+  vendorTier?: string;
+  businessRegistration?: string;
 } | null): boolean {
   if (!vendor) return false;
-  const hasDocs = Boolean(vendor.ghanaCardFront && vendor.selfie);
-  if (!hasDocs) return false;
-  if (vendor.status === 'active' || vendor.kycApprovedAt) return true;
-  if (vendor.isVerified || vendor.isIdentityVerified) return true;
-  if (vendor.verificationStatus === 'verified') return true;
-  return false;
+  if (vendor.vendorTier === 'high') return true;
+  // Fallback when tier was not synced but business registration exists
+  return Boolean(vendor.businessRegistration?.trim());
 }

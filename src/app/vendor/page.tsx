@@ -368,12 +368,18 @@ export default function VendorDashboard() {
                 })
             });
 
-            if (!res.ok) throw new Error("Sync failed");
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                const msg = Array.isArray(errData.message)
+                    ? errData.message.join(', ')
+                    : errData.message;
+                throw new Error(msg || 'Could not save store information');
+            }
             const updated = await res.json();
             updateUser(updated);
             Swal.fire({ icon: 'success', title: 'IDENTITY UPDATED', customClass: { popup: 'rounded-[32px]' } });
-        } catch (err) {
-            Swal.fire('Update Failed', 'Internal synchronization error.', 'error');
+        } catch (err: any) {
+            Swal.fire('Update Failed', err?.message || 'Internal synchronization error.', 'error');
         }
     };
 

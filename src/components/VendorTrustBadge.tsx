@@ -8,7 +8,7 @@ interface VendorTrustBadgeProps {
   className?: string;
 }
 
-/** Green = FLA-documented vendor; yellow = documentation pending. */
+/** Green = high-tier vendor (business registered); yellow = low-tier. */
 export function VendorTrustBadge({
   documented = false,
   size = 'sm',
@@ -21,13 +21,13 @@ export function VendorTrustBadge({
     <span
       title={
         documented
-          ? 'FLA documented vendor — identity verified on file'
-          : 'Vendor documentation pending — shop with care'
+          ? 'High-tier vendor — business registration on file'
+          : 'Low-tier vendor — sells items up to GHS 100'
       }
       className={`inline-flex items-center justify-center rounded-full shrink-0 ring-2 ring-white shadow-sm ${
         documented ? 'bg-emerald-500' : 'bg-amber-400'
       } ${dim} ${className}`}
-      aria-label={documented ? 'Documented vendor' : 'Documentation pending'}
+      aria-label={documented ? 'High-tier vendor' : 'Low-tier vendor'}
     >
       <Check className={`${icon} text-white`} strokeWidth={3} />
     </span>

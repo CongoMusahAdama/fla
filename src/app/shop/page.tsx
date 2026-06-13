@@ -370,6 +370,7 @@ function ShopContent() {
                                     vendorCity={product.vendorLocation}
                                     vendorBio={product.vendorBio}
                                     vendorDocumented={product.vendorDocumented}
+                                    vendorTier={product.vendorTier}
                                 />
                             ))}
                         </div>

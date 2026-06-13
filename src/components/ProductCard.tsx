@@ -34,9 +34,10 @@ interface ProductCardProps {
     vendorCity?: string;
     vendorBio?: string;
     vendorDocumented?: boolean;
+    vendorTier?: 'low' | 'high';
 }
 
-export default function ProductCard({ id, name, price, images, sizes = [], imageLabels, duration = '6-7 working days', stock, index, vendorId, initialWishlistState = false, description, vendorName, uniqueVendorId, hasSizes = true, hasColors = true, colors = [], vendorRegion, vendorCity, vendorBio, vendorDocumented }: ProductCardProps) {
+export default function ProductCard({ id, name, price, images, sizes = [], imageLabels, duration = '6-7 working days', stock, index, vendorId, initialWishlistState = false, description, vendorName, uniqueVendorId, hasSizes = true, hasColors = true, colors = [], vendorRegion, vendorCity, vendorBio, vendorDocumented, vendorTier }: ProductCardProps) {
     const isBatch = false;
     const currentPrice = price;
 
@@ -63,6 +64,7 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
 
     const vendorDocStatus =
         vendorDocumented ??
+        (vendorTier === 'high' ? true : vendorTier === 'low' ? false : undefined) ??
         (typeof vendorId === 'object' && vendorId !== null
             ? isVendorDocumented(vendorId as Parameters<typeof isVendorDocumented>[0])
             : false);
@@ -107,7 +109,10 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                     { location: vendor.location || vendorCity, region: vendor.region },
                     vendorRegion,
                 ),
-                documented: isVendorDocumented(vendor),
+                documented: isVendorDocumented({
+                    vendorTier: vendor.vendorTier,
+                    businessRegistration: vendor.businessRegistration,
+                }),
             });
         } catch (error) {
             console.error(error);

@@ -54,6 +54,14 @@ export class UpdateUserDto {
     accountName?: string;
 
     @IsOptional()
+    paymentMethods?: Array<{
+        type?: string;
+        network: string;
+        accountNumber: string;
+        accountName: string;
+    }>;
+
+    @IsOptional()
     walletBalance?: number;
 
     @IsOptional()

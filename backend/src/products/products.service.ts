@@ -8,7 +8,7 @@ import { User, UserDocument } from '../users/schemas/user.schema';
 import { isVendorDocumented } from '../common/vendor-trust.util';
 
 const VENDOR_POPULATE_FIELDS =
-  'uniqueVendorId region location bio shopName status ghanaCardFront selfie isVerified isIdentityVerified verificationStatus kycApprovedAt';
+  'uniqueVendorId region location bio shopName vendorTier businessRegistration';
 
 @Injectable()
 export class ProductsService implements OnModuleInit {
@@ -67,6 +67,12 @@ export class ProductsService implements OnModuleInit {
       p.vendorName = vendor.shopName;
     }
     p.vendorDocumented = isVendorDocumented(vendor);
+    if (vendor) {
+      p.vendorTier =
+        vendor.vendorTier === 'high' || vendor.businessRegistration?.trim()
+          ? 'high'
+          : 'low';
+    }
     return p;
   }
 
@@ -182,50 +188,24 @@ export class ProductsService implements OnModuleInit {
   }
 
   async findByVendor(vendorId: string): Promise<Product[]> {
-    const products = await this.productModel.find({ vendorId: vendorId }).populate('vendorId', VENDOR_POPULATE_FIELDS).exec();
-    return products.map(p => {
-      const productObj = p.toObject();
-      if (!productObj.uniqueVendorId && productObj.vendorId && (productObj.vendorId as any).uniqueVendorId) {
-        productObj.uniqueVendorId = (productObj.vendorId as any).uniqueVendorId;
-      }
-      if (!productObj.region && productObj.vendorId && (productObj.vendorId as any).region) {
-        productObj.region = (productObj.vendorId as any).region;
-      }
-      if (!productObj.vendorBio && productObj.vendorId && (productObj.vendorId as any).bio) {
-        productObj.vendorBio = (productObj.vendorId as any).bio;
-      }
-      if (!productObj.vendorName && productObj.vendorId && (productObj.vendorId as any).shopName) {
-        productObj.vendorName = (productObj.vendorId as any).shopName;
-      }
-      if (!productObj.vendorLocation && productObj.vendorId && (productObj.vendorId as any).location) {
-        productObj.vendorLocation = (productObj.vendorId as any).location;
-      }
-      return productObj;
-    });
+    const products = await this.productModel
+      .find({ vendorId })
+      .populate('vendorId', VENDOR_POPULATE_FIELDS)
+      .lean()
+      .exec() as any[];
+    return products.map((p) => this.mapProductForClient(p));
   }
 
   async findOne(id: string): Promise<Product> {
-    const product = await this.productModel.findById(id).populate('vendorId', 'uniqueVendorId region location bio shopName').exec();
+    const product = await this.productModel
+      .findById(id)
+      .populate('vendorId', VENDOR_POPULATE_FIELDS)
+      .lean()
+      .exec() as any;
     if (!product) {
       throw new NotFoundException(`Product with ID ${id} not found`);
     }
-    const productObj = product.toObject() as any;
-    if (!productObj.uniqueVendorId && productObj.vendorId && (productObj.vendorId as any).uniqueVendorId) {
-      productObj.uniqueVendorId = (productObj.vendorId as any).uniqueVendorId;
-    }
-    if (!productObj.region && productObj.vendorId && (productObj.vendorId as any).region) {
-      productObj.region = (productObj.vendorId as any).region;
-    }
-    if (!productObj.vendorBio && productObj.vendorId && (productObj.vendorId as any).bio) {
-      productObj.vendorBio = (productObj.vendorId as any).bio;
-    }
-    if (!productObj.vendorName && productObj.vendorId && (productObj.vendorId as any).shopName) {
-      productObj.vendorName = (productObj.vendorId as any).shopName;
-    }
-    if (!productObj.vendorLocation && productObj.vendorId && (productObj.vendorId as any).location) {
-      productObj.vendorLocation = (productObj.vendorId as any).location;
-    }
-    return productObj as any;
+    return this.mapProductForClient(product) as any;
   }
 
   async update(id: string, updateProductDto: UpdateProductDto, user: any): Promise<Product> {

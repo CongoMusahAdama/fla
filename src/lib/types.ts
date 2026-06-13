@@ -18,4 +18,5 @@ export interface Product {
   vendorLocation?: string;
   vendorBio?: string;
   vendorDocumented?: boolean;
+  vendorTier?: 'low' | 'high';
 }

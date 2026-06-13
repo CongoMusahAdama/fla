@@ -70,7 +70,8 @@ export class UsersService {
         ? `FLA-V-${crypto.randomBytes(3).toString('hex').toUpperCase()}`
         : undefined;
 
-      const vendorTier = (role === 'vendor' && createUserDto.businessRegistration) ? 'high' : 'low';
+      const vendorTier =
+        role === 'vendor' && createUserDto.businessRegistration?.trim() ? 'high' : 'low';
 
       // Check for pending Shufti verification
       const tempVerification = await this.tempVerificationModel.findOne({ email: email.toLowerCase().trim() }).exec();
@@ -205,9 +206,15 @@ export class UsersService {
 
   async update(id: string, updateUserDto: UpdateUserDto): Promise<User | null> {
     const updateData: any = { ...updateUserDto };
-    
+
+    if (updateData.paymentMethods?.length) {
+      const primary = updateData.paymentMethods[0];
+      if (primary?.accountNumber) updateData.momoNumber = primary.accountNumber;
+      if (primary?.accountName) updateData.accountName = primary.accountName;
+    }
+
     // Auto-promote to high tier if business registration is provided
-    if (updateData.businessRegistration) {
+    if (updateData.businessRegistration?.trim()) {
       updateData.vendorTier = 'high';
     }
 
@@ -398,9 +405,13 @@ export class UsersService {
   }
 
   async updateStatus(id: string, status: 'active' | 'rejected' | 'pending' | 'banned'): Promise<User | null> {
+    const existing = await this.userModel.findById(id).exec();
     const update: Record<string, unknown> = { status };
     if (status === 'active') {
       update.kycApprovedAt = new Date();
+    }
+    if (existing?.role === 'vendor' && existing.businessRegistration?.trim()) {
+      update.vendorTier = 'high';
     }
     // Shop approval is separate from Shufti identity verification — do not auto-set isIdentityVerified
     const user = await this.userModel.findByIdAndUpdate(id, { $set: update }, { new: true }).lean().exec() as unknown as User;

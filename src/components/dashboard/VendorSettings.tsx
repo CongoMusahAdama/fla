@@ -285,10 +285,10 @@ export const VendorSettings: React.FC<VendorSettingsProps> = ({
                             <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight">Compliance & Documentation</h3>
                             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Required for high-value sales (Above GH₵ 100)</p>
                         </div>
-                        {businessRegistration ? (
+                        {businessRegistration || user?.vendorTier === 'high' ? (
                             <div className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-600 rounded-2xl border border-emerald-100">
                                 <CheckCircle2 className="w-4 h-4" />
-                                <span className="text-[9px] font-black uppercase tracking-widest">Document Uploaded</span>
+                                <span className="text-[9px] font-black uppercase tracking-widest">High-Tier Vendor</span>
                             </div>
                         ) : (
                             <div className="flex items-center gap-2 px-4 py-2 bg-orange-50 text-orange-600 rounded-2xl border border-orange-100">
