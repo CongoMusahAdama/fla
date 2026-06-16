@@ -35,6 +35,28 @@ function countVendorProducts(products: any[] | undefined, vendorId: string): num
     return (products || []).filter((p) => resolveProductVendorId(p) === id).length;
 }
 
+function getOrderCommissionMeta(
+    order: { totalAmount?: number; adminCommission?: number; vendorShare?: number; commissionRate?: number },
+    defaultRate = 6,
+) {
+    const gross = Number(order.totalAmount) || 0;
+    const storedRate = Number(order.commissionRate);
+    const rate =
+        storedRate > 0
+            ? storedRate
+            : gross > 0 && order.adminCommission != null
+              ? (order.adminCommission / gross) * 100
+              : defaultRate;
+    const fee =
+        order.adminCommission != null && order.adminCommission >= 0
+            ? order.adminCommission
+            : gross * (rate / 100);
+    const net =
+        order.vendorShare != null && order.vendorShare >= 0 ? order.vendorShare : gross - fee;
+    const rateLabel = rate % 1 === 0 ? rate.toFixed(0) : rate.toFixed(1);
+    return { gross, rate, rateLabel, fee, net };
+}
+
 export default function AdminDashboard() {
     const { user, token, isAuthenticated, logout, isLoading: isAuthLoading } = useAuth();
     const router = useRouter();
@@ -1538,7 +1560,7 @@ export default function AdminDashboard() {
                                         </div>
                                         <div className="flex justify-between text-[10px] font-bold">
                                             <span className="text-slate-500">Commission</span>
-                                            <span className="text-emerald-600">GH₵ {(o.adminCommission || o.totalAmount * 0.1).toLocaleString()}</span>
+                                            <span className="text-emerald-600">GH₵ {getOrderCommissionMeta(o, settings.platformCommission).fee.toLocaleString()}</span>
                                         </div>
                                     </div>
                                     <button
@@ -1565,7 +1587,9 @@ export default function AdminDashboard() {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-50">
-                                        {paginatedOrders.map((o) => (
+                                        {paginatedOrders.map((o) => {
+                                            const commission = getOrderCommissionMeta(o, settings.platformCommission);
+                                            return (
                                             <tr key={o._id} className="hover:bg-slate-50/50 transition-colors">
                                                 <td className="px-8 py-6 border-r border-slate-50">
                                                     <div className="flex items-center gap-4">
@@ -1588,15 +1612,15 @@ export default function AdminDashboard() {
                                                     <div className="space-y-1">
                                                         <div className="flex justify-between items-center gap-4">
                                                             <span className="text-[9px] font-black text-slate-400 uppercase">Gross</span>
-                                                            <span className="text-sm font-black text-slate-900 tabular-nums">GH₵ {o.totalAmount.toLocaleString()}</span>
+                                                            <span className="text-sm font-black text-slate-900 tabular-nums">GH₵ {commission.gross.toLocaleString()}</span>
                                                         </div>
                                                         <div className="flex justify-between items-center gap-4">
-                                                            <span className="text-[9px] font-black text-emerald-500 uppercase">Fee (10%)</span>
-                                                            <span className="text-[10px] font-black text-emerald-600 tabular-nums">GH₵ {(o.adminCommission || o.totalAmount * 0.1).toLocaleString()}</span>
+                                                            <span className="text-[9px] font-black text-emerald-500 uppercase">Fee ({commission.rateLabel}%)</span>
+                                                            <span className="text-[10px] font-black text-emerald-600 tabular-nums">GH₵ {commission.fee.toLocaleString()}</span>
                                                         </div>
                                                         <div className="flex justify-between items-center gap-4 pt-1 border-t border-slate-100">
                                                             <span className="text-[9px] font-black text-slate-400 uppercase">Vendor Net</span>
-                                                            <span className="text-[10px] font-black text-slate-900 tabular-nums">GH₵ {(o.vendorShare || o.totalAmount * 0.9).toLocaleString()}</span>
+                                                            <span className="text-[10px] font-black text-slate-900 tabular-nums">GH₵ {commission.net.toLocaleString()}</span>
                                                         </div>
                                                     </div>
                                                 </td>
@@ -1614,7 +1638,8 @@ export default function AdminDashboard() {
                                                     </button>
                                                 </td>
                                             </tr>
-                                        ))}
+                                            );
+                                        })}
                                     </tbody>
                                 </table>
                             </div>
@@ -2277,18 +2302,25 @@ export default function AdminDashboard() {
                                     </div>
                                     <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-8 relative z-10">Commission Breakdown</h3>
                                     <div className="space-y-6 relative z-10">
+                                        {(() => {
+                                            const commission = getOrderCommissionMeta(selectedOrder, settings.platformCommission);
+                                            return (
+                                                <>
                                         <div className="flex justify-between items-center">
                                             <span className="text-slate-400 text-xs font-bold uppercase">Order Gross Total</span>
-                                            <span className="text-xl font-black">GH₵ {selectedOrder.totalAmount.toLocaleString()}</span>
+                                            <span className="text-xl font-black">GH₵ {commission.gross.toLocaleString()}</span>
                                         </div>
                                         <div className="flex justify-between items-center text-red-400 pb-4 border-b border-white/10">
-                                            <span className="text-[10px] font-black uppercase">App Commission ({((selectedOrder.adminCommission || selectedOrder.totalAmount * 0.1) / selectedOrder.totalAmount * 100).toFixed(0)}%)</span>
-                                            <span className="font-black">- GH₵ {(selectedOrder.adminCommission || selectedOrder.totalAmount * 0.1)?.toLocaleString()}</span>
+                                            <span className="text-[10px] font-black uppercase">App Commission ({commission.rateLabel}%)</span>
+                                            <span className="font-black">- GH₵ {commission.fee.toLocaleString()}</span>
                                         </div>
                                         <div className="pt-4 flex justify-between items-center">
                                             <span className="text-brand-lemon text-xs font-black uppercase">Vendor Net Share</span>
-                                            <span className="text-2xl font-black text-brand-lemon">GH₵ {(selectedOrder.vendorShare || selectedOrder.totalAmount * 0.9)?.toLocaleString()}</span>
+                                            <span className="text-2xl font-black text-brand-lemon">GH₵ {commission.net.toLocaleString()}</span>
                                         </div>
+                                                </>
+                                            );
+                                        })()}
                                     </div>
                                 </div>
                             </div>

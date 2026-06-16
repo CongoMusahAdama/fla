@@ -18,7 +18,18 @@ const GHANA_REGIONS = [
     'Upper East', 'Upper West', 'Volta', 'Western', 'Western North'
 ];
 
+const REGION_ALL_LABEL = 'All Regions';
+const PRICE_ALL_LABEL = 'All Prices';
+
 const PRODUCTS_PER_PAGE = 12;
+
+function getPriceQueryParams(priceLabel?: string): Record<string, string> {
+    if (!priceLabel || priceLabel === PRICE_ALL_LABEL) return {};
+    if (priceLabel === 'Under GH₵500') return { priceLt: '500' };
+    if (priceLabel === 'GH₵500 - GH₵800') return { minPrice: '500', maxPrice: '800' };
+    if (priceLabel === 'Over GH₵800') return { priceGt: '800' };
+    return {};
+}
 
 function ShopContent() {
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -58,7 +69,7 @@ function ShopContent() {
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [activeCategory, localSearch, activeFilters.Region]);
+    }, [activeCategory, localSearch, activeFilters.Region, activeFilters.Price]);
 
     useEffect(() => {
         const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
@@ -73,6 +84,8 @@ function ShopContent() {
                 if (activeCategory !== 'All Product') params.set('category', activeCategory);
                 if (localSearch) params.set('search', localSearch);
                 if (activeFilters.Region) params.set('region', activeFilters.Region);
+                const priceParams = getPriceQueryParams(activeFilters.Price);
+                Object.entries(priceParams).forEach(([key, value]) => params.set(key, value));
 
                 const response = await fetch(`${api}/products?${params.toString()}`, {
                     signal: controller.signal,
@@ -105,7 +118,7 @@ function ShopContent() {
             clearTimeout(timer);
             controller.abort();
         };
-    }, [activeCategory, localSearch, activeFilters.Region, currentPage]);
+    }, [activeCategory, localSearch, activeFilters.Region, activeFilters.Price, currentPage]);
 
 
     const searchParams = useSearchParams();
@@ -126,11 +139,11 @@ function ShopContent() {
     }, [categoryQuery]);
 
     const filterData: Record<string, string[]> = {
-        Region: GHANA_REGIONS,
+        Region: [REGION_ALL_LABEL, ...GHANA_REGIONS],
         Color: ['Black', 'White', 'Blue', 'Purple', 'Green'],
         Size: ['Small', 'Medium', 'Large', 'XL', 'XXL'],
         Brand: ['FLA Exclusive', 'Signature Print', 'Urban Thread'],
-        Price: ['Under GH₵500', 'GH₵500 - GH₵800', 'Over GH₵800']
+        Price: [PRICE_ALL_LABEL, 'Under GH₵500', 'GH₵500 - GH₵800', 'Over GH₵800']
     };
 
     // Using the same product data as homepage for consistency
@@ -151,6 +164,16 @@ function ShopContent() {
     return (
         <main className="min-h-screen bg-white">
             <Navbar />
+
+            {/* Tap outside to close any open filter dropdown */}
+            {openDropdown && (
+                <button
+                    type="button"
+                    aria-label="Close filter menu"
+                    className="fixed inset-0 z-[35] bg-black/25 md:bg-black/10 cursor-default"
+                    onClick={() => setOpenDropdown(null)}
+                />
+            )}
 
             {/* Header Section - Modern Beige Style */}
             <section className="bg-[#F5F2Ed] pt-32 pb-16 px-4 md:px-8 relative overflow-hidden">
@@ -239,7 +262,7 @@ function ShopContent() {
                             </button>
 
                             {/* Dropdown Menu */}
-                            <div className={`absolute top-full left-0 mt-4 w-48 bg-white shadow-xl rounded-xl border border-gray-100 p-2 z-50 transition-all duration-200 origin-top-left ${openDropdown === 'Categories' ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'}`}>
+                            <div className={`absolute top-full left-0 mt-4 w-48 bg-white shadow-xl rounded-xl border border-gray-100 p-2 z-[50] transition-all duration-200 origin-top-left ${openDropdown === 'Categories' ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'}`}>
                                 {categories.map((cat) => (
                                     <button
                                         key={cat}
@@ -268,23 +291,31 @@ function ShopContent() {
                                 </button>
 
                                 {/* Generic Dropdown Content */}
-                                <div className={`absolute top-full left-0 mt-4 w-48 bg-white shadow-xl rounded-xl border border-gray-100 p-2 z-50 transition-all duration-200 origin-top-left ${openDropdown === filter ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'}`}>
-                                    {filterData[filter].map((option) => (
+                                <div className={`absolute top-full left-0 mt-4 w-48 bg-white shadow-xl rounded-xl border border-gray-100 p-2 z-[50] transition-all duration-200 origin-top-left ${openDropdown === filter ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'}`}>
+                                    {filterData[filter].map((option) => {
+                                        const isRegionAll = filter === 'Region' && option === REGION_ALL_LABEL;
+                                        const isPriceAll = filter === 'Price' && option === PRICE_ALL_LABEL;
+                                        const clearsFilter = isRegionAll || isPriceAll;
+                                        const isSelected = clearsFilter
+                                            ? !activeFilters[filter]
+                                            : activeFilters[filter] === option;
+                                        return (
                                         <button
                                             key={option}
                                             onClick={() => {
                                                 setActiveFilters(prev => ({
                                                     ...prev,
-                                                    [filter]: prev[filter] === option ? '' : option
+                                                    [filter]: clearsFilter ? '' : (prev[filter] === option ? '' : option),
                                                 }));
                                                 setOpenDropdown(null);
                                             }}
-                                            className={`w-full text-left px-4 py-2.5 rounded-lg text-xs font-bold flex justify-between items-center hover:bg-slate-50 transition-colors cursor-pointer ${activeFilters[filter] === option ? 'text-slate-900 bg-brand-lemon' : 'text-slate-700'}`}
+                                            className={`w-full text-left px-4 py-2.5 rounded-lg text-xs font-bold flex justify-between items-center hover:bg-slate-50 transition-colors cursor-pointer ${isSelected ? 'text-slate-900 bg-brand-lemon' : 'text-slate-700'}`}
                                         >
                                             {option}
-                                            {activeFilters[filter] === option && <Check className="w-3 h-3" />}
+                                            {isSelected && <Check className="w-3 h-3" />}
                                         </button>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             </div>
                         ))}

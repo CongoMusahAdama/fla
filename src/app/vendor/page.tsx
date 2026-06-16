@@ -77,6 +77,19 @@ export default function VendorDashboard() {
 
     const PRESET_SIZES = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL'];
 
+    const PRESET_COLORS = [
+        { label: 'Black', hex: '#000000' },
+        { label: 'White', hex: '#FFFFFF' },
+        { label: 'Cream', hex: '#F5F5DC' },
+        { label: 'Navy', hex: '#000080' },
+        { label: 'Red', hex: '#EF4444' },
+        { label: 'Emerald', hex: '#10B981' },
+        { label: 'Coffee', hex: '#6F4E37' },
+        { label: 'Gold', hex: '#FFD700' },
+        { label: 'Grey', hex: '#9CA3AF' },
+        { label: 'Pattern', pattern: true as const },
+    ];
+
     // Profile States
     const [shopName, setShopName] = useState('');
     const [phone, setPhone] = useState('');
@@ -483,6 +496,15 @@ export default function VendorDashboard() {
             setFormSizes((prev) => [...prev, size]);
         }
         setCustomSizeInput('');
+    };
+
+    const addCustomColor = () => {
+        const color = customColorInput.trim();
+        if (!color) return;
+        if (!formColors.includes(color)) {
+            setFormColors((prev) => [...prev, color]);
+        }
+        setCustomColorInput('');
     };
 
     const renderContent = () => {
@@ -924,38 +946,26 @@ export default function VendorDashboard() {
                                     </div>
 
                                     {formHasColors && (
-                                        <div className="flex flex-wrap gap-2">
-                                            {[
-                                                { label: 'Black', hex: '#000000' },
-                                                { label: 'White', hex: '#FFFFFF' },
-                                                { label: 'Cream', hex: '#F5F5DC' },
-                                                { label: 'Navy', hex: '#000080' },
-                                                { label: 'Red', hex: '#EF4444' },
-                                                { label: 'Emerald', hex: '#10B981' },
-                                                { label: 'Coffee', hex: '#6F4E37' },
-                                                { label: 'Gold', hex: '#FFD700' },
-                                                { label: 'Grey', hex: '#9CA3AF' }
-                                            ].map((color) => (
-                                                <button
-                                                    key={color.label}
-                                                    type="button"
-                                                    onClick={() => setFormColors(prev => prev.includes(color.label) ? prev.filter(c => c !== color.label) : [...prev, color.label])}
-                                                    className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border flex items-center gap-2 ${formColors.includes(color.label) ? 'bg-slate-900 text-brand-lemon border-slate-900 shadow-lg' : 'bg-white text-slate-400 border-slate-100 hover:border-slate-200'}`}
-                                                >
-                                                    <div className="w-3 h-3 rounded-full border border-black/10" style={{ backgroundColor: color.hex }} />
-                                                    {color.label}
-                                                </button>
-                                            ))}
-                                            <button
-                                                type="button"
-                                                onClick={() => setFormColors(prev => prev.includes('Pattern') ? prev.filter(c => c !== 'Pattern') : [...prev, 'Pattern'])}
-                                                className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border flex items-center gap-2 ${formColors.includes('Pattern') ? 'bg-slate-900 text-brand-lemon border-slate-900 shadow-lg' : 'bg-white text-slate-400 border-slate-100 hover:border-slate-200'}`}
-                                            >
-                                                <div className="w-3 h-3 rounded-full border border-black/10 bg-[conic-gradient(from_0deg,#ff0000,#ffff00,#00ff00,#00ffff,#0000ff,#ff00ff,#ff0000)]" />
-                                                Pattern
-                                            </button>
+                                        <div className="space-y-4">
+                                            <div className="flex flex-wrap gap-2">
+                                                {PRESET_COLORS.map((color) => (
+                                                    <button
+                                                        key={color.label}
+                                                        type="button"
+                                                        onClick={() => setFormColors(prev => prev.includes(color.label) ? prev.filter(c => c !== color.label) : [...prev, color.label])}
+                                                        className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border flex items-center gap-2 ${formColors.includes(color.label) ? 'bg-slate-900 text-brand-lemon border-slate-900 shadow-lg' : 'bg-white text-slate-400 border-slate-100 hover:border-slate-200'}`}
+                                                    >
+                                                        {'pattern' in color && color.pattern ? (
+                                                            <div className="w-3 h-3 rounded-full border border-black/10 bg-[conic-gradient(from_0deg,#ff0000,#ffff00,#00ff00,#00ffff,#0000ff,#ff00ff,#ff0000)]" />
+                                                        ) : (
+                                                            <div className="w-3 h-3 rounded-full border border-black/10" style={{ backgroundColor: color.hex }} />
+                                                        )}
+                                                        {color.label}
+                                                    </button>
+                                                ))}
+                                            </div>
 
-                                            <div className="flex gap-2 w-full mt-4">
+                                            <div className="flex gap-2">
                                                 <input
                                                     type="text"
                                                     placeholder="Add custom color..."
@@ -964,31 +974,37 @@ export default function VendorDashboard() {
                                                     onKeyDown={(e) => {
                                                         if (e.key === 'Enter') {
                                                             e.preventDefault();
-                                                            if (customColorInput.trim()) {
-                                                                if (!formColors.includes(customColorInput.trim())) {
-                                                                    setFormColors((prev) => [...prev, customColorInput.trim()]);
-                                                                }
-                                                                setCustomColorInput('');
-                                                            }
+                                                            addCustomColor();
                                                         }
                                                     }}
                                                     className="flex-1 px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-[10px] font-bold focus:ring-2 focus:ring-slate-900/10 placeholder:text-slate-300"
                                                 />
                                                 <button
                                                     type="button"
-                                                    onClick={() => {
-                                                        if (customColorInput.trim()) {
-                                                            if (!formColors.includes(customColorInput.trim())) {
-                                                                setFormColors((prev) => [...prev, customColorInput.trim()]);
-                                                                }
-                                                            setCustomColorInput('');
-                                                        }
-                                                    }}
+                                                    onClick={addCustomColor}
                                                     className="px-6 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/10"
                                                 >
                                                     Add
                                                 </button>
                                             </div>
+
+                                            {formColors.length > 0 && (
+                                                <div className="space-y-2">
+                                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Selected colors (before you publish)</p>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {formColors.map((color) => (
+                                                            <button
+                                                                key={color}
+                                                                type="button"
+                                                                onClick={() => setFormColors((prev) => prev.filter((c) => c !== color))}
+                                                                className="px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border bg-slate-900 text-brand-lemon border-slate-900 shadow-lg"
+                                                            >
+                                                                {color} ×
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     )}
                                 </div>

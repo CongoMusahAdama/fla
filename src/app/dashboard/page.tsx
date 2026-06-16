@@ -130,6 +130,7 @@ export default function CustomerDashboard() {
     const [wishlist, setWishlist] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [isUpdating, setIsUpdating] = useState(false);
+    const [isUploadingImage, setIsUploadingImage] = useState(false);
 
     // Profile States
     const [profileName, setProfileName] = useState(user?.name || '');
@@ -404,18 +405,84 @@ export default function CustomerDashboard() {
 
     const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setProfileImage(reader.result as string);
-            };
-            reader.readAsDataURL(file);
+        if (!file) return;
+
+        if (file.size > 2 * 1024 * 1024) {
+            Swal.fire({
+                icon: 'error',
+                title: 'FILE TOO LARGE',
+                text: 'Profile photo must be 2MB or less.',
+                customClass: { popup: 'rounded-[32px]' },
+            });
+            e.target.value = '';
+            return;
+        }
+
+        if (!token) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'SESSION EXPIRED',
+                text: 'Please sign in again to update your photo.',
+                customClass: { popup: 'rounded-[32px]' },
+            });
+            return;
+        }
+
+        setIsUploadingImage(true);
+        try {
+            const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+            const formData = new FormData();
+            formData.append('file', file);
+            const res = await fetch(`${api}/upload`, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${token}` },
+                credentials: 'include',
+                body: formData,
+            });
+
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData.message || 'Could not upload profile photo');
+            }
+
+            const data = await res.json();
+            setProfileImage(data.url);
+        } catch (error: any) {
+            Swal.fire({
+                icon: 'error',
+                title: 'UPLOAD FAILED',
+                text: error.message || 'Could not upload profile photo.',
+                customClass: { popup: 'rounded-[32px]' },
+            });
+        } finally {
+            setIsUploadingImage(false);
+            e.target.value = '';
         }
     };
 
     const handleUpdateProfile = async () => {
+        if (!token) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'SESSION EXPIRED',
+                text: 'Please sign in again to save your profile.',
+                customClass: { popup: 'rounded-[32px]' },
+            });
+            return;
+        }
+
+        if (profileImage?.startsWith('data:')) {
+            Swal.fire({
+                icon: 'info',
+                title: 'PHOTO STILL UPLOADING',
+                text: 'Wait for your profile photo to finish uploading, then save again.',
+                customClass: { popup: 'rounded-[32px]' },
+            });
+            return;
+        }
+
         setIsUpdating(true);
         try {
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/auth/profile`, {
@@ -427,24 +494,24 @@ export default function CustomerDashboard() {
                 credentials: 'include',
                 body: JSON.stringify({
                     name: profileName,
-                    email: profileEmail,
                     phone: profilePhone,
                     location: profileCity,
                     region: profileRegion,
                     address: profileAddress,
-                    profileImage: profileImage
+                    profileImage: profileImage || undefined,
                 })
             });
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
-                console.error('Profile update failed:', errorData);
-                throw new Error(errorData.message || 'Failed to update profile');
+                const msg = Array.isArray(errorData.message)
+                    ? errorData.message.join(', ')
+                    : errorData.message;
+                throw new Error(msg || 'Failed to update profile');
             }
 
             const updatedUser = await response.json();
 
-            // Map backend fields to frontend context expectations if necessary
             updateUser({
                 name: updatedUser.name,
                 email: updatedUser.email,
@@ -1134,9 +1201,10 @@ export default function CustomerDashboard() {
                                     />
                                     <button
                                         onClick={() => fileInputRef.current?.click()}
-                                        className="text-xs font-black text-slate-900 bg-brand-lemon border border-brand-lemon px-5 py-2.5 rounded-full hover:shadow-lg hover:scale-105 active:scale-95 transition-all"
+                                        disabled={isUploadingImage}
+                                        className="text-xs font-black text-slate-900 bg-brand-lemon border border-brand-lemon px-5 py-2.5 rounded-full hover:shadow-lg hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
-                                        Change Avatar
+                                        {isUploadingImage ? 'Uploading...' : 'Change Avatar'}
                                     </button>
                                     <p className="text-[10px] text-slate-400 mt-2 font-bold uppercase">Max Size: 2MB (.PNG, .JPG)</p>
                                 </div>
@@ -1157,9 +1225,11 @@ export default function CustomerDashboard() {
                                     <input
                                         type="email"
                                         value={profileEmail}
-                                        onChange={(e) => setProfileEmail(e.target.value)}
-                                        className="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20 transition-all"
+                                        readOnly
+                                        className="w-full px-5 py-4 bg-slate-100 border-none rounded-2xl text-sm font-bold text-slate-500 cursor-not-allowed"
+                                        title="Email cannot be changed here. Contact support if you need to update it."
                                     />
+                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Email is fixed to your login account</p>
                                 </div>
                                 <div className="space-y-1.5">
                                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Phone Number</label>
@@ -1205,13 +1275,13 @@ export default function CustomerDashboard() {
                                 </div>
                             </div>
 
-                            <div className="pt-6">
+                            <div className="sticky bottom-4 z-20 pt-6 pb-2 md:static md:pb-0">
                                 <button
                                     onClick={handleUpdateProfile}
-                                    disabled={isUpdating}
-                                    className={`px-10 py-4 bg-slate-900 text-white rounded-full font-bold text-sm tracking-wide hover:shadow-2xl transition-all shadow-slate-900/20 active:scale-95 ${isUpdating ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    disabled={isUpdating || isUploadingImage}
+                                    className={`w-full md:w-auto px-10 py-4 bg-slate-900 text-white rounded-full font-bold text-sm tracking-wide hover:shadow-2xl transition-all shadow-slate-900/20 active:scale-95 ${isUpdating || isUploadingImage ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 >
-                                    {isUpdating ? 'Saving Changes...' : 'Save Profile Changes'}
+                                    {isUpdating ? 'Saving Changes...' : isUploadingImage ? 'Wait for photo upload...' : 'Save Profile Changes'}
                                 </button>
                             </div>
                         </div>

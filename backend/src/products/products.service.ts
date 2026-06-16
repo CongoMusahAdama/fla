@@ -124,6 +124,27 @@ export class ProductsService implements OnModuleInit {
       filters.vendorId = query.vendorId;
     }
 
+    const price: Record<string, number> = {};
+    if (query.minPrice !== undefined && query.minPrice !== '') {
+      const min = parseFloat(String(query.minPrice));
+      if (!Number.isNaN(min)) price.$gte = min;
+    }
+    if (query.maxPrice !== undefined && query.maxPrice !== '') {
+      const max = parseFloat(String(query.maxPrice));
+      if (!Number.isNaN(max)) price.$lte = max;
+    }
+    if (query.priceLt !== undefined && query.priceLt !== '') {
+      const lt = parseFloat(String(query.priceLt));
+      if (!Number.isNaN(lt)) price.$lt = lt;
+    }
+    if (query.priceGt !== undefined && query.priceGt !== '') {
+      const gt = parseFloat(String(query.priceGt));
+      if (!Number.isNaN(gt)) price.$gt = gt;
+    }
+    if (Object.keys(price).length > 0) {
+      filters.price = price;
+    }
+
     return filters;
   }
 
