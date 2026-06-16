@@ -4,9 +4,9 @@ import React from "react";
 import { Phone, X } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { WhatsAppButton, WhatsAppIcon } from "@/components/WhatsAppButton";
+import { getFlaAdminWhatsAppPhone } from "@/lib/whatsapp";
 
-const SUPPORT_PHONE = "0256774847";
-const SUPPORT_PHONE_ALT = "0505112925";
+const SUPPORT_PHONE = "0505112925";
 
 const supportWhatsAppMessage = [
   "Hello FLA Support,",
@@ -18,6 +18,7 @@ const supportWhatsAppMessage = [
 
 export default function ChatSupport() {
   const { isSupportOpen, setIsSupportOpen } = useCart();
+  const adminWhatsApp = getFlaAdminWhatsAppPhone();
 
   return (
     <div className="fixed bottom-24 md:bottom-6 right-6 z-[50] flex flex-col items-end pointer-events-none">
@@ -32,7 +33,7 @@ export default function ChatSupport() {
             <WhatsAppButton
               fullWidth
               size="lg"
-              phone={SUPPORT_PHONE}
+              phone={adminWhatsApp}
               message={supportWhatsAppMessage}
               label="Chat on WhatsApp"
               missingContactRole="vendor"
@@ -50,21 +51,8 @@ export default function ChatSupport() {
                 <Phone className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-sm font-bold text-slate-900">025 677 4847</p>
-                <p className="text-[10px] text-slate-500 font-medium">Customer service</p>
-              </div>
-            </a>
-
-            <a
-              href={`tel:${SUPPORT_PHONE_ALT}`}
-              className="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 hover:bg-slate-100 transition-colors"
-            >
-              <div className="w-10 h-10 rounded-full bg-slate-900 flex items-center justify-center text-white shrink-0">
-                <Phone className="w-5 h-5" />
-              </div>
-              <div>
                 <p className="text-sm font-bold text-slate-900">050 511 2925</p>
-                <p className="text-[10px] text-slate-500 font-medium">Secondary line</p>
+                <p className="text-[10px] text-slate-500 font-medium">Customer service</p>
               </div>
             </a>
           </div>

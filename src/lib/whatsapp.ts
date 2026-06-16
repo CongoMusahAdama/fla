@@ -1,7 +1,7 @@
-/** FLA admin / support WhatsApp (wa.me digits). Default: 025 677 4847 */
+/** FLA admin / support WhatsApp (wa.me digits). Default: 050 511 2925 */
 export function getFlaAdminWhatsAppPhone(): string {
   const fromEnv = process.env.NEXT_PUBLIC_FLA_ADMIN_WHATSAPP;
-  return normalizeWhatsAppPhone(fromEnv) || '233256774847';
+  return normalizeWhatsAppPhone(fromEnv) || '233505112925';
 }
 
 export function buildWhatsAppUrl(phone: string, message: string): string {
