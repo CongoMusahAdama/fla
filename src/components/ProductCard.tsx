@@ -754,8 +754,9 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                     <div className="relative bg-white w-full max-w-5xl max-h-[94vh] md:max-h-[88vh] rounded-t-3xl md:rounded-2xl shadow-2xl flex flex-col md:flex-row animate-in slide-in-from-bottom md:zoom-in-95 duration-300 pointer-events-auto overflow-hidden">
                         {/* Gallery */}
                         <div className="w-full md:w-[48%] bg-slate-50 flex flex-col shrink-0 border-b md:border-b-0 md:border-r border-slate-100 relative">
-                            {/* Mobile: close + wishlist on gallery */}
-                            <div className="md:hidden absolute top-3 right-3 z-20 flex gap-2">
+                            <div className="relative w-full aspect-[5/4] max-h-[min(46vh,380px)] md:aspect-auto md:flex-1 md:min-h-[280px] md:max-h-none group/gallery">
+                            {/* Mobile: close + wishlist — inset below rounded modal corner */}
+                            <div className="md:hidden absolute top-8 right-4 z-20 flex gap-2">
                                 <button
                                     type="button"
                                     onClick={toggleWishlist}
@@ -773,7 +774,6 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                                     <X className="w-4 h-4" />
                                 </button>
                             </div>
-                            <div className="relative w-full aspect-[5/4] max-h-[min(46vh,380px)] md:aspect-auto md:flex-1 md:min-h-[280px] md:max-h-none group/gallery">
                                 <Image
                                     src={imgError ? '/product-1.jpg' : getImageUrl(images[currentImageIndex])}
                                     alt={name}
