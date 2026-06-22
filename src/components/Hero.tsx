@@ -17,16 +17,8 @@ type HeroProduct = {
     image: string;
 };
 
-const FALLBACK_POOL: HeroProduct[] = [
-    { id: 'fb-1', name: 'Heritage print shirt', image: '/product-3.png' },
-    { id: 'fb-2', name: 'Signature graphic tee', image: '/product-4.png' },
-    { id: 'fb-3', name: 'Bold pattern top', image: '/product-5.png' },
-    { id: 'fb-4', name: 'Classic kente style', image: '/product-1.jpg' },
-    { id: 'fb-5', name: 'Urban streetwear', image: '/product-2.jpg' },
-];
-
 function pickForHour(pool: HeroProduct[], hour: number): HeroProduct[] {
-    if (!pool.length) return FALLBACK_POOL.slice(0, HERO_VISIBLE);
+    if (!pool.length) return [];
     if (pool.length <= HERO_VISIBLE) return pool.slice(0, HERO_VISIBLE);
 
     const start = (hour * HERO_VISIBLE) % pool.length;
@@ -53,8 +45,8 @@ const TILE_LAYOUT = [
 ];
 
 export default function Hero() {
-    const [pool, setPool] = useState<HeroProduct[]>(FALLBACK_POOL);
-    const [visible, setVisible] = useState<HeroProduct[]>(() => pickForHour(FALLBACK_POOL, new Date().getHours()));
+    const [pool, setPool] = useState<HeroProduct[]>([]);
+    const [visible, setVisible] = useState<HeroProduct[]>([]);
     const [rotationKey, setRotationKey] = useState(0);
 
     const applyHourlyRotation = useCallback((productPool: HeroProduct[]) => {
@@ -171,6 +163,7 @@ export default function Hero() {
                         </div>
                     </div>
 
+                    {visible.length > 0 && (
                     <div className="lg:col-span-7 xl:col-span-7 order-2 lg:order-2">
                         <div className="grid grid-cols-2 grid-rows-2 gap-2.5 sm:gap-4 lg:gap-5 max-w-lg mx-auto lg:max-w-none lg:mx-0">
                             {visible.map((product, i) => {
@@ -200,6 +193,7 @@ export default function Hero() {
                             })}
                         </div>
                     </div>
+                    )}
                 </div>
             </div>
         </section>

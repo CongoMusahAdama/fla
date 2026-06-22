@@ -140,9 +140,6 @@ function ShopContent() {
 
     const filterData: Record<string, string[]> = {
         Region: [REGION_ALL_LABEL, ...GHANA_REGIONS],
-        Color: ['Black', 'White', 'Blue', 'Purple', 'Green'],
-        Size: ['Small', 'Medium', 'Large', 'XL', 'XXL'],
-        Brand: ['FLA Exclusive', 'Signature Print', 'Urban Thread'],
         Price: [PRICE_ALL_LABEL, 'Under GH₵500', 'GH₵500 - GH₵800', 'Over GH₵800']
     };
 
@@ -280,7 +277,7 @@ function ShopContent() {
                         </div>
 
                         {/* Filter Wrappers for Consistency */}
-                        {['Region', 'Color', 'Size', 'Price'].map((filter) => (
+                        {['Region', 'Price'].map((filter) => (
                             <div className="relative" key={filter}>
                                 <button
                                     onClick={() => toggleDropdown(filter)}

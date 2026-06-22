@@ -102,9 +102,17 @@ export default function VendorDashboard() {
     const [bannerImage, setBannerImage] = useState('');
     const [businessRegistration, setBusinessRegistration] = useState('');
 
+    const isPendingReview = user?.status === 'pending' && user?.role === 'vendor';
+
     useEffect(() => {
         setIsHydrated(true);
     }, []);
+
+    useEffect(() => {
+        if (isPendingReview) {
+            setActiveSection('settings');
+        }
+    }, [isPendingReview]);
 
     useEffect(() => {
         if (user) {
@@ -390,7 +398,14 @@ export default function VendorDashboard() {
             }
             const updated = await res.json();
             updateUser(updated);
-            Swal.fire({ icon: 'success', title: 'IDENTITY UPDATED', customClass: { popup: 'rounded-[32px]' } });
+            Swal.fire({
+                icon: 'success',
+                title: user?.status === 'pending' ? 'DETAILS SAVED' : 'IDENTITY UPDATED',
+                text: user?.status === 'pending'
+                    ? 'Your MoMo and shop details are saved. We will link your Paystack payout when your application is approved.'
+                    : 'Your information has been successfully saved.',
+                customClass: { popup: 'rounded-[32px]' },
+            });
         } catch (err: any) {
             Swal.fire('Update Failed', err?.message || 'Internal synchronization error.', 'error');
         }
@@ -508,6 +523,23 @@ export default function VendorDashboard() {
     };
 
     const renderContent = () => {
+        if (isPendingReview && activeSection !== 'settings') {
+            return (
+                <div className="max-w-lg mx-auto py-16 text-center space-y-4">
+                    <Clock className="w-12 h-12 text-brand-lemon mx-auto" />
+                    <h2 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Application under review</h2>
+                    <p className="text-sm text-slate-500">Use <strong>Fix Application</strong> in the menu to update your MoMo number, account name, and shop details before approval.</p>
+                    <button
+                        type="button"
+                        onClick={() => setActiveSection('settings')}
+                        className="px-8 py-3 bg-slate-900 text-white rounded-full text-[10px] font-black uppercase tracking-widest"
+                    >
+                        Open Fix Application
+                    </button>
+                </div>
+            );
+        }
+
         switch (activeSection) {
             case 'dashboard':
                 return (
@@ -666,26 +698,11 @@ export default function VendorDashboard() {
         );
     }
 
-    if (user?.status === 'pending' && user?.role !== 'admin') {
-        return (
-            <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center p-6">
-                <div className="max-w-md w-full bg-white rounded-[40px] shadow-2xl p-12 text-center border border-slate-100 animate-in fade-in zoom-in duration-500">
-                    <div className="w-24 h-24 bg-brand-lemon/20 rounded-full flex items-center justify-center mx-auto mb-8">
-                        <Clock className="w-12 h-12 text-slate-900" />
-                    </div>
-                    <h1 className="text-3xl font-black text-slate-900 uppercase tracking-tighter mb-4">Verification Pending</h1>
-                    <p className="text-slate-500 font-medium text-sm leading-relaxed mb-10">Our curators are reviewing your studio application. You'll be notified via email once approved.</p>
-                    <button onClick={handleLogout} className="w-full py-4 bg-slate-900 text-white rounded-full font-black text-xs uppercase tracking-widest active:scale-95 transition-all">Sign Out</button>
-                </div>
-            </div>
-        );
-    }
-
     return (
         <div className="min-h-screen bg-[#FDFDFF] flex">
             {/* Desktop Dashboard Sidebar */}
             <aside className="fixed left-0 top-0 h-screen w-80 bg-white border-r border-slate-50 hidden lg:block z-40">
-                <VendorSidebar activeSection={activeSection} setActiveSection={setActiveSection} handleLogout={handleLogout} />
+                <VendorSidebar activeSection={activeSection} setActiveSection={setActiveSection} handleLogout={handleLogout} limitedMode={isPendingReview} />
             </aside>
 
             <main className="flex-1 lg:ml-80 min-h-screen relative">
@@ -696,6 +713,14 @@ export default function VendorDashboard() {
                 </header>
 
                 <div className="px-6 md:px-12 py-10 pb-32">
+                    {isPendingReview && (
+                        <div className="mb-8 p-6 md:p-8 bg-amber-50 border border-amber-100 rounded-[32px] space-y-2">
+                            <p className="text-[10px] font-black text-amber-800 uppercase tracking-widest">Application pending approval</p>
+                            <p className="text-sm text-amber-900/80 leading-relaxed">
+                                Made a mistake during signup? Update your <strong>MoMo number</strong>, <strong>account holder name</strong>, and shop details below, then tap <strong>Save Store Information</strong>. You can log in anytime to fix this before we approve your shop.
+                            </p>
+                        </div>
+                    )}
                     {renderContent()}
                 </div>
             </main>
@@ -704,7 +729,7 @@ export default function VendorDashboard() {
             {isSidebarOpen && (
                 <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 lg:hidden" onClick={() => setIsSidebarOpen(false)}>
                     <aside className="w-80 h-full bg-white animate-in slide-in-from-left duration-300" onClick={(e) => e.stopPropagation()}>
-                        <VendorSidebar activeSection={activeSection} setActiveSection={(s) => { setActiveSection(s); setIsSidebarOpen(false); }} handleLogout={handleLogout} />
+                        <VendorSidebar activeSection={activeSection} setActiveSection={(s) => { setActiveSection(s); setIsSidebarOpen(false); }} handleLogout={handleLogout} limitedMode={isPendingReview} />
                     </aside>
                 </div>
             )}

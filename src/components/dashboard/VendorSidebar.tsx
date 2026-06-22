@@ -14,12 +14,15 @@ interface VendorSidebarProps {
   activeSection: string;
   setActiveSection: (section: any) => void;
   handleLogout: () => void;
+  /** Pending approval: only show profile/payout settings */
+  limitedMode?: boolean;
 }
 
 export const VendorSidebar: React.FC<VendorSidebarProps> = ({
   activeSection,
   setActiveSection,
-  handleLogout
+  handleLogout,
+  limitedMode = false,
 }) => {
   const { user } = useAuth();
 
@@ -30,9 +33,13 @@ export const VendorSidebar: React.FC<VendorSidebarProps> = ({
     { id: 'wallet', label: 'Payouts & Ledger', icon: Wallet },
     { id: 'reviews', label: 'Customer Feedback', icon: Star },
     { id: 'notifications', label: 'Alert Center', icon: Bell },
-    { id: 'settings', label: 'Studio Identity', icon: Settings },
+    { id: 'settings', label: limitedMode ? 'Fix Application' : 'Studio Identity', icon: Settings },
     { id: 'help', label: 'Mastery Guide', icon: HelpCircle },
   ];
+
+  const visibleItems = limitedMode
+    ? sidebarItems.filter((item) => item.id === 'settings')
+    : sidebarItems;
 
   return (
     <div className="h-full flex flex-col p-6 md:p-8 relative bg-slate-900 text-white">
@@ -50,7 +57,12 @@ export const VendorSidebar: React.FC<VendorSidebarProps> = ({
       </div>
 
       <nav className="flex-1 space-y-1.5 overflow-y-auto no-scrollbar pr-2">
-        {sidebarItems.map((item) => (
+        {limitedMode && (
+          <p className="px-4 pb-3 text-[9px] font-bold text-amber-300/90 uppercase tracking-widest leading-relaxed">
+            Application pending — update MoMo &amp; shop details here, then save.
+          </p>
+        )}
+        {visibleItems.map((item) => (
           <button
             key={item.id}
             onClick={() => {

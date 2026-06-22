@@ -753,40 +753,93 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                     />
                     <div className="relative bg-white w-full max-w-5xl max-h-[94vh] md:max-h-[88vh] rounded-t-3xl md:rounded-2xl shadow-2xl flex flex-col md:flex-row animate-in slide-in-from-bottom md:zoom-in-95 duration-300 pointer-events-auto overflow-hidden">
                         {/* Gallery */}
-                        <div className="w-full md:w-[48%] bg-slate-50 flex flex-col shrink-0 border-b md:border-b-0 md:border-r border-slate-100">
-                            <div className="relative aspect-square md:aspect-auto md:flex-1 min-h-[280px] group/gallery">
+                        <div className="w-full md:w-[48%] bg-slate-50 flex flex-col shrink-0 border-b md:border-b-0 md:border-r border-slate-100 relative">
+                            {/* Mobile: close + wishlist on gallery */}
+                            <div className="md:hidden absolute top-3 right-3 z-20 flex gap-2">
+                                <button
+                                    type="button"
+                                    onClick={toggleWishlist}
+                                    className={`w-9 h-9 rounded-full bg-white/95 shadow-md border border-slate-100 flex items-center justify-center ${isWishlisted ? 'text-red-500' : 'text-slate-600'}`}
+                                    aria-label="Wishlist"
+                                >
+                                    <Heart className={`w-4 h-4 ${isWishlisted ? 'fill-current' : ''}`} />
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsDetailModalOpen(false)}
+                                    className="w-9 h-9 rounded-full bg-white/95 shadow-md border border-slate-100 flex items-center justify-center text-slate-700"
+                                    aria-label="Close"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
+                            </div>
+                            <div className="relative w-full aspect-[5/4] max-h-[min(46vh,380px)] md:aspect-auto md:flex-1 md:min-h-[280px] md:max-h-none group/gallery">
                                 <Image
                                     src={imgError ? '/product-1.jpg' : getImageUrl(images[currentImageIndex])}
                                     alt={name}
                                     fill
                                     unoptimized
-                                    className="object-contain p-6 md:p-10"
+                                    className="object-contain p-4 md:p-10"
                                     onError={() => setImgError(true)}
                                 />
                                 {images.length > 1 && (
                                     <>
                                         <button
                                             onClick={prevImage}
-                                            className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/90 shadow-md border border-slate-100 flex items-center justify-center text-slate-700 hover:bg-white"
+                                            className="absolute left-2 md:left-3 top-1/2 -translate-y-1/2 w-8 h-8 md:w-9 md:h-9 rounded-full bg-white/95 shadow-md border border-slate-100 flex items-center justify-center text-slate-700 hover:bg-white"
                                             aria-label="Previous image"
                                         >
-                                            <ChevronLeft className="w-5 h-5" />
+                                            <ChevronLeft className="w-4 h-4 md:w-5 md:h-5" />
                                         </button>
                                         <button
                                             onClick={nextImage}
-                                            className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/90 shadow-md border border-slate-100 flex items-center justify-center text-slate-700 hover:bg-white"
+                                            className="absolute right-2 md:right-3 top-1/2 -translate-y-1/2 w-8 h-8 md:w-9 md:h-9 rounded-full bg-white/95 shadow-md border border-slate-100 flex items-center justify-center text-slate-700 hover:bg-white"
                                             aria-label="Next image"
                                         >
-                                            <ChevronRight className="w-5 h-5" />
+                                            <ChevronRight className="w-4 h-4 md:w-5 md:h-5" />
                                         </button>
                                     </>
                                 )}
+                                {/* Thumbnails overlaid on image — saves vertical space on mobile */}
+                                {images.length > 1 && (
+                                    <div className="absolute inset-x-0 bottom-0 px-3 pb-3 pt-10 bg-gradient-to-t from-slate-900/50 via-slate-900/20 to-transparent pointer-events-none">
+                                        <div className="flex justify-center gap-2 overflow-x-auto no-scrollbar pointer-events-auto">
+                                            {images.map((img, idx) => (
+                                                <button
+                                                    key={idx}
+                                                    type="button"
+                                                    onClick={() => setCurrentImageIndex(idx)}
+                                                    className={`flex flex-col items-center gap-1 shrink-0 transition-all ${idx === currentImageIndex ? 'scale-105' : 'opacity-75 hover:opacity-100'}`}
+                                                >
+                                                    <div className={`relative w-11 h-11 md:w-12 md:h-14 rounded-lg overflow-hidden border-2 shadow-sm ${idx === currentImageIndex ? 'border-white ring-2 ring-slate-900/30' : 'border-white/80'}`}>
+                                                        <Image
+                                                            src={getImageUrl(img)}
+                                                            alt=""
+                                                            fill
+                                                            sizes="48px"
+                                                            unoptimized
+                                                            className="object-cover"
+                                                            onError={(e) => { (e.target as HTMLImageElement).src = '/product-1.jpg'; }}
+                                                        />
+                                                    </div>
+                                                    {imageLabels?.[idx] && (
+                                                        <span className="text-[9px] font-bold uppercase tracking-wide text-white drop-shadow-sm">
+                                                            {imageLabels[idx]}
+                                                        </span>
+                                                    )}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
+                            {/* Desktop: thumbnail strip below main image */}
                             {images.length > 1 && (
-                                <div className="px-4 py-3 flex gap-2 overflow-x-auto no-scrollbar bg-white">
+                                <div className="hidden md:flex px-4 py-3 gap-2 overflow-x-auto no-scrollbar bg-white border-t border-slate-100">
                                     {images.map((img, idx) => (
                                         <button
                                             key={idx}
+                                            type="button"
                                             onClick={() => setCurrentImageIndex(idx)}
                                             className={`flex flex-col items-center gap-1 shrink-0 ${idx === currentImageIndex ? 'opacity-100' : 'opacity-50 hover:opacity-80'}`}
                                         >
@@ -810,9 +863,37 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                             )}
                         </div>
 
+                        {/* Mobile: key product info directly under gallery */}
+                        <div className="md:hidden shrink-0 px-5 py-3 border-b border-slate-100 bg-white">
+                            {vendorName && (
+                                <button
+                                    type="button"
+                                    onClick={handleVendorProfile}
+                                    className="inline-flex items-center gap-1.5 text-xs text-slate-500 mb-1"
+                                >
+                                    <span className="font-semibold text-slate-700">{vendorName}</span>
+                                    <VendorTrustBadge documented={vendorDocStatus} size="sm" />
+                                </button>
+                            )}
+                            <div className="flex items-start justify-between gap-3">
+                                <h2 className="text-lg font-bold text-slate-900 leading-tight line-clamp-2 flex-1">{name}</h2>
+                                <p className="text-lg font-black text-slate-900 shrink-0">GH₵{price.toLocaleString()}</p>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2 mt-1.5 text-xs text-slate-500">
+                                <span className={`font-semibold ${stock > 0 ? (stock <= 5 ? 'text-amber-600' : 'text-emerald-600') : 'text-red-500'}`}>
+                                    {stock > 0 ? `${stock} in stock` : 'Sold out'}
+                                </span>
+                                <span className="text-slate-300">·</span>
+                                <span className="inline-flex items-center gap-1">
+                                    <Clock className="w-3 h-3" />
+                                    {duration}
+                                </span>
+                            </div>
+                        </div>
+
                         {/* Details */}
                         <div className="flex-1 flex flex-col min-h-0 bg-white">
-                            <div className="flex items-start justify-between gap-4 px-5 pt-5 md:px-8 md:pt-8 shrink-0">
+                            <div className="hidden md:flex items-start justify-between gap-4 px-5 pt-5 md:px-8 md:pt-8 shrink-0">
                                 <div className="min-w-0 flex-1">
                                     {vendorName && (
                                         <button
@@ -845,15 +926,15 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                                 </div>
                             </div>
 
-                            <div className="flex-1 overflow-y-auto overscroll-contain px-5 md:px-8 py-4 space-y-6">
-                                <div className="flex flex-wrap items-baseline gap-x-4 gap-y-2">
+                            <div className="flex-1 overflow-y-auto overscroll-contain px-5 md:px-8 py-4 space-y-5 md:space-y-6">
+                                <div className="hidden md:flex flex-wrap items-baseline gap-x-4 gap-y-2">
                                     <p className="text-2xl md:text-3xl font-bold text-slate-900">GH₵{price.toLocaleString()}</p>
                                     <span className={`text-sm font-medium ${stock > 0 ? (stock <= 5 ? 'text-amber-600' : 'text-emerald-600') : 'text-red-500'}`}>
                                         {stock > 0 ? `${stock} in stock` : 'Sold out'}
                                     </span>
                                 </div>
 
-                                <div className="flex flex-wrap gap-3 text-sm text-slate-500">
+                                <div className="hidden md:flex flex-wrap gap-3 text-sm text-slate-500">
                                     <span className="inline-flex items-center gap-1.5">
                                         <Clock className="w-4 h-4" />
                                         {duration}
