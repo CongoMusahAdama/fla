@@ -8,7 +8,8 @@ import Link from 'next/link';
 import { Filter, ChevronRight, LayoutGrid, List, MapPin } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { Product } from '@/lib/types';
-import { PRODUCT_CATEGORIES, GHANA_REGIONS, PRODUCT_FILTERS } from '@/lib/constants';
+import { PRODUCT_CATEGORIES, PRODUCT_FILTERS } from '@/lib/constants';
+import { GHANA_REGIONS } from '@/lib/ghana-regions';
 
 export default function Home() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -154,21 +155,28 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Mobile Region Filter */}
-              <div className="mb-6">
-                <select 
+              {/* Mobile Region — native picker shows all 16 regions on iOS/Android */}
+              <div className="mb-4">
+                <label htmlFor="mobile-region-filter" className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">
+                  Region ({GHANA_REGIONS.length} regions)
+                </label>
+                <select
+                  id="mobile-region-filter"
                   value={activeRegion}
                   onChange={(e) => setActiveRegion(e.target.value)}
-                  className="w-full px-5 py-3.5 bg-white border border-slate-100 rounded-full text-[10px] font-black uppercase tracking-widest focus:ring-0 shadow-sm transition-all"
+                  className="w-full px-5 py-3.5 bg-white border border-slate-100 rounded-2xl text-xs font-bold focus:ring-2 focus:ring-slate-900/10 shadow-sm"
                 >
-                  <option value="">Filter By Region</option>
+                  <option value="">All Regions</option>
                   {GHANA_REGIONS.map((r) => (
                     <option key={r} value={r}>{r}</option>
                   ))}
                 </select>
               </div>
 
-              <div className="flex gap-2.5 overflow-x-auto no-scrollbar pb-4 -mx-4 px-4">
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
+                Categories — scroll for all {PRODUCT_CATEGORIES.length}
+              </p>
+              <div className="max-h-[min(45dvh,280px)] overflow-y-auto overscroll-contain touch-pan-y rounded-2xl border border-slate-100 bg-white p-2 space-y-1 mb-4">
                 {PRODUCT_CATEGORIES.map((cat) => (
                   <button
                     key={cat}
@@ -176,9 +184,9 @@ export default function Home() {
                       setActiveCategory(cat);
                       setActiveFilter('');
                     }}
-                    className={`flex-none px-7 py-3.5 rounded-full text-[10px] font-black uppercase tracking-[0.15em] transition-all duration-500 whitespace-nowrap active:scale-95 ${activeCategory === cat
-                      ? 'bg-slate-900 text-brand-lemon shadow-[0_15px_30px_rgba(0,0,0,0.15)] ring-1 ring-slate-800'
-                      : 'bg-white text-slate-400 border border-slate-100'
+                    className={`w-full text-left px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeCategory === cat
+                      ? 'bg-slate-900 text-brand-lemon shadow-md'
+                      : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
                       }`}
                   >
                     {cat}

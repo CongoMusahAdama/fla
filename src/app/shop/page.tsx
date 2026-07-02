@@ -11,17 +11,23 @@ import { ChevronDown, SlidersHorizontal, LayoutGrid, List, Check, Search } from 
 import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 
-// Wrap content in Suspense for search params
-const GHANA_REGIONS = [
-    'Ahafo', 'Ashanti', 'Bono', 'Bono East', 'Central', 'Eastern', 
-    'Greater Accra', 'North East', 'Northern', 'Oti', 'Savannah', 
-    'Upper East', 'Upper West', 'Volta', 'Western', 'Western North'
-];
+import { GHANA_REGIONS } from '@/lib/ghana-regions';
+import { PRODUCT_CATEGORIES } from '@/lib/constants';
 
 const REGION_ALL_LABEL = 'All Regions';
 const PRICE_ALL_LABEL = 'All Prices';
 
 const PRODUCTS_PER_PAGE = 12;
+
+/** Scrollable panel — fixed on mobile so list is not cut off by viewport */
+const FILTER_DROPDOWN_PANEL =
+    'z-[60] bg-white shadow-xl rounded-xl border border-gray-100 p-2 transition-all duration-200 origin-top-left ' +
+    'fixed left-4 right-4 top-[calc(100px+5.5rem)] max-h-[calc(100dvh-13rem)] overflow-y-auto overscroll-contain touch-pan-y ' +
+    'sm:absolute sm:left-0 sm:right-auto sm:top-full sm:mt-4 sm:w-52 sm:max-h-[min(50vh,320px)]';
+
+function dropdownPanelClass(isOpen: boolean) {
+    return `${FILTER_DROPDOWN_PANEL} ${isOpen ? 'opacity-100 scale-100 pointer-events-auto' : 'opacity-0 scale-95 pointer-events-none'}`;
+}
 
 function getPriceQueryParams(priceLabel?: string): Record<string, string> {
     if (!priceLabel || priceLabel === PRICE_ALL_LABEL) return {};
@@ -138,6 +144,15 @@ function ShopContent() {
         }
     }, [categoryQuery]);
 
+    useEffect(() => {
+        if (!openDropdown) return;
+        const previousOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return () => {
+            document.body.style.overflow = previousOverflow;
+        };
+    }, [openDropdown]);
+
     const filterData: Record<string, string[]> = {
         Region: [REGION_ALL_LABEL, ...GHANA_REGIONS],
         Price: [PRICE_ALL_LABEL, 'Under GH₵500', 'GH₵500 - GH₵800', 'Over GH₵800']
@@ -145,7 +160,7 @@ function ShopContent() {
 
     // Using the same product data as homepage for consistency
 
-    const categories = ['All Product', 'Electronics', 'Home goods', 'Beauty/cosmetics', 'Accessories', 'Used items', 'Wholesaler', 'For men', 'For women', 'Children/Toys', 'Furniture', 'Food/beverages', 'Hardware items', 'Refurbished items', 'Unisex'];
+    const categories = PRODUCT_CATEGORIES;
 
     const filteredProducts = products;
 
@@ -206,11 +221,11 @@ function ShopContent() {
             </section>
 
             {/* Filter Bar - Adjusted sticky offset for standard and mobile nav (100px total height) */}
-            <section className="sticky top-[100px] z-40 bg-white/95 backdrop-blur-md border-b border-gray-100 py-4 px-4 md:px-8 transition-all duration-300">
+            <section className="sticky top-[100px] z-40 bg-white/95 backdrop-blur-md border-b border-gray-100 py-4 px-4 md:px-8 transition-all duration-300 overflow-visible">
                 <div className="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-4">
 
                     {/* Left: Filter groups */}
-                    <div className="flex flex-wrap items-center gap-3 md:gap-6">
+                    <div className="flex flex-wrap items-center gap-3 md:gap-6 overflow-visible">
                         <div className="hidden sm:flex items-center gap-2 text-slate-500 text-sm font-medium mr-2">
                             <span>Filter by</span>
                             <div className="w-1.5 h-1.5 bg-brand-lemon rounded-full"></div>
@@ -258,8 +273,13 @@ function ShopContent() {
                                 Categories <ChevronDown className={`w-3.5 h-3.5 transition-transform ${openDropdown === 'Categories' ? 'rotate-180' : ''}`} />
                             </button>
 
-                            {/* Dropdown Menu */}
-                            <div className={`absolute top-full left-0 mt-4 w-48 bg-white shadow-xl rounded-xl border border-gray-100 p-2 z-[50] transition-all duration-200 origin-top-left ${openDropdown === 'Categories' ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'}`}>
+                            {/* Dropdown Menu — scrollable on mobile so all categories show */}
+                            <div className={dropdownPanelClass(openDropdown === 'Categories')}>
+                                {openDropdown === 'Categories' && (
+                                    <p className="sm:hidden px-3 py-1.5 text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 mb-1 sticky top-0 bg-white">
+                                        Scroll for all {categories.length} categories
+                                    </p>
+                                )}
                                 {categories.map((cat) => (
                                     <button
                                         key={cat}
@@ -287,8 +307,13 @@ function ShopContent() {
                                     {activeFilters[filter] && <span className="ml-1 text-[10px] bg-white/50 px-1.5 rounded-full">{activeFilters[filter]}</span>}
                                 </button>
 
-                                {/* Generic Dropdown Content */}
-                                <div className={`absolute top-full left-0 mt-4 w-48 bg-white shadow-xl rounded-xl border border-gray-100 p-2 z-[50] transition-all duration-200 origin-top-left ${openDropdown === filter ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'}`}>
+                                {/* Generic Dropdown Content — scrollable on mobile so all regions show */}
+                                <div className={dropdownPanelClass(openDropdown === filter)}>
+                                    {openDropdown === filter && filter === 'Region' && (
+                                        <p className="sm:hidden px-3 py-1.5 text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 mb-1 sticky top-0 bg-white">
+                                            Scroll for all {filterData.Region.length} regions
+                                        </p>
+                                    )}
                                     {filterData[filter].map((option) => {
                                         const isRegionAll = filter === 'Region' && option === REGION_ALL_LABEL;
                                         const isPriceAll = filter === 'Price' && option === PRICE_ALL_LABEL;

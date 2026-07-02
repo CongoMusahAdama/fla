@@ -1003,15 +1003,15 @@ export default function AdminDashboard() {
 
                         {/* Mobile Grid View */}
                         <div className="grid grid-cols-1 gap-4 md:hidden">
-                            {paginatedVendors.map((u) => (
+                            {paginatedVendors.map((u, i) => (
                                 <div key={u._id} className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm space-y-4">
-                                    <div className="flex items-start justify-between">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-14 h-14 bg-slate-900 rounded-2xl flex items-center justify-center text-white overflow-hidden relative shadow-md">
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div className="flex items-center gap-4 min-w-0">
+                                            <div className="w-14 h-14 bg-slate-900 rounded-2xl flex items-center justify-center text-white overflow-hidden relative shadow-md flex-shrink-0">
                                                 {u.profileImage ? <Image src={getImageUrl(u.profileImage)} alt={u.name} fill sizes="56px" className="object-cover" unoptimized={true} /> : u.name?.[0] || 'U'}
                                             </div>
-                                            <div className="flex-1">
-                                                <div className="flex items-center gap-2">
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-2 flex-wrap">
                                                     <p className="font-black text-slate-900 text-sm uppercase tracking-tight">{u.shopName || u.name}</p>
                                                     <span className={`text-[8px] font-black px-2 py-0.5 rounded-md uppercase tracking-widest ${u.vendorTier === 'high' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500'}`}>
                                                         {u.vendorTier === 'high' ? 'High Tier' : 'Low Tier'}
@@ -1023,6 +1023,9 @@ export default function AdminDashboard() {
                                                 </div>
                                             </div>
                                         </div>
+                                        <span className="text-[10px] font-black text-slate-300 tabular-nums flex-shrink-0">
+                                            #{(vendorsPage - 1) * itemsPerPage + i + 1}
+                                        </span>
                                     </div>
 
                                     <div className="flex justify-between items-center py-3 border-y border-slate-50">
@@ -1059,6 +1062,47 @@ export default function AdminDashboard() {
                                 </div>
                             ))}
                         </div>
+
+                        {filteredVendors.length > 0 && (
+                            <div className="md:hidden px-2 py-6 bg-slate-50 border border-slate-100 rounded-[24px] flex flex-col justify-between items-center gap-4 mb-2">
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">
+                                    Displaying <span className="text-slate-900">{(vendorsPage - 1) * itemsPerPage + 1} - {Math.min(vendorsPage * itemsPerPage, filteredVendors.length)}</span> of <span className="text-slate-900">{filteredVendors.length}</span> Studios
+                                </p>
+                                {vendorsTotalPages > 1 && (
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={() => setVendorsPage(prev => Math.max(1, prev - 1))}
+                                            disabled={vendorsPage === 1}
+                                            className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-200"
+                                        >
+                                            Prev
+                                        </button>
+                                        <div className="flex items-center gap-1">
+                                            {[...Array(vendorsTotalPages)].map((_, i) => (
+                                                <button
+                                                    key={i}
+                                                    onClick={() => setVendorsPage(i + 1)}
+                                                    className={`w-8 h-8 rounded-xl text-[10px] font-black transition-all ${
+                                                        vendorsPage === i + 1
+                                                            ? 'bg-slate-900 text-white shadow-lg'
+                                                            : 'text-slate-400 hover:bg-slate-200'
+                                                    }`}
+                                                >
+                                                    {i + 1}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <button
+                                            onClick={() => setVendorsPage(prev => Math.min(vendorsTotalPages, prev + 1))}
+                                            disabled={vendorsPage === vendorsTotalPages}
+                                            className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-200"
+                                        >
+                                            Next
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                         {/* Desktop Table View */}
                         <div className="hidden md:flex flex-col bg-white rounded-[40px] border border-slate-100 shadow-sm overflow-hidden">
@@ -1165,46 +1209,46 @@ export default function AdminDashboard() {
                                 </tbody>
                             </table>
                             </div>
-
-                            {vendorsTotalPages > 1 && (
-                                <div className="px-10 py-6 bg-slate-50 border-t border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4">
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                                        Showing <span className="text-slate-900">{(vendorsPage - 1) * itemsPerPage + 1} - {Math.min(vendorsPage * itemsPerPage, filteredVendors.length)}</span> of <span className="text-slate-900">{filteredVendors.length}</span> Studios
-                                    </p>
-                                    <div className="flex items-center gap-2">
-                                        <button
-                                            onClick={() => setVendorsPage(prev => Math.max(1, prev - 1))}
-                                            disabled={vendorsPage === 1}
-                                            className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-200"
-                                        >
-                                            Prev
-                                        </button>
-                                        <div className="flex items-center gap-1">
-                                            {[...Array(vendorsTotalPages)].map((_, i) => (
-                                                <button
-                                                    key={i}
-                                                    onClick={() => setVendorsPage(i + 1)}
-                                                    className={`w-8 h-8 rounded-xl text-[10px] font-black transition-all ${
-                                                        vendorsPage === i + 1 
-                                                            ? 'bg-slate-900 text-white shadow-lg' 
-                                                            : 'text-slate-400 hover:bg-slate-200'
-                                                    }`}
-                                                >
-                                                    {i + 1}
-                                                </button>
-                                            ))}
-                                        </div>
-                                        <button
-                                            onClick={() => setVendorsPage(prev => Math.min(vendorsTotalPages, prev + 1))}
-                                            disabled={vendorsPage === vendorsTotalPages}
-                                            className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-200"
-                                        >
-                                            Next
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
                         </div>
+
+                        {vendorsTotalPages > 1 && (
+                            <div className="hidden md:flex px-10 py-6 bg-slate-50 border-t border-slate-100 flex-col md:flex-row justify-between items-center gap-4">
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center md:text-left">
+                                    Displaying <span className="text-slate-900">{(vendorsPage - 1) * itemsPerPage + 1} - {Math.min(vendorsPage * itemsPerPage, filteredVendors.length)}</span> of <span className="text-slate-900">{filteredVendors.length}</span> Studios
+                                </p>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => setVendorsPage(prev => Math.max(1, prev - 1))}
+                                        disabled={vendorsPage === 1}
+                                        className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-200"
+                                    >
+                                        Prev
+                                    </button>
+                                    <div className="flex items-center gap-1">
+                                        {[...Array(vendorsTotalPages)].map((_, i) => (
+                                            <button
+                                                key={i}
+                                                onClick={() => setVendorsPage(i + 1)}
+                                                className={`w-8 h-8 rounded-xl text-[10px] font-black transition-all ${
+                                                    vendorsPage === i + 1
+                                                        ? 'bg-slate-900 text-white shadow-lg'
+                                                        : 'text-slate-400 hover:bg-slate-200'
+                                                }`}
+                                            >
+                                                {i + 1}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <button
+                                        onClick={() => setVendorsPage(prev => Math.min(vendorsTotalPages, prev + 1))}
+                                        disabled={vendorsPage === vendorsTotalPages}
+                                        className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-200"
+                                    >
+                                        Next
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 );
             case 'customers':

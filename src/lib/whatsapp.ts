@@ -44,15 +44,31 @@ export function normalizeWhatsAppPhone(phone?: string | null): string | null {
   return digits.length >= 10 ? digits : null;
 }
 
-export function getVendorPhoneFromOrder(order: {
-  vendorId?: { phone?: string } | string;
+export function getVendorRawPhoneFromOrder(order: {
+  vendorId?: { phone?: string; momoNumber?: string } | string;
   vendorPhone?: string;
 }): string | null {
   const vendor = order.vendorId;
-  if (vendor && typeof vendor === 'object' && vendor.phone) {
-    return normalizeWhatsAppPhone(vendor.phone);
+  if (vendor && typeof vendor === 'object') {
+    return vendor.phone || vendor.momoNumber || null;
   }
-  return normalizeWhatsAppPhone(order.vendorPhone);
+  return order.vendorPhone || null;
+}
+
+export function formatPhoneForDisplay(phone?: string | null): string {
+  if (!phone?.trim()) return 'Not on file';
+  const digits = phone.replace(/\D/g, '');
+  if (digits.startsWith('233') && digits.length >= 12) {
+    return `0${digits.slice(3)}`;
+  }
+  return phone.trim();
+}
+
+export function getVendorPhoneFromOrder(order: {
+  vendorId?: { phone?: string; momoNumber?: string } | string;
+  vendorPhone?: string;
+}): string | null {
+  return normalizeWhatsAppPhone(getVendorRawPhoneFromOrder(order));
 }
 
 export function canShowOrderWhatsApp(order: { isPaid?: boolean; status?: string }): boolean {
@@ -122,6 +138,8 @@ export function buildCustomerReportToAdminMessage(
   order: {
     _id?: string;
     vendorName?: string;
+    vendorId?: { phone?: string; momoNumber?: string } | string;
+    vendorPhone?: string;
     items?: Array<{ name?: string }>;
     status?: string;
     totalAmount?: number;
@@ -131,6 +149,7 @@ export function buildCustomerReportToAdminMessage(
   const orderRef = order._id?.slice(-6)?.toUpperCase() || '------';
   const item = order.items?.[0]?.name || 'order';
   const vendor = order.vendorName || 'vendor';
+  const vendorNumber = formatPhoneForDisplay(getVendorRawPhoneFromOrder(order));
   const status = order.status || 'unknown';
   const amount =
     order.totalAmount != null ? `GH₵ ${Number(order.totalAmount).toLocaleString()}` : '—';
@@ -142,6 +161,7 @@ export function buildCustomerReportToAdminMessage(
     `Order: #ORD-${orderRef}`,
     `Item: ${item}`,
     `Vendor: ${vendor}`,
+    `Vendor number: ${vendorNumber}`,
     `Status: ${status}`,
     `Amount: ${amount}`,
     '',

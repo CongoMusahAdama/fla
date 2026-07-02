@@ -500,7 +500,7 @@ export class OrdersService implements OnModuleInit {
   async findAll(page: number = 1, limit: number = 10): Promise<{ orders: Order[]; total: number }> {
     const [orders, total] = await Promise.all([
       this.orderModel.find()
-        .populate('vendorId', 'name shopName email phone')
+        .populate('vendorId', 'name shopName email phone momoNumber')
         .populate('customerId', 'name email phone')
         .sort({ createdAt: -1 })
         .skip((page - 1) * limit)
@@ -515,7 +515,7 @@ export class OrdersService implements OnModuleInit {
     await this.purgeAbandonedCheckouts();
     const query = this.listableOrdersFilter({ customerId: new Types.ObjectId(userId) });
     const [orders, total] = await Promise.all([
-      this.orderModel.find(query).populate('vendorId', 'shopName name phone').sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).exec(),
+      this.orderModel.find(query).populate('vendorId', 'shopName name phone momoNumber').sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).exec(),
       this.orderModel.countDocuments(query)
     ]);
     await this.attachTailoringTimeToOrderItems(orders);
