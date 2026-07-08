@@ -46,6 +46,19 @@ export default function CartDrawer() {
         }
     }, [isCartOpen]);
 
+    // When returning from Paystack via the browser "Back" button (bfcache restore,
+    // common on mobile Safari), dismiss any leftover "Preparing payment…" loader.
+    useEffect(() => {
+        const handlePageShow = (event: PageTransitionEvent) => {
+            if (event.persisted) {
+                Swal.close();
+                setIsProcessingCheckout(false);
+            }
+        };
+        window.addEventListener('pageshow', handlePageShow);
+        return () => window.removeEventListener('pageshow', handlePageShow);
+    }, []);
+
 
 
     const subtotal = cartItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
@@ -311,6 +324,10 @@ export default function CartDrawer() {
 
                 cartItems.forEach(item => removeFromCart(item.id, item.size, item.color));
                 setIsCartOpen(false);
+
+                // Close the loading modal before leaving so a browser "Back" from
+                // Paystack doesn't restore a stuck "Preparing payment…" screen.
+                Swal.close();
                 window.location.href = firstPayment;
 
             } catch (error: any) {

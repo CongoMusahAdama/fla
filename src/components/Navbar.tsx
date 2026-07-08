@@ -184,7 +184,10 @@ export default function Navbar() {
                                             {(suggestions || []).map((s, idx) => (
                                                 <button
                                                     key={idx}
-                                                    onClick={() => handleSuggestionClick(s.text)}
+                                                    onMouseDown={(e) => {
+                                                        e.preventDefault();
+                                                        handleSuggestionClick(s.text);
+                                                    }}
                                                     className="w-full px-4 py-3 text-left hover:bg-slate-50 flex items-center justify-between border-b border-slate-50 last:border-0"
                                                 >
                                                     <span className="text-[10px] font-bold text-slate-900">{s.text}</span>
@@ -304,7 +307,10 @@ export default function Navbar() {
                                                             {(suggestions || []).map((s, idx) => (
                                                                 <button
                                                                     key={idx}
-                                                                    onClick={() => handleSuggestionClick(s.text)}
+                                                                    onMouseDown={(e) => {
+                                                                        e.preventDefault();
+                                                                        handleSuggestionClick(s.text);
+                                                                    }}
                                                                     className="w-full px-5 py-4 text-left hover:bg-slate-50 flex items-center justify-between group transition-colors border-b border-slate-50 last:border-0"
                                                                 >
                                                                     <div className="flex items-center gap-3">

@@ -1454,7 +1454,7 @@ export default function AdminDashboard() {
                                 <div key={p._id} className={`bg-white rounded-[32px] border ${p.isActive ? 'border-slate-100' : 'border-red-100 grayscale-[0.5]'} shadow-sm overflow-hidden group hover:shadow-xl transition-all duration-500`}>
                                     <div className="relative aspect-[3/4] bg-slate-50 rounded-[28px] overflow-hidden mb-4">
                                         <Image src={getImageUrl(p.images?.[0])} alt={p.name} fill sizes="(max-width: 768px) 50vw, 200px" className="object-cover group-hover:scale-110 transition-transform duration-700" />
-                                        <div className="absolute top-4 right-4 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <div className="absolute top-4 right-4 flex flex-col gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                                             <div className="relative group/tooltip">
                                                 <button onClick={() => handleToggleProductStatus(p._id, p.isActive)} className={`p-3 rounded-2xl shadow-xl transition-all ${p.isActive ? 'bg-white text-slate-900 hover:bg-slate-900 hover:text-white' : 'bg-emerald-500 text-white'}`}>
                                                     {p.isActive ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}

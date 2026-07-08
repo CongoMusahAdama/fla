@@ -250,7 +250,9 @@ function ShopContent() {
                                     {(suggestions || []).map((s: any, idx: number) => (
                                         <button
                                             key={idx}
-                                            onClick={() => {
+                                            onMouseDown={(e) => {
+                                                // Fire before the input blurs so mobile taps register on the first press
+                                                e.preventDefault();
                                                 setLocalSearch(s.text);
                                                 setSuggestions([]);
                                             }}
@@ -311,7 +313,7 @@ function ShopContent() {
                                 <div className={dropdownPanelClass(openDropdown === filter)}>
                                     {openDropdown === filter && filter === 'Region' && (
                                         <p className="sm:hidden px-3 py-1.5 text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 mb-1 sticky top-0 bg-white">
-                                            Scroll for all {filterData.Region.length} regions
+                                            Scroll for all {GHANA_REGIONS.length} regions
                                         </p>
                                     )}
                                     {filterData[filter].map((option) => {
