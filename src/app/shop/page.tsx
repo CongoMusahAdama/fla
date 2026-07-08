@@ -1,6 +1,6 @@
 
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import Footer from "@/components/Footer";
@@ -19,14 +19,20 @@ const PRICE_ALL_LABEL = 'All Prices';
 
 const PRODUCTS_PER_PAGE = 12;
 
-/** Scrollable panel — fixed on mobile so list is not cut off by viewport */
+/**
+ * Filter panel.
+ * Mobile: a bottom sheet anchored to the viewport bottom so every option is
+ * reachable and scrollable (avoids the iOS Safari bug where backdrop-blur on the
+ * sticky bar traps `position: fixed` children and clips the list).
+ * Desktop: a normal dropdown anchored under its trigger button.
+ */
 const FILTER_DROPDOWN_PANEL =
-    'z-[60] bg-white shadow-xl rounded-xl border border-gray-100 p-2 transition-all duration-200 origin-top-left ' +
-    'fixed left-4 right-4 top-[calc(100px+5.5rem)] max-h-[calc(100dvh-13rem)] overflow-y-auto overscroll-contain touch-pan-y ' +
-    'sm:absolute sm:left-0 sm:right-auto sm:top-full sm:mt-4 sm:w-52 sm:max-h-[min(50vh,320px)]';
+    'z-[70] bg-white shadow-2xl border border-gray-100 transition-all duration-200 ' +
+    'fixed inset-x-0 bottom-0 top-auto max-h-[75dvh] overflow-y-auto overscroll-contain touch-pan-y rounded-t-3xl p-3 ' +
+    'sm:absolute sm:inset-auto sm:left-0 sm:right-auto sm:bottom-auto sm:top-full sm:mt-4 sm:w-52 sm:max-h-[min(50vh,320px)] sm:rounded-xl sm:p-2 sm:shadow-xl';
 
 function dropdownPanelClass(isOpen: boolean) {
-    return `${FILTER_DROPDOWN_PANEL} ${isOpen ? 'opacity-100 scale-100 pointer-events-auto' : 'opacity-0 scale-95 pointer-events-none'}`;
+    return `${FILTER_DROPDOWN_PANEL} ${isOpen ? 'opacity-100 translate-y-0 pointer-events-auto' : 'opacity-0 translate-y-4 pointer-events-none sm:translate-y-0'}`;
 }
 
 function getPriceQueryParams(priceLabel?: string): Record<string, string> {
@@ -49,8 +55,16 @@ function ShopContent() {
     const [activeFilters, setActiveFilters] = useState<Record<string, string>>({});
     const [localSearch, setLocalSearch] = useState('');
     const [suggestions, setSuggestions] = useState<any[]>([]);
+    // Skip the next suggestion fetch after a suggestion is picked so the list
+    // doesn't immediately re-open from the updated search text.
+    const suppressSuggestionsRef = useRef(false);
 
     useEffect(() => {
+        if (suppressSuggestionsRef.current) {
+            suppressSuggestionsRef.current = false;
+            return;
+        }
+
         const fetchSuggestions = async () => {
             if (localSearch.length < 2) {
                 setSuggestions([]);
@@ -221,7 +235,7 @@ function ShopContent() {
             </section>
 
             {/* Filter Bar - Adjusted sticky offset for standard and mobile nav (100px total height) */}
-            <section className="sticky top-[100px] z-40 bg-white/95 backdrop-blur-md border-b border-gray-100 py-4 px-4 md:px-8 transition-all duration-300 overflow-visible">
+            <section className="sticky top-[100px] z-40 bg-white sm:bg-white/95 sm:backdrop-blur-md border-b border-gray-100 py-4 px-4 md:px-8 transition-all duration-300 overflow-visible">
                 <div className="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-4">
 
                     {/* Left: Filter groups */}
@@ -253,6 +267,7 @@ function ShopContent() {
                                             onMouseDown={(e) => {
                                                 // Fire before the input blurs so mobile taps register on the first press
                                                 e.preventDefault();
+                                                suppressSuggestionsRef.current = true;
                                                 setLocalSearch(s.text);
                                                 setSuggestions([]);
                                             }}
@@ -278,9 +293,20 @@ function ShopContent() {
                             {/* Dropdown Menu — scrollable on mobile so all categories show */}
                             <div className={dropdownPanelClass(openDropdown === 'Categories')}>
                                 {openDropdown === 'Categories' && (
-                                    <p className="sm:hidden px-3 py-1.5 text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 mb-1 sticky top-0 bg-white">
-                                        Scroll for all {categories.length} categories
-                                    </p>
+                                    <div className="sm:hidden sticky top-0 bg-white z-10 pb-2 mb-1 border-b border-slate-100">
+                                        <div className="mx-auto mt-1 mb-3 h-1.5 w-12 rounded-full bg-slate-200" />
+                                        <div className="flex items-center justify-between px-3">
+                                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                                Categories ({categories.length})
+                                            </p>
+                                            <button
+                                                onClick={() => setOpenDropdown(null)}
+                                                className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2 py-1"
+                                            >
+                                                Done
+                                            </button>
+                                        </div>
+                                    </div>
                                 )}
                                 {categories.map((cat) => (
                                     <button
@@ -311,10 +337,21 @@ function ShopContent() {
 
                                 {/* Generic Dropdown Content — scrollable on mobile so all regions show */}
                                 <div className={dropdownPanelClass(openDropdown === filter)}>
-                                    {openDropdown === filter && filter === 'Region' && (
-                                        <p className="sm:hidden px-3 py-1.5 text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 mb-1 sticky top-0 bg-white">
-                                            Scroll for all {GHANA_REGIONS.length} regions
-                                        </p>
+                                    {openDropdown === filter && (
+                                        <div className="sm:hidden sticky top-0 bg-white z-10 pb-2 mb-1 border-b border-slate-100">
+                                            <div className="mx-auto mt-1 mb-3 h-1.5 w-12 rounded-full bg-slate-200" />
+                                            <div className="flex items-center justify-between px-3">
+                                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                                    {filter === 'Region' ? `Region (${GHANA_REGIONS.length})` : filter}
+                                                </p>
+                                                <button
+                                                    onClick={() => setOpenDropdown(null)}
+                                                    className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2 py-1"
+                                                >
+                                                    Done
+                                                </button>
+                                            </div>
+                                        </div>
                                     )}
                                     {filterData[filter].map((option) => {
                                         const isRegionAll = filter === 'Region' && option === REGION_ALL_LABEL;

@@ -32,7 +32,7 @@ interface VendorProductsProps {
   products: Product[];
   onEdit: (product: Product) => void;
   onDelete: (id: any) => void;
-  onToggleStatus: (id: any, currentStatus: string) => void;
+  onToggleStatus: (id: any, isActive: boolean) => void;
   onAddNew: () => void;
 }
 
@@ -143,6 +143,17 @@ export const VendorProducts: React.FC<VendorProductsProps> = ({
                   >
                     <Edit2 className="w-3 h-3" />
                     Edit
+                  </button>
+                  <button
+                    onClick={() => onToggleStatus(product.id, product.isActive !== false)}
+                    className={`flex-1 py-3 rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2 ${
+                      product.isActive === false
+                        ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-900 hover:text-white'
+                    }`}
+                  >
+                    {product.isActive === false ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+                    {product.isActive === false ? 'Show' : 'Hide'}
                   </button>
                   <button
                     onClick={() => onDelete(product.id)}

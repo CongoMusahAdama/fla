@@ -77,5 +77,9 @@ export class CreateProductDto {
     @IsOptional()
     hasColors?: boolean;
 
+    @IsBoolean()
+    @IsOptional()
+    isActive?: boolean;
+
 }
 

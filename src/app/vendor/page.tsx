@@ -230,7 +230,22 @@ export default function VendorDashboard() {
 
     const handleAddOrEditProduct = async () => {
         if (!formName || !formPrice || !formNarrative) {
-            Swal.fire({ icon: 'error', title: 'Missing Info', text: 'Please fill in all core fields.' });
+            Swal.fire({ icon: 'error', title: 'Missing Info', text: 'Please fill in all core fields (name, price, description).' });
+            return;
+        }
+
+        if (formQuantity === '' || Number.isNaN(parseInt(formQuantity, 10))) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Stock Required',
+                text: 'Please enter your stock quantity before publishing or updating this product.',
+                confirmButtonColor: '#0f172a',
+            });
+            return;
+        }
+
+        if (parseInt(formQuantity, 10) < 0) {
+            Swal.fire({ icon: 'warning', title: 'Invalid Stock', text: 'Stock quantity cannot be negative.' });
             return;
         }
 
@@ -268,12 +283,62 @@ export default function VendorDashboard() {
 
             if (!res.ok) throw new Error("Save operation failed");
             
-            const savedData = await res.json();
-            // Refresh logic context...
-            Swal.fire({ icon: 'success', title: 'STORE UPDATED', customClass: { popup: 'rounded-[32px]' } });
+            await res.json();
+
+            const refreshVendorProducts = async () => {
+                if (!token || !user?.id) return;
+                const productsRes = await fetch(`${api}/products?vendorId=${user.id}&showAll=true`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                    credentials: 'include',
+                });
+                if (!productsRes.ok) return;
+                const p = await productsRes.json();
+                setVendorProducts(p.map((prod: any) => ({
+                    id: prod._id,
+                    name: prod.name,
+                    price: prod.price.toString(),
+                    image: prod.images?.[0] || '/product-1.jpg',
+                    images: prod.images?.map((img: string, idx: number) => ({
+                        url: img,
+                        label: prod.imageLabels?.[idx] || 'Product',
+                    })) || [],
+                    status: prod.stock < 10 ? 'Low Stock' : 'In Stock',
+                    sales: 0,
+                    quantity: prod.stock,
+                    tailoringTime: prod.tailoringTime || '3 Days',
+                    region: prod.region || 'Greater Accra',
+                    description: prod.description || '',
+                    category: prod.category || 'T-Shirt',
+                    imageLabels: prod.imageLabels || [],
+                    sizes: prod.sizes || [],
+                    hasSizes: prod.hasSizes !== undefined ? prod.hasSizes : true,
+                    colors: prod.colors || [],
+                    hasColors: prod.hasColors !== undefined ? prod.hasColors : true,
+                    isActive: prod.isActive,
+                })));
+            };
+
+            await refreshVendorProducts();
             setShowAddProduct(false);
-            // Refresh products (simulated here)
-            window.location.reload();
+            resetProductForm();
+            setActiveSection('products');
+
+            const wasEditing = Boolean(editingProduct);
+            const result = await Swal.fire({
+                icon: 'success',
+                title: wasEditing ? 'PRODUCT UPDATED' : 'PRODUCT PUBLISHED',
+                text: 'Your shop inventory has been refreshed.',
+                showCancelButton: true,
+                confirmButtonText: 'ADD ANOTHER',
+                cancelButtonText: 'BACK TO SHOP',
+                confirmButtonColor: '#0f172a',
+                customClass: { popup: 'rounded-[32px]' },
+            });
+
+            if (result.isConfirmed) {
+                resetProductForm();
+                setShowAddProduct(true);
+            }
         } catch (err) {
             Swal.fire({ icon: 'error', title: 'Operational Failure', text: 'Could not synchronize product.' });
         }
@@ -474,8 +539,41 @@ export default function VendorDashboard() {
         }
     };
 
-    const handleToggleVisibility = async (id: any, status: boolean) => {
-        // Logic handled in modular component
+    const handleToggleProductVisibility = async (id: any, isCurrentlyActive: boolean) => {
+        try {
+            const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+            const res = await fetch(`${api}/products/${id}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`,
+                },
+                credentials: 'include',
+                body: JSON.stringify({ isActive: !isCurrentlyActive }),
+            });
+
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData.message || 'Could not update product visibility');
+            }
+
+            setVendorProducts((prev) =>
+                prev.map((p) => (p.id === id ? { ...p, isActive: !isCurrentlyActive } : p)),
+            );
+
+            Swal.fire({
+                icon: 'success',
+                title: isCurrentlyActive ? 'PRODUCT HIDDEN' : 'PRODUCT VISIBLE',
+                text: isCurrentlyActive
+                    ? 'This item is hidden from the marketplace until you show it again.'
+                    : 'This item is now visible in your store.',
+                timer: 2000,
+                showConfirmButton: false,
+                customClass: { popup: 'rounded-[32px]' },
+            });
+        } catch (err: any) {
+            Swal.fire('Update Failed', err.message || 'Could not change product visibility.', 'error');
+        }
     };
 
     const handleMarkShipped = async (id: string) => {
@@ -567,7 +665,7 @@ export default function VendorDashboard() {
                             setShowAddProduct(true);
                         }}
                         onDelete={handleDeleteProduct}
-                        onToggleStatus={() => {}}
+                        onToggleStatus={handleToggleProductVisibility}
                         onAddNew={() => { resetProductForm(); setShowAddProduct(true); }}
                     />
                 );
@@ -771,19 +869,49 @@ export default function VendorDashboard() {
 
                                             {formImages[idx] ? (
                                                 <div className="absolute inset-0">
-                                                    <Image src={formImages[idx]} alt={`Preview ${idx}`} fill sizes="(max-width: 768px) 50vw, 25vw" style={{ objectFit: 'cover' }} className="rounded-3xl" />
-                                                    <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
-                                                        <label className="cursor-pointer px-4 py-2 bg-white rounded-full text-[8px] font-black uppercase tracking-widest">Replace
-                                                            <input type="file" className="hidden" accept="image/*" onChange={(e) => e.target.files?.[0] && handleFormImageUpload(e.target.files[0], idx)} />
+                                                    <Image src={getImageUrl(formImages[idx])} alt={`Preview ${idx}`} fill sizes="(max-width: 768px) 50vw, 25vw" style={{ objectFit: 'cover' }} className="rounded-3xl" unoptimized />
+                                                    <div className="absolute inset-0 bg-slate-900/60 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 p-2">
+                                                        <label className="cursor-pointer px-4 py-2 bg-white rounded-full text-[8px] font-black uppercase tracking-widest touch-manipulation">
+                                                            Replace
+                                                            <input
+                                                                type="file"
+                                                                className="hidden"
+                                                                accept="image/*"
+                                                                onChange={(e) => {
+                                                                    const file = e.target.files?.[0];
+                                                                    if (file) handleFormImageUpload(file, idx);
+                                                                    e.target.value = '';
+                                                                }}
+                                                            />
                                                         </label>
-                                                        <button onClick={() => setFormImages(prev => prev.filter((_, i) => i !== idx))} className="px-4 py-2 bg-red-500 text-white rounded-full text-[8px] font-black uppercase tracking-widest">Delete</button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setFormImages((prev) => {
+                                                                const next = [...prev];
+                                                                while (next.length <= idx) next.push('');
+                                                                next[idx] = '';
+                                                                return next;
+                                                            })}
+                                                            className="px-4 py-2 bg-red-500 text-white rounded-full text-[8px] font-black uppercase tracking-widest touch-manipulation"
+                                                        >
+                                                            Delete
+                                                        </button>
                                                     </div>
                                                 </div>
                                             ) : (
-                                                <label className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-100 transition-all">
+                                                <label className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-100 transition-all touch-manipulation">
                                                     <Camera className="w-6 h-6 text-slate-300" />
                                                     <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mt-2">Upload</span>
-                                                    <input type="file" className="hidden" accept="image/*" onChange={(e) => e.target.files?.[0] && handleFormImageUpload(e.target.files[0], idx)} />
+                                                    <input
+                                                        type="file"
+                                                        className="hidden"
+                                                        accept="image/*"
+                                                        onChange={(e) => {
+                                                            const file = e.target.files?.[0];
+                                                            if (file) handleFormImageUpload(file, idx);
+                                                            e.target.value = '';
+                                                        }}
+                                                    />
                                                 </label>
                                             )}
                                         </div>
@@ -859,8 +987,21 @@ export default function VendorDashboard() {
                                     </select>
                                 </div>
                                 <div className="space-y-4">
-                                    <label htmlFor="p-stock" className="text-[12px] font-black text-slate-900 uppercase tracking-widest ml-1 cursor-pointer">Stock Vol.</label>
-                                    <input id="p-stock" name="stock" type="number" placeholder="20" value={formQuantity} onChange={(e) => setFormQuantity(e.target.value)} className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-slate-900/10 h-14" />
+                                    <label htmlFor="p-stock" className="text-[12px] font-black text-slate-900 uppercase tracking-widest ml-1 cursor-pointer">Stock Vol. <span className="text-red-500">*</span></label>
+                                    <input
+                                        id="p-stock"
+                                        name="stock"
+                                        type="number"
+                                        min="0"
+                                        required
+                                        placeholder="20"
+                                        value={formQuantity}
+                                        onChange={(e) => setFormQuantity(e.target.value)}
+                                        className={`w-full px-6 py-4 bg-slate-50 border rounded-2xl text-sm font-bold focus:ring-2 focus:ring-slate-900/10 h-14 ${formQuantity === '' ? 'border-red-200 ring-2 ring-red-50' : 'border-slate-100'}`}
+                                    />
+                                    {formQuantity === '' && (
+                                        <p className="text-[10px] font-bold text-red-500 ml-1">Stock quantity is required before you can publish.</p>
+                                    )}
                                 </div>
                                 <div className="space-y-4">
                                     <label htmlFor="p-tailoring" className="text-[12px] font-black text-slate-900 uppercase tracking-widest ml-1 cursor-pointer">Prep Time</label>
