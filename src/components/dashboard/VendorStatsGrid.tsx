@@ -1,7 +1,7 @@
 
 "use client";
-import React from 'react';
-import { Wallet, Clock, ShoppingBag, Package, TrendingUp } from 'lucide-react';
+import React, { useState } from 'react';
+import { Wallet, Clock, ShoppingBag, Package, TrendingUp, Eye, EyeOff } from 'lucide-react';
 
 interface Stat {
   label: string;
@@ -23,17 +23,12 @@ export const VendorStatsGrid: React.FC<VendorStatsGridProps> = ({
   dashboardData,
   productsCount
 }) => {
+  const [showLifetimeRevenue, setShowLifetimeRevenue] = useState(false);
+
+  const todayRevenue = Number(dashboardData?.todayRevenue || 0);
+  const lifetimeRevenue = Number(dashboardData?.totalRevenue || 0) + Number(dashboardData?.pendingRevenue || 0);
+
   const stats: Stat[] = [
-    { 
-      label: 'Total Revenue', 
-      value: `GH₵ ${((dashboardData?.totalRevenue || 0) + (dashboardData?.pendingRevenue || 0)).toLocaleString()}`, 
-      icon: Wallet, 
-      color: 'text-white', 
-      bg: 'bg-gradient-to-br from-emerald-500 to-emerald-700', 
-      pattern: 'opacity-10', 
-      trend: dashboardData?.pendingRevenue > 0 ? `+ GH₵ ${dashboardData.pendingRevenue.toLocaleString()} Pending` : 'Lifetime Revenue',
-      trendColor: 'text-emerald-100'
-    },
     { 
       label: 'Active Orders', 
       value: (dashboardData?.activeOrders || '0').toString(), 
@@ -68,6 +63,31 @@ export const VendorStatsGrid: React.FC<VendorStatsGridProps> = ({
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+      {/* Revenue — today's earnings in plain sight; lifetime hidden until revealed */}
+      <div className="bg-gradient-to-br from-emerald-500 to-emerald-700 p-8 rounded-3xl relative overflow-hidden shadow-xl shadow-slate-200 transition-all hover:-translate-y-1 hover:shadow-2xl">
+        <div className="relative z-10">
+          <p className="text-[10px] font-black uppercase tracking-widest text-white/60 mb-2">Revenue Today</p>
+          <h3 className="text-3xl font-black text-white tracking-tighter mb-4">GH₵ {todayRevenue.toLocaleString()}</h3>
+          <div className="flex flex-col gap-2">
+            {dashboardData?.pendingRevenue > 0 && (
+              <div className="flex items-center gap-2 text-emerald-100 text-[10px] font-black uppercase tracking-tighter">
+                <TrendingUp className="w-3 h-3" />
+                + GH₵ {Number(dashboardData.pendingRevenue).toLocaleString()} Pending
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => setShowLifetimeRevenue((v) => !v)}
+              className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-tighter text-emerald-100/90 hover:text-white transition-colors w-fit"
+            >
+              {showLifetimeRevenue ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+              {showLifetimeRevenue ? `Lifetime: GH₵ ${lifetimeRevenue.toLocaleString()}` : 'Show total'}
+            </button>
+          </div>
+        </div>
+        <Wallet className="absolute top-0 right-0 p-8 w-32 h-32 text-white opacity-10" />
+      </div>
+
       {stats.map((stat, idx) => (
         <div key={idx} className={`${stat.bg} p-8 rounded-3xl relative overflow-hidden shadow-xl shadow-slate-200 transition-all hover:-translate-y-1 hover:shadow-2xl`}>
           <div className="relative z-10">

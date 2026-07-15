@@ -5,7 +5,7 @@ import {
     HelpCircle, LogOut, Package, Clock, CheckCircle2,
     Wallet, ChevronRight, MessageSquare, ShieldAlert,
     Search, Menu, X, ArrowRight, Star, ArrowLeft,
-    Printer, FileText, Download, Check, Truck
+    Printer, FileText, Download, Check, Truck, Eye, EyeOff, Calendar, Mail
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
@@ -20,12 +20,11 @@ import {
     getVendorPhoneFromOrder,
     buildCustomerToVendorMessage,
     buildDisputeWhatsAppMessage,
-    getAdminReportWhatsAppUrl,
-    getFlaAdminWhatsAppPhone,
     openWhatsAppChat,
     promptMissingWhatsAppContact,
 } from '@/lib/whatsapp';
-import { WhatsAppButton, WhatsAppIcon } from '@/components/WhatsAppButton';
+import { getAdminReportMailtoUrl, getSupportMailtoUrl, getFlaReportEmail, getFlaSupportEmail } from '@/lib/support-contacts';
+import { WhatsAppButton } from '@/components/WhatsAppButton';
 import { getMultiCheckoutQueue, clearMultiCheckoutQueue } from '@/lib/cart-vendors';
 import { getOrderEstimatedDelivery } from '@/lib/utils';
 import { TableSearch } from '@/components/ui/TableSearch';
@@ -34,23 +33,23 @@ import { matchesTableSearch, customerOrderSearchValues } from '@/lib/table-searc
 type DashboardSection = 'home' | 'orders' | 'wishlist' | 'notifications' | 'profile' | 'help';
 
 const reportBtnClass =
-    'inline-flex items-center justify-center gap-1.5 font-black uppercase tracking-widest text-white bg-[#25D366] hover:bg-[#20BD5A] shadow-lg shadow-[#25D366]/25 transition-all active:scale-[0.98] rounded-full';
+    'inline-flex items-center justify-center gap-1.5 font-black uppercase tracking-widest text-white bg-red-500 hover:bg-red-600 shadow-lg shadow-red-500/25 transition-all active:scale-[0.98] rounded-full';
 
 function ReportToAdminLink({
     order,
     customerName,
     className = '',
 }: {
-    order: Parameters<typeof getAdminReportWhatsAppUrl>[0];
+    order: Parameters<typeof getAdminReportMailtoUrl>[0];
     customerName?: string;
     className?: string;
 }) {
     return (
         <a
-            href={getAdminReportWhatsAppUrl(order, customerName)}
+            href={getAdminReportMailtoUrl(order, customerName)}
             className={`${reportBtnClass} gap-1.5 px-4 py-2.5 text-[9px] ${className}`}
         >
-            <WhatsAppIcon className="w-3.5 h-3.5" />
+            <Mail className="w-3.5 h-3.5" />
             Report
         </a>
     );
@@ -66,6 +65,7 @@ export default function CustomerDashboard() {
     const [orderFilter, setOrderFilter] = useState('All');
     const [tableSearch, setTableSearch] = useState('');
     const [selectedReceipt, setSelectedReceipt] = useState<any>(null);
+    const [showLifetimeSpent, setShowLifetimeSpent] = useState(false);
 
     // Help Center States
     const [showDisputeForm, setShowDisputeForm] = useState(false);
@@ -110,15 +110,13 @@ export default function CustomerDashboard() {
                 vendorName: '—',
                 status: '—',
             };
-        const url = getAdminReportWhatsAppUrl(target, user?.name);
+        const url = getAdminReportMailtoUrl(target, user?.name);
         window.location.href = url;
     };
 
     const handleSendMessage = () => {
         if (!chatInput.trim()) return;
-        const phone = getFlaAdminWhatsAppPhone();
-        const text = `Hello FLA Support, I am ${user?.name || 'a customer'}. ${chatInput}`;
-        openWhatsAppChat(phone, text);
+        window.location.href = getSupportMailtoUrl(user?.name, chatInput);
         setChatInput('');
     };
 
@@ -705,14 +703,6 @@ export default function CustomerDashboard() {
             bg: 'bg-emerald-50',
             border: 'border-emerald-100'
         },
-        {
-            label: 'Total Spent',
-            value: `GH₵ ${dashboardData?.totalSpent || 0}`,
-            icon: ShoppingBag,
-            color: 'text-slate-600',
-            bg: 'bg-slate-50',
-            border: 'border-slate-100'
-        },
     ];
 
     const renderContent = () => {
@@ -743,6 +733,28 @@ export default function CustomerDashboard() {
                                     </div>
                                 </div>
                             ))}
+
+                            {/* Spending — daily figure in plain sight; lifetime hidden until revealed */}
+                            <div className="p-5 rounded-[24px] border border-slate-100 shadow-sm group overflow-hidden relative text-left w-full">
+                                <div className="absolute -right-2 -top-2 w-16 h-16 bg-white/10 rounded-full blur-2xl group-hover:scale-150 transition-transform" />
+                                <div className="w-10 h-10 bg-slate-50 text-slate-600 rounded-xl flex items-center justify-center mb-4 relative z-10 group-hover:scale-110 transition-transform">
+                                    <Calendar className="w-5 h-5" />
+                                </div>
+                                <div className="relative z-10">
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Spent Today</p>
+                                    <p className="text-xl font-black text-slate-900 mt-1">GH₵ {Number(dashboardData?.todaySpent || 0).toLocaleString()}</p>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowLifetimeSpent((v) => !v)}
+                                        className="mt-2 inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-700 transition-colors"
+                                    >
+                                        {showLifetimeSpent ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                                        {showLifetimeSpent
+                                            ? `Lifetime: GH₵ ${Number(dashboardData?.totalSpent || 0).toLocaleString()}`
+                                            : 'Show total'}
+                                    </button>
+                                </div>
+                            </div>
                         </div>
 
                         {/* Logistics Attention Banner (Removed as delivery fees are paid off-platform) */}
@@ -1387,8 +1399,8 @@ export default function CustomerDashboard() {
                         </div>
                         <div className="grid md:grid-cols-2 gap-6">
                             {[
-                                { title: 'Report Issue', label: 'WhatsApp FLA Admin', icon: ShieldAlert, color: 'text-red-500', action: () => reportToFlaAdmin() },
-                                { title: 'Live Support', label: 'Stylist Advice', icon: MessageSquare, color: 'text-blue-500', action: () => setShowLiveSupport(true) },
+                                { title: 'Report Issue', label: getFlaReportEmail(), icon: ShieldAlert, color: 'text-red-500', action: () => reportToFlaAdmin() },
+                                { title: 'Live Support', label: getFlaSupportEmail(), icon: MessageSquare, color: 'text-blue-500', action: () => setShowLiveSupport(true) },
                             ].map((s, i) => (
                                 <button key={i} onClick={s.action} className="flex items-center gap-5 p-6 bg-white rounded-[32px] border border-slate-100 shadow-sm hover:shadow-xl transition-all cursor-pointer group text-left">
                                     <div className={`w-12 h-12 rounded-2xl bg-slate-50 ${s.color} flex items-center justify-center group-hover:scale-110 transition-transform`}>
@@ -1680,7 +1692,7 @@ export default function CustomerDashboard() {
                                     value={chatInput}
                                     onChange={(e) => setChatInput(e.target.value)}
                                     onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                                    placeholder="Type to chat on WhatsApp..."
+                                    placeholder="Type your message, we'll email support..."
                                     className="flex-1 bg-slate-50 border-none rounded-full px-5 py-3 text-xs font-bold focus:ring-2 focus:ring-brand-lemon/20"
                                 />
                                 <button
@@ -1691,7 +1703,7 @@ export default function CustomerDashboard() {
                                 </button>
                             </div>
                             <div className="bg-slate-50 px-6 py-2 border-t border-slate-100">
-                                <p className="text-[8px] font-black text-slate-400 uppercase text-center tracking-widest">Direct Link to WhatsApp Official Support</p>
+                                <p className="text-[8px] font-black text-slate-400 uppercase text-center tracking-widest">Sent to {getFlaSupportEmail()}</p>
                             </div>
                         </div>
                     </div>

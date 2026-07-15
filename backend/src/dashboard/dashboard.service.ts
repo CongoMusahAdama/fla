@@ -18,9 +18,20 @@ export class DashboardService {
         const { orders } = await this.ordersService.findByUser(userId, 1, 100); // Fetch last 100 for stats
         const wishlist = await this.wishlistService.findByUser(userId);
 
-        const totalSpent = orders
-            .filter(o => o.status !== 'cancelled')
-            .reduce((sum, order) => sum + order.totalAmount, 0);
+        const nonCancelled = orders.filter(o => o.status !== 'cancelled');
+
+        const totalSpent = nonCancelled.reduce((sum, order) => sum + order.totalAmount, 0);
+
+        // Spending for the current day only (resets at midnight, server time).
+        const startOfToday = new Date();
+        startOfToday.setHours(0, 0, 0, 0);
+        const todaySpent = nonCancelled.reduce((sum, order) => {
+            const ref = (order as any).paidAt || (order as any).createdAt;
+            if (ref && new Date(ref) >= startOfToday) {
+                return sum + order.totalAmount;
+            }
+            return sum;
+        }, 0);
 
         const activeOrders = orders.filter(o =>
             !['delivered', 'cancelled'].includes(o.status)
@@ -32,6 +43,7 @@ export class DashboardService {
 
         return {
             totalSpent,
+            todaySpent,
             activeOrders,
             wishlistCount,
             walletBalance: user?.walletBalance || 0,
@@ -43,9 +55,22 @@ export class DashboardService {
         const { orders } = await this.ordersService.findByVendor(userId, 1, 100); // Fetch last 100 for stats
         const products = await this.productsService.findByVendor(userId);
 
-        const totalRevenue = orders
-            .filter(o => o.status?.toLowerCase() !== 'cancelled' && o.isPaid)
+        const paidOrders = orders
+            .filter(o => o.status?.toLowerCase() !== 'cancelled' && o.isPaid);
+
+        const totalRevenue = paidOrders
             .reduce((sum, order) => sum + (order.vendorShare || (order.totalAmount * 0.9)), 0);
+
+        // Revenue earned for the current day only (resets at midnight, server time).
+        const startOfToday = new Date();
+        startOfToday.setHours(0, 0, 0, 0);
+        const todayRevenue = paidOrders.reduce((sum, order) => {
+            const ref = (order as any).paidAt || (order as any).createdAt;
+            if (ref && new Date(ref) >= startOfToday) {
+                return sum + (order.vendorShare || (order.totalAmount * 0.9));
+            }
+            return sum;
+        }, 0);
 
         const pendingRevenue = orders
             .filter(o => o.status?.toLowerCase() !== 'cancelled' && !o.isPaid)
@@ -63,6 +88,7 @@ export class DashboardService {
 
         return {
             totalRevenue,
+            todayRevenue,
             pendingRevenue,
             activeOrders,
             totalSales,

@@ -2,8 +2,12 @@ export const PRODUCT_CATEGORIES = [
   'All Product',
   'Electronics',
   'Home goods',
+  'Kitchen',
   'Beauty/cosmetics',
   'Accessories',
+  'Clothing',
+  'Shoes',
+  'Bags',
   'Used items',
   'Wholesaler',
   'For men',
@@ -12,6 +16,7 @@ export const PRODUCT_CATEGORIES = [
   'Furniture',
   'Food/beverages',
   'Hardware items',
+  'Building materials',
   'Refurbished items',
   'Unisex'
 ];

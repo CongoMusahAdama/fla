@@ -4,49 +4,54 @@ import Hero from "@/components/Hero";
 import ProductCard from "@/components/ProductCard";
 import Footer from "@/components/Footer";
 import ProcessSection from "@/components/ProcessSection";
-import Link from 'next/link';
-import { Filter, ChevronRight, LayoutGrid, List, MapPin } from 'lucide-react';
+import { Filter, ChevronRight, ChevronDown, LayoutGrid, List, MapPin } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { Product } from '@/lib/types';
 import { PRODUCT_CATEGORIES, PRODUCT_FILTERS } from '@/lib/constants';
 import { GHANA_REGIONS } from '@/lib/ghana-regions';
 
+const HOME_PAGE_SIZE = 12;
+
 export default function Home() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState('All Product');
   const [activeFilter, setActiveFilter] = useState('');
   const [totalCount, setTotalCount] = useState(0);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
 
   const [activeRegion, setActiveRegion] = useState('');
 
+  const buildProductsUrl = (cat: string, filt: string, region: string, pageNum: number) => {
+    const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+    let url = `${api}/products?page=${pageNum}&limit=${HOME_PAGE_SIZE}`;
+    if (cat !== 'All Product') url += `&category=${encodeURIComponent(cat)}`;
+    if (filt) url += `&filter=${encodeURIComponent(filt)}`;
+    if (region) url += `&region=${encodeURIComponent(region)}`;
+    if (!filt) url += '&sort=latest';
+    return url;
+  };
+
   const fetchLatestProducts = async (cat: string, filt: string, region: string) => {
     setLoading(true);
+    setPage(1);
     try {
-      const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-      let url = `${api}/products?limit=12`;
-      if (cat !== 'All Product') url += `&category=${encodeURIComponent(cat)}`;
-      if (filt) url += `&filter=${encodeURIComponent(filt)}`;
-      if (region) url += `&region=${encodeURIComponent(region)}`;
-      if (!filt) url += '&sort=latest';
+      const res = await fetch(buildProductsUrl(cat, filt, region, 1));
 
-      // Run product fetch and count in parallel (no more double sequential fetches)
-      const fetches: Promise<any>[] = [fetch(url)];
-      if (cat === 'All Product' && !filt && !region) {
-        fetches.push(fetch(`${api}/products/count`));
-      }
+      if (res.ok) {
+        const data = await res.json();
+        const list: Product[] = Array.isArray(data) ? data : (data.products || []);
+        const totalPages = Array.isArray(data) ? 1 : (data.totalPages || 1);
+        setProducts(list);
+        setHasMore(1 < totalPages);
 
-      const results = await Promise.all(fetches);
-
-      if (results[0].ok) {
-        const data = await results[0].json();
-        setProducts(data);
-      }
-
-      if (results[1] && results[1].ok) {
-        const count = await results[1].json();
-        setTotalCount(typeof count === 'number' ? count : count?.count ?? 0);
+        if (cat === 'All Product' && !filt && !region) {
+          const total = Array.isArray(data) ? list.length : (data.total ?? list.length);
+          setTotalCount(total);
+        }
       }
       setError(null);
     } catch (err) {
@@ -54,6 +59,30 @@ export default function Home() {
       setError('Failed to load products. Please try again later.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleShowMore = async () => {
+    if (loadingMore || !hasMore) return;
+    const nextPage = page + 1;
+    setLoadingMore(true);
+    try {
+      const res = await fetch(buildProductsUrl(activeCategory, activeFilter, activeRegion, nextPage));
+      if (res.ok) {
+        const data = await res.json();
+        const list: Product[] = Array.isArray(data) ? data : (data.products || []);
+        const totalPages = Array.isArray(data) ? 1 : (data.totalPages || 1);
+        setProducts((prev) => {
+          const seen = new Set(prev.map((p) => p._id));
+          return [...prev, ...list.filter((p) => !seen.has(p._id))];
+        });
+        setPage(nextPage);
+        setHasMore(nextPage < totalPages);
+      }
+    } catch (err) {
+      console.error('Failed to load more products:', err);
+    } finally {
+      setLoadingMore(false);
     }
   };
 
@@ -236,7 +265,6 @@ export default function Home() {
                     vendorId={product.vendorId}
                     vendorName={product.vendorName}
                     uniqueVendorId={product.uniqueVendorId}
-                    index={index}
                     description={product.description}
                     hasSizes={product.hasSizes}
                     hasColors={product.hasColors}
@@ -247,6 +275,7 @@ export default function Home() {
                     vendorBio={product.vendorBio}
                     vendorDocumented={product.vendorDocumented}
                     vendorTier={product.vendorTier}
+                    index={index % HOME_PAGE_SIZE}
                   />
                 ))
               ) : (
@@ -256,15 +285,25 @@ export default function Home() {
               )}
             </div>
 
-            {/* Explore More Button */}
-            <div className="flex justify-center mt-20">
-              <Link href="/shop">
-                <button className="group flex items-center gap-3 px-16 py-4 bg-brand-lemon rounded-full text-xs font-bold text-slate-900 hover:bg-black hover:text-white transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer">
-                  Explore More Collection
-                  <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                </button>
-              </Link>
-            </div>
+            {/* Show More — loads more products inline */}
+            {!loading && products.length > 0 && (
+              <div className="flex flex-col items-center gap-3 mt-20">
+                {hasMore ? (
+                  <button
+                    onClick={handleShowMore}
+                    disabled={loadingMore}
+                    className="group flex items-center gap-3 px-16 py-4 bg-brand-lemon rounded-full text-xs font-bold text-slate-900 hover:bg-black hover:text-white transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer disabled:opacity-70 disabled:cursor-wait"
+                  >
+                    {loadingMore ? 'Loading…' : 'Show More'}
+                    <ChevronDown className={`w-4 h-4 transition-transform ${loadingMore ? 'animate-bounce' : 'group-hover:translate-y-0.5'}`} />
+                  </button>
+                ) : (
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                    You&rsquo;ve reached the end
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </section>
