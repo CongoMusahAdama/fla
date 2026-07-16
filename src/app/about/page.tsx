@@ -383,7 +383,7 @@ export default function AboutPage() {
                         <h2 className="text-4xl md:text-6xl font-black text-slate-900 uppercase tracking-tighter">The People Behind the Vision</h2>
                     </div>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-12 lg:gap-20">
+                    <div className="max-w-xl mx-auto">
                         {/* Founder */}
                         <div className="flex flex-col items-center md:items-start group">
                             <div className="relative w-full aspect-[4/5] rounded-[48px] overflow-hidden shadow-2xl mb-8 group-hover:-translate-y-4 transition-transform duration-700">
@@ -411,26 +411,6 @@ export default function AboutPage() {
                                     <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-2 transition-transform" />
                                 </button>
                             </div>
-                        </div>
-
-                        {/* Tech Lead */}
-                        <div className="flex flex-col items-center md:items-start group pt-12 md:pt-24">
-                            <div className="relative w-full aspect-[4/5] rounded-[48px] overflow-hidden shadow-2xl mb-8 group-hover:-translate-y-4 transition-transform duration-700">
-                                <Image
-                                    src="/musah.jpeg"
-                                    alt="Musah Congo Adama"
-                                    fill
-                                    className="object-cover transition-all duration-700"
-                                />
-                                <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 to-transparent" />
-                                <div className="absolute bottom-10 left-10 text-white">
-                                    <p className="text-[10px] font-black uppercase tracking-widest text-brand-lemon mb-2">Technical Lead & Product Strategist</p>
-                                    <h3 className="text-3xl font-black uppercase tracking-tighter">Musah Congo Adama</h3>
-                                </div>
-                            </div>
-                            <p className="text-slate-500 font-medium leading-relaxed max-w-md">
-                                Musah is the developer of the entire platform and leads all technical and product development. He built the system from the ground up—designing the architecture, developing the platform, and shaping the user experience.
-                            </p>
                         </div>
                     </div>
                 </div>
