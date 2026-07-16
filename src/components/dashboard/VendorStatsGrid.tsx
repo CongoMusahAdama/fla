@@ -26,6 +26,7 @@ export const VendorStatsGrid: React.FC<VendorStatsGridProps> = ({
   const [showLifetimeRevenue, setShowLifetimeRevenue] = useState(false);
 
   const todayRevenue = Number(dashboardData?.todayRevenue || 0);
+  const monthRevenue = Number(dashboardData?.monthRevenue || 0);
   const lifetimeRevenue = Number(dashboardData?.totalRevenue || 0) + Number(dashboardData?.pendingRevenue || 0);
 
   const stats: Stat[] = [
@@ -78,10 +79,17 @@ export const VendorStatsGrid: React.FC<VendorStatsGridProps> = ({
             <button
               type="button"
               onClick={() => setShowLifetimeRevenue((v) => !v)}
-              className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-tighter text-emerald-100/90 hover:text-white transition-colors w-fit"
+              className="inline-flex items-start gap-1.5 text-[10px] font-black uppercase tracking-tighter text-emerald-100/90 hover:text-white transition-colors w-fit text-left"
             >
-              {showLifetimeRevenue ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
-              {showLifetimeRevenue ? `Lifetime: GH₵ ${lifetimeRevenue.toLocaleString()}` : 'Show total'}
+              {showLifetimeRevenue ? <EyeOff className="w-3 h-3 mt-0.5 shrink-0" /> : <Eye className="w-3 h-3 shrink-0" />}
+              {showLifetimeRevenue ? (
+                <span className="flex flex-col gap-0.5">
+                  <span>This month: GH₵ {monthRevenue.toLocaleString()}</span>
+                  <span>Lifetime: GH₵ {lifetimeRevenue.toLocaleString()}</span>
+                </span>
+              ) : (
+                'Show total'
+              )}
             </button>
           </div>
         </div>

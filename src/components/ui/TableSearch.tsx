@@ -24,7 +24,7 @@ export function TableSearch({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         aria-label={placeholder}
-        className="w-full bg-white py-3 pl-11 pr-4 rounded-2xl border border-slate-100 text-xs font-bold focus:ring-2 focus:ring-brand-lemon/20 transition-all shadow-sm"
+        className="w-full bg-white py-3 pl-11 pr-4 rounded-2xl border border-slate-100 text-base sm:text-xs font-bold focus:ring-2 focus:ring-brand-lemon/20 transition-all shadow-sm"
       />
     </div>
   );

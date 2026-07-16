@@ -252,7 +252,7 @@ function ShopContent() {
                                 placeholder="Search products..."
                                 value={localSearch}
                                 onChange={(e) => setLocalSearch(e.target.value)}
-                                className="pl-4 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-full text-xs focus:bg-white focus:outline-none focus:border-brand-lemon w-full sm:w-44 transition-all sm:focus:w-64"
+                                className="pl-4 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-full text-base sm:text-xs focus:bg-white focus:outline-none focus:border-brand-lemon w-full sm:w-44 transition-all sm:focus:w-64"
                             />
                             <div className="absolute right-3 text-slate-400">
                                 <Search className="w-3.5 h-3.5" />

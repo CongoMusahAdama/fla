@@ -72,6 +72,16 @@ export class DashboardService {
             return sum;
         }, 0);
 
+        // Revenue earned in the current calendar month.
+        const startOfMonth = new Date(startOfToday.getFullYear(), startOfToday.getMonth(), 1);
+        const monthRevenue = paidOrders.reduce((sum, order) => {
+            const ref = (order as any).paidAt || (order as any).createdAt;
+            if (ref && new Date(ref) >= startOfMonth) {
+                return sum + (order.vendorShare || (order.totalAmount * 0.9));
+            }
+            return sum;
+        }, 0);
+
         const pendingRevenue = orders
             .filter(o => o.status?.toLowerCase() !== 'cancelled' && !o.isPaid)
             .reduce((sum, order) => sum + (order.vendorShare || (order.totalAmount * 0.9)), 0);
@@ -89,6 +99,7 @@ export class DashboardService {
         return {
             totalRevenue,
             todayRevenue,
+            monthRevenue,
             pendingRevenue,
             activeOrders,
             totalSales,

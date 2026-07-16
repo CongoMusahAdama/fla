@@ -174,7 +174,7 @@ export default function Navbar() {
                                         placeholder="Search..."
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
-                                        className="w-full px-3 py-1.5 text-[10px] bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-900"
+                                        className="w-full px-3 py-1.5 text-base bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-900"
                                         onKeyDown={handleSearch}
                                         autoFocus={isSearchOpen}
                                     />
@@ -287,7 +287,7 @@ export default function Navbar() {
                                                 placeholder="Search products or vendors..."
                                                 value={searchQuery}
                                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                                className="w-full px-5 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-900 focus:bg-white transition-all shadow-inner"
+                                                className="w-full px-5 py-2.5 text-base bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-900 focus:bg-white transition-all shadow-inner"
                                                 onKeyDown={handleSearch}
                                                 autoFocus={isSearchOpen}
                                             />
