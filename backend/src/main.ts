@@ -29,18 +29,29 @@ async function bootstrap() {
   }));
 
   // Enable CORS with specific whitelist for security
+  const allowedOrigins = [
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://localhost:3002',
+    'http://flamingo-store1.com',
+    'https://flamingo-store1.com',
+    'http://www.flamingo-store1.com',
+    'https://www.flamingo-store1.com',
+    process.env.FRONTEND_URL,
+  ].filter(Boolean);
+
+  // Allow any Vercel deployment URL (production alias + preview builds).
+  const vercelOriginPattern = /^https:\/\/[a-z0-9-]+\.vercel\.app$/i;
+
   app.enableCors({
-    origin: [
-      'http://localhost:3000',
-      'http://localhost:3001',
-      'http://localhost:3002',
-      'https://fadlanstore.netlify.app',
-      'http://flamingo-store1.com',
-      'https://flamingo-store1.com',
-      'http://www.flamingo-store1.com',
-      'https://www.flamingo-store1.com',
-      process.env.FRONTEND_URL,
-    ].filter(Boolean),
+    origin: (origin, callback) => {
+      // Non-browser clients (curl, mobile apps, same-origin) send no Origin.
+      if (!origin || allowedOrigins.includes(origin) || vercelOriginPattern.test(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`Origin ${origin} not allowed by CORS`));
+      }
+    },
     credentials: true,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     allowedHeaders: 'Content-Type, Accept, Authorization, X-Requested-With',

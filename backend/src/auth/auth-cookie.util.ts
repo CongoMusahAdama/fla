@@ -10,7 +10,7 @@ export function authCookieOptions(): CookieOptions {
   return {
     httpOnly: true,
     secure: isProd,
-    // Cross-origin: Netlify frontend → Render API needs SameSite=None
+    // Cross-origin: Vercel frontend → Render API needs SameSite=None
     sameSite: isProd ? 'none' : 'lax',
     maxAge: FLA_SESSION_MS,
     path: '/',
