@@ -3,6 +3,7 @@ import type { Response } from 'express';
 import { AuthService } from './auth.service';
 import { CreateUserDto } from '../users/dto/create-user.dto';
 import { UpdateUserDto } from '../users/dto/update-user.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { UsersService } from '../users/users.service';
 import { TurnstileService } from '../common/turnstile.service';
@@ -87,8 +88,8 @@ export class AuthController {
 
   @UseGuards(AuthGuard('jwt'))
   @Patch('profile')
-  async updateProfile(@Request() req, @Body() updateUserDto: UpdateUserDto) {
-    const result = await this.usersService.update(req.user.userId, updateUserDto);
+  async updateProfile(@Request() req, @Body() updateUserDto: UpdateProfileDto) {
+    const result = await this.usersService.update(req.user.userId, updateUserDto as UpdateUserDto);
     if (!result) {
       throw new BadRequestException('Profile update failed');
     }
