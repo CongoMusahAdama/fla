@@ -40,7 +40,8 @@ const apiBase = () => process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/
 
 export default function VendorStorePage() {
   const params = useParams();
-  const slug = String(params?.slug || '');
+  const rawSlug = params?.slug;
+  const slug = Array.isArray(rawSlug) ? rawSlug[0] : String(rawSlug || '');
   const { cartCount, setIsCartOpen } = useCart();
 
   const [vendor, setVendor] = useState<StoreVendor | null>(null);
@@ -50,7 +51,11 @@ export default function VendorStorePage() {
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    if (!slug) return;
+    if (!slug) {
+      setLoading(false);
+      setError('Store not found');
+      return;
+    }
     let cancelled = false;
 
     (async () => {
@@ -59,10 +64,19 @@ export default function VendorStorePage() {
       try {
         const storeRes = await fetch(`${apiBase()}/users/store/${encodeURIComponent(slug)}`);
         if (!storeRes.ok) {
-          throw new Error(storeRes.status === 404 ? 'Store not found' : 'Failed to load store');
+          const body = await storeRes.json().catch(() => ({}));
+          const detail = Array.isArray(body?.message) ? body.message.join(', ') : body?.message;
+          throw new Error(
+            storeRes.status === 404
+              ? 'Store not found'
+              : detail || `Failed to load store (${storeRes.status})`,
+          );
         }
         const storeData = await storeRes.json();
         const v: StoreVendor = storeData.vendor;
+        if (!v?._id) {
+          throw new Error('Store not found');
+        }
         if (cancelled) return;
         setVendor(v);
 

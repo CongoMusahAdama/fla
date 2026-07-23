@@ -1059,14 +1059,14 @@ export default function VendorDashboard() {
                             </p>
                         </div>
                     )}
-                    {canSell && (
+                    {canSell && activeSection === 'dashboard' && (
                         <div className="mb-8 p-6 md:p-8 bg-brand-blue rounded-[32px] text-white space-y-4 shadow-sm">
                             <div>
                                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-lemon mb-1">
                                     Your public store link
                                 </p>
                                 <p className="text-sm text-white/70 leading-relaxed">
-                                    Share this with customers. You can also open it anytime from <strong className="text-white">Open my store</strong> in the sidebar, or copy it under <strong className="text-white">Studio Identity</strong>.
+                                    Share this link with customers so they can shop your storefront directly.
                                 </p>
                             </div>
                             {user?.storeSlug ? (

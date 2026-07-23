@@ -161,7 +161,14 @@ export class UsersService implements OnModuleInit {
     }
 
     const user = await this.userModel
-      .findOne({ storeSlug: normalized, role: 'vendor', status: 'active' })
+      .findOne({
+        storeSlug: normalized,
+        role: 'vendor',
+        $or: [
+          { status: 'active' },
+          { kycApprovedAt: { $exists: true, $ne: null } },
+        ],
+      })
       .select(
         '-password -paymentMethods -withdrawalHistory -resetPasswordToken -resetPasswordExpires -ghanaCardFront -ghanaCardBack -selfie -utilityBill -momoNumber -accountName -paystackSubaccountCode -paystackBankCode',
       )
@@ -173,7 +180,12 @@ export class UsersService implements OnModuleInit {
     }
 
     const vendorId = (user as any)._id.toString();
-    const stats = await this.ordersService.getVendorStats(vendorId);
+    let stats: Record<string, unknown> = {};
+    try {
+      stats = (await this.ordersService.getVendorStats(vendorId)) as any;
+    } catch (err: any) {
+      this.logger.warn(`Store stats unavailable for ${vendorId}: ${err.message}`);
+    }
     return { vendor: user, stats };
   }
 

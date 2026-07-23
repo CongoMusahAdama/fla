@@ -8,15 +8,11 @@ import {
   FileText,
   CheckCircle2,
   ShieldAlert,
-  Copy,
-  Check,
-  ExternalLink,
   Clock,
   ArrowLeft,
   ArrowRight,
 } from 'lucide-react';
 import { getImageUrl } from '@/lib/utils';
-import { storefrontUrl } from '@/lib/storefront';
 
 interface VendorSettingsProps {
   user: any;
@@ -88,7 +84,6 @@ export const VendorSettings: React.FC<VendorSettingsProps> = ({
   );
   const [isVerifying, setIsVerifying] = React.useState(false);
   const [verificationError, setVerificationError] = React.useState<string | null>(null);
-  const [linkCopied, setLinkCopied] = React.useState(false);
 
   React.useEffect(() => {
     if (startOnDocuments || needsDocs) {
@@ -97,21 +92,8 @@ export const VendorSettings: React.FC<VendorSettingsProps> = ({
   }, [startOnDocuments, needsDocs]);
 
   const stepIndex = STEPS.findIndex((s) => s.id === step);
-  const storeSlug = user?.storeSlug as string | undefined;
-  const publicStoreUrl = storeSlug ? storefrontUrl(storeSlug) : null;
   const docsReady = Boolean(ghanaCardFront && selfie);
   const isMomo = momoNetwork?.length > 3 || ['MTN', 'VOD', 'ATL', 'Vodafone', 'AirtelTigo'].includes(momoNetwork);
-
-  const handleCopyStoreLink = async () => {
-    if (!publicStoreUrl) return;
-    try {
-      await navigator.clipboard.writeText(publicStoreUrl);
-      setLinkCopied(true);
-      setTimeout(() => setLinkCopied(false), 2000);
-    } catch {
-      /* ignore */
-    }
-  };
 
   const handleVerifyAccount = async () => {
     if (!momoNumber || momoNumber.length < 10) {
@@ -187,40 +169,6 @@ export const VendorSettings: React.FC<VendorSettingsProps> = ({
           })}
         </ol>
       </nav>
-
-      {publicStoreUrl ? (
-        <div className="bg-brand-blue rounded-2xl p-5 md:p-6 text-white space-y-3 shadow-sm">
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-lemon">Your storefront</p>
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="flex-1 px-4 py-3 rounded-xl bg-white/10 border border-white/15 text-xs font-bold break-all">
-              {publicStoreUrl}
-            </div>
-            <div className="flex gap-2 shrink-0">
-              <button
-                type="button"
-                onClick={handleCopyStoreLink}
-                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-full bg-brand-lemon text-slate-900 text-[10px] font-black uppercase tracking-widest hover:bg-white transition-colors"
-              >
-                {linkCopied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                {linkCopied ? 'Copied' : 'Copy'}
-              </button>
-              <a
-                href={publicStoreUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-full bg-white/10 border border-white/20 text-white text-[10px] font-black uppercase tracking-widest hover:bg-white/20 transition-colors"
-              >
-                <ExternalLink className="w-3.5 h-3.5" />
-                Open
-              </a>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 text-sm text-amber-800">
-          Your public storefront link appears after approval and a store slug is assigned.
-        </div>
-      )}
 
       <div className="bg-white rounded-2xl border border-slate-100 p-6 md:p-10 lg:p-12 space-y-8 shadow-sm min-h-[480px]">
         {step === 'brand' && (
