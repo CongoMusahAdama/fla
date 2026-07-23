@@ -30,6 +30,7 @@ import { WaybillModal } from '@/components/dashboard/WaybillModal';
 
 import { GHANA_REGIONS } from '@/lib/ghana-regions';
 import { useProductCategories } from '@/hooks/useProductCategories';
+import { storeHomePath, storefrontUrl } from '@/lib/storefront';
 
 type VendorSection = 'dashboard' | 'products' | 'orders' | 'wallet' | 'reviews' | 'notifications' | 'settings' | 'help';
 
@@ -1058,12 +1059,74 @@ export default function VendorDashboard() {
                             </p>
                         </div>
                     )}
-                    {canSell && !subscriptionExpired && !subscriptionExpiringSoon && (
-                        <div className="mb-8 p-4 md:p-5 bg-emerald-50 border border-emerald-100 rounded-[24px]">
-                            <p className="text-[10px] font-black text-emerald-800 uppercase tracking-widest">
-                                You are cleared to sell — manage products and share your storefront link from settings.
-                                {subscriptionEndsAt ? ` Plan until ${subscriptionEndsAt.toLocaleDateString()}.` : ''}
-                            </p>
+                    {canSell && (
+                        <div className="mb-8 p-6 md:p-8 bg-brand-blue rounded-[32px] text-white space-y-4 shadow-sm">
+                            <div>
+                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-lemon mb-1">
+                                    Your public store link
+                                </p>
+                                <p className="text-sm text-white/70 leading-relaxed">
+                                    Share this with customers. You can also open it anytime from <strong className="text-white">Open my store</strong> in the sidebar, or copy it under <strong className="text-white">Studio Identity</strong>.
+                                </p>
+                            </div>
+                            {user?.storeSlug ? (
+                                <div className="flex flex-col sm:flex-row gap-3">
+                                    <div className="flex-1 px-4 py-3 rounded-xl bg-white/10 border border-white/15 text-xs font-bold break-all">
+                                        {storefrontUrl(user.storeSlug)}
+                                    </div>
+                                    <div className="flex gap-2 shrink-0">
+                                        <button
+                                            type="button"
+                                            onClick={async () => {
+                                                try {
+                                                    await navigator.clipboard.writeText(storefrontUrl(user.storeSlug!));
+                                                    Swal.fire({
+                                                        toast: true,
+                                                        position: 'top-end',
+                                                        icon: 'success',
+                                                        title: 'Store link copied',
+                                                        showConfirmButton: false,
+                                                        timer: 1800,
+                                                    });
+                                                } catch {
+                                                    /* ignore */
+                                                }
+                                            }}
+                                            className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-full bg-brand-lemon text-slate-900 text-[10px] font-black uppercase tracking-widest hover:bg-white transition-colors"
+                                        >
+                                            <Copy className="w-3.5 h-3.5" />
+                                            Copy
+                                        </button>
+                                        <a
+                                            href={storeHomePath(user.storeSlug)}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-full bg-white/10 border border-white/20 text-white text-[10px] font-black uppercase tracking-widest hover:bg-white/20 transition-colors"
+                                        >
+                                            <ArrowUpRight className="w-3.5 h-3.5" />
+                                            Open
+                                        </a>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="flex flex-wrap gap-2 items-center">
+                                    <p className="text-sm text-amber-200">
+                                        Store slug not assigned yet — open Studio Identity and save your shop name, or refresh after a minute.
+                                    </p>
+                                    <button
+                                        type="button"
+                                        onClick={() => setActiveSection('settings')}
+                                        className="h-10 px-5 rounded-full bg-brand-lemon text-slate-900 text-xs font-semibold"
+                                    >
+                                        Studio Identity
+                                    </button>
+                                </div>
+                            )}
+                            {subscriptionEndsAt && !subscriptionExpired && !subscriptionExpiringSoon && (
+                                <p className="text-[10px] font-bold uppercase tracking-widest text-white/40">
+                                    Plan until {subscriptionEndsAt.toLocaleDateString()}
+                                </p>
+                            )}
                         </div>
                     )}
                     {renderContent()}

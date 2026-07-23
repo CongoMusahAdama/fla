@@ -5,11 +5,11 @@ import Link from 'next/link';
 import { 
   LayoutDashboard, ShoppingBag, Eye, PlusCircle, 
   Settings, Wallet, MessageSquare, Bell, 
-  ArrowLeft, LogOut, X, HelpCircle, Star
+  ArrowLeft, LogOut, X, HelpCircle, Star, ExternalLink
 } from 'lucide-react';
 import Image from 'next/image';
 import { useAuth } from '@/context/AuthContext';
-
+import { storeHomePath, storefrontUrl } from '@/lib/storefront';
 interface VendorSidebarProps {
   activeSection: string;
   setActiveSection: (section: any) => void;
@@ -25,6 +25,9 @@ export const VendorSidebar: React.FC<VendorSidebarProps> = ({
   limitedMode = false,
 }) => {
   const { user } = useAuth();
+  const storeSlug = user?.storeSlug?.trim();
+  const storePath = storeSlug ? storeHomePath(storeSlug) : null;
+  const storeUrl = storeSlug ? storefrontUrl(storeSlug) : null;
 
   const sidebarItems = [
     { id: 'dashboard', label: 'Overview', icon: LayoutDashboard },
@@ -99,12 +102,27 @@ export const VendorSidebar: React.FC<VendorSidebarProps> = ({
           </div>
         </div>
         
-        <Link href="/">
-          <button className="w-full flex items-center gap-4 px-6 py-4 text-slate-400 hover:text-white hover:bg-white/5 rounded-2xl text-xs font-black uppercase tracking-widest transition-all group mb-2 text-left">
+        {storePath ? (
+          <a
+            href={storePath}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={storeUrl || storePath}
+            className="w-full flex items-center gap-4 px-6 py-4 text-brand-lemon hover:text-white hover:bg-white/5 rounded-2xl text-xs font-black uppercase tracking-widest transition-all group mb-2 text-left"
+          >
+            <ExternalLink className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
+            Open my store
+          </a>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setActiveSection('settings')}
+            className="w-full flex items-center gap-4 px-6 py-4 text-slate-400 hover:text-white hover:bg-white/5 rounded-2xl text-xs font-black uppercase tracking-widest transition-all group mb-2 text-left"
+          >
             <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
-            Launch Store
+            Store link in Identity
           </button>
-        </Link>
+        )}
         
         <button
           onClick={handleLogout}
