@@ -1,21 +1,4 @@
-import { IsString, IsOptional, IsArray, ValidateNested } from 'class-validator';
-import { Type } from 'class-transformer';
-
-/** Nested payout method for PATCH /auth/profile */
-class ProfilePaymentMethodDto {
-  @IsOptional()
-  @IsString()
-  type?: string;
-
-  @IsString()
-  network: string;
-
-  @IsString()
-  accountNumber: string;
-
-  @IsString()
-  accountName: string;
-}
+import { IsString, IsOptional, IsArray } from 'class-validator';
 
 /**
  * Explicit whitelist for vendor/customer self-service profile updates.
@@ -84,7 +67,10 @@ export class UpdateProfileDto {
 
   @IsOptional()
   @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => ProfilePaymentMethodDto)
-  paymentMethods?: ProfilePaymentMethodDto[];
+  paymentMethods?: Array<{
+    type?: string;
+    network: string;
+    accountNumber: string;
+    accountName: string;
+  }>;
 }
