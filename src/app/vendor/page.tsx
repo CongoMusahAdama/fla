@@ -29,13 +29,14 @@ import { WaybillModal } from '@/components/dashboard/WaybillModal';
 
 
 import { GHANA_REGIONS } from '@/lib/ghana-regions';
-import { PRODUCT_CATEGORIES } from '@/lib/constants';
+import { useProductCategories } from '@/hooks/useProductCategories';
 
 type VendorSection = 'dashboard' | 'products' | 'orders' | 'wallet' | 'reviews' | 'notifications' | 'settings' | 'help';
 
 
 
 export default function VendorDashboard() {
+    const { categories: PRODUCT_CATEGORIES } = useProductCategories({ includeAll: true });
     const { user, token, logout, updateUser, changePassword, isAuthenticated, isLoading } = useAuth();
     const router = useRouter();
     const [activeSection, setActiveSection] = useState<VendorSection>('dashboard');

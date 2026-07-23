@@ -7,12 +7,14 @@ import ProcessSection from "@/components/ProcessSection";
 import { ChevronDown, LayoutGrid, List, MapPin, SlidersHorizontal } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { Product } from '@/lib/types';
-import { PRODUCT_CATEGORIES, PRODUCT_FILTERS } from '@/lib/constants';
+import { PRODUCT_FILTERS } from '@/lib/constants';
 import { GHANA_REGIONS } from '@/lib/ghana-regions';
+import { useProductCategories } from '@/hooks/useProductCategories';
 
 const HOME_PAGE_SIZE = 12;
 
 export default function Home() {
+  const { categories: PRODUCT_CATEGORIES } = useProductCategories({ includeAll: true });
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);

@@ -9,7 +9,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { Suspense } from 'react';
 
 import { GHANA_REGIONS } from '@/lib/ghana-regions';
-import { PRODUCT_CATEGORIES } from '@/lib/constants';
+import { useProductCategories } from '@/hooks/useProductCategories';
 
 const REGION_ALL_LABEL = 'All Regions';
 const PRICE_ALL_LABEL = 'All Prices';
@@ -43,6 +43,7 @@ function getPriceQueryParams(priceLabel?: string): Record<string, string> {
 function ShopContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
+    const { categories } = useProductCategories({ includeAll: true });
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const [products, setProducts] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -204,8 +205,6 @@ function ShopContent() {
         Region: [REGION_ALL_LABEL, ...GHANA_REGIONS],
         Price: [PRICE_ALL_LABEL, 'Under GH₵500', 'GH₵500 - GH₵800', 'Over GH₵800']
     };
-
-    const categories = PRODUCT_CATEGORIES;
 
     const activeShelfLabel =
         catalogFilter ||

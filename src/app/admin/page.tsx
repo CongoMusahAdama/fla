@@ -13,7 +13,7 @@ import {
     Wallet, Package, Truck, MessageSquare, BarChart3, ShieldCheck, ShieldAlert,
     CheckCircle2, XCircle, Eye, EyeOff, Search,
     ArrowUpRight, Download, Menu, X, Trash2, Shield, Clock, TrendingUp, Phone, Plus, User, Store,
-    CreditCard, Camera, FileText, ExternalLink, Link2
+    CreditCard, Camera, FileText, ExternalLink, Link2, Tag
 } from 'lucide-react';
 import Image from 'next/image';
 import Swal from 'sweetalert2';
@@ -22,6 +22,7 @@ import AdminOnboardVendorForm from '@/components/admin/AdminOnboardVendorForm';
 import { RevenueChart } from '@/components/admin/RevenueChart';
 import { RecentTransactionsTable } from '@/components/admin/RecentTransactionsTable';
 import { AdminDisputeCaseCard } from '@/components/admin/AdminDisputeCaseCard';
+import { DEFAULT_PRODUCT_CATEGORY_LABELS, normalizeCategoryList } from '@/lib/product-categories';
 
 function formatKycDetailValue(value: unknown): string {
     if (value == null || value === '') return '—';
@@ -153,8 +154,10 @@ export default function AdminDashboard() {
         withdrawalMinimum: 50,
         automatedPayouts: true,
         vendorAutoApproval: false,
-        maintenanceMode: false
+        maintenanceMode: false,
+        productCategories: [...DEFAULT_PRODUCT_CATEGORY_LABELS] as string[],
     });
+    const [newCategoryName, setNewCategoryName] = useState('');
 
     // Pagination States
     const [vendorsPage, setVendorsPage] = useState(1);
@@ -186,7 +189,9 @@ export default function AdminDashboard() {
             if (updates.maintenanceMode !== undefined) backendUpdates.maintenance_mode = updates.maintenanceMode;
             if (updates.automatedPayouts !== undefined) backendUpdates.automated_payouts = updates.automatedPayouts;
             if (updates.vendorAutoApproval !== undefined) backendUpdates.vendor_auto_approval = updates.vendorAutoApproval;
-            // Add other mappings if they exist on backend
+            if (updates.productCategories !== undefined) {
+                backendUpdates.product_categories = normalizeCategoryList(updates.productCategories);
+            }
 
             if (Object.keys(backendUpdates).length > 0) {
                 await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/settings`, {
@@ -262,7 +267,10 @@ export default function AdminDashboard() {
                     withdrawalMinimum: fetchedSettings.withdrawal_minimum ?? prev.withdrawalMinimum,
                     maintenanceMode: fetchedSettings.maintenance_mode ?? prev.maintenanceMode,
                     automatedPayouts: fetchedSettings.automated_payouts ?? prev.automatedPayouts,
-                    vendorAutoApproval: fetchedSettings.vendor_auto_approval ?? prev.vendorAutoApproval
+                    vendorAutoApproval: fetchedSettings.vendor_auto_approval ?? prev.vendorAutoApproval,
+                    productCategories: normalizeCategoryList(
+                        fetchedSettings.product_categories ?? prev.productCategories,
+                    ),
                 }));
             }
 
@@ -2243,6 +2251,79 @@ export default function AdminDashboard() {
                                     </div>
                                 </div>
                             </div>
+
+                            {/* Product categories */}
+                            <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm">
+                                <div className="flex items-center gap-4 mb-6">
+                                    <div className="w-10 h-10 bg-brand-lemon/80 rounded-xl flex items-center justify-center text-slate-900">
+                                        <Tag className="w-5 h-5" />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-black text-slate-900 uppercase text-sm tracking-widest">Product Categories</h3>
+                                        <p className="text-xs text-slate-400 font-bold">Shown on shop, home, navbar, and vendor product forms.</p>
+                                    </div>
+                                </div>
+                                <form
+                                    className="flex flex-col sm:flex-row gap-3 mb-5"
+                                    onSubmit={(e) => {
+                                        e.preventDefault();
+                                        const name = newCategoryName.trim();
+                                        if (!name) return;
+                                        if (name.toLowerCase() === 'all product' || name.toLowerCase() === 'all') {
+                                            Swal.fire({ icon: 'info', title: '"All" is reserved', text: 'That label is used as a filter, not a category.' });
+                                            return;
+                                        }
+                                        if (settings.productCategories.some((c) => c.toLowerCase() === name.toLowerCase())) {
+                                            Swal.fire({ toast: true, position: 'top-end', icon: 'info', title: 'Category already exists', showConfirmButton: false, timer: 1800 });
+                                            return;
+                                        }
+                                        const next = normalizeCategoryList([...settings.productCategories, name]);
+                                        setNewCategoryName('');
+                                        updateSettings({ productCategories: next });
+                                    }}
+                                >
+                                    <input
+                                        type="text"
+                                        value={newCategoryName}
+                                        onChange={(e) => setNewCategoryName(e.target.value)}
+                                        placeholder="e.g. Sports & outdoors"
+                                        className="flex-1 px-4 py-3 rounded-xl border border-slate-200 text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-brand-lemon/30 outline-none"
+                                    />
+                                    <button
+                                        type="submit"
+                                        className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-slate-900 text-white text-xs font-black uppercase tracking-widest hover:bg-slate-800 transition-colors"
+                                    >
+                                        <Plus className="w-4 h-4" />
+                                        Add category
+                                    </button>
+                                </form>
+                                <div className="flex flex-wrap gap-2">
+                                    {settings.productCategories.map((cat) => (
+                                        <span
+                                            key={cat}
+                                            className="inline-flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-full bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700"
+                                        >
+                                            {cat}
+                                            <button
+                                                type="button"
+                                                aria-label={`Remove ${cat}`}
+                                                onClick={() => {
+                                                    const next = settings.productCategories.filter((c) => c !== cat);
+                                                    if (!next.length) {
+                                                        Swal.fire({ icon: 'warning', title: 'Keep at least one', text: 'You need at least one product category.' });
+                                                        return;
+                                                    }
+                                                    updateSettings({ productCategories: next });
+                                                }}
+                                                className="w-6 h-6 rounded-full flex items-center justify-center text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+                                            >
+                                                <X className="w-3.5 h-3.5" />
+                                            </button>
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+
                             {/* Admin Profile */}
                             <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm">
                                 <div className="flex items-center gap-4 mb-6">

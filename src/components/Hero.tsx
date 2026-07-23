@@ -5,69 +5,38 @@ import Link from 'next/link';
 import { ArrowRight, ShoppingBag } from 'lucide-react';
 import { getImageUrl } from '@/lib/utils';
 import { storeProductPath, resolveStoreSlug } from '@/lib/storefront';
+import { useProductCategories } from '@/hooks/useProductCategories';
+import { DEFAULT_PRODUCT_CATEGORY_LABELS } from '@/lib/product-categories';
 
-const CATEGORIES = [
-  {
-    label: 'Electronics',
-    fallback:
-      'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400&h=400&fit=crop&q=80',
-  },
-  {
-    label: 'Accessories',
-    fallback:
-      'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&h=400&fit=crop&q=80',
-  },
-  {
-    label: 'Beauty/cosmetics',
-    fallback:
-      'https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=400&h=400&fit=crop&q=80',
-  },
-  {
-    label: 'Home goods',
-    fallback:
-      'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=400&h=400&fit=crop&q=80',
-  },
-  {
-    label: 'Food/beverages',
-    fallback:
-      'https://images.unsplash.com/photo-1542838132-92c53300491e?w=400&h=400&fit=crop&q=80',
-  },
-  {
-    label: 'Furniture',
-    fallback:
-      'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=400&h=400&fit=crop&q=80',
-  },
-  {
-    label: 'Children/Toys',
-    fallback:
-      'https://images.unsplash.com/photo-1558060370-d644479cb6f7?w=400&h=400&fit=crop&q=80',
-  },
-  {
-    label: 'Clothing',
-    fallback:
-      'https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?w=400&h=400&fit=crop&q=80',
-  },
-  {
-    label: 'Shoes',
-    fallback:
-      'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&h=400&fit=crop&q=80',
-  },
-  {
-    label: 'Bags',
-    fallback:
-      'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=400&h=400&fit=crop&q=80',
-  },
-  {
-    label: 'Hardware items',
-    fallback:
-      'https://images.unsplash.com/photo-1504148455328-c376907d081c?w=400&h=400&fit=crop&q=80',
-  },
-  {
-    label: 'Kitchen',
-    fallback:
-      'https://images.unsplash.com/photo-1556910103-1c02745aae4d?w=400&h=400&fit=crop&q=80',
-  },
-] as const;
+const CATEGORY_FALLBACKS: Record<string, string> = {
+  Electronics:
+    'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400&h=400&fit=crop&q=80',
+  Accessories:
+    'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&h=400&fit=crop&q=80',
+  'Beauty/cosmetics':
+    'https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=400&h=400&fit=crop&q=80',
+  'Home goods':
+    'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=400&h=400&fit=crop&q=80',
+  'Food/beverages':
+    'https://images.unsplash.com/photo-1542838132-92c53300491e?w=400&h=400&fit=crop&q=80',
+  Furniture:
+    'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=400&h=400&fit=crop&q=80',
+  'Children/Toys':
+    'https://images.unsplash.com/photo-1558060370-d644479cb6f7?w=400&h=400&fit=crop&q=80',
+  Clothing:
+    'https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?w=400&h=400&fit=crop&q=80',
+  Shoes:
+    'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&h=400&fit=crop&q=80',
+  Bags:
+    'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=400&h=400&fit=crop&q=80',
+  'Hardware items':
+    'https://images.unsplash.com/photo-1504148455328-c376907d081c?w=400&h=400&fit=crop&q=80',
+  Kitchen:
+    'https://images.unsplash.com/photo-1556910103-1c02745aae4d?w=400&h=400&fit=crop&q=80',
+};
+
+const DEFAULT_CATEGORY_FALLBACK =
+  'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=400&h=400&fit=crop&q=80';
 
 type DayProduct = {
   id: string;
@@ -107,7 +76,7 @@ function productHref(p: DayProduct) {
   return `/shop`;
 }
 
-function buildCategoryTiles(products: DayProduct[]): CategoryTile[] {
+function buildCategoryTiles(labels: string[], products: DayProduct[]): CategoryTile[] {
   const byCategory = new Map<string, string>();
   for (const p of products) {
     const cat = (p.category || '').trim();
@@ -115,16 +84,20 @@ function buildCategoryTiles(products: DayProduct[]): CategoryTile[] {
     byCategory.set(cat, p.image);
   }
 
-  return CATEGORIES.map(({ label, fallback }) => ({
+  return labels.map((label) => ({
     label,
-    image: byCategory.get(label) || fallback,
+    image:
+      byCategory.get(label) ||
+      CATEGORY_FALLBACKS[label] ||
+      DEFAULT_CATEGORY_FALLBACK,
   }));
 }
 
 export default function Hero() {
+  const { categories } = useProductCategories({ includeAll: false });
   const [todayPicks, setTodayPicks] = useState<DayProduct[]>([]);
   const [categoryTiles, setCategoryTiles] = useState<CategoryTile[]>(() =>
-    CATEGORIES.map(({ label, fallback }) => ({ label, image: fallback })),
+    buildCategoryTiles(DEFAULT_PRODUCT_CATEGORY_LABELS.slice(0, 12), []),
   );
 
   useEffect(() => {
@@ -176,12 +149,12 @@ export default function Hero() {
 
       if (pool.length) {
         setTodayPicks(pickToday(pool, 2));
-        setCategoryTiles(buildCategoryTiles(pool));
       }
+      setCategoryTiles(buildCategoryTiles(categories.slice(0, 12), pool));
     };
 
     load();
-  }, []);
+  }, [categories]);
 
   const main = todayPicks[0];
   const side = todayPicks[1];

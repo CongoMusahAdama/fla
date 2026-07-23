@@ -21,6 +21,31 @@ export class SettingsService implements OnModuleInit {
         await this.ensureSetting('maintenance_mode', false, 'Whether the platform is in maintenance mode');
         await this.ensureSetting('automated_payouts', true, 'Whether payouts are automatically processed');
         await this.ensureSetting('vendor_auto_approval', false, 'Whether vendors are automatically approved after registration');
+        await this.ensureSetting(
+            'product_categories',
+            [
+                'Electronics',
+                'Home goods',
+                'Kitchen',
+                'Beauty/cosmetics',
+                'Accessories',
+                'Clothing',
+                'Shoes',
+                'Bags',
+                'Used items',
+                'Wholesaler',
+                'For men',
+                'For women',
+                'Children/Toys',
+                'Furniture',
+                'Food/beverages',
+                'Hardware items',
+                'Building materials',
+                'Refurbished items',
+                'Unisex',
+            ],
+            'Product categories shown in shop filters and vendor product forms',
+        );
 
         // Migrate legacy default 6% → 3% only when still on the old seed value
         const commission = await this.settingModel.findOne({ key: 'platform_commission' }).exec();
@@ -43,9 +68,26 @@ export class SettingsService implements OnModuleInit {
     }
 
     async setSetting(key: string, value: any) {
+        let next = value;
+        if (key === 'product_categories') {
+            const list = Array.isArray(value) ? value : [];
+            const seen = new Set<string>();
+            next = [];
+            for (const item of list) {
+                const s = String(item ?? '').trim();
+                if (!s || s.toLowerCase() === 'all product' || s.toLowerCase() === 'all') continue;
+                const k = s.toLowerCase();
+                if (seen.has(k)) continue;
+                seen.add(k);
+                next.push(s);
+            }
+            if (!next.length) {
+                next = await this.getSetting('product_categories');
+            }
+        }
         return this.settingModel.findOneAndUpdate(
             { key },
-            { value },
+            { value: next },
             { upsert: true, new: true }
         ).exec();
     }

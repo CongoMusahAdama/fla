@@ -21,11 +21,12 @@ import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
 import { getFlaSupportPhoneDisplay, getFlaSupportTelHref } from '@/lib/support-contacts';
-import { PRODUCT_CATEGORIES } from '@/lib/constants';
+import { useProductCategories } from '@/hooks/useProductCategories';
 
 export default function Navbar() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { categories: PRODUCT_CATEGORIES } = useProductCategories({ includeAll: true });
   const [isScrolled, setIsScrolled] = useState(false);
   const { cartItems, cartCount, isCartOpen, setIsCartOpen, setIsSupportOpen } = useCart();
   const { user, token, isAuthenticated, logout } = useAuth();
