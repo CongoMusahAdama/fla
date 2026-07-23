@@ -1021,7 +1021,7 @@ export default function VendorDashboard() {
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={() => setActiveSection('overview')}
+                                    onClick={() => setActiveSection('dashboard')}
                                     className="h-10 px-5 rounded-full border border-slate-200 bg-white text-slate-700 text-xs font-semibold hover:bg-slate-50 transition-colors"
                                 >
                                     Look around first
