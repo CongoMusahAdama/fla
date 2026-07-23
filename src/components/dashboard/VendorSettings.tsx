@@ -147,10 +147,10 @@ export const VendorSettings: React.FC<VendorSettingsProps> = ({
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500 max-w-3xl">
-      <div>
-        <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Store Profile</h1>
-        <p className="text-slate-500 text-sm mt-1">
+    <div className="w-full max-w-6xl space-y-8 animate-in fade-in duration-500">
+      <div className="max-w-3xl">
+        <h1 className="text-2xl md:text-3xl font-black text-slate-900 uppercase tracking-tighter">Store Profile</h1>
+        <p className="text-slate-500 text-sm mt-1.5 leading-relaxed">
           {needsDocs
             ? 'Finish these 3 short steps — documents unlock selling after admin approval.'
             : 'Update your brand, payout, and verification details.'}
@@ -158,8 +158,8 @@ export const VendorSettings: React.FC<VendorSettingsProps> = ({
       </div>
 
       {/* Step indicator */}
-      <nav aria-label="Profile setup steps" className="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm">
-        <ol className="grid grid-cols-3 gap-2">
+      <nav aria-label="Profile setup steps" className="bg-white rounded-2xl border border-slate-100 p-4 md:p-5 shadow-sm">
+        <ol className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {STEPS.map((s, i) => {
             const active = s.id === step;
             const done = i < stepIndex || (s.id === 'documents' && Boolean(user?.kycApprovedAt || user?.kycSubmittedAt));
@@ -168,7 +168,7 @@ export const VendorSettings: React.FC<VendorSettingsProps> = ({
                 <button
                   type="button"
                   onClick={() => setStep(s.id)}
-                  className={`w-full text-left rounded-xl px-3 py-3 transition-colors border ${
+                  className={`w-full text-left rounded-xl px-4 py-4 transition-colors border ${
                     active
                       ? 'bg-brand-lemon/25 border-brand-lemon text-slate-900'
                       : done
@@ -179,8 +179,8 @@ export const VendorSettings: React.FC<VendorSettingsProps> = ({
                   <span className="text-[9px] font-black uppercase tracking-widest block">
                     Step {i + 1}
                   </span>
-                  <span className="text-xs font-bold block mt-0.5">{s.label}</span>
-                  <span className="text-[10px] text-slate-500 hidden sm:block mt-0.5 leading-snug">{s.hint}</span>
+                  <span className="text-sm font-bold block mt-0.5">{s.label}</span>
+                  <span className="text-[11px] text-slate-500 block mt-1 leading-snug">{s.hint}</span>
                 </button>
               </li>
             );
@@ -222,7 +222,7 @@ export const VendorSettings: React.FC<VendorSettingsProps> = ({
         </div>
       )}
 
-      <div className="bg-white rounded-2xl border border-slate-100 p-6 md:p-8 space-y-8 shadow-sm min-h-[420px]">
+      <div className="bg-white rounded-2xl border border-slate-100 p-6 md:p-10 lg:p-12 space-y-8 shadow-sm min-h-[480px]">
         {step === 'brand' && (
           <div className="space-y-8 animate-in fade-in slide-in-from-right-2 duration-300">
             <div>
@@ -235,7 +235,7 @@ export const VendorSettings: React.FC<VendorSettingsProps> = ({
                 <label className="text-[11px] font-black text-slate-900 uppercase tracking-widest">Studio Banner</label>
                 <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">1200 × 400px</span>
               </div>
-              <div className="relative h-40 bg-slate-50 rounded-2xl overflow-hidden group border-2 border-dashed border-slate-200 hover:border-brand-lemon transition-all">
+              <div className="relative h-48 bg-slate-50 rounded-2xl overflow-hidden group border-2 border-dashed border-slate-200 hover:border-brand-lemon transition-all">
                 {bannerImage ? (
                   <Image
                     src={getImageUrl(bannerImage)}
@@ -474,7 +474,7 @@ export const VendorSettings: React.FC<VendorSettingsProps> = ({
               </div>
             )}
 
-            <div className="grid sm:grid-cols-3 gap-4">
+            <div className="grid sm:grid-cols-3 gap-5 lg:gap-6">
               {(
                 [
                   { key: 'ghanaFront' as const, label: 'Ghana Card (front)', value: ghanaCardFront, required: true },
@@ -484,7 +484,7 @@ export const VendorSettings: React.FC<VendorSettingsProps> = ({
               ).map((doc) => (
                 <label
                   key={doc.key}
-                  className={`relative block h-40 bg-slate-50 rounded-2xl overflow-hidden border-2 border-dashed cursor-pointer hover:border-brand-lemon transition-colors ${
+                  className={`relative block aspect-[4/3] min-h-[180px] bg-slate-50 rounded-2xl overflow-hidden border-2 border-dashed cursor-pointer hover:border-brand-lemon transition-colors ${
                     doc.value ? 'border-emerald-300' : doc.required ? 'border-orange-200' : 'border-slate-200'
                   }`}
                 >
