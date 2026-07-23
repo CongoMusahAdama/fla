@@ -8,7 +8,7 @@ import { User, UserDocument } from '../users/schemas/user.schema';
 import { isVendorDocumented } from '../common/vendor-trust.util';
 
 const VENDOR_POPULATE_FIELDS =
-  'uniqueVendorId region location bio shopName vendorTier businessRegistration';
+  'uniqueVendorId region location bio shopName vendorTier businessRegistration storeSlug';
 
 @Injectable()
 export class ProductsService implements OnModuleInit {
@@ -49,7 +49,7 @@ export class ProductsService implements OnModuleInit {
     return createdProduct.save();
   }
 
-  private mapProductForClient(p: any) {
+  private mapProductForClient(p: any, options?: { listView?: boolean }) {
     const vendor = p.vendorId && typeof p.vendorId === 'object' ? p.vendorId : null;
     if (!p.uniqueVendorId && vendor?.uniqueVendorId) {
       p.uniqueVendorId = vendor.uniqueVendorId;
@@ -66,12 +66,19 @@ export class ProductsService implements OnModuleInit {
     if (!p.vendorName && vendor?.shopName) {
       p.vendorName = vendor.shopName;
     }
+    if (!p.storeSlug && vendor?.storeSlug) {
+      p.storeSlug = vendor.storeSlug;
+    }
     p.vendorDocumented = isVendorDocumented(vendor);
     if (vendor) {
       p.vendorTier =
         vendor.vendorTier === 'high' || vendor.businessRegistration?.trim()
           ? 'high'
           : 'low';
+    }
+    // List payloads: keep first image only to cut JSON + bandwidth
+    if (options?.listView && Array.isArray(p.images) && p.images.length > 1) {
+      p.images = p.images.slice(0, 1);
     }
     return p;
   }
@@ -159,6 +166,9 @@ export class ProductsService implements OnModuleInit {
     const paginate = query.page !== undefined && query.page !== '';
 
     let q = this.productModel.find(filters)
+      .select(
+        'name price images imageLabels sizes stock vendorId vendorName uniqueVendorId description hasSizes hasColors colors tailoringTime region vendorLocation vendorBio vendorTier storeSlug category rating reviewCount originalPrice isFeatured createdAt isActive',
+      )
       .populate('vendorId', VENDOR_POPULATE_FIELDS)
       .lean();
 
@@ -180,7 +190,7 @@ export class ProductsService implements OnModuleInit {
         .exec() as any[];
 
       return {
-        products: products.map((p) => this.mapProductForClient(p)),
+        products: products.map((p) => this.mapProductForClient(p, { listView: true })),
         total,
         page,
         pageSize,
@@ -193,7 +203,7 @@ export class ProductsService implements OnModuleInit {
     }
 
     const products = await q.exec() as any[];
-    return products.map((p) => this.mapProductForClient(p));
+    return products.map((p) => this.mapProductForClient(p, { listView: true }));
   }
 
   async countAll(query: any = {}): Promise<number> {

@@ -9,6 +9,7 @@ export interface Product {
   vendorId: string;
   vendorName: string;
   uniqueVendorId?: string;
+  storeSlug?: string;
   description?: string;
   hasSizes?: boolean;
   hasColors?: boolean;

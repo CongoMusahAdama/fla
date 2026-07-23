@@ -1,16 +1,11 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import ChatSupport from "@/components/ChatSupport";
 import Navbar from "@/components/Navbar";
 import CartDrawer from "@/components/CartDrawer";
-
-const plusJakarta = Plus_Jakarta_Sans({
-  subsets: ["latin"],
-  variable: "--font-jakarta",
-  display: "swap",
-  weight: ["400", "500", "600", "700", "800"],
-});
+import { CartProvider } from "@/context/CartContext";
+import { AuthProvider } from "@/context/AuthContext";
+import { Suspense } from "react";
 
 export const metadata: Metadata = {
   title: "FLA Purchase | Exclusive Designs & Quality Brands",
@@ -25,9 +20,6 @@ export const metadata: Metadata = {
   },
 };
 
-import { CartProvider } from "@/context/CartContext";
-import { AuthProvider } from "@/context/AuthContext";
-
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -35,12 +27,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${plusJakarta.variable} antialiased bg-white text-slate-800 font-sans`}
-      >
+      <body className="antialiased bg-white text-slate-800 font-sans">
         <AuthProvider>
           <CartProvider>
-            <Navbar />
+            <Suspense fallback={<div className="h-[72px] bg-white border-b border-slate-100" />}>
+              <Navbar />
+            </Suspense>
             <CartDrawer />
             {children}
             <ChatSupport />

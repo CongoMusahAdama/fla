@@ -1,9 +1,9 @@
-
 "use client";
 import React from 'react';
 import Image from 'next/image';
-import { UploadCloud, Camera, ImageIcon, FileText, CheckCircle2, ShieldAlert } from 'lucide-react';
+import { UploadCloud, Camera, ImageIcon, FileText, CheckCircle2, ShieldAlert, Copy, Check, ExternalLink, Clock } from 'lucide-react';
 import { getImageUrl } from '@/lib/utils';
+import { storefrontUrl } from '@/lib/storefront';
 
 interface VendorSettingsProps {
   user: any;
@@ -24,7 +24,10 @@ interface VendorSettingsProps {
   bannerImage: string | null;
   profileImage: string | null;
   businessRegistration: string | null;
-  handleImageUpload: (file: File, type: 'avatar' | 'banner' | 'doc') => void;
+  ghanaCardFront?: string | null;
+  ghanaCardBack?: string | null;
+  selfie?: string | null;
+  handleImageUpload: (file: File, type: 'avatar' | 'banner' | 'doc' | 'ghanaFront' | 'ghanaBack' | 'selfie') => void;
   handleUpdateVendorProfile: () => void;
   isVerifyingAccount?: boolean;
   setIsVerifyingAccount?: (val: boolean) => void;
@@ -49,11 +52,29 @@ export const VendorSettings: React.FC<VendorSettingsProps> = ({
   bannerImage,
   profileImage,
   businessRegistration,
+  ghanaCardFront,
+  ghanaCardBack,
+  selfie,
   handleImageUpload,
   handleUpdateVendorProfile,
 }) => {
   const [isVerifying, setIsVerifying] = React.useState(false);
   const [verificationError, setVerificationError] = React.useState<string | null>(null);
+  const [linkCopied, setLinkCopied] = React.useState(false);
+
+  const storeSlug = user?.storeSlug as string | undefined;
+  const publicStoreUrl = storeSlug ? storefrontUrl(storeSlug) : null;
+
+  const handleCopyStoreLink = async () => {
+    if (!publicStoreUrl) return;
+    try {
+      await navigator.clipboard.writeText(publicStoreUrl);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    } catch {
+      /* ignore */
+    }
+  };
 
   const handleVerifyAccount = async () => {
     if (!momoNumber || momoNumber.length < 10) {
@@ -87,6 +108,51 @@ export const VendorSettings: React.FC<VendorSettingsProps> = ({
             <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Store Profile</h1>
             <p className="text-slate-500 text-sm mt-1">Customize how customers see your fashion brand.</p>
         </div>
+
+        {publicStoreUrl ? (
+          <div className="bg-brand-blue rounded-2xl p-6 md:p-8 text-white space-y-4 shadow-sm">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-lemon mb-1">
+                Your storefront
+              </p>
+              <p className="text-sm text-white/70">
+                Share this link with customers or add it to your social profiles.
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="flex-1 px-4 py-3 rounded-xl bg-white/10 border border-white/15 text-xs font-bold break-all">
+                {publicStoreUrl}
+              </div>
+              <div className="flex gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleCopyStoreLink}
+                  className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-full bg-brand-lemon text-slate-900 text-[10px] font-black uppercase tracking-widest hover:bg-white transition-colors"
+                >
+                  {linkCopied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                  {linkCopied ? 'Copied' : 'Copy'}
+                </button>
+                <a
+                  href={publicStoreUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-full bg-white/10 border border-white/20 text-white text-[10px] font-black uppercase tracking-widest hover:bg-white/20 transition-colors"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  Open
+                </a>
+              </div>
+            </div>
+            <p className="text-[9px] font-bold uppercase tracking-widest text-white/40">
+              Slug (auto from shop name): /store/{storeSlug}
+            </p>
+          </div>
+        ) : (
+          <div className="bg-amber-50 border border-amber-100 rounded-2xl p-5 text-sm text-amber-800">
+            Your public storefront link will appear here once your shop is approved and a store slug is assigned.
+          </div>
+        )}
+
         <div className="bg-white rounded-2xl border border-slate-100 p-8 md:p-12 space-y-10 shadow-sm">
             {/* Banner Upload */}
             <div className="space-y-4">
@@ -278,24 +344,51 @@ export const VendorSettings: React.FC<VendorSettingsProps> = ({
                     />
                 </div>
 
-                {/* Business Registration Upload */}
+                {/* KYC + Business Registration */}
                 <div className="md:col-span-2 pt-6 border-t border-slate-50 space-y-6">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div>
-                            <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight">Compliance & Documentation</h3>
-                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Required for high-value sales (Above GH₵ 100)</p>
+                            <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight">Verification documents</h3>
+                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">
+                              Required before listing products · approval ~4–5 hours after submit
+                            </p>
                         </div>
-                        {businessRegistration || user?.vendorTier === 'high' ? (
+                        {user?.kycApprovedAt ? (
                             <div className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-600 rounded-2xl border border-emerald-100">
                                 <CheckCircle2 className="w-4 h-4" />
-                                <span className="text-[9px] font-black uppercase tracking-widest">High-Tier Vendor</span>
+                                <span className="text-[9px] font-black uppercase tracking-widest">Approved to sell</span>
+                            </div>
+                        ) : user?.kycSubmittedAt ? (
+                            <div className="flex items-center gap-2 px-4 py-2 bg-sky-50 text-sky-700 rounded-2xl border border-sky-100">
+                                <Clock className="w-4 h-4" />
+                                <span className="text-[9px] font-black uppercase tracking-widest">Under review</span>
                             </div>
                         ) : (
                             <div className="flex items-center gap-2 px-4 py-2 bg-orange-50 text-orange-600 rounded-2xl border border-orange-100">
                                 <ShieldAlert className="w-4 h-4" />
-                                <span className="text-[9px] font-black uppercase tracking-widest">Action Required</span>
+                                <span className="text-[9px] font-black uppercase tracking-widest">Upload required</span>
                             </div>
                         )}
+                    </div>
+
+                    <div className="grid md:grid-cols-3 gap-4">
+                      {[
+                        { key: 'ghanaFront' as const, label: 'Ghana Card (front)', value: ghanaCardFront },
+                        { key: 'ghanaBack' as const, label: 'Ghana Card (back)', value: ghanaCardBack },
+                        { key: 'selfie' as const, label: 'Selfie with ID', value: selfie },
+                      ].map((doc) => (
+                        <label key={doc.key} className="relative block h-36 bg-slate-50 rounded-2xl overflow-hidden border border-dashed border-slate-200 cursor-pointer hover:border-brand-lemon transition-colors">
+                          {doc.value ? (
+                            <Image src={getImageUrl(doc.value)} alt={doc.label} fill className="object-cover" unoptimized />
+                          ) : (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-3 text-center">
+                              <Camera className="w-6 h-6 text-slate-300" />
+                              <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">{doc.label}</span>
+                            </div>
+                          )}
+                          <input type="file" className="hidden" accept="image/*" onChange={(e) => e.target.files?.[0] && handleImageUpload(e.target.files[0], doc.key)} />
+                        </label>
+                      ))}
                     </div>
 
                     <div className="relative group">
@@ -323,7 +416,7 @@ export const VendorSettings: React.FC<VendorSettingsProps> = ({
                                 <UploadCloud className="w-8 h-8 text-slate-300" />
                                 <div className="text-center">
                                     <p className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Upload Business Registration</p>
-                                    <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-1">PDF or Image (Max 5MB)</p>
+                                    <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-1">Optional for high-tier · PDF or Image</p>
                                 </div>
                                 <input type="file" className="hidden" accept="image/*,.pdf" onChange={(e) => e.target.files?.[0] && handleImageUpload(e.target.files[0], 'doc')} />
                             </label>

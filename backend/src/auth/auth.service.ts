@@ -4,6 +4,10 @@ import { JwtService } from '@nestjs/jwt';
 import { EmailService } from '../email/email.service';
 import { OtpService } from '../otp/otp.service';
 import { SmsService } from '../common/sms.service';
+import {
+  introSubscriptionFields,
+  monthlySubscriptionFields,
+} from '../users/vendor-subscription.util';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 
@@ -84,6 +88,16 @@ export class AuthService {
       status: user.status,
       region: user.region,
       uniqueVendorId: user.uniqueVendorId,
+      storeSlug: user.storeSlug,
+      mustChangePassword: Boolean(user.mustChangePassword),
+      kycApprovedAt: user.kycApprovedAt,
+      kycSubmittedAt: user.kycSubmittedAt,
+      subscriptionPlan: user.subscriptionPlan,
+      subscriptionLabel: user.subscriptionLabel,
+      subscriptionPriceText: user.subscriptionPriceText,
+      subscriptionPriceGhs: user.subscriptionPriceGhs,
+      subscriptionStartsAt: user.subscriptionStartsAt,
+      subscriptionEndsAt: user.subscriptionEndsAt,
       walletBalance: user.walletBalance,
       pendingBalance: user.pendingBalance,
       ghanaCardFront: user.ghanaCardFront,
@@ -241,37 +255,138 @@ export class AuthService {
   }
 
   async adminCreateVendor(userData: any) {
-    const { password } = userData;
-    // Create the vendor account. Status will be 'active' because it's admin-created
-    const user = await this.usersService.create({
-      ...userData,
+    const rawPassword =
+      userData.password ||
+      `Fla${crypto.randomBytes(3).toString('hex')}${Math.floor(100 + Math.random() * 900)}`;
+
+    const plan: 'intro' | 'monthly' =
+      userData.subscriptionPlan === 'monthly' ? 'monthly' : 'intro';
+    const intro = introSubscriptionFields();
+    const startsAt = userData.subscriptionStartsAt
+      ? new Date(userData.subscriptionStartsAt)
+      : intro.subscriptionStartsAt;
+    const endsAt = userData.subscriptionEndsAt
+      ? new Date(userData.subscriptionEndsAt)
+      : plan === 'monthly'
+        ? monthlySubscriptionFields(startsAt).subscriptionEndsAt
+        : intro.subscriptionEndsAt;
+
+    const subscriptionLabel =
+      userData.subscriptionLabel ||
+      (plan === 'monthly' ? 'Monthly Partner Plan' : 'Intro month');
+    const subscriptionPriceText =
+      userData.subscriptionPriceText ||
+      (plan === 'monthly' ? 'GHS 50 / month' : 'GHS 10 / 30 days');
+    const subscriptionPriceGhs =
+      typeof userData.subscriptionPriceGhs === 'number'
+        ? userData.subscriptionPriceGhs
+        : plan === 'monthly'
+          ? 50
+          : 10;
+
+    // Slim onboard — no KYC docs at admin create time
+    const user = (await this.usersService.create({
+      name: userData.name,
+      email: userData.email,
+      phone: userData.phone,
+      location: userData.location,
+      region: userData.region,
+      password: rawPassword,
       role: 'vendor',
-    }) as any;
+      shopName: userData.shopName,
+      productTypes: userData.productTypes,
+      paymentMethods: userData.paymentMethods,
+      bio: userData.bio,
+      profileImage: userData.profileImage,
+      accountName: userData.accountName,
+      momoNumber: userData.momoNumber || userData.paymentMethods?.[0]?.accountNumber,
+    })) as any;
 
-    // Set status to active and mark email verified (admin-created)
-    await this.usersService.update(user._id.toString(), { status: 'active', isEmailVerified: true } as any);
+    await this.usersService.applyVendorSubscription(user._id.toString(), {
+      status: 'active',
+      isEmailVerified: true,
+      subscriptionPlan: plan,
+      subscriptionLabel,
+      subscriptionPriceText,
+      subscriptionPriceGhs,
+      subscriptionStartsAt: startsAt,
+      subscriptionEndsAt: endsAt,
+      verificationStatus: 'pending',
+      isIdentityVerified: false,
+    });
 
-    // Sync Paystack Subaccount immediately for admin-created vendors
-    await this.usersService.syncVendorSubaccount(user._id.toString()).catch(err => this.logger.error(`Failed to sync Paystack subaccount for admin-created vendor: ${err.message}`));
+    await this.usersService.setMustChangePassword(user._id.toString(), true);
+    await this.usersService.clearKycApproval(user._id.toString()).catch(() => undefined);
 
-    // Send the credentials email with the raw password
-    await this.emailService.sendVendorCredentialsEmail(user.email, user.name || 'Vendor', password, user.shopName || 'FLA Studio');
+    await this.usersService
+      .ensureStoreSlug(user._id.toString(), userData.shopName || userData.name)
+      .catch((err) => this.logger.error(`storeSlug on admin create: ${err.message}`));
 
-    // Send the welcome email
-    await this.emailService.sendWelcomeEmail(user.email, user.name || 'Vendor', user.shopName || 'FLA Studio');
+    await this.usersService
+      .syncVendorSubaccount(user._id.toString())
+      .catch((err) =>
+        this.logger.error(
+          `Failed to sync Paystack subaccount for admin-created vendor: ${err.message}`,
+        ),
+      );
 
-    // Send Notification Email
-    if (user.email) {
-        const message = `Welcome to FLA, ${user.shopName || user.name}! Your studio account is active. Check your email for login credentials.`;
-        await this.emailService.sendGenericNotification(user.email, user.name || 'Vendor', 'Welcome to FLA Studio! 🚀', message);
-    }
+    const loginUrl =
+      process.env.FRONTEND_URL?.replace(/\/$/, '') ||
+      'https://flamingo-store1.com';
+    const authUrl = `${loginUrl}/auth?view=login&role=vendor`;
+
+    await this.emailService
+      .sendVendorCredentialsEmail(
+        user.email,
+        user.name || 'Vendor',
+        rawPassword,
+        user.shopName || 'FLA Studio',
+      )
+      .catch((err) => this.logger.error(`Credentials email failed: ${err.message}`));
 
     if (user.phone) {
-        const smsMessage = `Congrats ${user.shopName || user.name}! Your vendor account on FLA is active. Please check your email for your password and login here: https://flamingo-store1.com/auth`;
-        await this.smsService.sendSms(user.phone, smsMessage).catch(err => this.logger.error(`Failed to send SMS to admin-created vendor: ${err.message}`));
+      const smsMessage = `Welcome to FLA, ${user.shopName || user.name}! Login: ${authUrl} Email: ${user.email} Temp password: ${rawPassword} — change it after login.`;
+      await this.smsService
+        .sendSms(user.phone, smsMessage)
+        .catch((err) =>
+          this.logger.error(`Failed to send SMS to admin-created vendor: ${err.message}`),
+        );
     }
 
-    return user;
+    const refreshed = await this.usersService.findOneById(user._id.toString());
+    return {
+      user: this.mapPublicUser(refreshed || user),
+      temporaryPassword: rawPassword,
+      loginUrl: authUrl,
+      agreementPath: `/admin/vendors/${user._id}/agreement`,
+      agreementEmailed: false,
+    };
+  }
+
+  async changePassword(userId: string, currentPassword: string, newPassword: string) {
+    const user = await this.usersService.findOneById(userId);
+    if (!user) throw new UnauthorizedException('User not found');
+
+    const doc = await this.usersService.findOne((user as any).email);
+    if (!doc?.password) throw new UnauthorizedException('Invalid account');
+
+    // Allow skipping current password check when mustChangePassword (temp password flow)
+    if (!(user as any).mustChangePassword) {
+      const ok = await bcrypt.compare(currentPassword, doc.password);
+      if (!ok) throw new UnauthorizedException('Current password is incorrect');
+    } else if (currentPassword) {
+      const ok = await bcrypt.compare(currentPassword, doc.password);
+      if (!ok) throw new UnauthorizedException('Temporary password is incorrect');
+    }
+
+    if (!newPassword || newPassword.length < 8) {
+      throw new ConflictException('New password must be at least 8 characters');
+    }
+
+    await this.usersService.updatePassword(userId, newPassword);
+    await this.usersService.setMustChangePassword(userId, false);
+    const updated = await this.usersService.findOneById(userId);
+    return this.mapPublicUser(updated);
   }
 
   async forgotPassword(email: string): Promise<void> {

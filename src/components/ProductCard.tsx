@@ -5,9 +5,10 @@ import { Clock, ChevronLeft, ChevronRight, X, MessageSquare, ShoppingBag, Star, 
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
-import { getImageUrl, getVendorDisplayLocation } from '@/lib/utils';
+import { getImageUrl, getOptimizedImage, getVendorDisplayLocation } from '@/lib/utils';
 import { isVendorDocumented } from '@/lib/kyc';
 import { VendorTrustBadge } from '@/components/VendorTrustBadge';
+import { resolveStoreSlug, storeHomePath, storeProductPath } from '@/lib/storefront';
 
 import Swal from 'sweetalert2';
 
@@ -27,6 +28,7 @@ interface ProductCardProps {
 
     vendorName?: string;
     uniqueVendorId?: string;
+    storeSlug?: string;
     hasSizes?: boolean;
     hasColors?: boolean;
     colors?: string[];
@@ -37,14 +39,13 @@ interface ProductCardProps {
     vendorTier?: 'low' | 'high';
 }
 
-export default function ProductCard({ id, name, price, images, sizes = [], imageLabels, duration = '6-7 working days', stock, index, vendorId, initialWishlistState = false, description, vendorName, uniqueVendorId, hasSizes = true, hasColors = true, colors = [], vendorRegion, vendorCity, vendorBio, vendorDocumented, vendorTier }: ProductCardProps) {
+export default React.memo(function ProductCard({ id, name, price, images, sizes = [], imageLabels, duration = '6-7 working days', stock, index, vendorId, initialWishlistState = false, description, vendorName, uniqueVendorId, storeSlug, hasSizes = true, hasColors = true, colors = [], vendorRegion, vendorCity, vendorBio, vendorDocumented, vendorTier }: ProductCardProps) {
     const isBatch = false;
     const currentPrice = price;
 
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [selectedSize, setSelectedSize] = useState<string | null>(null);
     const [selectedColor, setSelectedColor] = useState<string | null>(null);
-    const [isVisible, setIsVisible] = useState(false);
     const [isAdding, setIsAdding] = useState(false);
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     const [vendorModal, setVendorModal] = useState<{
@@ -69,10 +70,25 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
             ? isVendorDocumented(vendorId as Parameters<typeof isVendorDocumented>[0])
             : false);
 
+    const resolvedStoreSlug = resolveStoreSlug(storeSlug, vendorId);
+
+    const openStoreProduct = () => {
+        if (resolvedStoreSlug) {
+            router.push(storeProductPath(resolvedStoreSlug, id));
+            return;
+        }
+        setIsDetailModalOpen(true);
+    };
+
     const handleVendorProfile = async (e: React.MouseEvent | React.TouchEvent) => {
         if (e) {
             e.preventDefault();
             e.stopPropagation();
+        }
+
+        if (resolvedStoreSlug) {
+            router.push(storeHomePath(resolvedStoreSlug));
+            return;
         }
 
         let validVendorId = vendorId;
@@ -99,6 +115,11 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
             if (!response.ok) throw new Error('Failed to fetch vendor profile');
             const data = await response.json();
             const { vendor } = data;
+
+            if (vendor.storeSlug) {
+                router.push(storeHomePath(vendor.storeSlug));
+                return;
+            }
 
             setVendorModal({
                 shopName: vendor.shopName || vendor.name || vendorName || 'Vendor',
@@ -133,6 +154,7 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
         setImgError(false);
     }, [currentImageIndex, images]);
 
+    // Modal body scroll lock
     useEffect(() => {
         if (!isDetailModalOpen && !vendorModal && !vendorModalLoading) return;
 
@@ -559,13 +581,6 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
         }
     };
 
-    useEffect(() => {
-        // Staggered animation based on product index
-        const delay = 200 + (index * 100); // Start at 200ms, add 100ms per product
-        const timer = setTimeout(() => setIsVisible(true), delay);
-        return () => clearTimeout(timer);
-    }, [index]);
-
     const nextImage = (e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
@@ -578,37 +593,28 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
         setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
     };
 
-    const handleMouseEnter = () => {
-        if (images.length > 1 && !isSoldOut) {
-            setCurrentImageIndex(1);
-        }
-    };
-
-    const handleMouseLeave = () => {
-        if (images.length > 1 && !isSoldOut) {
-            setCurrentImageIndex(0);
-        }
-    };
+    const thumbSrc = imgError
+        ? '/product-1.jpg'
+        : getOptimizedImage(images[0] || '/product-1.jpg', 480, 360);
 
     return (
         <>
             <div
-                onMouseEnter={handleMouseEnter}
-                onMouseLeave={handleMouseLeave}
-                onClick={() => setIsDetailModalOpen(true)}
-                className={`bg-white p-4 rounded-3xl group hover:shadow-2xl transition-all duration-700 ease-out border border-slate-100 hover:border-slate-300 cursor-pointer ${isVisible ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-10 scale-95'
-                    }`}>
+                onClick={openStoreProduct}
+                style={{ contentVisibility: 'auto', containIntrinsicSize: '280px 420px' }}
+                className="bg-white rounded-xl overflow-hidden group hover:shadow-md transition-shadow duration-200 cursor-pointer will-change-auto"
+            >
                 {/* Image Container */}
-                <div className="relative w-full aspect-[4/5] bg-[#F7F7F7] rounded-2xl overflow-hidden mb-5 group/image transition-all duration-500 hover:shadow-inner">
+                <div className="relative w-full aspect-[4/3] bg-[#f7f8fa] overflow-hidden mb-2.5">
                     {/* New Arrival Badge & Sold Out Overlay */}
-                    <div className="absolute top-4 left-4 z-20 flex flex-col gap-2">
+                    <div className="absolute top-2.5 left-2.5 z-20 flex flex-col gap-1.5">
                         {!isSoldOut && (
-                            <div className="bg-[#DFEA73] text-[#2C3E02] text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-tighter shadow-sm w-fit">
+                            <div className="bg-brand-lemon text-slate-900 text-[9px] font-black px-2.5 py-1 rounded-full uppercase tracking-tighter shadow-sm w-fit">
                                 New Arrival
                             </div>
                         )}
                         {isSoldOut && (
-                            <div className="bg-slate-900/90 backdrop-blur-md text-white text-[10px] font-black px-4 py-2 rounded-full uppercase tracking-[0.2em] border border-white/20 w-fit shadow-xl">
+                            <div className="bg-slate-900/90 backdrop-blur-md text-white text-[9px] font-black px-3 py-1.5 rounded-full uppercase tracking-[0.15em] border border-white/20 w-fit shadow-xl">
                                 Sold Out
                             </div>
                         )}
@@ -616,29 +622,29 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
 
                     {isSoldOut && (
                         <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
-                            <span className="text-[120px] font-black text-slate-900/5 select-none tracking-tighter uppercase rotate-[-25deg]">SOLD</span>
+                            <span className="text-[80px] font-black text-slate-900/5 select-none tracking-tighter uppercase rotate-[-25deg]">SOLD</span>
                         </div>
                     )}
 
-
-
-                    {/* Carousel Image */}
-                    <div className="w-full h-full relative p-4">
+                    {/* Primary thumbnail only — no hover swap (avoids extra downloads + scroll jank) */}
+                    <div className="w-full h-full relative">
                         <Image
-                            src={imgError ? '/product-1.jpg' : getImageUrl(images[currentImageIndex])}
-                            alt={`${name} view ${currentImageIndex + 1}`}
+                            src={thumbSrc}
+                            alt={name}
                             fill
-                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                            unoptimized={true}
-                            className={`object-contain transition-all duration-700 group-hover/image:scale-105 ${isSoldOut ? 'grayscale contrast-[0.8] opacity-60' : ''}`}
+                            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                            loading={index < 4 ? 'eager' : 'lazy'}
+                            decoding="async"
+                            unoptimized
+                            className={`object-cover ${isSoldOut ? 'grayscale contrast-[0.8] opacity-60' : ''}`}
                             onError={() => setImgError(true)}
                         />
                     </div>
                 </div>
 
                 {/* Info Section */}
-                <div className="space-y-3 px-1">
-                    <h3 className="font-heading font-black text-slate-900 text-base md:text-lg leading-tight line-clamp-1 group-hover:text-brand-lemon transition-colors">
+                <div className="space-y-1.5 px-2.5 sm:px-3 pb-2.5 sm:pb-3">
+                    <h3 className="font-heading font-bold text-slate-900 text-sm leading-snug line-clamp-1 group-hover:text-brand-lemon transition-colors">
                         {name}
                     </h3>
 
@@ -646,56 +652,56 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                     {vendorName && (
                         <div
                             onClick={handleVendorProfile}
-                            className="flex items-center gap-2 w-fit cursor-pointer group/vendor relative z-30 -ml-1 p-2 rounded-2xl hover:bg-slate-50 transition-all border border-transparent hover:border-slate-100"
+                            className="flex items-center gap-1.5 w-fit max-w-full cursor-pointer group/vendor relative z-30 -ml-0.5 px-1 py-0.5 rounded-lg hover:bg-slate-50 transition-all"
                         >
-                            <span className="text-[11px] font-black text-slate-400 uppercase tracking-[0.15em] group-hover/vendor:text-slate-900 transition-colors">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide group-hover/vendor:text-slate-900 transition-colors truncate">
                                 by <span className="underline decoration-brand-lemon decoration-2 underline-offset-2">{vendorName}</span>
-                                {uniqueVendorId && <span className="text-slate-900 ml-2 bg-brand-lemon px-2 py-0.5 rounded-full text-[8px] font-black shadow-sm">{uniqueVendorId}</span>}
+                                {uniqueVendorId && <span className="text-slate-900 ml-1.5 bg-brand-lemon px-1.5 py-0.5 rounded-full text-[8px] font-black shadow-sm">{uniqueVendorId}</span>}
                             </span>
                             <VendorTrustBadge documented={vendorDocStatus} />
                         </div>
                     )}
 
-                    {/* Region & Shipping Info Badge */}
-                    <div className="flex items-center gap-4 text-slate-400">
+                    {/* Region & Shipping — single compact row */}
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-slate-400">
                         {getVendorDisplayLocation({ location: vendorCity, region: vendorRegion }) && (
-                            <div className="flex items-center gap-1.5">
-                                <MapPin className="w-3 h-3 text-brand-lemon" />
-                                <span className="text-[10px] font-black uppercase tracking-widest">
+                            <div className="flex items-center gap-1 min-w-0">
+                                <MapPin className="w-3 h-3 text-brand-lemon shrink-0" />
+                                <span className="text-[9px] font-bold uppercase tracking-wide truncate">
                                     {getVendorDisplayLocation({ location: vendorCity, region: vendorRegion })}
                                 </span>
                             </div>
                         )}
                         {duration && (
-                            <div className="flex items-center gap-1.5">
-                                <Clock className="w-3.5 h-3.5 text-brand-lemon" />
-                                <span className="text-[10px] font-black uppercase tracking-widest">{duration}</span>
+                            <div className="flex items-center gap-1">
+                                <Clock className="w-3 h-3 text-brand-lemon shrink-0" />
+                                <span className="text-[9px] font-bold uppercase tracking-wide">{duration}</span>
                             </div>
                         )}
                     </div>
 
-                    {/* Feature Highlights */}
-                    <div className="space-y-2 pb-3 border-b border-slate-100">
-                        <div className="flex items-center gap-2 text-slate-500">
-                            <Check className="w-3.5 h-3.5 text-emerald-500" />
-                            <span className="text-[10px] font-black uppercase tracking-tight">Authentic Product</span>
+                    {/* Feature Highlights — one row */}
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pb-1.5 border-b border-slate-100">
+                        <div className="flex items-center gap-1 text-slate-500">
+                            <Check className="w-3 h-3 text-emerald-500 shrink-0" />
+                            <span className="text-[9px] font-bold uppercase tracking-tight">Authentic</span>
                         </div>
-                        <div className="flex items-center gap-2 text-slate-500">
-                            <Shield className="w-3.5 h-3.5 text-blue-500" />
-                            <span className="text-[10px] font-black uppercase tracking-tight">Quality Guarantee</span>
+                        <div className="flex items-center gap-1 text-slate-500">
+                            <Shield className="w-3 h-3 text-blue-500 shrink-0" />
+                            <span className="text-[9px] font-bold uppercase tracking-tight">Guaranteed</span>
                         </div>
                     </div>
 
-                    <div className="flex justify-between items-center pt-2 pb-3 border-b border-slate-50 mb-3">
+                    <div className="flex justify-between items-center py-1">
                         <div className="flex flex-col">
-                            <span className="text-slate-300 line-through text-[9px] font-bold">GH₵{Math.round(price * 1.15)}</span>
-                            <span className="font-sans font-black text-slate-900 text-base md:text-lg tracking-tight -mt-1">GH₵{price}</span>
+                            <span className="text-slate-300 line-through text-[9px] font-bold leading-none">GH₵{Math.round(price * 1.15)}</span>
+                            <span className="font-sans font-black text-slate-900 text-base tracking-tight">GH₵{price}</span>
                         </div>
                         <div className="flex flex-col items-end">
-                            <span className={`text-[10px] font-black uppercase tracking-widest ${stock > 5 ? 'text-emerald-500' : 'text-orange-500'}`}>
+                            <span className={`text-[9px] font-black uppercase tracking-wide ${stock > 5 ? 'text-emerald-500' : 'text-orange-500'}`}>
                                 {stock > 0 ? `${stock} Left` : 'Sold Out'}
                             </span>
-                            <div className={`w-12 h-1 bg-slate-100 rounded-full mt-1 overflow-hidden`}>
+                            <div className={`w-10 h-1 bg-slate-100 rounded-full mt-1 overflow-hidden`}>
                                 <div 
                                     className={`h-full rounded-full ${stock > 5 ? 'bg-emerald-500' : 'bg-orange-500'}`} 
                                     style={{ width: `${Math.min((stock / 20) * 100, 100)}%` }}
@@ -706,13 +712,13 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
 
                     {/* Size Selection (Quick Access) */}
                     {hasSizes && (
-                        <div className="flex gap-1.5 mb-4 overflow-x-auto pb-1 no-scrollbar" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex gap-1 mb-1 overflow-x-auto no-scrollbar" onClick={(e) => e.stopPropagation()}>
                             {(sizes && sizes.length > 0 ? sizes : ['S', 'M', 'L', 'XL']).map(size => (
                                 <button
                                     key={size}
                                     onClick={() => !isSoldOut && setSelectedSize(size)}
                                     disabled={isSoldOut}
-                                    className={`flex-none w-8 h-8 rounded-xl text-[10px] font-black border transition-all active:scale-90
+                                    className={`flex-none w-7 h-7 rounded-lg text-[9px] font-black border transition-all active:scale-90
                                         ${selectedSize === size
                                             ? 'bg-brand-lemon text-slate-900 border-brand-lemon shadow-sm'
                                             : 'bg-white text-slate-400 border-slate-100 hover:border-slate-200'
@@ -726,16 +732,16 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                     )}
 
                     {/* Quick Action Buttons */}
-                    <div className="flex flex-col md:grid md:grid-cols-2 gap-2 mt-4 relative z-20" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex flex-col sm:grid sm:grid-cols-2 gap-1.5 relative z-20" onClick={(e) => e.stopPropagation()}>
                         <button
-                            onClick={() => setIsDetailModalOpen(true)}
-                            className="flex items-center justify-center py-3.5 px-6 rounded-full border border-slate-900 text-[11px] font-bold text-slate-900 bg-white hover:bg-slate-50 transition-all active:scale-[0.98] whitespace-nowrap touch-manipulation relative z-50 !cursor-pointer !pointer-events-auto"
+                            onClick={openStoreProduct}
+                            className="flex items-center justify-center py-2.5 px-3 rounded-full border border-slate-900 text-[10px] font-bold text-slate-900 bg-white hover:bg-slate-50 transition-all active:scale-[0.98] whitespace-nowrap touch-manipulation relative z-50 !cursor-pointer !pointer-events-auto"
                         >
                             Learn More
                         </button>
                         <button
                             onClick={handleBuyNow}
-                            className="flex items-center justify-center py-3.5 px-6 rounded-full bg-brand-lemon text-slate-900 text-[11px] font-bold transition-all active:scale-[0.98] whitespace-nowrap touch-manipulation relative z-50 !cursor-pointer !pointer-events-auto"
+                            className="flex items-center justify-center py-2.5 px-3 rounded-full bg-brand-lemon text-slate-900 text-[10px] font-bold transition-all active:scale-[0.98] whitespace-nowrap touch-manipulation relative z-50 !cursor-pointer !pointer-events-auto"
                         >
                             Quick Checkout
                         </button>
@@ -775,7 +781,7 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                                 </button>
                             </div>
                                 <Image
-                                    src={imgError ? '/product-1.jpg' : getImageUrl(images[currentImageIndex])}
+                                    src={imgError ? '/product-1.jpg' : getOptimizedImage(images[currentImageIndex], 900)}
                                     alt={name}
                                     fill
                                     unoptimized
@@ -813,7 +819,7 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                                                 >
                                                     <div className={`relative w-11 h-11 md:w-12 md:h-14 rounded-lg overflow-hidden border-2 shadow-sm ${idx === currentImageIndex ? 'border-white ring-2 ring-slate-900/30' : 'border-white/80'}`}>
                                                         <Image
-                                                            src={getImageUrl(img)}
+                                                            src={getOptimizedImage(img, 96, 96)}
                                                             alt=""
                                                             fill
                                                             sizes="48px"
@@ -845,7 +851,7 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
                                         >
                                             <div className={`relative w-12 h-14 rounded-lg overflow-hidden border-2 ${idx === currentImageIndex ? 'border-slate-900' : 'border-transparent'}`}>
                                                 <Image
-                                                    src={getImageUrl(img)}
+                                                    src={getOptimizedImage(img, 96, 96)}
                                                     alt=""
                                                     fill
                                                     sizes="48px"
@@ -1134,5 +1140,5 @@ export default function ProductCard({ id, name, price, images, sizes = [], image
             )}
         </>
     );
-}
+});
 

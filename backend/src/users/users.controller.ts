@@ -10,7 +10,9 @@ import {
   UseGuards,
   Request,
   ForbiddenException,
+  Res,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { AuthGuard } from '@nestjs/passport';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -69,6 +71,12 @@ export class UsersController {
     return this.usersService.getPublicVendorProfile(id);
   }
 
+  /** Public storefront by slug — /store/{slug} on the frontend */
+  @Get('store/:slug')
+  getStoreBySlug(@Param('slug') slug: string) {
+    return this.usersService.getStoreBySlug(slug);
+  }
+
   @Post('admin/resync-paystack-splits')
   @UseGuards(AuthGuard('jwt'))
   resyncPaystackSplits(@Request() req) {
@@ -85,6 +93,52 @@ export class UsersController {
   ) {
     this.assertAdmin(req);
     return this.usersService.updateStatus(id, body.status);
+  }
+
+  @Post('admin/:id/approve-kyc')
+  @UseGuards(AuthGuard('jwt'))
+  approveKyc(@Request() req, @Param('id') id: string) {
+    this.assertAdmin(req);
+    return this.usersService.approveVendorKycForSelling(id);
+  }
+
+  @Post('admin/:id/subscription/renew')
+  @UseGuards(AuthGuard('jwt'))
+  renewSubscription(
+    @Request() req,
+    @Param('id') id: string,
+    @Body() body: { months?: number; amountGhs?: number; note?: string },
+  ) {
+    this.assertAdmin(req);
+    return this.usersService.renewVendorSubscription(id, body || {});
+  }
+
+  @Get('admin/:id/agreement-letter')
+  @UseGuards(AuthGuard('jwt'))
+  agreementLetter(@Request() req, @Param('id') id: string) {
+    this.assertAdmin(req);
+    return this.usersService.getAgreementLetterData(id);
+  }
+
+  @Get('admin/:id/agreement-letter.pdf')
+  @UseGuards(AuthGuard('jwt'))
+  async downloadAgreementPdf(
+    @Request() req,
+    @Param('id') id: string,
+    @Res() res: Response,
+  ) {
+    this.assertAdmin(req);
+    const { buffer, filename } = await this.usersService.generateAgreementPdf(id);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(buffer);
+  }
+
+  @Post('admin/:id/agreement-letter/send')
+  @UseGuards(AuthGuard('jwt'))
+  sendAgreementLetter(@Request() req, @Param('id') id: string) {
+    this.assertAdmin(req);
+    return this.usersService.sendAgreementPdfToVendor(id);
   }
 
   @Get(':id')

@@ -1,10 +1,45 @@
 @import "tailwindcss";
 
+@font-face {
+  font-family: Sora;
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: local(Sora), url(/fonts/sora-latin-400-normal.woff2) format("woff2");
+}
+
+@font-face {
+  font-family: Sora;
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: local(Sora), url(/fonts/sora-latin-500-normal.woff2) format("woff2");
+}
+
+@font-face {
+  font-family: Sora;
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: local(Sora), url(/fonts/sora-latin-600-normal.woff2) format("woff2");
+}
+
+@font-face {
+  font-family: Sora;
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: local(Sora), url(/fonts/sora-latin-700-normal.woff2) format("woff2");
+}
+
 @theme inline {
   --color-brand-blue: #0f2744;
-  --color-brand-lemon: #D8F800;
-  --font-sans: var(--font-jakarta), "Plus Jakarta Sans", system-ui, sans-serif;
-  --font-heading: var(--font-jakarta), "Plus Jakarta Sans", system-ui, sans-serif;
+  /* Soft golden yellow (lighter than previous deep gold) */
+  --color-brand-lemon: #F9CF5A;
+  --color-brand-lemon-hover: #F0C040;
+  --font-sans: "Sora", system-ui, sans-serif;
+  --font-heading: "Sora", system-ui, sans-serif;
+  --font-dashboard: "Sora", system-ui, sans-serif;
   --radius-fla-sm: 0.75rem;
   --radius-fla-md: 1rem;
   --radius-fla-lg: 1.5rem;
@@ -75,6 +110,15 @@
     animation: marquee 20s linear infinite;
   }
 
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
   .custom-scrollbar::-webkit-scrollbar {
     width: 4px;
   }
@@ -97,6 +141,7 @@ body {
   color: unset;
   font-size: unset;
   font-family: var(--font-sans);
+  letter-spacing: -0.01em;
 }
 
 button,
@@ -123,9 +168,66 @@ h4,
 h5,
 h6 {
   font-family: var(--font-heading);
+  letter-spacing: -0.03em;
 }
 
-/* Hide Next.js Dev Indicator */
-nextjs-portal {
-  display: none !important;
+/* Dashboard shells (admin / vendor / customer) — Sora */
+.admin-shell,
+.dashboard-shell {
+  font-family: "Sora", system-ui, sans-serif;
+  letter-spacing: -0.011em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.admin-shell h1,
+.admin-shell h2,
+.admin-shell h3,
+.admin-shell h4,
+.admin-shell h5,
+.admin-shell h6,
+.admin-shell .font-heading,
+.dashboard-shell h1,
+.dashboard-shell h2,
+.dashboard-shell h3,
+.dashboard-shell h4,
+.dashboard-shell h5,
+.dashboard-shell h6,
+.dashboard-shell .font-heading {
+  font-family: inherit;
+  letter-spacing: -0.02em;
+}
+
+/* Soften legacy ultra-black / tight tracking so dashboards stay readable */
+.admin-shell .font-black,
+.dashboard-shell .font-black {
+  font-weight: 700;
+}
+
+.admin-shell .font-extrabold,
+.dashboard-shell .font-extrabold {
+  font-weight: 700;
+}
+
+.admin-shell .tracking-tighter,
+.dashboard-shell .tracking-tighter {
+  letter-spacing: -0.02em;
+}
+
+.admin-shell .tracking-widest,
+.dashboard-shell .tracking-widest {
+  letter-spacing: 0.06em;
+}
+
+/* Sticky table headers inside Admin HQ scroll areas */
+.admin-shell .admin-table-scroll {
+  max-height: min(68vh, 720px);
+  overflow: auto;
+}
+
+.admin-shell .admin-table-scroll thead th {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background-color: var(--color-brand-blue, #0f2744);
 }

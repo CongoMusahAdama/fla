@@ -1,201 +1,323 @@
-
 "use client";
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { ShieldCheck, CreditCard } from 'lucide-react';
+import { ArrowRight, ShoppingBag } from 'lucide-react';
 import { getImageUrl } from '@/lib/utils';
+import { storeProductPath, resolveStoreSlug } from '@/lib/storefront';
 
-const CATEGORIES = ['Electronics', 'Accessories', 'Beauty/cosmetics', 'Home goods', 'Food/beverages', 'Furniture', 'Children/Toys'];
+const CATEGORIES = [
+  {
+    label: 'Electronics',
+    fallback:
+      'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400&h=400&fit=crop&q=80',
+  },
+  {
+    label: 'Accessories',
+    fallback:
+      'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&h=400&fit=crop&q=80',
+  },
+  {
+    label: 'Beauty/cosmetics',
+    fallback:
+      'https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=400&h=400&fit=crop&q=80',
+  },
+  {
+    label: 'Home goods',
+    fallback:
+      'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=400&h=400&fit=crop&q=80',
+  },
+  {
+    label: 'Food/beverages',
+    fallback:
+      'https://images.unsplash.com/photo-1542838132-92c53300491e?w=400&h=400&fit=crop&q=80',
+  },
+  {
+    label: 'Furniture',
+    fallback:
+      'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=400&h=400&fit=crop&q=80',
+  },
+  {
+    label: 'Children/Toys',
+    fallback:
+      'https://images.unsplash.com/photo-1558060370-d644479cb6f7?w=400&h=400&fit=crop&q=80',
+  },
+  {
+    label: 'Clothing',
+    fallback:
+      'https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?w=400&h=400&fit=crop&q=80',
+  },
+  {
+    label: 'Shoes',
+    fallback:
+      'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&h=400&fit=crop&q=80',
+  },
+  {
+    label: 'Bags',
+    fallback:
+      'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=400&h=400&fit=crop&q=80',
+  },
+  {
+    label: 'Hardware items',
+    fallback:
+      'https://images.unsplash.com/photo-1504148455328-c376907d081c?w=400&h=400&fit=crop&q=80',
+  },
+  {
+    label: 'Kitchen',
+    fallback:
+      'https://images.unsplash.com/photo-1556910103-1c02745aae4d?w=400&h=400&fit=crop&q=80',
+  },
+] as const;
 
-const HERO_POOL_SIZE = 36;
-const HERO_VISIBLE = 3;
-
-type HeroProduct = {
-    id: string;
-    name: string;
-    image: string;
+type DayProduct = {
+  id: string;
+  name: string;
+  image: string;
+  price?: number;
+  category?: string;
+  storeSlug?: string;
+  vendorId?: string | { storeSlug?: string; _id?: string; id?: string };
 };
 
-function pickForHour(pool: HeroProduct[], hour: number): HeroProduct[] {
-    if (!pool.length) return [];
-    if (pool.length <= HERO_VISIBLE) return pool.slice(0, HERO_VISIBLE);
+type CategoryTile = {
+  label: string;
+  image: string;
+};
 
-    const start = (hour * HERO_VISIBLE) % pool.length;
-    const picked: HeroProduct[] = [];
-    for (let i = 0; i < HERO_VISIBLE; i++) {
-        picked.push(pool[(start + i) % pool.length]);
-    }
-    return picked;
+/** Stable “today” index so hero images rotate once per calendar day. */
+function daySeed(): number {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), 0, 0);
+  return Math.floor((now.getTime() - start.getTime()) / 86_400_000);
 }
 
-const TILE_LAYOUT = [
-    {
-        span: 'col-span-2 row-span-1 sm:row-span-2',
-        minH: 'min-h-[160px] sm:min-h-[380px] lg:min-h-[420px]',
-    },
-    {
-        span: 'col-span-1 row-span-1',
-        minH: 'min-h-[90px] sm:min-h-[180px]',
-    },
-    {
-        span: 'col-span-1 row-span-1',
-        minH: 'min-h-[90px] sm:min-h-[180px]',
-    },
-];
+function pickToday(pool: DayProduct[], count: number): DayProduct[] {
+  if (!pool.length) return [];
+  const start = daySeed() % pool.length;
+  const out: DayProduct[] = [];
+  for (let i = 0; i < Math.min(count, pool.length); i++) {
+    out.push(pool[(start + i) % pool.length]);
+  }
+  return out;
+}
+
+function productHref(p: DayProduct) {
+  const slug = resolveStoreSlug(p.storeSlug, p.vendorId);
+  if (slug) return storeProductPath(slug, p.id);
+  return `/shop`;
+}
+
+function buildCategoryTiles(products: DayProduct[]): CategoryTile[] {
+  const byCategory = new Map<string, string>();
+  for (const p of products) {
+    const cat = (p.category || '').trim();
+    if (!cat || !p.image || byCategory.has(cat)) continue;
+    byCategory.set(cat, p.image);
+  }
+
+  return CATEGORIES.map(({ label, fallback }) => ({
+    label,
+    image: byCategory.get(label) || fallback,
+  }));
+}
 
 export default function Hero() {
-    const [pool, setPool] = useState<HeroProduct[]>([]);
-    const [visible, setVisible] = useState<HeroProduct[]>([]);
-    const [rotationKey, setRotationKey] = useState(0);
+  const [todayPicks, setTodayPicks] = useState<DayProduct[]>([]);
+  const [categoryTiles, setCategoryTiles] = useState<CategoryTile[]>(() =>
+    CATEGORIES.map(({ label, fallback }) => ({ label, image: fallback })),
+  );
 
-    const applyHourlyRotation = useCallback((productPool: HeroProduct[]) => {
-        const hour = new Date().getHours();
-        setVisible(pickForHour(productPool, hour));
-        setRotationKey((k) => k + 1);
-    }, []);
+  useEffect(() => {
+    const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
-    useEffect(() => {
-        const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-        fetch(`${api}/products?limit=${HERO_POOL_SIZE}`)
-            .then((res) => (res.ok ? res.json() : null))
-            .then((data) => {
-                const list = Array.isArray(data) ? data : data?.products;
-                if (!list?.length) return;
+    const load = async () => {
+      const tryUrls = [
+        `${api}/products?limit=80&filter=${encodeURIComponent('Best Seller')}`,
+        `${api}/products?limit=80&sort=latest`,
+      ];
 
-                const withImages = list
-                    .filter((p: { images?: string[] }) => p.images?.[0])
-                    .map((p: { _id: string; name: string; images?: string[] }) => ({
-                        id: p._id,
-                        name: p.name,
-                        image: getImageUrl(p.images?.[0]),
-                    }));
+      let pool: DayProduct[] = [];
 
-                if (withImages.length) setPool(withImages);
-            })
-            .catch(() => {});
-    }, []);
+      for (const url of tryUrls) {
+        try {
+          const res = await fetch(url);
+          if (!res.ok) continue;
+          const data = await res.json();
+          const list = Array.isArray(data) ? data : data?.products;
+          if (!list?.length) continue;
 
-    useEffect(() => {
-        applyHourlyRotation(pool);
+          pool = list
+            .filter((p: { images?: string[] }) => p.images?.[0])
+            .map(
+              (p: {
+                _id: string;
+                name: string;
+                price?: number;
+                category?: string;
+                images?: string[];
+                storeSlug?: string;
+                vendorId?: string | { storeSlug?: string; _id?: string; id?: string };
+              }) => ({
+                id: p._id,
+                name: p.name,
+                price: p.price,
+                category: p.category,
+                image: getImageUrl(p.images?.[0]),
+                storeSlug: p.storeSlug,
+                vendorId: p.vendorId,
+              }),
+            );
 
-        const now = new Date();
-        const msToNextHour =
-            (60 - now.getMinutes()) * 60 * 1000 -
-            now.getSeconds() * 1000 -
-            now.getMilliseconds();
+          if (pool.length) break;
+        } catch {
+          /* try next */
+        }
+      }
 
-        let hourlyTimer: ReturnType<typeof setInterval>;
+      if (pool.length) {
+        setTodayPicks(pickToday(pool, 2));
+        setCategoryTiles(buildCategoryTiles(pool));
+      }
+    };
 
-        const alignTimer = setTimeout(() => {
-            applyHourlyRotation(pool);
-            hourlyTimer = setInterval(() => applyHourlyRotation(pool), 60 * 60 * 1000);
-        }, msToNextHour);
+    load();
+  }, []);
 
-        return () => {
-            clearTimeout(alignTimer);
-            if (hourlyTimer) clearInterval(hourlyTimer);
-        };
-    }, [pool, applyHourlyRotation]);
+  const main = todayPicks[0];
+  const side = todayPicks[1];
 
-    return (
-        <section className="relative w-full bg-[#FAFAF9] border-b border-slate-100">
-            <div className="max-w-[1440px] mx-auto px-5 sm:px-10 lg:px-14 xl:px-20 pt-24 md:pt-32 pb-14 md:pb-28">
-                <div className="grid lg:grid-cols-12 gap-8 lg:gap-20 items-center">
-                    {/* Copy first on mobile so CTAs are visible without scrolling */}
-                    <div className="lg:col-span-5 xl:col-span-5 text-left order-1 lg:order-1">
-                        <p className="text-sm font-medium text-slate-500 mb-3 sm:mb-5 tracking-wide">
-                            Ghana&apos;s marketplace for everything you need
-                        </p>
-                        <h1 className="text-[1.625rem] sm:text-4xl xl:text-[3.25rem] font-bold text-slate-900 tracking-tight leading-[1.12] max-w-xl">
-                            The fastest way to get{' '}
-                            <span className="underline decoration-brand-lemon decoration-[3px] underline-offset-[6px]">
-                                exactly
-                            </span>{' '}
-                            what you&apos;ve ordered
-                        </h1>
-                        <p className="mt-3 sm:mt-6 text-sm sm:text-lg text-slate-600 leading-relaxed max-w-lg">
-                            Fashion, electronics, accessories &amp; more from verified vendors.
-                        </p>
-
-                        <div className="mt-5 sm:mt-8 flex flex-row gap-3">
-                            <Link
-                                href="/shop"
-                                className="flex-1 inline-flex items-center justify-center h-11 sm:h-12 rounded-full bg-slate-900 text-white text-sm font-semibold hover:bg-black transition-colors"
-                            >
-                                Shop now
-                            </Link>
-                            <Link
-                                href="/auth?role=vendor"
-                                className="flex-1 inline-flex items-center justify-center h-11 sm:h-12 rounded-full border border-slate-300 bg-white text-slate-900 text-sm font-semibold hover:bg-slate-50 transition-colors"
-                            >
-                                Sell on FLA
-                            </Link>
-                        </div>
-
-                        <ul className="mt-5 sm:mt-8 flex flex-wrap gap-x-5 gap-y-2 sm:gap-x-8 sm:gap-y-3">
-                            <li className="flex items-center gap-2 text-xs sm:text-sm text-slate-600">
-                                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-                                Verified vendors
-                            </li>
-                            <li className="flex items-center gap-2 text-xs sm:text-sm text-slate-600">
-                                <CreditCard className="w-4 h-4 text-slate-900 shrink-0" />
-                                Secure payments
-                            </li>
-                            <li className="flex items-center gap-2 text-xs sm:text-sm text-slate-600">
-                                <div className="relative w-5 h-5 shrink-0">
-                                    <Image src="/skynet.png" alt="" fill className="object-contain" />
-                                </div>
-                                Skynet delivery
-                            </li>
-                        </ul>
-
-                        <div className="mt-6 sm:mt-8 hidden md:flex flex-wrap gap-2">
-                            {CATEGORIES.map((cat) => (
-                                <Link
-                                    key={cat}
-                                    href={`/shop?category=${encodeURIComponent(cat)}`}
-                                    className="text-xs font-medium text-slate-600 bg-white border border-slate-200 px-3 py-1.5 rounded-full hover:border-slate-400 hover:text-slate-900 transition-colors"
-                                >
-                                    {cat}
-                                </Link>
-                            ))}
-                        </div>
-                    </div>
-
-                    {visible.length > 0 && (
-                    <div className="lg:col-span-7 xl:col-span-7 order-2 lg:order-2">
-                        <div className="grid grid-cols-2 grid-rows-2 gap-2.5 sm:gap-4 lg:gap-5 max-w-lg mx-auto lg:max-w-none lg:mx-0">
-                            {visible.map((product, i) => {
-                                const layout = TILE_LAYOUT[i] ?? TILE_LAYOUT[2];
-                                return (
-                                    <Link
-                                        key={`${rotationKey}-${product.id}`}
-                                        href="/shop"
-                                        className={`relative overflow-hidden rounded-xl sm:rounded-3xl bg-slate-100 shadow-sm border border-slate-100/80 group animate-in fade-in duration-500 ${layout.span} ${layout.minH}`}
-                                    >
-                                        <Image
-                                            src={product.image}
-                                            alt={product.name}
-                                            fill
-                                            className="object-cover object-center transition-transform duration-700 group-hover:scale-[1.03]"
-                                            sizes={i === 0 ? '(max-width: 1024px) 90vw, 560px' : '(max-width: 1024px) 45vw, 280px'}
-                                            priority={i === 0}
-                                            unoptimized
-                                        />
-                                        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/55 to-transparent pt-10 pb-2.5 px-3 sm:pb-3 sm:px-4">
-                                            <p className="text-[11px] sm:text-sm font-semibold text-white line-clamp-2 leading-snug">
-                                                {product.name}
-                                            </p>
-                                        </div>
-                                    </Link>
-                                );
-                            })}
-                        </div>
-                    </div>
-                    )}
-                </div>
+  return (
+    <section className="relative w-full overflow-hidden bg-[#f7f8fa]">
+      <div className="relative max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
+        {/* Dual promo — today’s product images */}
+        <div className="grid lg:grid-cols-12 gap-4 md:gap-5">
+          <Link
+            href={main ? productHref(main) : '/shop'}
+            className="lg:col-span-8 relative min-h-[260px] sm:min-h-[320px] lg:min-h-[380px] rounded-2xl overflow-hidden bg-slate-200 group block"
+          >
+            {main ? (
+              <Image
+                src={main.image}
+                alt={main.name}
+                fill
+                className="object-cover object-center transition-transform duration-700 group-hover:scale-[1.03]"
+                sizes="(max-width: 1024px) 100vw, 66vw"
+                priority
+                unoptimized
+              />
+            ) : (
+              <div className="absolute inset-0 bg-gradient-to-br from-slate-200 to-slate-100 animate-pulse" />
+            )}
+            <div className="absolute inset-0 bg-gradient-to-r from-slate-900/80 via-slate-900/40 to-transparent" />
+            <div className="relative z-10 flex h-full flex-col justify-end p-6 sm:p-10 lg:p-12 max-w-xl">
+              <p className="font-heading text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-white mb-2">
+                FLA
+              </p>
+              <h1 className="font-heading text-xl sm:text-2xl lg:text-3xl font-bold text-white leading-snug text-balance">
+                {main ? main.name : 'Everything you need, from trusted shops'}
+              </h1>
+              <p className="mt-2 text-sm text-white/80 max-w-sm leading-relaxed">
+                {main?.price != null
+                  ? `Today’s pick · GH₵${main.price.toLocaleString()}`
+                  : 'Browse the marketplace or shop a vendor storefront — delivered across Ghana.'}
+              </p>
+              <span className="mt-5 inline-flex items-center gap-2 h-11 px-6 rounded-md bg-white text-slate-900 text-sm font-semibold w-fit shadow-sm group-hover:bg-brand-lemon transition-colors">
+                Shop now
+                <ArrowRight className="w-4 h-4" />
+              </span>
             </div>
-        </section>
-    );
+          </Link>
+
+          <div className="lg:col-span-4 grid grid-rows-2 gap-4 md:gap-5 min-h-[220px] lg:min-h-[380px]">
+            <Link
+              href={side ? productHref(side) : '/shop'}
+              className="relative rounded-2xl overflow-hidden bg-slate-200 group block min-h-[140px]"
+            >
+              {side ? (
+                <Image
+                  src={side.image}
+                  alt={side.name}
+                  fill
+                  className="object-cover transition-transform duration-700 group-hover:scale-[1.04]"
+                  sizes="(max-width: 1024px) 100vw, 33vw"
+                  unoptimized
+                />
+              ) : (
+                <div className="absolute inset-0 bg-gradient-to-br from-slate-200 to-slate-100" />
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-900/75 via-slate-900/20 to-transparent" />
+              <div className="absolute inset-x-0 bottom-0 p-5">
+                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-brand-lemon mb-1">
+                  Top pick today
+                </p>
+                <p className="font-heading text-base font-bold text-white line-clamp-2">
+                  {side?.name || 'Fresh from verified shops'}
+                </p>
+              </div>
+            </Link>
+
+            <Link
+              href="/auth?role=vendor&view=register"
+              className="relative rounded-2xl overflow-hidden bg-brand-lemon flex flex-col justify-between p-5 sm:p-6 group min-h-[140px]"
+            >
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-900/60">
+                  Vendor partners
+                </span>
+                <h2 className="font-heading text-xl sm:text-2xl font-extrabold text-slate-900 mt-1 leading-tight">
+                  Sell on FLA
+                </h2>
+                <p className="mt-2 text-xs sm:text-sm text-slate-800/75 leading-relaxed">
+                  Register your shop and start selling on FLA.
+                </p>
+              </div>
+              <span className="inline-flex items-center gap-2 text-sm font-semibold text-slate-900 mt-3">
+                Register as vendor <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+              </span>
+              <ShoppingBag className="pointer-events-none absolute -right-3 -bottom-3 w-28 h-28 text-slate-900/10" />
+            </Link>
+          </div>
+        </div>
+
+        {/* Browse by category — real product photos */}
+        <div className="mt-10 md:mt-12">
+          <div className="flex items-end justify-between gap-4 mb-6">
+            <h2 className="font-heading text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+              Browse by category
+            </h2>
+            <Link
+              href="/shop"
+              className="text-sm font-semibold text-slate-500 hover:text-brand-lemon transition-colors inline-flex items-center gap-1"
+            >
+              View all <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-12 gap-4 sm:gap-5">
+            {categoryTiles.map(({ label, image }) => (
+              <Link
+                key={label}
+                href={`/shop?category=${encodeURIComponent(label)}`}
+                className="group flex flex-col items-center gap-3 text-center"
+              >
+                <span className="relative h-16 w-16 sm:h-[4.75rem] sm:w-[4.75rem] rounded-2xl overflow-hidden bg-slate-200 shadow-sm ring-1 ring-slate-100 group-hover:ring-brand-lemon group-hover:shadow-md group-hover:-translate-y-0.5 transition-all duration-300">
+                  <Image
+                    src={image}
+                    alt={label}
+                    fill
+                    className="object-cover transition-transform duration-500 group-hover:scale-110"
+                    sizes="80px"
+                    unoptimized
+                  />
+                </span>
+                <span className="text-[11px] sm:text-xs font-semibold text-slate-600 group-hover:text-slate-900 leading-snug line-clamp-2 px-0.5 max-w-[5.75rem]">
+                  {label.split('/')[0]}
+                </span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
 }

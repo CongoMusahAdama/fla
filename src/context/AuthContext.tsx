@@ -27,6 +27,16 @@ export type User = {
     logoFile?: any;
     status?: string;
     uniqueVendorId?: string;
+    storeSlug?: string;
+    mustChangePassword?: boolean;
+    kycApprovedAt?: string | Date | null;
+    kycSubmittedAt?: string | Date | null;
+    subscriptionPlan?: 'intro' | 'monthly' | 'trial' | 'annual' | string;
+    subscriptionLabel?: string;
+    subscriptionPriceText?: string;
+    subscriptionPriceGhs?: number;
+    subscriptionStartsAt?: string | Date | null;
+    subscriptionEndsAt?: string | Date | null;
     walletBalance?: number;
     pendingBalance?: number;
     region?: string;
@@ -54,6 +64,7 @@ type AuthContextType = {
     signup: (name: string, email: string, phone: string, location: string, region: string, password: string, role?: UserRole, vendorData?: Partial<User>, turnstileToken?: string) => Promise<{ user: User; requiresEmailVerification: boolean; otpSent?: boolean; message?: string; loginFailed?: boolean }>;
     logout: () => void;
     updateUser: (updatedData: Partial<User>) => void;
+    changePassword: (currentPassword: string, newPassword: string) => Promise<User>;
     acceptTerms: (version: string) => Promise<User>;
     isAuthenticated: boolean;
     isLoading: boolean;
@@ -79,6 +90,20 @@ function mapApiUser(raw: Record<string, unknown>): User {
         productTypes: raw.productTypes as string | undefined,
         status: raw.status as string | undefined,
         uniqueVendorId: raw.uniqueVendorId as string | undefined,
+        storeSlug: raw.storeSlug as string | undefined,
+        mustChangePassword: Boolean(raw.mustChangePassword),
+        kycApprovedAt: (raw.kycApprovedAt as string | Date | null | undefined) ?? null,
+        kycSubmittedAt: (raw.kycSubmittedAt as string | Date | null | undefined) ?? null,
+        subscriptionPlan: raw.subscriptionPlan as string | undefined,
+        subscriptionLabel: raw.subscriptionLabel as string | undefined,
+        subscriptionPriceText: raw.subscriptionPriceText as string | undefined,
+        subscriptionPriceGhs: raw.subscriptionPriceGhs as number | undefined,
+        subscriptionStartsAt: (raw.subscriptionStartsAt as string | Date | null | undefined) ?? null,
+        subscriptionEndsAt: (raw.subscriptionEndsAt as string | Date | null | undefined) ?? null,
+        ghanaCardFront: raw.ghanaCardFront as string | undefined,
+        ghanaCardBack: raw.ghanaCardBack as string | undefined,
+        selfie: raw.selfie as string | undefined,
+        businessRegistration: raw.businessRegistration as string | undefined,
         walletBalance: raw.walletBalance as number | undefined,
         pendingBalance: raw.pendingBalance as number | undefined,
         region: raw.region as string | undefined,
@@ -273,6 +298,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
     }, []);
 
+    const changePassword = useCallback(async (currentPassword: string, newPassword: string): Promise<User> => {
+        const authToken = token || localStorage.getItem('fla_token');
+        if (!authToken) throw new Error('You must be signed in to change your password.');
+
+        const response = await fetch(`${API_URL}/auth/change-password`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${authToken}`,
+            },
+            credentials: 'include',
+            body: JSON.stringify({ currentPassword, newPassword }),
+        });
+
+        if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            throw new Error(err.message || 'Could not change password');
+        }
+
+        const data = await response.json();
+        const updatedUser = mapApiUser(data);
+        setUser(updatedUser);
+        persistSession(updatedUser, authToken);
+        return updatedUser;
+    }, [token]);
+
     const acceptTerms = useCallback(async (version: string): Promise<User> => {
         const authToken = token || localStorage.getItem('fla_token');
         if (!authToken) throw new Error('You must be signed in to accept terms.');
@@ -317,6 +368,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             signup,
             logout,
             updateUser,
+            changePassword,
             acceptTerms,
             isAuthenticated: !!user && !!token,
             isLoading,

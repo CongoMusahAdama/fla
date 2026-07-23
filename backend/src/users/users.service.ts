@@ -1,4 +1,4 @@
-import { Injectable, ConflictException, InternalServerErrorException, NotFoundException, Inject, forwardRef, Logger } from '@nestjs/common';
+import { Injectable, ConflictException, InternalServerErrorException, NotFoundException, Inject, forwardRef, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -16,6 +16,20 @@ import {
   paystackMainAccountPercentage,
   resolveCommissionRate,
 } from '../common/paystack-split.util';
+import { slugifyShopName, slugCandidates } from '../common/slug.util';
+import {
+  agreementPdfFilename,
+  buildVendorAgreementPdfBuffer,
+} from './vendor-agreement-pdf.util';
+import {
+  introSubscriptionFields,
+  isSubscriptionActive,
+  amountDueForRenewal,
+  daysUntilSubscriptionEnd,
+  startOfDayIsoDate,
+  addDays,
+} from './vendor-subscription.util';
+import { FLA_CONSTANTS } from '../common/constants';
 
 import * as crypto from 'crypto';
 
@@ -23,7 +37,7 @@ import * as crypto from 'crypto';
 const BCRYPT_ROUNDS = 8;
 
 @Injectable()
-export class UsersService {
+export class UsersService implements OnModuleInit {
   private readonly logger = new Logger(UsersService.name);
 
   constructor(
@@ -37,9 +51,130 @@ export class UsersService {
     private readonly settingsService: SettingsService,
   ) { }
 
+  async onModuleInit() {
+    this.backfillMissingStoreSlugs().catch((err) =>
+      this.logger.error(`Store slug backfill failed: ${err.message}`),
+    );
+    this.backfillLegacyVendorAccess().catch((err) =>
+      this.logger.error(`Legacy vendor access backfill failed: ${err.message}`),
+    );
+  }
+
+  /**
+   * Existing active vendors (already selling before soft-onboarding / subscriptions)
+   * may lack kycApprovedAt. Grant it so product uploads stay unlocked.
+   * Does NOT touch Paystack subaccounts or split percentages.
+   */
+  async backfillLegacyVendorAccess(): Promise<{ kycBackfilled: number }> {
+    const result = await this.userModel.updateMany(
+      {
+        role: 'vendor',
+        status: 'active',
+        $or: [{ kycApprovedAt: { $exists: false } }, { kycApprovedAt: null }],
+      },
+      { $set: { kycApprovedAt: new Date() } },
+    );
+    const kycBackfilled = result.modifiedCount || 0;
+    if (kycBackfilled > 0) {
+      this.logger.log(
+        `Backfilled kycApprovedAt for ${kycBackfilled} existing active vendors (Paystack splits unchanged)`,
+      );
+    }
+    return { kycBackfilled };
+  }
+
   private async getPlatformCommissionRate(): Promise<number> {
     const value = await this.settingsService.getSetting('platform_commission');
     return resolveCommissionRate(value);
+  }
+
+  /**
+   * Assign a unique storeSlug from shopName (or name). Idempotent if already set
+   * unless forceRegen is true (e.g. shopName changed).
+   */
+  async ensureStoreSlug(
+    userId: string,
+    preferredName?: string,
+    options?: { forceRegen?: boolean },
+  ): Promise<string | null> {
+    const user = await this.userModel.findById(userId).exec();
+    if (!user || user.role !== 'vendor') return null;
+
+    if (user.storeSlug && !options?.forceRegen) {
+      return user.storeSlug;
+    }
+
+    const source =
+      preferredName?.trim() ||
+      user.shopName?.trim() ||
+      user.businessName?.trim() ||
+      user.name?.trim() ||
+      `vendor-${user.uniqueVendorId || userId.slice(-6)}`;
+
+    const base = slugifyShopName(source);
+    const candidates = slugCandidates(base);
+
+    for (const candidate of candidates) {
+      const taken = await this.userModel
+        .findOne({ storeSlug: candidate, _id: { $ne: user._id } })
+        .select('_id')
+        .lean()
+        .exec();
+      if (!taken) {
+        user.storeSlug = candidate;
+        await user.save();
+        this.logger.log(`Assigned storeSlug "${candidate}" to vendor ${userId}`);
+        return candidate;
+      }
+    }
+
+    const fallback = `${base}-${crypto.randomBytes(2).toString('hex')}`;
+    user.storeSlug = fallback;
+    await user.save();
+    return fallback;
+  }
+
+  async backfillMissingStoreSlugs(): Promise<{ updated: number }> {
+    const vendors = await this.userModel
+      .find({
+        role: 'vendor',
+        $or: [{ storeSlug: { $exists: false } }, { storeSlug: null }, { storeSlug: '' }],
+      })
+      .select('_id shopName')
+      .exec();
+
+    let updated = 0;
+    for (const v of vendors) {
+      const slug = await this.ensureStoreSlug(v._id.toString());
+      if (slug) updated++;
+    }
+    if (updated > 0) {
+      this.logger.log(`Backfilled storeSlug for ${updated} vendors`);
+    }
+    return { updated };
+  }
+
+  async getStoreBySlug(slug: string) {
+    const normalized = (slug || '').toLowerCase().trim();
+    if (!normalized) {
+      throw new NotFoundException('Store not found');
+    }
+
+    const user = await this.userModel
+      .findOne({ storeSlug: normalized, role: 'vendor', status: 'active' })
+      .select(
+        '-password -paymentMethods -withdrawalHistory -resetPasswordToken -resetPasswordExpires -ghanaCardFront -ghanaCardBack -selfie -utilityBill -momoNumber -accountName -paystackSubaccountCode -paystackBankCode',
+      )
+      .lean()
+      .exec();
+
+    if (!user) {
+      throw new NotFoundException('Store not found');
+    }
+
+    const vendorId = (user as any)._id.toString();
+    const stats = await this.ordersService.getVendorStats(vendorId);
+    return { vendor: user, stats };
   }
 
   private async applyPaystackSplitToSubaccount(subaccountCode: string): Promise<void> {
@@ -101,7 +236,9 @@ export class UsersService {
         verificationDeclineReason,
         isIdentityVerified: isVerified,
         isEmailVerified: true,
-        status: role === 'vendor' ? 'pending' : 'active'
+        // Vendors get dashboard access immediately; selling stays locked until KYC approve (kycApprovedAt).
+        status: 'active',
+        ...(role === 'vendor' ? introSubscriptionFields() : {}),
       });
       const savedUser = await createdUser.save();
 
@@ -206,6 +343,16 @@ export class UsersService {
 
   async update(id: string, updateUserDto: UpdateUserDto): Promise<User | null> {
     const updateData: any = { ...updateUserDto };
+    // System-managed fields — ignore client attempts
+    delete updateData.storeSlug;
+    delete updateData.kycApprovedAt;
+    delete updateData.mustChangePassword;
+    delete updateData.subscriptionPlan;
+    delete updateData.subscriptionLabel;
+    delete updateData.subscriptionPriceText;
+    delete updateData.subscriptionStartsAt;
+    delete updateData.subscriptionEndsAt;
+    delete updateData.kycSubmittedAt;
 
     if (updateData.paymentMethods?.length) {
       const primary = updateData.paymentMethods[0];
@@ -218,11 +365,45 @@ export class UsersService {
       updateData.vendorTier = 'high';
     }
 
+    const existing = await this.userModel
+      .findById(id)
+      .select(
+        'role shopName status storeSlug kycApprovedAt ghanaCardFront selfie businessRegistration kycSubmittedAt',
+      )
+      .lean()
+      .exec();
+    const shopNameChanging =
+      typeof updateData.shopName === 'string' &&
+      updateData.shopName.trim() &&
+      updateData.shopName.trim() !== (existing as any)?.shopName;
+
+    // Detect KYC document submission → waiting for admin (4–5 hours messaging on frontend)
+    if ((existing as any)?.role === 'vendor' && !(existing as any)?.kycApprovedAt) {
+      const nextFront = updateData.ghanaCardFront ?? (existing as any)?.ghanaCardFront;
+      const nextSelfie = updateData.selfie ?? (existing as any)?.selfie;
+      const docsReady = Boolean(nextFront && nextSelfie);
+      if (docsReady) {
+        updateData.kycSubmittedAt = new Date();
+        updateData.verificationStatus = 'submitted';
+      }
+    }
+
     const updatedUser = await this.userModel.findByIdAndUpdate(id, { $set: updateData }, { new: true }).lean().exec() as unknown as User;
     
     // If payment methods were updated for a vendor, sync with Paystack
     if (updateData.paymentMethods && id) {
       this.syncVendorSubaccount(id).catch(err => this.logger.error(err));
+    }
+
+    if (existing?.role === 'vendor') {
+      const becameActive = updateData.status === 'active' || (updatedUser as any)?.status === 'active';
+      if (becameActive || shopNameChanging) {
+        await this.ensureStoreSlug(id, updateData.shopName, {
+          forceRegen: Boolean(shopNameChanging && (updatedUser as any)?.status === 'active'),
+        }).catch((err) => this.logger.error(`ensureStoreSlug on update failed: ${err.message}`));
+        // Re-fetch so caller gets storeSlug
+        return this.userModel.findById(id).lean().exec() as unknown as User;
+      }
     }
 
     return updatedUser;
@@ -355,6 +536,306 @@ export class UsersService {
     }).exec();
   }
 
+  async clearKycApproval(userId: string): Promise<void> {
+    await this.userModel.findByIdAndUpdate(userId, {
+      $unset: { kycApprovedAt: 1 },
+      $set: { verificationStatus: 'pending', isIdentityVerified: false },
+    }).exec();
+  }
+
+  async setMustChangePassword(userId: string, value: boolean): Promise<void> {
+    await this.userModel.findByIdAndUpdate(userId, { $set: { mustChangePassword: value } }).exec();
+  }
+
+  async applyVendorSubscription(
+    userId: string,
+    data: {
+      status?: string;
+      isEmailVerified?: boolean;
+      subscriptionPlan?: string;
+      subscriptionLabel?: string;
+      subscriptionPriceText?: string;
+      subscriptionPriceGhs?: number;
+      subscriptionStartsAt?: Date;
+      subscriptionEndsAt?: Date;
+      verificationStatus?: string;
+      isIdentityVerified?: boolean;
+    },
+  ): Promise<void> {
+    await this.userModel.findByIdAndUpdate(userId, { $set: data }).exec();
+  }
+
+  async renewVendorSubscription(
+    vendorId: string,
+    opts?: { months?: number; amountGhs?: number; note?: string },
+  ) {
+    const existing = await this.userModel.findById(vendorId).exec();
+    if (!existing || existing.role !== 'vendor') {
+      throw new NotFoundException('Vendor not found');
+    }
+
+    const months = Math.max(1, Math.min(12, Number(opts?.months) || 1));
+    const now = new Date();
+    const currentEnds = existing.subscriptionEndsAt
+      ? new Date(existing.subscriptionEndsAt)
+      : now;
+    const base = currentEnds.getTime() > now.getTime() ? currentEnds : now;
+    let endsAt = base;
+    for (let i = 0; i < months; i++) {
+      endsAt = addDays(endsAt, FLA_CONSTANTS.SUBSCRIPTION_PERIOD_DAYS);
+    }
+
+    const amount =
+      typeof opts?.amountGhs === 'number' && opts.amountGhs > 0
+        ? opts.amountGhs
+        : FLA_CONSTANTS.SUBSCRIPTION_MONTHLY_GHS * months;
+
+    const update = {
+      subscriptionPlan: 'monthly',
+      subscriptionLabel: 'Monthly Partner Plan',
+      subscriptionPriceText: `GHS ${FLA_CONSTANTS.SUBSCRIPTION_MONTHLY_GHS} / month`,
+      subscriptionPriceGhs: FLA_CONSTANTS.SUBSCRIPTION_MONTHLY_GHS,
+      subscriptionEndsAt: endsAt,
+      subscriptionLastPaidAt: now,
+      subscriptionLastPaidAmount: amount,
+      ...(opts?.note ? { subscriptionLastPaidNote: opts.note } : {}),
+    };
+
+    const user = await this.userModel
+      .findByIdAndUpdate(
+        vendorId,
+        { $set: update, $unset: { lastSubscriptionReminderDate: 1 } },
+        { new: true },
+      )
+      .select('-password -resetPasswordToken -resetPasswordExpires')
+      .lean()
+      .exec();
+
+    if ((user as any)?.phone) {
+      const shop = (user as any).shopName || (user as any).name;
+      this.sendRegistrationSms(
+        (user as any).phone,
+        `FLA: Subscription renewed for ${shop}. Valid until ${endsAt.toLocaleDateString()}. Thank you.`,
+        'vendor-subscription-renewed',
+      );
+    }
+
+    return {
+      renewed: true,
+      subscriptionEndsAt: endsAt,
+      amountPaid: amount,
+      vendor: user,
+    };
+  }
+
+  /** Daily cron: remind vendors in the last N days before subscription ends. */
+  async sendSubscriptionReminders(): Promise<{ reminded: number }> {
+    const now = new Date();
+    const today = startOfDayIsoDate(now);
+    const windowEnd = addDays(now, FLA_CONSTANTS.SUBSCRIPTION_REMINDER_DAYS);
+    const momoNumber = process.env.FLA_SUBSCRIPTION_MOMO_NUMBER || '';
+    const momoName = process.env.FLA_SUBSCRIPTION_MOMO_NAME || 'FLA';
+
+    const vendors = await this.userModel
+      .find({
+        role: 'vendor',
+        status: 'active',
+        subscriptionEndsAt: { $gt: now, $lte: windowEnd },
+        $or: [
+          { lastSubscriptionReminderDate: { $exists: false } },
+          { lastSubscriptionReminderDate: null },
+          { lastSubscriptionReminderDate: { $ne: today } },
+        ],
+      })
+      .select(
+        'name shopName email phone subscriptionEndsAt subscriptionPlan subscriptionPriceGhs subscriptionPriceText lastSubscriptionReminderDate',
+      )
+      .lean()
+      .exec();
+
+    let reminded = 0;
+    for (const v of vendors) {
+      const daysLeft = daysUntilSubscriptionEnd(v as any, now);
+      if (daysLeft == null || daysLeft < 1 || daysLeft > FLA_CONSTANTS.SUBSCRIPTION_REMINDER_DAYS) {
+        continue;
+      }
+      const amount = amountDueForRenewal(v as any);
+      const shop = (v as any).shopName || (v as any).name || 'Vendor';
+      const payBit = momoNumber
+        ? ` Pay GHS ${amount} to ${momoName} MoMo ${momoNumber}.`
+        : ` Pay GHS ${amount} to FLA (MoMo) to renew.`;
+      const msg = `FLA reminder: ${shop} subscription ends in ${daysLeft} day${daysLeft === 1 ? '' : 's'}.${payBit} After due date you cannot upload new products.`;
+
+      if ((v as any).phone) {
+        await this.smsService.sendSms((v as any).phone, msg).catch((err) =>
+          this.logger.error(`Subscription SMS failed: ${err.message}`),
+        );
+      }
+      if ((v as any).email) {
+        await this.emailService
+          .sendGenericNotification(
+            (v as any).email,
+            (v as any).name || shop,
+            `FLA subscription reminder — ${daysLeft} day(s) left`,
+            msg,
+          )
+          .catch((err) => this.logger.error(`Subscription email failed: ${err.message}`));
+      }
+
+      await this.userModel
+        .findByIdAndUpdate((v as any)._id, {
+          $set: { lastSubscriptionReminderDate: today },
+        })
+        .exec();
+      reminded += 1;
+    }
+
+    // One-time expired notice: ended in last 24h and not reminded today
+    const yesterday = addDays(now, -1);
+    const expired = await this.userModel
+      .find({
+        role: 'vendor',
+        status: 'active',
+        subscriptionEndsAt: { $gt: yesterday, $lte: now },
+        $or: [
+          { lastSubscriptionReminderDate: { $exists: false } },
+          { lastSubscriptionReminderDate: null },
+          { lastSubscriptionReminderDate: { $ne: today } },
+        ],
+      })
+      .select('name shopName email phone subscriptionPlan subscriptionPriceGhs')
+      .lean()
+      .exec();
+
+    for (const v of expired) {
+      const amount = FLA_CONSTANTS.SUBSCRIPTION_MONTHLY_GHS;
+      const shop = (v as any).shopName || (v as any).name || 'Vendor';
+      const payBit = momoNumber
+        ? ` Pay GHS ${amount} to ${momoName} MoMo ${momoNumber} to unlock uploads.`
+        : ` Pay GHS ${amount} to FLA (MoMo) to unlock product uploads.`;
+      const msg = `FLA: ${shop} subscription has ended. You can still sell existing products but cannot upload new ones until renewed.${payBit}`;
+
+      if ((v as any).phone) {
+        await this.smsService.sendSms((v as any).phone, msg).catch((err) =>
+          this.logger.error(`Expired sub SMS failed: ${err.message}`),
+        );
+      }
+      if ((v as any).email) {
+        await this.emailService
+          .sendGenericNotification(
+            (v as any).email,
+            (v as any).name || shop,
+            'FLA subscription ended — renew to upload products',
+            msg,
+          )
+          .catch((err) => this.logger.error(`Expired sub email failed: ${err.message}`));
+      }
+      await this.userModel
+        .findByIdAndUpdate((v as any)._id, {
+          $set: { lastSubscriptionReminderDate: today },
+        })
+        .exec();
+      reminded += 1;
+    }
+
+    if (reminded > 0) {
+      this.logger.log(`Subscription reminders sent: ${reminded}`);
+    }
+    return { reminded };
+  }
+
+  async getAgreementLetterData(vendorId: string) {
+    const user = await this.userModel
+      .findById(vendorId)
+      .select('-password -paymentMethods -withdrawalHistory -resetPasswordToken -resetPasswordExpires')
+      .lean()
+      .exec();
+    if (!user || (user as any).role !== 'vendor') {
+      throw new NotFoundException('Vendor not found');
+    }
+    return {
+      vendor: user,
+      generatedAt: new Date().toISOString(),
+      platform: {
+        name: 'FLA Purchase',
+        legalName: 'FLA Logistics',
+        website: process.env.FRONTEND_URL || 'https://flamingo-store1.com',
+      },
+    };
+  }
+
+  async generateAgreementPdf(vendorId: string): Promise<{ buffer: Buffer; filename: string; data: any }> {
+    const data = await this.getAgreementLetterData(vendorId);
+    const buffer = await buildVendorAgreementPdfBuffer(data);
+    const filename = agreementPdfFilename(data.vendor);
+    return { buffer, filename, data };
+  }
+
+  async sendAgreementPdfToVendor(vendorId: string): Promise<{ sent: boolean; email: string; filename: string }> {
+    const { buffer, filename, data } = await this.generateAgreementPdf(vendorId);
+    const vendor = data.vendor;
+    if (!vendor?.email) {
+      throw new NotFoundException('Vendor email not found');
+    }
+    await this.emailService.sendVendorAgreementEmail(
+      vendor.email,
+      vendor.name || 'Vendor',
+      vendor.shopName || vendor.name || 'FLA Studio',
+      buffer,
+      filename,
+    );
+    return { sent: true, email: vendor.email, filename };
+  }
+
+  async approveVendorKycForSelling(id: string): Promise<User | null> {
+    const existing = await this.userModel.findById(id).exec();
+    if (!existing || existing.role !== 'vendor') {
+      throw new NotFoundException('Vendor not found');
+    }
+
+    const update: Record<string, unknown> = {
+      status: 'active',
+      kycApprovedAt: new Date(),
+      verificationStatus: 'verified',
+      isIdentityVerified: true,
+      isVerified: true,
+    };
+    if (existing.businessRegistration?.trim()) {
+      update.vendorTier = 'high';
+    }
+    // Start intro subscription window if none / already expired
+    if (!isSubscriptionActive(existing as any)) {
+      Object.assign(update, introSubscriptionFields());
+    }
+
+    const user = (await this.userModel
+      .findByIdAndUpdate(id, { $set: update }, { new: true })
+      .lean()
+      .exec()) as unknown as User;
+
+    await this.ensureStoreSlug(id, (user as any)?.shopName || (user as any)?.name).catch((err) =>
+      this.logger.error(`storeSlug on KYC approve: ${err.message}`),
+    );
+    this.syncVendorSubaccount(id).catch((err) =>
+      this.logger.error(`Paystack sync on KYC approve: ${err.message}`),
+    );
+
+    if ((user as any)?.phone) {
+      const loginUrl =
+        process.env.FRONTEND_URL?.replace(/\/$/, '') || 'https://flamingo-store1.com';
+      const shop = (user as any).shopName || (user as any).name;
+      const slug = (user as any).storeSlug;
+      const storeBit = slug ? ` Your store: ${loginUrl}/store/${slug}` : '';
+      this.sendRegistrationSms(
+        (user as any).phone,
+        `Great news ${shop}! Your FLA documents are approved. You can start selling now. Login: ${loginUrl}/auth?view=login&role=vendor${storeBit}`,
+        'vendor-kyc-approved-sell',
+      );
+    }
+
+    return this.userModel.findById(id).lean().exec() as unknown as User;
+  }
+
   async getPublicVendorProfile(vendorId: string) {
     const user = await this.userModel.findById(vendorId)
       .select('-password -paymentMethods -withdrawalHistory')
@@ -367,6 +848,15 @@ export class UsersService {
       const uniqueId = `FLA-V-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
       user.uniqueVendorId = uniqueId;
       await this.userModel.findByIdAndUpdate(vendorId, { uniqueVendorId: uniqueId });
+    }
+
+    if (user.role === 'vendor' && user.status === 'active' && !user.storeSlug) {
+      await this.ensureStoreSlug(vendorId, user.shopName || user.name);
+      const refreshed = await this.userModel.findById(vendorId)
+        .select('-password -paymentMethods -withdrawalHistory')
+        .exec();
+      const stats = await this.ordersService.getVendorStats(vendorId);
+      return { vendor: refreshed || user, stats };
     }
 
     const stats = await this.ordersService.getVendorStats(vendorId);
@@ -386,13 +876,37 @@ export class UsersService {
   }
 
   async findPendingVendors(): Promise<User[]> {
-    const vendors = await this.userModel.find({ role: 'vendor', status: 'pending' }).lean().exec();
+    const vendors = await this.userModel
+      .find({
+        role: 'vendor',
+        $or: [
+          { status: 'pending' },
+          {
+            kycSubmittedAt: { $exists: true, $ne: null },
+            $or: [{ kycApprovedAt: { $exists: false } }, { kycApprovedAt: null }],
+          },
+        ],
+      })
+      .lean()
+      .exec();
     return vendors.map((v) => this.mapVendorKycRecord(v));
   }
 
   async findKycVendors(status?: 'pending' | 'active' | 'rejected' | 'banned' | 'all'): Promise<User[]> {
     const filter: Record<string, unknown> = { role: 'vendor' };
-    if (status && status !== 'all') {
+    if (status === 'pending') {
+      filter.$or = [
+        { status: 'pending' },
+        {
+          kycSubmittedAt: { $exists: true, $ne: null },
+          $or: [{ kycApprovedAt: { $exists: false } }, { kycApprovedAt: null }],
+        },
+      ];
+    } else if (status === 'active') {
+      // Cleared to sell
+      filter.kycApprovedAt = { $exists: true, $ne: null };
+      filter.status = 'active';
+    } else if (status && status !== 'all') {
       filter.status = status;
     }
     const vendors = await this.userModel
@@ -405,28 +919,21 @@ export class UsersService {
   }
 
   async updateStatus(id: string, status: 'active' | 'rejected' | 'pending' | 'banned'): Promise<User | null> {
+    if (status === 'active') {
+      // Approving shop = unlock selling + start-selling SMS
+      return this.approveVendorKycForSelling(id);
+    }
+
     const existing = await this.userModel.findById(id).exec();
     const update: Record<string, unknown> = { status };
-    if (status === 'active') {
-      update.kycApprovedAt = new Date();
-    }
     if (existing?.role === 'vendor' && existing.businessRegistration?.trim()) {
       update.vendorTier = 'high';
     }
-    // Shop approval is separate from Shufti identity verification — do not auto-set isIdentityVerified
     const user = await this.userModel.findByIdAndUpdate(id, { $set: update }, { new: true }).lean().exec() as unknown as User;
     
     if (user) {
         try {
-            if (status === 'active' && user.role === 'vendor') {
-                // Automatically sync Paystack subaccount upon approval
-                this.syncVendorSubaccount(id).catch(err => this.logger.error(`Failed to sync Paystack subaccount on approval: ${err.message}`));
-                
-                if (user.phone) {
-                    const smsMessage = `Congrats ${user.shopName || user.name}! Your vendor account on FLA is approved. Login here to start: https://flamingo-store1.com/auth`;
-                    this.sendRegistrationSms(user.phone, smsMessage, 'vendor-approval');
-                }
-            } else if (status === 'rejected' && user.role === 'vendor') {
+            if (status === 'rejected' && user.role === 'vendor') {
                 if (user.email) {
                     this.emailService.sendGenericNotification(
                         user.email, 

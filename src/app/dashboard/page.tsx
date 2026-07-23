@@ -1330,6 +1330,7 @@ export default function CustomerDashboard() {
                                         description={item.productId?.description}
 
                                         vendorName={item.productId?.vendorName}
+                                        storeSlug={item.productId?.storeSlug}
                                         hasSizes={item.productId?.hasSizes}
                                         hasColors={item.productId?.hasColors}
                                         colors={item.productId?.colors}

@@ -36,11 +36,15 @@ type VendorSection = 'dashboard' | 'products' | 'orders' | 'wallet' | 'reviews' 
 
 
 export default function VendorDashboard() {
-    const { user, token, logout, updateUser, isAuthenticated, isLoading } = useAuth();
+    const { user, token, logout, updateUser, changePassword, isAuthenticated, isLoading } = useAuth();
     const router = useRouter();
     const [activeSection, setActiveSection] = useState<VendorSection>('dashboard');
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [showAddProduct, setShowAddProduct] = useState(false);
+    const [tempPassword, setTempPassword] = useState('');
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [changingPassword, setChangingPassword] = useState(false);
     const [dashboardData, setDashboardData] = useState<any>(null);
     const [vendorOrders, setVendorOrders] = useState<any[]>([]);
     const [notifications, setNotifications] = useState<any[]>([]);
@@ -50,7 +54,7 @@ export default function VendorDashboard() {
     // Performance and Logic States
     const [vendorProducts, setVendorProducts] = useState<Product[]>([]);
     const [selectedOrder, setSelectedOrder] = useState<any>(null);
-    const [commissionRate, setCommissionRate] = useState(10);
+    const [commissionRate, setCommissionRate] = useState(3);
     const [withdrawalMin, setWithdrawalMin] = useState(50);
     const [printingOrder, setPrintingOrder] = useState<any>(null);
 
@@ -98,8 +102,26 @@ export default function VendorDashboard() {
     const [profileImage, setProfileImage] = useState('');
     const [bannerImage, setBannerImage] = useState('');
     const [businessRegistration, setBusinessRegistration] = useState('');
+    const [ghanaCardFront, setGhanaCardFront] = useState('');
+    const [ghanaCardBack, setGhanaCardBack] = useState('');
+    const [selfie, setSelfie] = useState('');
 
     const isPendingReview = user?.status === 'pending' && user?.role === 'vendor';
+    const mustChangePassword = Boolean(user?.mustChangePassword);
+    const canSell = Boolean(user?.kycApprovedAt);
+    const awaitingKycApproval = Boolean(user?.kycSubmittedAt && !user?.kycApprovedAt);
+    const needsKycUpload = !canSell && !awaitingKycApproval;
+    // Self-registered vendors are active immediately — never hard-lock the whole dashboard.
+    // Only force settings when admin still marked them pending (legacy) or password change required.
+    const limitedMode = isPendingReview;
+    const subscriptionEndsAt = user?.subscriptionEndsAt ? new Date(user.subscriptionEndsAt) : null;
+    const subscriptionDaysLeft = subscriptionEndsAt && !Number.isNaN(subscriptionEndsAt.getTime())
+        ? Math.ceil((subscriptionEndsAt.getTime() - Date.now()) / (24 * 60 * 60 * 1000))
+        : null;
+    const subscriptionExpired = canSell && (subscriptionDaysLeft == null || subscriptionDaysLeft <= 0);
+    const subscriptionExpiringSoon =
+        canSell && !subscriptionExpired && subscriptionDaysLeft != null && subscriptionDaysLeft <= 5;
+    const canUploadProducts = canSell && !subscriptionExpired;
 
     useEffect(() => {
         setIsHydrated(true);
@@ -110,6 +132,36 @@ export default function VendorDashboard() {
             setActiveSection('settings');
         }
     }, [isPendingReview]);
+
+    const handleForcedPasswordChange = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (newPassword.length < 8) {
+            Swal.fire('Too short', 'Use at least 8 characters for your new password.', 'warning');
+            return;
+        }
+        if (newPassword !== confirmPassword) {
+            Swal.fire('Mismatch', 'New password and confirmation do not match.', 'warning');
+            return;
+        }
+        setChangingPassword(true);
+        try {
+            await changePassword(tempPassword, newPassword);
+            Swal.fire({
+                icon: 'success',
+                title: 'Password updated',
+                text: 'You can now explore your dashboard. Upload verification docs to unlock product listing.',
+                timer: 2500,
+                showConfirmButton: false,
+            });
+            setTempPassword('');
+            setNewPassword('');
+            setConfirmPassword('');
+        } catch (err: any) {
+            Swal.fire('Failed', err.message || 'Could not update password', 'error');
+        } finally {
+            setChangingPassword(false);
+        }
+    };
 
     useEffect(() => {
         if (user) {
@@ -123,6 +175,9 @@ export default function VendorDashboard() {
             setProfileImage(user.profileImage || '');
             setBannerImage(user.bannerImage || '');
             setBusinessRegistration(user.businessRegistration || '');
+            setGhanaCardFront((user as any).ghanaCardFront || '');
+            setGhanaCardBack((user as any).ghanaCardBack || '');
+            setSelfie((user as any).selfie || '');
         }
     }, [user]);
 
@@ -443,6 +498,9 @@ export default function VendorDashboard() {
                     profileImage, 
                     bannerImage, 
                     businessRegistration,
+                    ghanaCardFront,
+                    ghanaCardBack,
+                    selfie,
                     paymentMethods: [{
                         network: momoNetwork,
                         accountNumber: momoNumber,
@@ -460,12 +518,15 @@ export default function VendorDashboard() {
             }
             const updated = await res.json();
             updateUser(updated);
+            const submitted = Boolean(updated.kycSubmittedAt || (ghanaCardFront && selfie));
             Swal.fire({
                 icon: 'success',
-                title: user?.status === 'pending' ? 'DETAILS SAVED' : 'IDENTITY UPDATED',
+                title: user?.status === 'pending' ? 'DETAILS SAVED' : submitted ? 'DOCS SUBMITTED' : 'IDENTITY UPDATED',
                 text: user?.status === 'pending'
                     ? 'Your MoMo and shop details are saved. We will link your Paystack payout when your application is approved.'
-                    : 'Your information has been successfully saved.',
+                    : submitted
+                    ? 'Documents received. Approval usually takes 4–5 hours. We will SMS you when you can start selling.'
+                    : 'Your information has been successfully saved. Upload Ghana Card + selfie to submit for approval.',
                 customClass: { popup: 'rounded-[32px]' },
             });
         } catch (err: any) {
@@ -473,7 +534,7 @@ export default function VendorDashboard() {
         }
     };
 
-    const handleImageUpload = async (file: File, type: 'avatar' | 'banner' | 'doc') => {
+    const handleImageUpload = async (file: File, type: 'avatar' | 'banner' | 'doc' | 'ghanaFront' | 'ghanaBack' | 'selfie') => {
         try {
             if (!token) {
                 Swal.fire('Authentication Required', 'Please log in again to upload images.', 'warning');
@@ -498,6 +559,9 @@ export default function VendorDashboard() {
             if (type === 'avatar') setProfileImage(data.url);
             else if (type === 'banner') setBannerImage(data.url);
             else if (type === 'doc') setBusinessRegistration(data.url);
+            else if (type === 'ghanaFront') setGhanaCardFront(data.url);
+            else if (type === 'ghanaBack') setGhanaCardBack(data.url);
+            else if (type === 'selfie') setSelfie(data.url);
         } catch (err: any) {
             Swal.fire('Upload Failed', err.message || 'Visual asset could not be stored.', 'error');
         }
@@ -643,6 +707,73 @@ export default function VendorDashboard() {
                     </div>
                 );
             case 'products':
+                if (!canSell) {
+                    return (
+                        <div className="max-w-xl mx-auto py-12 text-center space-y-4 bg-white rounded-[32px] border border-slate-100 p-10">
+                            <ShieldAlert className="w-12 h-12 text-brand-lemon mx-auto" />
+                            <h2 className="text-xl font-black text-slate-900 uppercase tracking-tighter">
+                                Product listing locked
+                            </h2>
+                            <p className="text-sm text-slate-500 leading-relaxed">
+                                {awaitingKycApproval
+                                    ? 'Your documents are under review. Approval usually takes 4–5 hours. We will SMS you when you can start selling.'
+                                    : 'Upload your Ghana Card, selfie, and supporting documents in Studio Identity. After admin approval you can list products.'}
+                            </p>
+                            <button
+                                type="button"
+                                onClick={() => setActiveSection('settings')}
+                                className="px-8 py-3 bg-brand-lemon text-slate-900 rounded-full text-[10px] font-black uppercase tracking-widest"
+                            >
+                                {awaitingKycApproval ? 'View studio identity' : 'Upload verification docs'}
+                            </button>
+                        </div>
+                    );
+                }
+                if (subscriptionExpired) {
+                    return (
+                        <div className="space-y-6 animate-in fade-in duration-500">
+                            <div className="max-w-xl mx-auto py-10 text-center space-y-4 bg-white rounded-[32px] border border-orange-100 p-10">
+                                <ShieldAlert className="w-12 h-12 text-orange-500 mx-auto" />
+                                <h2 className="text-xl font-black text-slate-900 uppercase tracking-tighter">
+                                    Subscription due — uploads locked
+                                </h2>
+                                <p className="text-sm text-slate-500 leading-relaxed">
+                                    Your plan has ended. Pay FLA (MoMo) to renew. You can still sell products already listed and accept payments; new uploads stay locked until admin confirms payment.
+                                </p>
+                            </div>
+                            <VendorProducts
+                                products={vendorProducts}
+                                onEdit={(p) => {
+                                    setEditingProduct(p);
+                                    setFormName(p.name);
+                                    setFormPrice(p.price);
+                                    setFormCategory(p.category);
+                                    setFormQuantity(p.quantity.toString());
+                                    setFormTailoring(p.tailoringTime);
+                                    setFormRegion(p.region);
+                                    setFormNarrative(p.description);
+                                    setFormImages(p.images?.map((img: any) => typeof img === 'string' ? img : img.url) || []);
+                                    setFormSizes(p.sizes || []);
+                                    setCustomSizeInput('');
+                                    setFormHasSizes(p.hasSizes !== undefined ? p.hasSizes : true);
+                                    setFormHasColors(p.hasColors !== undefined ? p.hasColors : true);
+                                    setFormColors(p.colors || []);
+                                    setFormImageLabels(p.imageLabels || ['Front', 'Back', 'Side', 'Details']);
+                                    setShowAddProduct(true);
+                                }}
+                                onDelete={handleDeleteProduct}
+                                onToggleStatus={handleToggleProductVisibility}
+                                onAddNew={() => {
+                                    Swal.fire({
+                                        icon: 'warning',
+                                        title: 'Subscription due',
+                                        text: 'Renew your FLA subscription (MoMo) before uploading new products. Existing listings can still sell.',
+                                    });
+                                }}
+                            />
+                        </div>
+                    );
+                }
                 return (
                     <VendorProducts 
                         products={vendorProducts}
@@ -775,7 +906,7 @@ export default function VendorDashboard() {
                     />
                 );
             case 'wallet': return <VendorFinances user={user} dashboardData={dashboardData} commissionRate={commissionRate} handleWithdrawal={handleWithdrawal} />;
-            case 'settings': return <VendorSettings user={user} shopName={shopName} setShopName={setShopName} phone={phone} setPhone={setPhone} momoNumber={momoNumber} setMomoNumber={setMomoNumber} momoNetwork={momoNetwork} setMomoNetwork={setMomoNetwork} accountName={accountName} setAccountName={setAccountName} shopLocation={shopLocation} setShopLocation={setShopLocation} bio={bio} setBio={setBio} bannerImage={bannerImage} profileImage={profileImage} businessRegistration={businessRegistration} handleImageUpload={handleImageUpload} handleUpdateVendorProfile={handleUpdateVendorProfile} />;
+            case 'settings': return <VendorSettings user={user} shopName={shopName} setShopName={setShopName} phone={phone} setPhone={setPhone} momoNumber={momoNumber} setMomoNumber={setMomoNumber} momoNetwork={momoNetwork} setMomoNetwork={setMomoNetwork} accountName={accountName} setAccountName={setAccountName} shopLocation={shopLocation} setShopLocation={setShopLocation} bio={bio} setBio={setBio} bannerImage={bannerImage} profileImage={profileImage} businessRegistration={businessRegistration} ghanaCardFront={ghanaCardFront} ghanaCardBack={ghanaCardBack} selfie={selfie} handleImageUpload={handleImageUpload} handleUpdateVendorProfile={handleUpdateVendorProfile} />;
             case 'notifications': return <VendorNotifications notifications={notifications} />;
             case 'help': return <VendorHelp />;
             default: return null;
@@ -793,11 +924,67 @@ export default function VendorDashboard() {
         );
     }
 
+    if (mustChangePassword) {
+        return (
+            <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
+                <form onSubmit={handleForcedPasswordChange} className="w-full max-w-md bg-white rounded-[32px] border border-slate-100 shadow-xl p-8 md:p-10 space-y-5">
+                    <div>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-brand-lemon mb-2">Security first</p>
+                        <h1 className="text-2xl font-black text-slate-900 tracking-tighter uppercase">Set your password</h1>
+                        <p className="text-sm text-slate-500 mt-2 leading-relaxed">
+                            Enter the temporary password from your SMS, then choose a new password you will remember.
+                        </p>
+                    </div>
+                    <label className="block space-y-1.5 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                        Temporary password
+                        <input
+                          type="password"
+                          required
+                          value={tempPassword}
+                          onChange={(e) => setTempPassword(e.target.value)}
+                          className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-100 text-sm font-bold text-slate-900 normal-case tracking-normal"
+                        />
+                    </label>
+                    <label className="block space-y-1.5 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                        New password
+                        <input
+                          type="password"
+                          required
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-100 text-sm font-bold text-slate-900 normal-case tracking-normal"
+                        />
+                    </label>
+                    <label className="block space-y-1.5 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                        Confirm new password
+                        <input
+                          type="password"
+                          required
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-100 text-sm font-bold text-slate-900 normal-case tracking-normal"
+                        />
+                    </label>
+                    <button
+                      type="submit"
+                      disabled={changingPassword}
+                      className="w-full py-4 rounded-full bg-slate-900 text-brand-lemon text-[11px] font-black uppercase tracking-widest disabled:opacity-60"
+                    >
+                      {changingPassword ? 'Saving…' : 'Save new password'}
+                    </button>
+                    <button type="button" onClick={handleLogout} className="w-full text-[10px] font-black uppercase tracking-widest text-slate-400">
+                      Sign out
+                    </button>
+                </form>
+            </div>
+        );
+    }
+
     return (
         <div className="min-h-screen bg-[#FDFDFF] flex">
             {/* Desktop Dashboard Sidebar */}
             <aside className="fixed left-0 top-0 h-screen w-80 bg-white border-r border-slate-50 hidden lg:block z-40">
-                <VendorSidebar activeSection={activeSection} setActiveSection={setActiveSection} handleLogout={handleLogout} limitedMode={isPendingReview} />
+                <VendorSidebar activeSection={activeSection} setActiveSection={setActiveSection} handleLogout={handleLogout} limitedMode={limitedMode} />
             </aside>
 
             <main className="flex-1 lg:ml-80 min-h-screen relative">
@@ -816,6 +1003,68 @@ export default function VendorDashboard() {
                             </p>
                         </div>
                     )}
+                    {!isPendingReview && mustChangePassword === false && needsKycUpload && (
+                        <div className="mb-8 p-6 md:p-8 bg-brand-lemon/20 border border-brand-lemon/40 rounded-[32px] space-y-4">
+                            <div className="space-y-2">
+                                <p className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Welcome — explore your dashboard</p>
+                                <p className="text-sm text-slate-700 leading-relaxed">
+                                    Your shop is live for browsing. Upload Ghana Card + selfie under <strong>Settings → Studio Identity</strong> whenever you have the docs. Product listing stays locked until we approve (usually <strong>4–5 hours</strong>).
+                                </p>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setActiveSection('settings')}
+                                    className="h-10 px-5 rounded-full bg-brand-blue text-white text-xs font-semibold hover:bg-slate-800 transition-colors"
+                                >
+                                    Complete verification
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setActiveSection('overview')}
+                                    className="h-10 px-5 rounded-full border border-slate-200 bg-white text-slate-700 text-xs font-semibold hover:bg-slate-50 transition-colors"
+                                >
+                                    Look around first
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                    {!isPendingReview && awaitingKycApproval && (
+                        <div className="mb-8 p-6 md:p-8 bg-sky-50 border border-sky-100 rounded-[32px] space-y-2">
+                            <p className="text-[10px] font-black text-sky-800 uppercase tracking-widest">Documents under review</p>
+                            <p className="text-sm text-sky-900/80 leading-relaxed">
+                                Thanks — we received your documents. Expect approval within about <strong>4–5 hours</strong>. You can keep exploring; you will get an SMS when you can start selling.
+                            </p>
+                        </div>
+                    )}
+                    {canSell && subscriptionExpiringSoon && (
+                        <div className="mb-8 p-6 md:p-8 bg-amber-50 border border-amber-200 rounded-[32px] space-y-2">
+                            <p className="text-[10px] font-black text-amber-900 uppercase tracking-widest">
+                                Subscription ends in {subscriptionDaysLeft} day{subscriptionDaysLeft === 1 ? '' : 's'}
+                            </p>
+                            <p className="text-sm text-amber-950/80 leading-relaxed">
+                                Renew with FLA (MoMo) — GHS 50 / month after intro. When due, you keep selling existing products but cannot upload new ones until renewed.
+                            </p>
+                        </div>
+                    )}
+                    {canSell && subscriptionExpired && (
+                        <div className="mb-8 p-6 md:p-8 bg-orange-50 border border-orange-200 rounded-[32px] space-y-2">
+                            <p className="text-[10px] font-black text-orange-900 uppercase tracking-widest">
+                                Subscription due — new uploads locked
+                            </p>
+                            <p className="text-sm text-orange-950/80 leading-relaxed">
+                                Pay FLA via MoMo to renew. Existing listings stay live and can still accept payment.
+                            </p>
+                        </div>
+                    )}
+                    {canSell && !subscriptionExpired && !subscriptionExpiringSoon && (
+                        <div className="mb-8 p-4 md:p-5 bg-emerald-50 border border-emerald-100 rounded-[24px]">
+                            <p className="text-[10px] font-black text-emerald-800 uppercase tracking-widest">
+                                You are cleared to sell — manage products and share your storefront link from settings.
+                                {subscriptionEndsAt ? ` Plan until ${subscriptionEndsAt.toLocaleDateString()}.` : ''}
+                            </p>
+                        </div>
+                    )}
                     {renderContent()}
                 </div>
             </main>
@@ -824,13 +1073,13 @@ export default function VendorDashboard() {
             {isSidebarOpen && (
                 <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 lg:hidden" onClick={() => setIsSidebarOpen(false)}>
                     <aside className="w-80 h-full bg-white animate-in slide-in-from-left duration-300" onClick={(e) => e.stopPropagation()}>
-                        <VendorSidebar activeSection={activeSection} setActiveSection={(s) => { setActiveSection(s); setIsSidebarOpen(false); }} handleLogout={handleLogout} limitedMode={isPendingReview} />
+                        <VendorSidebar activeSection={activeSection} setActiveSection={(s) => { setActiveSection(s); setIsSidebarOpen(false); }} handleLogout={handleLogout} limitedMode={limitedMode} />
                     </aside>
                 </div>
             )}
 
             {/* Product Design Studio (Modal) */}
-            {showAddProduct && (
+            {showAddProduct && (canUploadProducts || editingProduct) && (
                 <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 md:p-8">
                     <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-xl" onClick={() => setShowAddProduct(false)} />
                     <div className="relative w-full max-w-4xl max-h-[90vh] bg-white rounded-[48px] overflow-hidden shadow-2xl flex flex-col animate-in zoom-in-95 duration-300">

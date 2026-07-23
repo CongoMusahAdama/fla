@@ -62,6 +62,13 @@ export const VendorSidebar: React.FC<VendorSidebarProps> = ({
             Application pending — update MoMo &amp; shop details here, then save.
           </p>
         )}
+        {!limitedMode && user && !user.kycApprovedAt && (
+          <p className="px-4 pb-3 text-[9px] font-bold text-brand-lemon/90 uppercase tracking-widest leading-relaxed">
+            {user.kycSubmittedAt
+              ? 'Docs under review (4–5 hrs) — product listing locked.'
+              : 'Upload KYC docs in Studio Identity to unlock selling.'}
+          </p>
+        )}
         {visibleItems.map((item) => (
           <button
             key={item.id}

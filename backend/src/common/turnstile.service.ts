@@ -1,8 +1,8 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-/** Cloudflare Turnstile test secret — pairs with site key 1x00000000000000000000AA (localhost). */
-const TURNSTILE_TEST_SECRET = '1x00000000000000000000AA';
+/** Cloudflare Turnstile always-pass test secret — pairs with site key 1x00000000000000000000AA. */
+const TURNSTILE_TEST_SECRET = '1x0000000000000000000000000000000AA';
 
 @Injectable()
 export class TurnstileService {
@@ -24,11 +24,11 @@ export class TurnstileService {
     private async verifyWithSecret(secret: string, token: string, remoteIp?: string) {
         const response = await fetch(this.verifyUrl, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
                 secret,
                 response: token,
-                remoteip: remoteIp,
+                ...(remoteIp ? { remoteip: remoteIp } : {}),
             }),
         });
         return response.json() as Promise<{ success?: boolean; 'error-codes'?: string[] }>;
@@ -54,22 +54,21 @@ export class TurnstileService {
             const errorCodes = result['error-codes'] || [];
             this.logger.warn(`Turnstile verification failed: ${JSON.stringify(errorCodes)}`);
 
-            // Local dev: frontend uses Cloudflare test site key; production secret in .env will fail siteverify.
+            // Local/dev: frontend often uses Cloudflare's always-pass test site key
+            // (shows "For testing only") while backend .env has a production secret.
+            // That mismatch returns invalid-input-response — retry with the matching test secret.
             const isProd = process.env.NODE_ENV === 'production';
-            if (
-                !isProd &&
-                this.secretKey !== TURNSTILE_TEST_SECRET &&
-                errorCodes.some((c) =>
-                    ['invalid-input-secret', 'missing-input-secret', 'secret-key-required'].includes(c),
-                )
-            ) {
+            if (!isProd && this.secretKey !== TURNSTILE_TEST_SECRET) {
                 result = await this.verifyWithSecret(TURNSTILE_TEST_SECRET, token, remoteIp);
                 if (result.success) {
                     this.logger.warn(
-                        'Turnstile passed with test secret. Set CLOUDFLARE_TURNSTILE_SECRET_KEY=1x00000000000000000000AA in backend .env for local dev.',
+                        'Turnstile passed with Cloudflare TEST secret. For local dev, either set NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY to your real site key, or set CLOUDFLARE_TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA.',
                     );
                     return true;
                 }
+                this.logger.warn(
+                    `Turnstile test-secret retry also failed: ${JSON.stringify(result['error-codes'] || [])}`,
+                );
             }
 
             return false;

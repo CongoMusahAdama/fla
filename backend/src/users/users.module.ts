@@ -1,6 +1,7 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { UsersController } from './users.controller';
+import { SubscriptionReminderService } from './subscription-reminder.service';
 import { MongooseModule } from '@nestjs/mongoose';
 import { User, UserSchema } from './schemas/user.schema';
 import { OrdersModule } from '../orders/orders.module';
@@ -15,7 +16,7 @@ import { SettingsModule } from '../settings/settings.module';
     SettingsModule,
   ],
   controllers: [UsersController],
-  providers: [UsersService],
+  providers: [UsersService, SubscriptionReminderService],
   exports: [UsersService],
 })
 export class UsersModule { }

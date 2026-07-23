@@ -89,7 +89,12 @@ export class EmailService implements OnModuleInit {
         `;
     }
 
-    private async sendEmail(to: string | string[], subject: string, htmlContent: string): Promise<void> {
+    private async sendEmail(
+        to: string | string[],
+        subject: string,
+        htmlContent: string,
+        attachments?: Array<{ name: string; content: string; contentType?: string }>,
+    ): Promise<void> {
         const apiKey = this.configService.get<string>('BREVO_API_KEY');
         if (!apiKey) {
             this.logger.error('BREVO_API_KEY is missing. Email not sent.');
@@ -104,6 +109,7 @@ export class EmailService implements OnModuleInit {
                 to: recipients,
                 subject,
                 htmlContent,
+                ...(attachments?.length ? { attachment: attachments } : {}),
             });
 
             this.logger.log(
@@ -167,6 +173,38 @@ export class EmailService implements OnModuleInit {
         `;
 
         await this.sendEmail(email, `Your FLA Studio Account is Ready: ${shopName}`, this.wrapLayout('Studio Account Ready', content));
+    }
+
+    async sendVendorAgreementEmail(
+        email: string,
+        name: string,
+        shopName: string,
+        pdfBuffer: Buffer,
+        filename: string,
+    ): Promise<void> {
+        const content = `
+            <p class="greeting">Hello ${name},</p>
+            <p class="message">
+                Welcome to FLA Purchase. Please find attached your <strong>Vendor Partnership Agreement</strong> for
+                <strong>${shopName}</strong>. Download, review, sign, and keep a copy for your records.
+            </p>
+            <p class="message">
+                After signing in with your temporary credentials, change your password and complete KYC so you can start listing products.
+            </p>
+        `;
+
+        await this.sendEmail(
+            email,
+            `FLA Vendor Agreement — ${shopName}`,
+            this.wrapLayout('Vendor Agreement', content),
+            [
+                {
+                    name: filename,
+                    content: pdfBuffer.toString('base64'),
+                    contentType: 'application/pdf',
+                },
+            ],
+        );
     }
 
     async sendPasswordResetEmail(email: string, name: string, token: string): Promise<void> {

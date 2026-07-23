@@ -95,6 +95,19 @@ export class AuthController {
     return this.authService.mapPublicUser(result);
   }
 
+  @UseGuards(AuthGuard('jwt'))
+  @Post('change-password')
+  async changePassword(
+    @Request() req,
+    @Body() body: { currentPassword?: string; newPassword: string },
+  ) {
+    return this.authService.changePassword(
+      req.user.userId,
+      body.currentPassword || '',
+      body.newPassword,
+    );
+  }
+
   @Post('send-otp')
   async sendOTP(@Body() body: { phone: string; name?: string }) {
     try {

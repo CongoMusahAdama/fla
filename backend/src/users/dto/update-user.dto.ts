@@ -73,6 +73,18 @@ export class UpdateUserDto {
 
     @IsString()
     @IsOptional()
+    ghanaCardFront?: string;
+
+    @IsString()
+    @IsOptional()
+    ghanaCardBack?: string;
+
+    @IsString()
+    @IsOptional()
+    selfie?: string;
+
+    @IsString()
+    @IsOptional()
     vendorTier?: string;
 
     @IsOptional()

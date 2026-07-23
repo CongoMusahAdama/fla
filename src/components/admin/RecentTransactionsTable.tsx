@@ -66,9 +66,9 @@ export const RecentTransactionsTable = ({ orders }: { orders: any[] }) => {
     }, [searchQuery, filteredTransactions.length]);
 
     return (
-        <div className="bg-white border border-slate-100 shadow-sm rounded-3xl overflow-hidden flex flex-col min-h-[600px]">
-            <div className="p-8 border-b border-slate-50 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-                <h2 className="font-black text-slate-900 uppercase text-sm tracking-widest">Recent Transactions</h2>
+        <div className="bg-white border border-slate-200 rounded-none overflow-hidden flex flex-col min-h-[600px]">
+            <div className="p-6 sm:p-8 border-b border-slate-200 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+                <h2 className="font-semibold text-slate-900 text-sm tracking-tight">Recent Transactions</h2>
                 <TableSearch
                     value={searchQuery}
                     onChange={setSearchQuery}
@@ -76,17 +76,17 @@ export const RecentTransactionsTable = ({ orders }: { orders: any[] }) => {
                     className="max-w-sm"
                 />
             </div>
-            <div className="flex-1 overflow-x-auto">
+            <div className="flex-1 admin-table-scroll">
                 <table className="w-full text-left border-collapse">
                     <thead>
-                        <tr className="bg-slate-900">
-                            <th className="px-8 py-5 text-[10px] font-black text-white/60 uppercase tracking-widest border-b border-white/5">S/N</th>
-                            <th className="px-8 py-5 text-[10px] font-black text-white/60 uppercase tracking-widest border-b border-white/5">Customer</th>
-                            <th className="px-8 py-5 text-[10px] font-black text-white/60 uppercase tracking-widest border-b border-white/5">Type</th>
-                            <th className="px-8 py-5 text-[10px] font-black text-white/60 uppercase tracking-widest border-b border-white/5">Status</th>
-                            <th className="px-8 py-5 text-[10px] font-black text-white/60 uppercase tracking-widest border-b border-white/5">Account Data</th>
-                            <th className="px-8 py-5 text-[10px] font-black text-white/60 uppercase tracking-widest border-b border-white/5">Date</th>
-                            <th className="px-8 py-5 text-[10px] font-black text-white/60 uppercase tracking-widest border-b border-white/5 text-right">Amount</th>
+                        <tr className="bg-brand-blue">
+                            <th className="px-8 py-4 text-[11px] font-medium text-white/75 tracking-wide">S/N</th>
+                            <th className="px-8 py-4 text-[11px] font-medium text-white/75 tracking-wide">Customer</th>
+                            <th className="px-8 py-4 text-[11px] font-medium text-white/75 tracking-wide">Type</th>
+                            <th className="px-8 py-4 text-[11px] font-medium text-white/75 tracking-wide">Status</th>
+                            <th className="px-8 py-4 text-[11px] font-medium text-white/75 tracking-wide">Account Data</th>
+                            <th className="px-8 py-4 text-[11px] font-medium text-white/75 tracking-wide">Date</th>
+                            <th className="px-8 py-4 text-[11px] font-medium text-white/75 tracking-wide text-right">Amount</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">

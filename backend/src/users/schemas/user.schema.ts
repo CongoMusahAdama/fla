@@ -123,6 +123,10 @@ export class User {
     @Prop({ unique: true, sparse: true })
     uniqueVendorId?: string;
 
+    /** Public storefront path segment: /store/{storeSlug} */
+    @Prop({ unique: true, sparse: true, index: true })
+    storeSlug?: string;
+
     // KYC Data
     @Prop()
     ghanaCardFront?: string;
@@ -172,6 +176,46 @@ export class User {
 
     @Prop()
     kycApprovedAt?: Date;
+
+    /** When vendor submitted KYC docs and is waiting for admin review */
+    @Prop()
+    kycSubmittedAt?: Date;
+
+    /** Admin-created vendors must change the default password on first login */
+    @Prop({ default: false })
+    mustChangePassword: boolean;
+
+    /** Subscription: intro (GHS 10) | monthly (GHS 50) | legacy trial | annual */
+    @Prop({ enum: ['intro', 'monthly', 'trial', 'annual'] })
+    subscriptionPlan?: string;
+
+    @Prop()
+    subscriptionLabel?: string;
+
+    @Prop()
+    subscriptionPriceText?: string;
+
+    @Prop()
+    subscriptionPriceGhs?: number;
+
+    @Prop()
+    subscriptionStartsAt?: Date;
+
+    @Prop()
+    subscriptionEndsAt?: Date;
+
+    /** YYYY-MM-DD — last daily subscription reminder sent */
+    @Prop()
+    lastSubscriptionReminderDate?: string;
+
+    @Prop()
+    subscriptionLastPaidAt?: Date;
+
+    @Prop()
+    subscriptionLastPaidAmount?: number;
+
+    @Prop()
+    subscriptionLastPaidNote?: string;
 
     @Prop({ default: false })
     isEmailVerified: boolean;

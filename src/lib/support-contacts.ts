@@ -1,4 +1,9 @@
-import { buildCustomerReportToAdminMessage } from './whatsapp';
+import {
+  buildCustomerReportToAdminMessage,
+  formatPhoneForDisplay,
+  getFlaAdminWhatsAppPhone,
+  normalizeWhatsAppPhone,
+} from './whatsapp';
 
 /**
  * FLA email contacts. Reports and general support go to different inboxes.
@@ -10,6 +15,37 @@ export function getFlaReportEmail(): string {
 
 export function getFlaSupportEmail(): string {
   return process.env.NEXT_PUBLIC_FLA_SUPPORT_EMAIL?.trim() || 'support@flamingo.co';
+}
+
+function formatSupportPhonePretty(digitsOrRaw: string): string {
+  const digits = normalizeWhatsAppPhone(digitsOrRaw) || digitsOrRaw.replace(/\D/g, '');
+  // 233505112925 → 050 511 2925
+  if (digits.startsWith('233') && digits.length >= 12) {
+    const local = `0${digits.slice(3)}`;
+    return `${local.slice(0, 3)} ${local.slice(3, 6)} ${local.slice(6)}`;
+  }
+  const display = formatPhoneForDisplay(digitsOrRaw);
+  if (display.length === 10 && display.startsWith('0')) {
+    return `${display.slice(0, 3)} ${display.slice(3, 6)} ${display.slice(6)}`;
+  }
+  return display;
+}
+
+/** Admin support line shown in the navbar (same number as admin WhatsApp / ADMIN_PHONE). */
+export function getFlaSupportPhoneDisplay(): string {
+  const fromEnv = process.env.NEXT_PUBLIC_FLA_SUPPORT_PHONE?.trim();
+  if (fromEnv) return formatSupportPhonePretty(fromEnv);
+  return formatSupportPhonePretty(getFlaAdminWhatsAppPhone());
+}
+
+/** tel: link for the admin support number. */
+export function getFlaSupportTelHref(): string {
+  const fromEnv = process.env.NEXT_PUBLIC_FLA_SUPPORT_PHONE?.trim();
+  const digits =
+    normalizeWhatsAppPhone(fromEnv) ||
+    getFlaAdminWhatsAppPhone() ||
+    '233505112925';
+  return `tel:+${digits}`;
 }
 
 /**
@@ -41,6 +77,24 @@ export function getSupportMailtoUrl(customerName?: string, message?: string): st
     message?.trim() || 'I need help with my order or account.',
     '',
     `— ${customerName || 'Customer'}`,
+  ].join('\n');
+  return buildMailtoUrl(getFlaSupportEmail(), subject, body);
+}
+
+/** Optional contact for partnership questions (self-registration is also available). */
+export function getVendorApplyMailtoUrl(): string {
+  const subject = 'FLA Vendor Partnership Inquiry';
+  const body = [
+    'Hello FLA,',
+    '',
+    'I would like to become a vendor on FLA Purchase.',
+    '',
+    'Shop / business name:',
+    'Phone (WhatsApp):',
+    'City / region:',
+    'What I sell:',
+    '',
+    'Thank you.',
   ].join('\n');
   return buildMailtoUrl(getFlaSupportEmail(), subject, body);
 }

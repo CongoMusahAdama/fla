@@ -1,13 +1,19 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards, Request, UnauthorizedException, Res } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards, Request, UnauthorizedException, ForbiddenException, Res } from '@nestjs/common';
 import type { Response } from 'express';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { AuthGuard } from '@nestjs/passport';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { User, UserDocument } from '../users/schemas/user.schema';
 
 @Controller('products')
 export class ProductsController {
-  constructor(private readonly productsService: ProductsService) { }
+  constructor(
+    private readonly productsService: ProductsService,
+    @InjectModel(User.name) private userModel: Model<UserDocument>,
+  ) { }
 
   @Get('count')
   getCount(@Query() query: any) {
@@ -26,11 +32,38 @@ export class ProductsController {
 
   @UseGuards(AuthGuard('jwt'))
   @Post()
-  create(@Body() createProductDto: CreateProductDto, @Request() req) {
+  async create(@Body() createProductDto: CreateProductDto, @Request() req) {
     if (req.user.role !== 'vendor' && req.user.role !== 'admin') {
       throw new UnauthorizedException('Unauthorized - Only vendors can create products');
     }
-    // Set the vendorId to the current user's ID
+
+    if (req.user.role === 'vendor') {
+      const vendor = await this.userModel
+        .findById(req.user.userId)
+        .select('mustChangePassword kycApprovedAt subscriptionEndsAt')
+        .lean()
+        .exec();
+      if ((vendor as any)?.mustChangePassword) {
+        throw new ForbiddenException('Please change your temporary password before uploading products.');
+      }
+      if (!(vendor as any)?.kycApprovedAt) {
+        throw new ForbiddenException(
+          'Upload your verification documents and wait for admin approval (usually 4–5 hours) before you can list products.',
+        );
+      }
+      // Missing subscriptionEndsAt = legacy vendor (grandfathered). Only block when an
+      // explicit end date exists and is in the past — keeps existing sellers selling.
+      const endsRaw = (vendor as any)?.subscriptionEndsAt;
+      if (endsRaw) {
+        const endsAt = new Date(endsRaw);
+        if (!Number.isNaN(endsAt.getTime()) && endsAt.getTime() <= Date.now()) {
+          throw new ForbiddenException(
+            'Your subscription has ended. Pay FLA (MoMo) to renew — you can still sell existing products, but new uploads are locked until renewal.',
+          );
+        }
+      }
+    }
+
     createProductDto.vendorId = req.user.userId;
     return this.productsService.create(createProductDto);
   }

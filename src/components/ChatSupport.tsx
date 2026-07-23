@@ -54,10 +54,10 @@ export default function ChatSupport() {
       <button
         type="button"
         onClick={() => setIsSupportOpen(!isSupportOpen)}
-        className={`flex items-center gap-3 px-5 md:px-6 h-14 rounded-full shadow-2xl shadow-slate-900/30 transition-all duration-300 pointer-events-auto font-black uppercase tracking-widest text-[10px] md:text-xs ${
+        className={`flex items-center gap-3 px-5 md:px-6 h-14 rounded-full shadow-2xl shadow-brand-lemon/40 transition-all duration-300 pointer-events-auto font-black uppercase tracking-widest text-[10px] md:text-xs ${
           isSupportOpen
             ? "bg-slate-900 text-white hover:bg-slate-800"
-            : "bg-slate-900 text-white hover:bg-slate-800 hover:scale-105 active:scale-95"
+            : "bg-brand-lemon text-slate-900 hover:bg-brand-lemon-hover hover:scale-105 active:scale-95"
         }`}
         aria-label={isSupportOpen ? "Close support menu" : "Open email support"}
       >

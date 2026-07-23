@@ -2,6 +2,7 @@ import { Injectable, OnModuleInit } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Setting, SettingDocument } from './schemas/setting.schema';
+import { FLA_CONSTANTS } from '../common/constants';
 
 @Injectable()
 export class SettingsService implements OnModuleInit {
@@ -11,11 +12,22 @@ export class SettingsService implements OnModuleInit {
 
     async onModuleInit() {
         // Initialize default settings if they don't exist
-        await this.ensureSetting('platform_commission', 6, 'Default platform commission percentage');
+        await this.ensureSetting(
+            'platform_commission',
+            FLA_CONSTANTS.DEFAULT_COMMISSION_RATE,
+            'Default platform commission percentage',
+        );
         await this.ensureSetting('withdrawal_minimum', 50, 'Minimum amount allowed for withdrawal');
         await this.ensureSetting('maintenance_mode', false, 'Whether the platform is in maintenance mode');
         await this.ensureSetting('automated_payouts', true, 'Whether payouts are automatically processed');
         await this.ensureSetting('vendor_auto_approval', false, 'Whether vendors are automatically approved after registration');
+
+        // Migrate legacy default 6% → 3% only when still on the old seed value
+        const commission = await this.settingModel.findOne({ key: 'platform_commission' }).exec();
+        if (commission && Number(commission.value) === 6) {
+            commission.value = FLA_CONSTANTS.DEFAULT_COMMISSION_RATE;
+            await commission.save();
+        }
     }
 
     private async ensureSetting(key: string, defaultValue: any, description: string) {

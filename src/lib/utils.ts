@@ -67,17 +67,27 @@ export const getImageUrl = (url: string | undefined | null) => {
 };
 
 /**
- * Generates a Cloudinary transformation URL for specific dimensions
+ * Generates a Cloudinary transformation URL for specific dimensions.
+ * Safe for unsigned delivery URLs; leaves signed/authenticated URLs untouched.
  */
 export const getOptimizedImage = (url: string, width: number = 800, height?: number) => {
     const baseUrl = getImageUrl(url);
-    if (baseUrl.includes('res.cloudinary.com')) {
-        let transformations = `f_auto,q_auto,w_${width}`;
-        if (height) transformations += `,h_${height},c_fill`;
-        
-        // Remove existing f_auto,q_auto if present to avoid duplication
-        const cleanUrl = baseUrl.replace(/\/image\/upload\/[^\/]+\//, '/image/upload/');
-        return cleanUrl.replace('/image/upload/', `/image/upload/${transformations}/`);
+    if (!baseUrl.includes('res.cloudinary.com')) return baseUrl;
+
+    // Don't transform signed / authenticated assets (breaks access)
+    if (
+        baseUrl.includes('/authenticated/') ||
+        /\/image\/upload\/s--[^/]+--\//.test(baseUrl)
+    ) {
+        return baseUrl;
     }
-    return baseUrl;
+
+    let transformations = `f_auto,q_auto:eco,c_fill,g_auto,w_${width}`;
+    if (height) transformations += `,h_${height}`;
+
+    // Strip any existing transformation segment after /image/upload/
+    return baseUrl.replace(
+        /\/image\/upload\/(?:[^/]+\/)?/,
+        `/image/upload/${transformations}/`,
+    );
 };

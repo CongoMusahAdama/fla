@@ -43,7 +43,7 @@ export default function AboutPage() {
                         <Link href="/shop" className="w-full sm:w-auto px-10 py-5 bg-white text-slate-900 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-brand-lemon transition-all shadow-2xl">
                             Explore Marketplace
                         </Link>
-                        <Link href="/auth?role=vendor" className="w-full sm:w-auto px-10 py-5 bg-transparent border-2 border-white/20 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-white/10 transition-all">
+                        <Link href="/auth?role=vendor&view=register" className="w-full sm:w-auto px-10 py-5 bg-transparent border-2 border-white/20 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-white/10 transition-all">
                             Become a Vendor
                         </Link>
                     </div>

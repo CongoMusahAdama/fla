@@ -1,14 +1,14 @@
 "use client";
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth, UserRole } from '@/context/AuthContext';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
     User, Mail, Lock, ChevronRight, ArrowLeft, Phone, MapPin,
     Store, Package, CreditCard, Upload, ArrowRight, MessageSquare, Check,
-    Camera, Calendar, Users, Briefcase, FileText, ShieldCheck, Hash, Shield
+    Camera, Calendar, Users, Briefcase, FileText, ShieldCheck, Hash, Shield, ImagePlus
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { Suspense } from 'react';
@@ -25,10 +25,14 @@ const AuthInput = React.memo(({ label, type, placeholder, value, onChange, requi
 
     return (
         <div className="space-y-1.5">
-            {label && <label className="text-xs font-bold text-slate-700 ml-1">{label}</label>}
+            {label && (
+                <label className="block text-[13px] font-medium text-slate-600">
+                    {label}
+                </label>
+            )}
             <div className="relative group z-10">
                 {Icon && (
-                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-slate-900 transition-colors pointer-events-none">
+                    <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-slate-900 transition-colors pointer-events-none">
                         <Icon className="w-4 h-4" />
                     </div>
                 )}
@@ -38,15 +42,16 @@ const AuthInput = React.memo(({ label, type, placeholder, value, onChange, requi
                     required={required}
                     value={value}
                     onChange={(e) => onChange(e.target.value)}
-                    className={`w-full ${Icon ? 'pl-11' : 'px-4'} ${isPassword ? 'pr-20' : 'pr-4'} py-4 bg-white border-2 border-slate-100 rounded-2xl text-base md:text-sm transition-all focus:border-slate-900 focus:ring-4 focus:ring-slate-900/5 outline-none touch-manipulation appearance-none relative z-10 !pointer-events-auto`}
+                    className={`w-full ${Icon ? 'pl-10' : 'px-3.5'} ${isPassword ? 'pr-16' : 'pr-3.5'} h-12 bg-white border border-slate-200 rounded-xl text-[15px] text-slate-900 placeholder:text-slate-400 transition-all focus:border-brand-lemon focus:ring-2 focus:ring-brand-lemon/30 outline-none touch-manipulation appearance-none relative z-10 !pointer-events-auto`}
                 />
                 {isPassword && (
                     <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-900 transition-colors p-2 cursor-pointer z-20 touch-manipulation"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-900 transition-colors p-1.5 cursor-pointer z-20 touch-manipulation"
+                        aria-label={showPassword ? 'Hide password' : 'Show password'}
                     >
-                        <span className="text-[10px] font-black uppercase tracking-widest">{showPassword ? 'Hide' : 'Show'}</span>
+                        <span className="text-[10px] font-semibold uppercase tracking-wide">{showPassword ? 'Hide' : 'Show'}</span>
                     </button>
                 )}
             </div>
@@ -118,43 +123,43 @@ const LoginForm = ({ onLogin, onForgotPassword }: { onLogin: (id: string, pass: 
     const [password, setPassword] = useState('');
 
     return (
-        <form onSubmit={(e) => { e.preventDefault(); onLogin(identifier, password); }} className="space-y-4 animate-in fade-in duration-500">
-            <div className="grid grid-cols-1 gap-4">
+        <form onSubmit={(e) => { e.preventDefault(); onLogin(identifier, password); }} className="space-y-5 animate-in fade-in duration-500">
+            <AuthInput
+                label="Email or Phone"
+                type="text"
+                placeholder="Example@mail.com"
+                required
+                value={identifier}
+                onChange={setIdentifier}
+                icon={Mail}
+            />
+            <div className="space-y-1.5">
                 <AuthInput
-                    label="Email or Phone"
-                    type="text"
-                    placeholder="you@email.com"
+                    label="Password"
+                    type="password"
+                    placeholder="8 characters"
                     required
-                    value={identifier}
-                    onChange={setIdentifier}
-                    icon={User}
+                    value={password}
+                    onChange={setPassword}
+                    icon={Lock}
                 />
-                <div className="space-y-1">
-                    <AuthInput
-                        label="Password"
-                        type="password"
-                        placeholder="••••••••"
-                        required
-                        value={password}
-                        onChange={setPassword}
-                        icon={Lock}
-                    />
-                    <div className="flex justify-end px-1">
-                        <button
-                            type="button"
-                            onClick={onForgotPassword}
-                            className="text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-900 transition-colors"
-                        >
-                            Forgot Password?
-                        </button>
-                    </div>
+                <div className="flex justify-end">
+                    <button
+                        type="button"
+                        onClick={onForgotPassword}
+                        className="text-xs font-medium text-slate-500 hover:text-slate-900 transition-colors"
+                    >
+                        Forgot password?
+                    </button>
                 </div>
             </div>
-            <div className="pt-2">
-                <button type="submit" className="w-full py-4 bg-emerald-950 text-white rounded-full font-bold text-sm tracking-wide hover:bg-slate-800 transition-all shadow-xl shadow-emerald-900/10 active:scale-[0.98]">
-                    Sign In
-                </button>
-            </div>
+            <button
+                type="submit"
+                className="w-full h-12 mt-2 inline-flex items-center justify-center gap-2 rounded-full bg-brand-lemon text-slate-900 text-sm font-semibold tracking-wide hover:bg-brand-lemon-hover transition-all shadow-lg shadow-brand-lemon/25 active:scale-[0.98]"
+            >
+                Sign In now
+                <ArrowRight className="w-4 h-4" />
+            </button>
         </form>
     );
 };
@@ -202,15 +207,16 @@ const ForgotPasswordForm = ({ onBack, onSubmit, onResetWithOTP }: { onBack: () =
                     />
 
                     <div className="space-y-3">
-                        <button type="submit" className="w-full py-4 bg-slate-900 text-white rounded-full font-bold text-sm tracking-wide hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/10 active:scale-[0.98]">
+                        <button type="submit" className="w-full h-12 bg-brand-lemon text-slate-900 rounded-full font-semibold text-sm tracking-wide hover:bg-brand-lemon-hover transition-all shadow-lg shadow-brand-lemon/25 active:scale-[0.98] inline-flex items-center justify-center gap-2">
                             Get Reset Code
+                            <ArrowRight className="w-4 h-4" />
                         </button>
                         <button
                             type="button"
                             onClick={onBack}
-                            className="w-full py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-900 transition-all flex items-center justify-center gap-2"
+                            className="w-full py-3 text-xs font-medium text-slate-500 hover:text-slate-900 transition-all flex items-center justify-center gap-2"
                         >
-                            <ArrowLeft className="w-3 h-3" /> Back to Login
+                            <ArrowLeft className="w-3.5 h-3.5" /> Back to Login
                         </button>
                     </div>
                 </form>
@@ -238,13 +244,14 @@ const ForgotPasswordForm = ({ onBack, onSubmit, onResetWithOTP }: { onBack: () =
                     />
 
                     <div className="space-y-3">
-                        <button type="submit" className="w-full py-4 bg-emerald-950 text-white rounded-full font-bold text-sm tracking-wide hover:bg-slate-800 transition-all shadow-xl shadow-emerald-900/10 active:scale-[0.98]">
+                        <button type="submit" className="w-full h-12 bg-brand-lemon text-slate-900 rounded-full font-semibold text-sm tracking-wide hover:bg-brand-lemon-hover transition-all shadow-lg shadow-brand-lemon/25 active:scale-[0.98] inline-flex items-center justify-center gap-2">
                             Update & Sign In
+                            <ArrowRight className="w-4 h-4" />
                         </button>
                         <button
                             type="button"
                             onClick={() => setStep('email')}
-                            className="w-full py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-900 transition-all flex items-center justify-center gap-2"
+                            className="w-full py-3 text-xs font-medium text-slate-500 hover:text-slate-900 transition-all flex items-center justify-center gap-2"
                         >
                             Change Email
                         </button>
@@ -294,6 +301,9 @@ export const RegisterForm = ({ role, onSignup }: { role: UserRole, onSignup: (da
     // Vendor Specific
     const [shopName, setShopName] = useState('');
     const [productTypes, setProductTypes] = useState('');
+    const [logoFile, setLogoFile] = useState<File | null>(null);
+    const [logoPreview, setLogoPreview] = useState<string | null>(null);
+    const logoInputRef = useRef<HTMLInputElement>(null);
     const [paymentMethods, setPaymentMethods] = useState<any[]>([{
         type: 'momo',
         network: 'MTN',
@@ -301,6 +311,31 @@ export const RegisterForm = ({ role, onSignup }: { role: UserRole, onSignup: (da
         accountName: '',
         isLookingUp: false
     }]);
+
+    useEffect(() => {
+        return () => {
+            if (logoPreview?.startsWith('blob:')) URL.revokeObjectURL(logoPreview);
+        };
+    }, [logoPreview]);
+
+    const onLogoSelected = (file: File | null) => {
+        if (logoPreview?.startsWith('blob:')) URL.revokeObjectURL(logoPreview);
+        if (!file) {
+            setLogoFile(null);
+            setLogoPreview(null);
+            return;
+        }
+        if (!file.type.startsWith('image/')) {
+            Swal.fire('Invalid file', 'Please upload an image (JPG, PNG, or WebP).', 'warning');
+            return;
+        }
+        if (file.size > 8 * 1024 * 1024) {
+            Swal.fire('File too large', 'Logo must be under 8MB.', 'warning');
+            return;
+        }
+        setLogoFile(file);
+        setLogoPreview(URL.createObjectURL(file));
+    };
 
     const handleAccountNumberChange = async (index: number, value: string, network: string) => {
         const updated = [...paymentMethods];
@@ -358,9 +393,31 @@ export const RegisterForm = ({ role, onSignup }: { role: UserRole, onSignup: (da
             return;
         }
 
+        if (role === 'vendor' && !turnstileToken) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Security check',
+                text: 'Please complete the verification checkbox before creating your shop.',
+                confirmButtonColor: '#F9CF5A',
+            });
+            return;
+        }
+
+        if (role === 'vendor' && !logoFile) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Vendor logo required',
+                text: 'Please upload your shop logo before completing registration.',
+                confirmButtonColor: '#F9CF5A',
+            });
+            setStep(3);
+            return;
+        }
+
         onSignup({ 
             name, email, phone, location, region, password, confirmPassword, 
             shopName, productTypes, paymentMethods, turnstileToken,
+            logoFile,
             kyc: {
                 ghanaCardFront, ghanaCardBack, ghanaCardNumber, selfie, digitalAddress, 
                 dob, utilityBill, utilityType: utilityType === 'Other' ? customUtilityName : utilityType,
@@ -370,10 +427,30 @@ export const RegisterForm = ({ role, onSignup }: { role: UserRole, onSignup: (da
         });
     };
 
-    const nextStep = () => setStep(prev => Math.min(prev + 1, role === 'vendor' ? 6 : 2));
+    const nextStep = () => {
+        if (role === 'vendor' && step === 3 && !logoFile) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Vendor logo required',
+                text: 'Upload your shop logo to continue. It appears on your storefront and in admin lists.',
+                confirmButtonColor: '#F9CF5A',
+            });
+            return;
+        }
+        if (role === 'vendor' && step === 3 && !shopName.trim()) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Shop name required',
+                text: 'Please enter your shop name.',
+                confirmButtonColor: '#F9CF5A',
+            });
+            return;
+        }
+        setStep(prev => Math.min(prev + 1, role === 'vendor' ? 4 : 2));
+    };
     const prevStep = () => setStep(prev => Math.max(prev - 1, 1));
 
-    const totalSteps = role === 'vendor' ? 6 : 2;
+    const totalSteps = role === 'vendor' ? 4 : 2;
 
     const renderRegionSelect = () => (
         <div className="space-y-1.5">
@@ -459,53 +536,74 @@ export const RegisterForm = ({ role, onSignup }: { role: UserRole, onSignup: (da
                     return (
                         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
                             <div>
-                                <h3 className="text-2xl font-black text-slate-900 mb-2">Business Profile</h3>
-                                <p className="text-sm text-slate-500">Tell us about your fashion studio and where you are located.</p>
+                                <h3 className="text-2xl font-semibold text-slate-900 mb-2 tracking-tight">Business Profile</h3>
+                                <p className="text-sm text-slate-500">Tell us about your shop. A logo is required for your storefront.</p>
                             </div>
                             <div className="space-y-4">
+                                <div className="space-y-1.5">
+                                    <label className="block text-[13px] font-medium text-slate-600">
+                                        Vendor logo <span className="text-rose-600">*</span>
+                                    </label>
+                                    <input
+                                        ref={logoInputRef}
+                                        type="file"
+                                        accept="image/jpeg,image/png,image/webp,image/jpg"
+                                        className="hidden"
+                                        onChange={(e) => onLogoSelected(e.target.files?.[0] || null)}
+                                    />
+                                    <div className="flex flex-col sm:flex-row gap-4 items-start">
+                                        <div className="relative w-24 h-24 border border-slate-200 bg-slate-50 overflow-hidden shrink-0 rounded-xl">
+                                            {logoPreview ? (
+                                                <Image src={logoPreview} alt="Logo preview" fill className="object-cover" unoptimized />
+                                            ) : (
+                                                <div className="w-full h-full flex items-center justify-center text-slate-300">
+                                                    <ImagePlus className="w-8 h-8" />
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="flex-1 space-y-2 w-full">
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => logoInputRef.current?.click()}
+                                                    className="h-10 px-4 rounded-full bg-brand-lemon text-slate-900 text-sm font-semibold hover:bg-brand-lemon-hover transition-colors"
+                                                >
+                                                    {logoFile ? 'Change logo' : 'Upload logo'}
+                                                </button>
+                                                {logoFile && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            onLogoSelected(null);
+                                                            if (logoInputRef.current) logoInputRef.current.value = '';
+                                                        }}
+                                                        className="h-10 px-4 rounded-full border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50"
+                                                    >
+                                                        Remove
+                                                    </button>
+                                                )}
+                                            </div>
+                                            <p className="text-xs text-slate-500 leading-relaxed">
+                                                JPG, PNG, or WebP · max 8MB. Shown on your storefront and in admin lists.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <AuthInput label="Shop Name" type="text" placeholder="Eg. FLA Boutique" required value={shopName} onChange={setShopName} icon={Store} />
                                 <div className="space-y-1.5">
-                                    <label className="text-xs font-bold text-slate-700 ml-1">Business Description</label>
+                                    <label className="text-xs font-bold text-slate-700 ml-1">Business Description <span className="font-medium text-slate-400">(optional)</span></label>
                                     <textarea 
-                                        placeholder="Tell us about your fashion business, specialties, and experience..."
+                                        placeholder="Tell us about your fashion business..."
                                         value={businessDescription}
                                         onChange={(e) => setBusinessDescription(e.target.value)}
-                                        className="w-full px-4 py-3 bg-white border-2 border-slate-100 rounded-2xl text-sm focus:border-slate-900 outline-none transition-all min-h-[100px] resize-none"
+                                        className="w-full px-4 py-3 bg-white border-2 border-slate-100 rounded-2xl text-sm focus:border-slate-900 outline-none transition-all min-h-[88px] resize-none"
                                     />
                                 </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <AuthInput
-                                        label="City / Town"
-                                        type="text"
-                                        placeholder="Eg. Tamale"
-                                        required
-                                        value={location}
-                                        onChange={setLocation}
-                                        icon={MapPin}
-                                    />
-                                    {renderRegionSelect()}
-                                </div>
-                                <AuthInput label="Digital Address" type="text" placeholder="GA-123-4567" required value={digitalAddress} onChange={setDigitalAddress} icon={MapPin} />
-                                <AuthInput label="Date of Birth" type="date" required value={dob} onChange={setDob} icon={Calendar} />
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-1.5">
-                                        <label className="text-xs font-bold text-slate-700 ml-1">No. of Employees</label>
-                                        <select value={employeeCount} onChange={(e) => setEmployeeCount(e.target.value)} className="w-full px-4 py-3 bg-white border-2 border-slate-100 rounded-2xl text-sm focus:border-slate-900 outline-none transition-all appearance-none cursor-pointer">
-                                            <option value="1-5">1 - 5</option>
-                                            <option value="6-20">6 - 20</option>
-                                            <option value="21-50">21 - 50</option>
-                                            <option value="50+">50+</option>
-                                        </select>
-                                    </div>
-                                    <div className="space-y-1.5">
-                                        <label className="text-xs font-bold text-slate-700 ml-1">Years of Existence</label>
-                                        <select value={yearsOfExistence} onChange={(e) => setYearsOfExistence(e.target.value)} className="w-full px-4 py-3 bg-white border-2 border-slate-100 rounded-2xl text-sm focus:border-slate-900 outline-none transition-all appearance-none cursor-pointer">
-                                            <option value="0-1">0 - 1 year</option>
-                                            <option value="1-3">1 - 3 years</option>
-                                            <option value="3-5">3 - 5 years</option>
-                                            <option value="5+">5+ years</option>
-                                        </select>
-                                    </div>
+                                <div className="rounded-xl bg-brand-lemon/20 border border-brand-lemon/40 px-4 py-3">
+                                    <p className="text-xs text-slate-800 leading-relaxed">
+                                        Ghana Card and other verification docs can be uploaded later in your dashboard — explore first, sell after approval.
+                                    </p>
                                 </div>
                             </div>
                         </div>
@@ -659,92 +757,15 @@ export const RegisterForm = ({ role, onSignup }: { role: UserRole, onSignup: (da
                             >
                                 <Check className="w-4 h-4 rotate-45" /> Add Another Payout Method
                             </button>
-                        </div>
-                    </div>
-                );
-            case 5:
-                return (
-                    <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
-                        <div>
-                            <h3 className="text-2xl font-black text-slate-900 mb-2">Identity Verification</h3>
-                            <p className="text-sm text-slate-500">Provide your Ghana Card details for secure identity validation.</p>
-                        </div>
-                        <div className="space-y-4">
-                            <AuthInput label="Ghana Card Number" type="text" placeholder="GHA-XXXXXXXXX-X" required value={ghanaCardNumber} onChange={setGhanaCardNumber} icon={Hash} />
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <FileInput label="Ghana Card Front" value={ghanaCardFront} onChange={setGhanaCardFront} icon={CreditCard} description="Upload front" />
-                                <FileInput label="Ghana Card Back" value={ghanaCardBack} onChange={setGhanaCardBack} icon={CreditCard} description="Upload back" />
-                                <div className="md:col-span-2">
-                                    <FileInput label="Selfie Snapshot" value={selfie} onChange={setSelfie} icon={Camera} description="Face match verification photo" />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                );
-            case 6:
-                return (
-                    <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
-                        <div>
-                            <h3 className="text-2xl font-black text-slate-900 mb-2">Final Documents</h3>
-                            <p className="text-sm text-slate-500">Submit your business registration and address proof.</p>
-                        </div>
 
-                        {/* Compliance Notice for GHS 100 Policy */}
-                        <div className="p-5 bg-amber-50 border-2 border-amber-100 rounded-[24px] space-y-2 animate-in zoom-in-95 duration-500">
-                            <div className="flex items-center gap-2 text-amber-900">
-                                <ShieldCheck className="w-5 h-5" />
-                                <span className="text-xs font-black uppercase tracking-widest">Pricing Compliance Policy</span>
+                            <div className="rounded-2xl bg-slate-50 border border-slate-100 px-4 py-4 space-y-2">
+                                <p className="text-sm font-semibold text-slate-900">Almost there</p>
+                                <p className="text-xs text-slate-500 leading-relaxed">
+                                    After signup you can open your dashboard right away. Upload Ghana Card and verification docs anytime under Settings — selling unlocks after approval (usually 4–5 hours).
+                                </p>
                             </div>
-                            <p className="text-[11px] text-amber-800 font-medium leading-relaxed">
-                                <strong className="font-bold">Attention:</strong> Vendors intending to sell products priced <strong className="font-bold underline">above GHS 100</strong> are required to upload a Business Registration Certificate. Accounts found selling high-value items without documentation are subject to immediate termination.
-                            </p>
-                        </div>
 
-                        <div className="space-y-4">
-                            <div className="space-y-1.5">
-                                <label className="text-xs font-bold text-slate-700 ml-1">Utility Document Type</label>
-                                <select 
-                                    value={utilityType} 
-                                    onChange={(e) => setUtilityType(e.target.value)} 
-                                    className="w-full px-4 py-3 bg-white border-2 border-slate-100 rounded-2xl text-sm focus:border-slate-900 outline-none transition-all appearance-none cursor-pointer"
-                                >
-                                    <option value="" disabled>Select Document Type</option>
-                                    <option value="Electricity">Electricity Bill</option>
-                                    <option value="Water">Water Bill</option>
-                                    <option value="Gas">Gas Bill</option>
-                                    <option value="Landline">Landline Phone Bill</option>
-                                    <option value="Wages">Wages Slip</option>
-                                    <option value="Other">Other (Please Specify)</option>
-                                </select>
-                            </div>
-                            
-                            {utilityType && (
-                                <React.Fragment>
-                                    {utilityType === 'Other' && (
-                                        <AuthInput 
-                                            label="Specify Document Name" 
-                                            type="text" 
-                                            placeholder="Eg. Tenancy Agreement" 
-                                            required 
-                                            value={customUtilityName} 
-                                            onChange={setCustomUtilityName} 
-                                            icon={FileText} 
-                                        />
-                                    )}
-
-                                    <div className="animate-in fade-in zoom-in-95 duration-300">
-                                        <FileInput 
-                                            label={utilityType === 'Other' ? (customUtilityName || 'Utility Document') : `${utilityType} Bill`} 
-                                            value={utilityBill} 
-                                            onChange={setUtilityBill} 
-                                            icon={FileText} 
-                                            description={`Proof of ${utilityType.toLowerCase()} (less than 4 months)`} 
-                                        />
-                                    </div>
-                                </React.Fragment>
-                            )}
-                            <FileInput label="Business Registration" value={businessRegistration} onChange={setBusinessRegistration} icon={Briefcase} description="Certificate of registration (Optional)" />
-                            <div className="pt-4 flex justify-center">
+                            <div className="pt-2 flex justify-center">
                                 <Turnstile
                                     siteKey={process.env.NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY || ''}
                                     onSuccess={(token) => setTurnstileToken(token)}
@@ -762,42 +783,39 @@ export const RegisterForm = ({ role, onSignup }: { role: UserRole, onSignup: (da
     };
 
     return (
-        <div className="w-full max-w-xl mx-auto space-y-8">
+        <div className="w-full space-y-6">
             {/* Progress Header */}
-            <div className="space-y-4">
+            <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Step {step}/{totalSteps}</span>
-                    <div className="flex gap-1">
+                    <span className="text-xs font-medium text-slate-500">Step {step}/{totalSteps}</span>
+                    <div className="flex gap-1.5">
                         {Array.from({ length: totalSteps }).map((_, i) => {
                             const s = i + 1;
                             return (
-                                <div key={s} className={`w-1.5 h-1.5 rounded-full transition-all ${s === step ? 'bg-slate-900 w-4' : s < step ? 'bg-emerald-500' : 'bg-slate-200'}`} />
+                                <div key={s} className={`h-1.5 rounded-full transition-all ${s === step ? 'bg-brand-lemon w-5' : s < step ? 'bg-brand-blue w-1.5' : 'bg-slate-200 w-1.5'}`} />
                             );
                         })}
                     </div>
                 </div>
                 <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                    <div 
-                        className="h-full bg-[#D8F800] transition-all duration-500" 
+                    <div
+                        className="h-full bg-brand-lemon transition-all duration-500"
                         style={{ width: `${(step / totalSteps) * 100}%` }}
                     />
                 </div>
             </div>
 
-            {/* Form Content Card */}
-            <div className="bg-white rounded-[32px] md:rounded-[40px] shadow-2xl shadow-slate-200/50 flex flex-col overflow-hidden">
-                {/* Scrollable Content Area */}
-                <div className="flex-1 p-6 md:p-12 overflow-y-auto max-h-[65vh] md:max-h-[60vh] scrollbar-hide">
+            <div className="flex flex-col rounded-xl border border-slate-200 bg-white overflow-hidden">
+                <div className="p-4 sm:p-5">
                     {renderStepContent()}
                 </div>
 
-                {/* Sticky Navigation Buttons */}
-                <div className="sticky bottom-0 bg-white/80 backdrop-blur-md px-6 md:px-12 py-6 md:py-8 border-t border-slate-50 flex gap-3 md:gap-4 z-10">
+                <div className="shrink-0 bg-white px-4 sm:px-5 py-3.5 border-t border-slate-100 flex gap-3 z-10">
                     {step > 1 && (
                         <button
                             type="button"
                             onClick={prevStep}
-                            className="px-6 md:px-10 py-4 bg-slate-50 text-slate-600 rounded-2xl font-bold text-sm tracking-wide hover:bg-slate-100 transition-all active:scale-95"
+                            className="px-5 h-11 bg-white border border-slate-200 text-slate-700 rounded-full text-sm font-medium hover:bg-slate-50 transition-all active:scale-95"
                         >
                             Back
                         </button>
@@ -806,7 +824,7 @@ export const RegisterForm = ({ role, onSignup }: { role: UserRole, onSignup: (da
                         <button
                             type="button"
                             onClick={nextStep}
-                            className="flex-1 py-4 bg-slate-900 text-white rounded-full font-bold text-sm tracking-wide hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/10 flex items-center justify-center gap-2 active:scale-[0.98]"
+                            className="flex-1 h-11 bg-brand-lemon text-slate-900 rounded-full text-sm font-semibold tracking-wide hover:bg-brand-lemon-hover transition-all shadow-md shadow-brand-lemon/25 flex items-center justify-center gap-2 active:scale-[0.98]"
                         >
                             Next <ArrowRight className="w-4 h-4" />
                         </button>
@@ -814,9 +832,9 @@ export const RegisterForm = ({ role, onSignup }: { role: UserRole, onSignup: (da
                         <button
                             type="submit"
                             onClick={handleSubmit}
-                            className="flex-1 py-4 bg-[#D8F800] text-slate-900 rounded-2xl font-black text-sm tracking-wide hover:bg-[#c6e400] transition-all shadow-xl shadow-[#D8F800]/20 active:scale-[0.98] flex items-center justify-center gap-2"
+                            className="flex-1 h-11 bg-brand-lemon text-slate-900 rounded-full text-sm font-semibold tracking-wide hover:bg-brand-lemon-hover transition-all shadow-md flex items-center justify-center gap-2 active:scale-[0.98]"
                         >
-                            Complete Registration <Check className="w-5 h-5" />
+                            Sign Up now <ArrowRight className="w-4 h-4" />
                         </button>
                     )}
                 </div>
@@ -969,13 +987,17 @@ function AuthContent() {
         if (urlRole === 'vendor') {
             setRole('vendor');
             localStorage.setItem('last_intended_role', 'vendor');
-            if (view !== 'login') setIsLogin(false);
+            if (view === 'register') setIsLogin(false);
+            else if (view === 'login') setIsLogin(true);
         } else if (urlRole === 'customer') {
             setRole('customer');
             localStorage.setItem('last_intended_role', 'customer');
             if (view === 'register') setIsLogin(false);
+            else if (view === 'login') setIsLogin(true);
         } else if (view === 'register') {
             setIsLogin(false);
+        } else if (view === 'login') {
+            setIsLogin(true);
         }
     }, [searchParams]);
 
@@ -1019,9 +1041,9 @@ function AuthContent() {
 
         try {
             Swal.fire({
-                title: role === 'vendor' ? 'Registering your studio...' : 'Creating your account...',
+                title: role === 'vendor' ? 'Creating your shop…' : 'Creating your account...',
                 html: role === 'vendor'
-                    ? '<div class="text-slate-600 text-sm">Uploading documents and sending verification SMS</div>'
+                    ? '<div class="text-slate-600 text-sm">Setting up your dashboard — verification docs can wait</div>'
                     : '<div class="text-slate-600 text-sm">Setting up your FLA account</div>',
                 didOpen: () => Swal.showLoading(),
                 allowOutsideClick: false,
@@ -1042,12 +1064,22 @@ function AuthContent() {
             };
 
             let kycUrls: any = {};
-            if (data.kyc && role === 'vendor') {
-                kycUrls.ghanaCardFront = await uploadFile(data.kyc.ghanaCardFront);
-                kycUrls.ghanaCardBack = await uploadFile(data.kyc.ghanaCardBack);
-                kycUrls.selfie = await uploadFile(data.kyc.selfie);
-                kycUrls.utilityBill = await uploadFile(data.kyc.utilityBill);
-                kycUrls.businessRegistration = await uploadFile(data.kyc.businessRegistration);
+            let profileImage: string | undefined;
+            if (role === 'vendor') {
+                if (!data.logoFile) {
+                    throw new Error('Vendor logo is required. Please upload your shop logo.');
+                }
+                const uploadedLogo = await uploadFile(data.logoFile);
+                if (!uploadedLogo) {
+                    throw new Error('Logo upload failed. Please try again.');
+                }
+                profileImage = uploadedLogo;
+                // KYC docs are optional at signup — vendors upload them later in the dashboard
+                if (data.kyc?.ghanaCardFront) kycUrls.ghanaCardFront = await uploadFile(data.kyc.ghanaCardFront);
+                if (data.kyc?.ghanaCardBack) kycUrls.ghanaCardBack = await uploadFile(data.kyc.ghanaCardBack);
+                if (data.kyc?.selfie) kycUrls.selfie = await uploadFile(data.kyc.selfie);
+                if (data.kyc?.utilityBill) kycUrls.utilityBill = await uploadFile(data.kyc.utilityBill);
+                if (data.kyc?.businessRegistration) kycUrls.businessRegistration = await uploadFile(data.kyc.businessRegistration);
             } else if (data.kyc && role === 'customer') {
                 if (data.kyc.ghanaCardFront) kycUrls.ghanaCardFront = await uploadFile(data.kyc.ghanaCardFront);
                 if (data.kyc.ghanaCardBack) kycUrls.ghanaCardBack = await uploadFile(data.kyc.ghanaCardBack);
@@ -1068,10 +1100,11 @@ function AuthContent() {
                     businessRegistration: kycUrls.businessRegistration,
                     digitalAddress: data.kyc.digitalAddress,
                     dob: data.kyc.dob,
-                     utilityType: data.kyc.utilityType,
+                    utilityType: data.kyc.utilityType,
                     employeeCount: data.kyc.employeeCount,
                     yearsOfExistence: data.kyc.yearsOfExistence,
                     bio: data.kyc.bio,
+                    profileImage,
                 } : {
                     ghanaCardNumber: data.kyc.ghanaCardNumber,
                     dob: data.kyc.dob,
@@ -1383,20 +1416,161 @@ function AuthContent() {
     };
 
     return (
-        <main className="min-h-screen bg-[#E5E7EB]/30 flex items-start md:items-center justify-center p-0 md:p-8 pt-20 md:pt-24">
-            <div className="bg-white w-full max-w-6xl min-h-screen md:min-h-[85vh] rounded-3xl md:rounded-[48px] shadow-2xl overflow-hidden flex flex-col md:flex-row">
-                <div className="w-full p-8 md:p-16 flex flex-col justify-between relative bg-white">
-                    <Link href="/" className="inline-flex items-center gap-3 mb-8">
-                        <Image 
-                            src="/logo.jpeg" 
-                            alt="FLA Logo" 
-                            width={40} 
-                            height={40} 
-                            className="h-10 w-auto object-contain rounded-xl shadow-lg shadow-slate-200/50"
-                        />
-                    </Link>
+        <main className="relative min-h-screen bg-[#EEF1F5] flex items-start justify-center p-4 sm:p-6 md:p-8 md:py-10 overflow-y-auto no-scrollbar">
+            <div className="relative w-full max-w-5xl bg-white rounded-2xl md:rounded-3xl shadow-xl shadow-slate-900/8 overflow-hidden flex flex-col md:flex-row my-auto">
+                {/* Brand panel */}
+                <aside className={`relative md:w-[40%] shrink-0 bg-brand-lemon text-slate-900 flex flex-col px-8 md:px-10 overflow-y-auto no-scrollbar ${
+                    !isLogin
+                        ? 'justify-start pt-5 pb-8 md:pt-6 md:pb-10'
+                        : 'justify-center py-8 md:py-12'
+                }`}>
+                    <div className="relative z-10 max-w-sm w-full mx-auto space-y-4 md:space-y-5">
+                        {!isLogin && (
+                            <div className="relative mx-auto mb-6 md:mb-8 mt-0 flex justify-center">
+                                <div className="relative w-40 h-40 sm:w-48 sm:h-48 md:w-52 md:h-52 rounded-full overflow-hidden ring-[3px] ring-white/55 shadow-[0_10px_30px_rgba(15,39,68,0.12)]">
+                                    <Image
+                                        src="/hero/signup-shopper.webp"
+                                        alt={role === 'vendor' ? 'Sell on FLA Purchase' : 'Shop on your phone with FLA'}
+                                        fill
+                                        sizes="208px"
+                                        className="object-cover object-[center_18%] select-none"
+                                        priority={false}
+                                    />
+                                </div>
+                            </div>
+                        )}
+                        {isLogin ? (
+                            <>
+                                <h2 className="text-2xl md:text-3xl font-semibold tracking-tight leading-tight">
+                                    New to FLA?
+                                </h2>
+                                <p className="text-sm text-slate-800/75 leading-relaxed">
+                                    Create a customer or vendor account and start shopping — or sell — on FLA Purchase.
+                                </p>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setIsLogin(false);
+                                        setShowForgotPassword(false);
+                                    }}
+                                    className="inline-flex items-center justify-center h-11 px-8 rounded-full border border-slate-900/40 text-sm font-semibold text-slate-900 hover:bg-brand-blue hover:text-white hover:border-brand-blue transition-colors"
+                                >
+                                    Sign Up
+                                </button>
+                            </>
+                        ) : role === 'vendor' ? (
+                            <div className="space-y-3 md:space-y-4 pt-1 md:pt-2">
+                                <p className="text-[11px] font-medium tracking-[0.14em] uppercase text-brand-blue">
+                                    Vendor guidelines
+                                </p>
+                                <h2 className="text-2xl md:text-3xl font-semibold tracking-tight leading-tight">
+                                    Before you register
+                                </h2>
+                                <p className="text-sm text-slate-800/70 leading-relaxed">
+                                    Quick notes so your shop application moves smoothly.
+                                </p>
+                                <ul className="space-y-3.5 text-sm text-slate-800/85 leading-relaxed">
+                                    <li className="flex gap-3">
+                                        <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-blue" />
+                                        <span>Start with basics: <strong className="font-medium text-slate-900">logo</strong>, shop name, and MoMo — you get dashboard access right away.</span>
+                                    </li>
+                                    <li className="flex gap-3">
+                                        <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-blue" />
+                                        <span>Forgot documents? Upload <strong className="font-medium text-slate-900">Ghana Card + selfie</strong> later in Settings when ready.</span>
+                                    </li>
+                                    <li className="flex gap-3">
+                                        <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-blue" />
+                                        <span>Explore your studio first — <strong className="font-medium text-slate-900">selling unlocks</strong> after KYC approval (usually 4–5 hours).</span>
+                                    </li>
+                                    <li className="flex gap-3">
+                                        <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-blue" />
+                                        <span>First month is <strong className="font-medium text-slate-900">GHS 10</strong>, then <strong className="font-medium text-slate-900">GHS 50/month</strong> (paid to FLA via MoMo).</span>
+                                    </li>
+                                </ul>
+                                <p className="pt-1 text-sm text-slate-800/60">
+                                    Already have an account?{' '}
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setIsLogin(true);
+                                            setShowForgotPassword(false);
+                                        }}
+                                        className="font-semibold text-brand-blue hover:underline"
+                                    >
+                                        Log in
+                                    </button>
+                                </p>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="space-y-3 md:space-y-4 pt-1 md:pt-2">
+                                <p className="text-[11px] font-medium tracking-[0.14em] uppercase text-brand-blue">
+                                    For shoppers
+                                </p>
+                                <h2 className="text-2xl md:text-3xl font-semibold tracking-tight leading-tight">
+                                    Shop with confidence
+                                </h2>
+                                <p className="text-sm text-slate-800/70 leading-relaxed">
+                                    Create your account once — then order from verified vendors across Ghana.
+                                </p>
+                                <ul className="space-y-2.5 pt-0.5 text-sm text-slate-800/85 leading-relaxed">
+                                    <li className="flex gap-3">
+                                        <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-blue" />
+                                        <span>Use a real phone number so order updates reach you.</span>
+                                    </li>
+                                    <li className="flex gap-3">
+                                        <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-blue" />
+                                        <span>Browse the marketplace or a vendor’s storefront link.</span>
+                                    </li>
+                                    <li className="flex gap-3">
+                                        <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-blue" />
+                                        <span>Look for documented vendor badges for extra trust.</span>
+                                    </li>
+                                </ul>
+                                <p className="pt-1 text-sm text-slate-800/60">
+                                    Already signed up?{' '}
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setIsLogin(true);
+                                            setShowForgotPassword(false);
+                                        }}
+                                        className="font-semibold text-brand-blue hover:underline"
+                                    >
+                                        Log in
+                                    </button>
+                                </p>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                </aside>
 
-                    <div className="flex-1 max-w-2xl mx-auto w-full flex flex-col justify-center">
+                {/* Form panel */}
+                <div className="flex-1 flex flex-col px-6 py-8 sm:px-10 md:px-12 md:py-10 min-w-0">
+                    <div className="flex items-center justify-between gap-3 mb-6">
+                        <Link href="/" className="inline-flex items-center gap-2.5 group">
+                            <Image
+                                src="/logo.jpeg"
+                                alt="FLA Logo"
+                                width={36}
+                                height={36}
+                                className="h-9 w-9 object-contain rounded-lg shadow-sm"
+                            />
+                            <span className="text-sm font-semibold tracking-tight text-slate-900 group-hover:text-brand-lemon-hover transition-colors">
+                                FLA Purchase
+                            </span>
+                        </Link>
+                        <a
+                            href="mailto:Help@FlaPurchase.com"
+                            className="hidden sm:inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-900 transition-colors"
+                        >
+                            <Mail className="w-3.5 h-3.5" />
+                            Help
+                        </a>
+                    </div>
+
+                    <div className="w-full max-w-md mx-auto flex flex-col">
                         {showTerms ? (
                             <TermsAcceptanceScreen
                                 role={termsRole}
@@ -1408,45 +1582,83 @@ function AuthContent() {
                         ) : showOTP ? (
                             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                                 <div className="mb-8">
-                                    <div className="w-16 h-16 bg-[#D8F800]/20 text-slate-900 rounded-[24px] flex items-center justify-center mb-6">
-                                        <MessageSquare className="w-8 h-8" />
+                                    <div className="w-14 h-14 bg-brand-lemon/40 text-slate-900 rounded-2xl flex items-center justify-center mb-5">
+                                        <MessageSquare className="w-7 h-7" />
                                     </div>
-                                    <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tighter mb-2">Verify Studio</h2>
-                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
-                                        Code sent via SMS to {pendingVendorPhone ? maskPhone(pendingVendorPhone) : 'your phone'}. Enter the 4-digit code from the text message.
+                                    <h2 className="text-2xl font-bold text-slate-900 tracking-tight mb-2">Verify Studio</h2>
+                                    <p className="text-sm text-slate-500">
+                                        Code sent via SMS to {pendingVendorPhone ? maskPhone(pendingVendorPhone) : 'your phone'}. Enter the 4-digit code.
                                     </p>
                                 </div>
                                 <div className="flex gap-3 mb-8">
                                     {otp.map((digit, i) => (
-                                        <input key={i} id={`otp-${i}`} type="text" maxLength={1} value={digit} onChange={(e) => handleOtpChange(i, e.target.value)} onPaste={handlePaste} className="w-full aspect-square bg-slate-50 border-none rounded-2xl text-2xl font-black text-center focus:ring-4 focus:ring-[#D8F800]/20" />
+                                        <input
+                                            key={i}
+                                            id={`otp-${i}`}
+                                            type="text"
+                                            maxLength={1}
+                                            value={digit}
+                                            onChange={(e) => handleOtpChange(i, e.target.value)}
+                                            onPaste={handlePaste}
+                                            className="w-full aspect-square bg-slate-50 border border-slate-200 rounded-xl text-2xl font-bold text-center focus:ring-2 focus:ring-brand-lemon/30 focus:border-brand-lemon outline-none"
+                                        />
                                     ))}
                                 </div>
-                                <button onClick={handleVerifyOtp} disabled={otp.join('').length < 4} className="w-full py-5 bg-slate-900 text-white rounded-full font-black text-xs uppercase tracking-[0.2em] mb-6 hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/10 disabled:opacity-50">
+                                <button
+                                    onClick={handleVerifyOtp}
+                                    disabled={otp.join('').length < 4}
+                                    className="w-full h-12 inline-flex items-center justify-center gap-2 bg-brand-lemon text-slate-900 rounded-full text-sm font-semibold tracking-wide mb-5 hover:bg-brand-lemon-hover transition-all shadow-lg shadow-brand-lemon/25 disabled:opacity-50"
+                                >
                                     Verify & Launch Hub
+                                    <ArrowRight className="w-4 h-4" />
                                 </button>
                                 <div className="text-center">
                                     {timer > 0 ? (
-                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Resend code in {timer}s</p>
+                                        <p className="text-xs font-medium text-slate-400">Resend code in {timer}s</p>
                                     ) : (
-                                        <button onClick={handleResendOtp} className="text-[10px] font-black text-slate-900 uppercase tracking-widest hover:underline">Didn't get the code? Resend</button>
+                                        <button onClick={handleResendOtp} className="text-xs font-semibold text-slate-900 hover:underline">
+                                            Didn&apos;t get the code? Resend
+                                        </button>
                                     )}
                                 </div>
                             </div>
                         ) : (
                             <React.Fragment>
                                 <header className="mb-6">
-                                    <h2 className="text-4xl font-black text-slate-900 uppercase tracking-tighter mb-1">
-                                        {isLogin ? 'WELCOME BACK' : (role === 'vendor' ? 'REGISTER YOUR SHOP' : 'REGISTER TO PURCHASE')}
+                                    <h2 className="text-3xl sm:text-[2rem] font-bold text-slate-900 tracking-tight mb-1.5">
+                                        {showForgotPassword
+                                            ? 'Reset password'
+                                            : isLogin
+                                                ? 'Welcome back'
+                                                : role === 'vendor'
+                                                    ? 'Create vendor account'
+                                                    : 'Create account'}
                                     </h2>
-                                    <p className="text-sm text-slate-500 font-medium tracking-tight">
-                                        {isLogin ? 'Sign in to access your fashion dashboard.' : 'Start your journey with FLA Purchase today.'}
+                                    <p className="text-sm text-slate-500">
+                                        {showForgotPassword
+                                            ? 'We will send a code to reset your password.'
+                                            : isLogin
+                                                ? 'Sign in to access your FLA dashboard.'
+                                                : 'Start your journey with FLA Purchase today.'}
                                     </p>
                                 </header>
 
-                                {!isLogin && !searchParams.get('role') && (
-                                    <div className="flex p-1 bg-slate-50 rounded-full mb-6 border border-slate-100">
-                                        <button onClick={() => { setRole('customer'); localStorage.setItem('last_intended_role', 'customer'); }} className={`flex-1 py-2 text-[10px] font-bold rounded-full transition-all ${role === 'customer' ? 'bg-white text-slate-900 shadow-sm border border-slate-100' : 'text-slate-400 hover:text-slate-600'}`}>Customer</button>
-                                        <button onClick={() => { setRole('vendor'); localStorage.setItem('last_intended_role', 'vendor'); }} className={`flex-1 py-2 text-[10px] font-bold rounded-full transition-all ${role === 'vendor' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>Vendor</button>
+                                {!isLogin && !showForgotPassword && !searchParams.get('role') && (
+                                    <div className="flex p-1 bg-slate-100 rounded-full mb-6">
+                                        <button
+                                            type="button"
+                                            onClick={() => { setRole('customer'); localStorage.setItem('last_intended_role', 'customer'); }}
+                                            className={`flex-1 py-2.5 text-xs font-semibold rounded-full transition-all ${role === 'customer' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                        >
+                                            Customer
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => { setRole('vendor'); localStorage.setItem('last_intended_role', 'vendor'); }}
+                                            className={`flex-1 py-2.5 text-xs font-semibold rounded-full transition-all ${role === 'vendor' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                        >
+                                            Vendor
+                                        </button>
                                     </div>
                                 )}
 
@@ -1465,39 +1677,42 @@ function AuthContent() {
                                     <RegisterForm role={role} onSignup={handleSignup} />
                                 )}
 
+                                {/* Mobile switch — desktop uses the brand panel */}
                                 {!showForgotPassword && (
-                                    <div className="mt-6">
-                                        <button
-                                            type="button"
-                                            onClick={() => setIsLogin(!isLogin)}
-                                            className="w-full py-4 bg-white border-2 border-slate-100 text-slate-500 rounded-full font-bold text-xs uppercase tracking-widest hover:border-slate-300 hover:text-slate-900 transition-all shadow-sm"
-                                        >
-                                            {isLogin ? 'New here? Create Account' : 'Already have an account? Sign In'}
-                                        </button>
-                                    </div>
+                                    <p className="md:hidden mt-6 text-center text-sm text-slate-500">
+                                        {isLogin ? (
+                                            <>
+                                                New here?{' '}
+                                                <button type="button" onClick={() => setIsLogin(false)} className="font-semibold text-slate-900 hover:underline">
+                                                    Create account
+                                                </button>
+                                            </>
+                                        ) : (
+                                            <>
+                                                Already signed up?{' '}
+                                                <button type="button" onClick={() => setIsLogin(true)} className="font-semibold text-slate-900 hover:underline">
+                                                    Log in
+                                                </button>
+                                            </>
+                                        )}
+                                    </p>
                                 )}
                             </React.Fragment>
                         )}
                     </div>
-
-                    <div className="mt-8 flex items-center justify-center md:justify-start gap-2 text-slate-300">
-                        <Mail className="w-4 h-4" />
-                        <span className="text-[10px] font-black uppercase tracking-widest">Help@FlaPurchase.com</span>
-                    </div>
                 </div>
             </div>
-            <style jsx>{`
-                .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-                .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-                .custom-scrollbar::-webkit-scrollbar-thumb { background: #f1f5f9; border-radius: 10px; }
-            `}</style>
         </main>
     );
 }
 
 export default function AuthPage() {
     return (
-        <Suspense fallback={<div className="min-h-screen bg-white flex items-center justify-center">Loading...</div>}>
+        <Suspense fallback={
+            <div className="min-h-screen bg-[#EEF1F5] flex items-center justify-center">
+                <div className="w-10 h-10 rounded-full border-2 border-brand-lemon border-t-transparent animate-spin" />
+            </div>
+        }>
             <AuthContent />
         </Suspense>
     );
