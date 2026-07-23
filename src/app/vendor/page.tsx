@@ -991,12 +991,12 @@ export default function VendorDashboard() {
 
             <main className="flex-1 lg:ml-80 min-h-screen relative">
                 {/* Dashboard Navigation Channels */}
-                <header className="sticky top-0 bg-white/80 backdrop-blur-xl border-b border-slate-50 px-6 md:px-12 py-6 flex items-center justify-between z-30">
+                <header className="sticky top-0 bg-white/80 backdrop-blur-xl border-b border-slate-50 px-4 sm:px-6 md:px-12 py-4 md:py-6 flex items-center justify-between z-30 gap-3">
                     <VendorHeader activeSection={activeSection} shopName={user?.shopName || 'Studio'} profileImage={user?.profileImage} />
                     <VendorMobileHeader activeSection={activeSection} setIsSidebarOpen={setIsSidebarOpen} />
                 </header>
 
-                <div className="px-6 md:px-12 py-10 pb-32">
+                <div className="px-4 sm:px-6 md:px-12 py-8 md:py-10 pb-20 md:pb-24">
                     {isPendingReview && (
                         <div className="mb-8 p-6 md:p-8 bg-amber-50 border border-amber-100 rounded-[32px] space-y-2">
                             <p className="text-[10px] font-black text-amber-800 uppercase tracking-widest">Application pending approval</p>
@@ -1074,7 +1074,7 @@ export default function VendorDashboard() {
                                     <div className="flex-1 px-4 py-3 rounded-xl bg-white/10 border border-white/15 text-xs font-bold break-all">
                                         {storefrontUrl(user.storeSlug)}
                                     </div>
-                                    <div className="flex gap-2 shrink-0">
+                                    <div className="flex gap-2 w-full sm:w-auto shrink-0">
                                         <button
                                             type="button"
                                             onClick={async () => {
@@ -1092,7 +1092,7 @@ export default function VendorDashboard() {
                                                     /* ignore */
                                                 }
                                             }}
-                                            className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-full bg-brand-lemon text-slate-900 text-[10px] font-black uppercase tracking-widest hover:bg-white transition-colors"
+                                            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-5 py-3 rounded-full bg-brand-lemon text-slate-900 text-[10px] font-black uppercase tracking-widest hover:bg-white transition-colors"
                                         >
                                             <Copy className="w-3.5 h-3.5" />
                                             Copy
@@ -1101,7 +1101,7 @@ export default function VendorDashboard() {
                                             href={storeHomePath(user.storeSlug)}
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-full bg-white/10 border border-white/20 text-white text-[10px] font-black uppercase tracking-widest hover:bg-white/20 transition-colors"
+                                            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-5 py-3 rounded-full bg-white/10 border border-white/20 text-white text-[10px] font-black uppercase tracking-widest hover:bg-white/20 transition-colors"
                                         >
                                             <ArrowUpRight className="w-3.5 h-3.5" />
                                             Open
@@ -1144,17 +1144,17 @@ export default function VendorDashboard() {
 
             {/* Product Design Studio (Modal) */}
             {showAddProduct && (canUploadProducts || editingProduct) && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 md:p-8">
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-4 md:p-8">
                     <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-xl" onClick={() => setShowAddProduct(false)} />
-                    <div className="relative w-full max-w-4xl max-h-[90vh] bg-white rounded-[48px] overflow-hidden shadow-2xl flex flex-col animate-in zoom-in-95 duration-300">
-                        <div className="p-8 border-b border-slate-50 flex items-center justify-between">
-                            <div>
-                                <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">{editingProduct ? 'Edit Product' : 'Add New Product'}</h3>
-                                <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mt-1">Configure your product details for the marketplace.</p>
+                    <div className="relative w-full max-w-4xl max-h-[92dvh] bg-white rounded-3xl md:rounded-[48px] overflow-hidden shadow-2xl flex flex-col animate-in zoom-in-95 duration-300">
+                        <div className="p-5 sm:p-6 md:p-8 border-b border-slate-50 flex items-center justify-between gap-3">
+                            <div className="min-w-0">
+                                <h3 className="text-xl sm:text-2xl font-black text-slate-900 uppercase tracking-tighter truncate">{editingProduct ? 'Edit Product' : 'Add New Product'}</h3>
+                                <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mt-1 hidden sm:block">Configure your product details for the marketplace.</p>
                             </div>
-                            <button onClick={() => setShowAddProduct(false)} className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center hover:bg-slate-900 hover:text-white transition-all"><X className="w-6 h-6" /></button>
+                            <button onClick={() => setShowAddProduct(false)} className="w-11 h-11 sm:w-12 sm:h-12 shrink-0 rounded-2xl bg-slate-50 flex items-center justify-center hover:bg-slate-900 hover:text-white transition-all"><X className="w-6 h-6" /></button>
                         </div>
-                        <div className="flex-1 overflow-y-auto p-8 md:p-12 space-y-12">
+                        <div className="flex-1 overflow-y-auto p-5 sm:p-8 md:p-12 space-y-8 md:space-y-12">
                             {/* Visual Assets (Images) */}
                             <div className="space-y-6">
                                 <label className="text-[12px] font-black text-slate-900 uppercase tracking-widest ml-1">Visualization (Images)</label>
@@ -1290,7 +1290,7 @@ export default function VendorDashboard() {
                             </div>
 
                             {/* Logistic Specs (Category, Stock, Tailoring, Region) */}
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 md:gap-8">
                                 <div className="space-y-4">
                                     <label htmlFor="p-category" className="text-[12px] font-black text-slate-900 uppercase tracking-widest ml-1 cursor-pointer">Category</label>
                                     <select id="p-category" name="category" value={formCategory} onChange={(e) => setFormCategory(e.target.value)} className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-slate-900/10 h-14">

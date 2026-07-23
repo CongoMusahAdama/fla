@@ -158,17 +158,17 @@ export const VendorSettings: React.FC<VendorSettingsProps> = ({
       </div>
 
       {/* Step indicator */}
-      <nav aria-label="Profile setup steps" className="bg-white rounded-2xl border border-slate-100 p-4 md:p-5 shadow-sm">
-        <ol className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <nav aria-label="Profile setup steps" className="bg-white rounded-2xl border border-slate-100 p-3 sm:p-4 md:p-5 shadow-sm">
+        <ol className="flex sm:grid sm:grid-cols-3 gap-2 sm:gap-3 overflow-x-auto no-scrollbar -mx-1 px-1">
           {STEPS.map((s, i) => {
             const active = s.id === step;
             const done = i < stepIndex || (s.id === 'documents' && Boolean(user?.kycApprovedAt || user?.kycSubmittedAt));
             return (
-              <li key={s.id}>
+              <li key={s.id} className="min-w-[9.5rem] sm:min-w-0 shrink-0 sm:shrink">
                 <button
                   type="button"
                   onClick={() => setStep(s.id)}
-                  className={`w-full text-left rounded-xl px-4 py-4 transition-colors border ${
+                  className={`w-full text-left rounded-xl px-3 sm:px-4 py-3 sm:py-4 transition-colors border ${
                     active
                       ? 'bg-brand-lemon/25 border-brand-lemon text-slate-900'
                       : done
@@ -180,7 +180,7 @@ export const VendorSettings: React.FC<VendorSettingsProps> = ({
                     Step {i + 1}
                   </span>
                   <span className="text-sm font-bold block mt-0.5">{s.label}</span>
-                  <span className="text-[11px] text-slate-500 block mt-1 leading-snug">{s.hint}</span>
+                  <span className="hidden sm:block text-[11px] text-slate-500 mt-1 leading-snug">{s.hint}</span>
                 </button>
               </li>
             );
@@ -399,7 +399,7 @@ export const VendorSettings: React.FC<VendorSettingsProps> = ({
               </div>
               <div className="space-y-1.5">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Account Number</label>
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <input
                     type="text"
                     value={momoNumber}
@@ -408,13 +408,13 @@ export const VendorSettings: React.FC<VendorSettingsProps> = ({
                       setVerificationError(null);
                     }}
                     placeholder={isMomo ? '024XXXXXXX' : 'XXXXXXXXXX'}
-                    className={`flex-1 px-5 py-3.5 bg-slate-50 border ${verificationError ? 'border-red-200' : 'border-slate-100'} rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20 outline-none`}
+                    className={`w-full sm:flex-1 px-5 py-3.5 bg-slate-50 border ${verificationError ? 'border-red-200' : 'border-slate-100'} rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20 outline-none`}
                   />
                   <button
                     type="button"
                     onClick={handleVerifyAccount}
                     disabled={isVerifying}
-                    className="px-5 bg-slate-900 text-white text-[9px] font-black uppercase tracking-widest rounded-full hover:bg-black transition-all disabled:opacity-50 flex items-center justify-center min-w-[100px]"
+                    className="h-12 sm:h-auto px-5 bg-slate-900 text-white text-[9px] font-black uppercase tracking-widest rounded-full hover:bg-black transition-all disabled:opacity-50 flex items-center justify-center sm:min-w-[100px] shrink-0"
                   >
                     {isVerifying ? (
                       <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />

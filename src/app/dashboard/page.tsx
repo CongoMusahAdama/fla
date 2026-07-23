@@ -1287,7 +1287,7 @@ export default function CustomerDashboard() {
                                 </div>
                             </div>
 
-                            <div className="sticky bottom-4 z-20 pt-6 pb-2 md:static md:pb-0">
+                            <div className="sticky bottom-24 z-20 pt-6 pb-2 md:static md:bottom-auto md:pb-0">
                                 <button
                                     onClick={handleUpdateProfile}
                                     disabled={isUpdating || isUploadingImage}
@@ -1602,7 +1602,7 @@ export default function CustomerDashboard() {
             </aside>
 
             {/* Dashboard Mobile Header */}
-            <header className="md:hidden fixed top-0 left-0 w-full z-[80] bg-white/95 backdrop-blur-md border-b border-slate-100 h-16 flex items-center justify-between px-6 mt-14">
+            <header className="md:hidden fixed top-0 left-0 w-full z-[80] bg-white/95 backdrop-blur-md border-b border-slate-100 h-16 flex items-center justify-between px-6">
                 <Link href="/">
                     <Image 
                         src="/logo.jpeg" 
@@ -1655,13 +1655,13 @@ export default function CustomerDashboard() {
                     </div>
                 </header>
 
-                <div className="p-6 md:p-12 pt-36 md:pt-12 pb-24 w-full max-w-[95%] mx-auto">
+                <div className="p-6 md:p-12 pt-24 md:pt-12 pb-28 w-full max-w-[95%] mx-auto">
                     {renderContent()}
                 </div>
 
                 {/* Live Support / Chat UI */}
                 {showLiveSupport && (
-                    <div className="fixed bottom-8 right-8 z-[400] w-full max-w-sm animate-in slide-in-from-bottom-10 duration-500">
+                    <div className="fixed z-[400] left-4 right-4 bottom-24 md:left-auto md:right-8 md:bottom-8 w-auto max-w-sm animate-in slide-in-from-bottom-10 duration-500">
                         <div className="bg-white rounded-[32px] shadow-2xl border border-slate-100 overflow-hidden">
                             <div className="bg-slate-900 p-6 text-white flex justify-between items-center">
                                 <div className="flex items-center gap-3">
