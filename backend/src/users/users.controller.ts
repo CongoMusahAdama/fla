@@ -122,6 +122,17 @@ export class UsersController {
 
   @Get('admin/:id/agreement-letter.pdf')
   @UseGuards(AuthGuard('jwt'))
+  async downloadAgreementPdfLegacy(
+    @Request() req,
+    @Param('id') id: string,
+    @Res() res: Response,
+  ) {
+    return this.downloadAgreementPdf(req, id, res);
+  }
+
+  /** Preferred download path (avoids `.pdf` suffix routing quirks on some hosts). */
+  @Get('admin/:id/agreement-letter/download')
+  @UseGuards(AuthGuard('jwt'))
   async downloadAgreementPdf(
     @Request() req,
     @Param('id') id: string,
@@ -131,6 +142,7 @@ export class UsersController {
     const { buffer, filename } = await this.usersService.generateAgreementPdf(id);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Length', String(buffer.length));
     res.send(buffer);
   }
 

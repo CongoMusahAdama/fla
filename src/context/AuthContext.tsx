@@ -37,6 +37,9 @@ export type User = {
     subscriptionPriceGhs?: number;
     subscriptionStartsAt?: string | Date | null;
     subscriptionEndsAt?: string | Date | null;
+    /** KYC approved but must pay via Paystack before uploads */
+    subscriptionPaymentRequired?: boolean;
+    subscriptionLastPaidAt?: string | Date | null;
     walletBalance?: number;
     pendingBalance?: number;
     region?: string;
@@ -100,6 +103,8 @@ function mapApiUser(raw: Record<string, unknown>): User {
         subscriptionPriceGhs: raw.subscriptionPriceGhs as number | undefined,
         subscriptionStartsAt: (raw.subscriptionStartsAt as string | Date | null | undefined) ?? null,
         subscriptionEndsAt: (raw.subscriptionEndsAt as string | Date | null | undefined) ?? null,
+        subscriptionPaymentRequired: Boolean(raw.subscriptionPaymentRequired),
+        subscriptionLastPaidAt: (raw.subscriptionLastPaidAt as string | Date | null | undefined) ?? null,
         ghanaCardFront: raw.ghanaCardFront as string | undefined,
         ghanaCardBack: raw.ghanaCardBack as string | undefined,
         selfie: raw.selfie as string | undefined,
@@ -292,7 +297,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const updateUser = useCallback((updatedData: Partial<User>) => {
         setUser(prev => {
             if (!prev) return null;
-            const newUser = { ...prev, ...updatedData };
+            // Do not overwrite existing fields with undefined from a partial API payload
+            const cleaned = Object.fromEntries(
+                Object.entries(updatedData).filter(([, v]) => v !== undefined),
+            ) as Partial<User>;
+            const newUser = { ...prev, ...cleaned };
             localStorage.setItem('fla_user', JSON.stringify(newUser));
             return newUser;
         });

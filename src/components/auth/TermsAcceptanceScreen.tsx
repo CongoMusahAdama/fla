@@ -27,7 +27,7 @@ export function TermsAcceptanceScreen({
     const body = encodeURIComponent(
       `Please send me a copy of the FLA Purchase Terms and Conditions (version ${FLA_TERMS_VERSION}).\n\nMy account email: ${userEmail || ""}`
     );
-    window.location.href = `mailto:Help@FlaPurchase.com?subject=${subject}&body=${body}`;
+    window.location.href = `mailto:support@flamingo-store1.com?subject=${subject}&body=${body}`;
   };
 
   return (

@@ -23,11 +23,13 @@ import {
 } from './vendor-agreement-pdf.util';
 import {
   introSubscriptionFields,
+  unpaidIntroSubscriptionFields,
   isSubscriptionActive,
   amountDueForRenewal,
   daysUntilSubscriptionEnd,
   startOfDayIsoDate,
   addDays,
+  planFieldsAfterPayment,
 } from './vendor-subscription.util';
 import { FLA_CONSTANTS } from '../common/constants';
 
@@ -248,9 +250,9 @@ export class UsersService implements OnModuleInit {
         verificationDeclineReason,
         isIdentityVerified: isVerified,
         isEmailVerified: true,
-        // Vendors get dashboard access immediately; selling stays locked until KYC approve (kycApprovedAt).
+        // Vendors get dashboard access immediately; selling stays locked until KYC + Paystack subscription.
         status: 'active',
-        ...(role === 'vendor' ? introSubscriptionFields() : {}),
+        ...(role === 'vendor' ? unpaidIntroSubscriptionFields() : {}),
       });
       const savedUser = await createdUser.save();
 
@@ -364,6 +366,7 @@ export class UsersService implements OnModuleInit {
     delete updateData.subscriptionPriceText;
     delete updateData.subscriptionStartsAt;
     delete updateData.subscriptionEndsAt;
+    delete updateData.subscriptionPaymentRequired;
     delete updateData.kycSubmittedAt;
 
     if (updateData.paymentMethods?.length) {
@@ -402,10 +405,8 @@ export class UsersService implements OnModuleInit {
 
     const updatedUser = await this.userModel.findByIdAndUpdate(id, { $set: updateData }, { new: true }).lean().exec() as unknown as User;
     
-    // If payment methods were updated for a vendor, sync with Paystack
-    if (updateData.paymentMethods && id) {
-      this.syncVendorSubaccount(id).catch(err => this.logger.error(err));
-    }
+    // Do NOT sync Paystack subaccounts on vendor self-serve profile/KYC saves.
+    // Subaccounts are created only when admin approves the vendor (approveVendorKycForSelling).
 
     if (existing?.role === 'vendor') {
       const becameActive = updateData.status === 'active' || (updatedUser as any)?.status === 'active';
@@ -426,13 +427,10 @@ export class UsersService implements OnModuleInit {
     if (!user || user.role !== 'vendor') return;
 
     if (user.paystackSubaccountCode) {
-      try {
-        await this.applyPaystackSplitToSubaccount(user.paystackSubaccountCode);
-      } catch (error) {
-        this.logger.error(
-          `Failed to update Paystack split for vendor ${userId}: ${error.response?.data?.message || error.message}`,
-        );
-      }
+      // Already linked — do not update Paystack (avoids re-approval / duplicate pending accounts).
+      this.logger.log(
+        `Vendor ${userId} already has Paystack subaccount ${user.paystackSubaccountCode}; skipping sync`,
+      );
       return;
     }
 
@@ -570,6 +568,7 @@ export class UsersService implements OnModuleInit {
       subscriptionPriceGhs?: number;
       subscriptionStartsAt?: Date;
       subscriptionEndsAt?: Date;
+      subscriptionPaymentRequired?: boolean;
       verificationStatus?: string;
       isIdentityVerified?: boolean;
     },
@@ -610,6 +609,7 @@ export class UsersService implements OnModuleInit {
       subscriptionEndsAt: endsAt,
       subscriptionLastPaidAt: now,
       subscriptionLastPaidAmount: amount,
+      subscriptionPaymentRequired: false,
       ...(opts?.note ? { subscriptionLastPaidNote: opts.note } : {}),
     };
 
@@ -645,8 +645,6 @@ export class UsersService implements OnModuleInit {
     const now = new Date();
     const today = startOfDayIsoDate(now);
     const windowEnd = addDays(now, FLA_CONSTANTS.SUBSCRIPTION_REMINDER_DAYS);
-    const momoNumber = process.env.FLA_SUBSCRIPTION_MOMO_NUMBER || '';
-    const momoName = process.env.FLA_SUBSCRIPTION_MOMO_NAME || 'FLA';
 
     const vendors = await this.userModel
       .find({
@@ -673,9 +671,7 @@ export class UsersService implements OnModuleInit {
       }
       const amount = amountDueForRenewal(v as any);
       const shop = (v as any).shopName || (v as any).name || 'Vendor';
-      const payBit = momoNumber
-        ? ` Pay GHS ${amount} to ${momoName} MoMo ${momoNumber}.`
-        : ` Pay GHS ${amount} to FLA (MoMo) to renew.`;
+      const payBit = ` Pay GHS ${amount} via Paystack in your vendor dashboard to renew.`;
       const msg = `FLA reminder: ${shop} subscription ends in ${daysLeft} day${daysLeft === 1 ? '' : 's'}.${payBit} After due date you cannot upload new products.`;
 
       if ((v as any).phone) {
@@ -722,9 +718,7 @@ export class UsersService implements OnModuleInit {
     for (const v of expired) {
       const amount = FLA_CONSTANTS.SUBSCRIPTION_MONTHLY_GHS;
       const shop = (v as any).shopName || (v as any).name || 'Vendor';
-      const payBit = momoNumber
-        ? ` Pay GHS ${amount} to ${momoName} MoMo ${momoNumber} to unlock uploads.`
-        : ` Pay GHS ${amount} to FLA (MoMo) to unlock product uploads.`;
+      const payBit = ` Pay GHS ${amount} via Paystack in your vendor dashboard to unlock uploads.`;
       const msg = `FLA: ${shop} subscription has ended. You can still sell existing products but cannot upload new ones until renewed.${payBit}`;
 
       if ((v as any).phone) {
@@ -815,19 +809,25 @@ export class UsersService implements OnModuleInit {
     if (existing.businessRegistration?.trim()) {
       update.vendorTier = 'high';
     }
-    // Start intro subscription window if none / already expired
-    if (!isSubscriptionActive(existing as any)) {
-      Object.assign(update, introSubscriptionFields());
-    }
+    // After KYC: uploads stay locked until they pay intro (GHS 10) via Paystack
+    Object.assign(update, unpaidIntroSubscriptionFields());
 
     const user = (await this.userModel
-      .findByIdAndUpdate(id, { $set: update }, { new: true })
+      .findByIdAndUpdate(
+        id,
+        {
+          $set: update,
+          $unset: { subscriptionEndsAt: 1, subscriptionStartsAt: 1 },
+        },
+        { new: true },
+      )
       .lean()
       .exec()) as unknown as User;
 
     await this.ensureStoreSlug(id, (user as any)?.shopName || (user as any)?.name).catch((err) =>
       this.logger.error(`storeSlug on KYC approve: ${err.message}`),
     );
+    // Only admin approve creates/links the Paystack payout subaccount
     this.syncVendorSubaccount(id).catch((err) =>
       this.logger.error(`Paystack sync on KYC approve: ${err.message}`),
     );
@@ -840,12 +840,75 @@ export class UsersService implements OnModuleInit {
       const storeBit = slug ? ` Your store: ${loginUrl}/store/${slug}` : '';
       this.sendRegistrationSms(
         (user as any).phone,
-        `Great news ${shop}! Your FLA documents are approved. You can start selling now. Login: ${loginUrl}/auth?view=login&role=vendor${storeBit}`,
+        `Great news ${shop}! Your FLA documents are approved. Pay GHS ${FLA_CONSTANTS.SUBSCRIPTION_INTRO_GHS} in your vendor dashboard to unlock product uploads.${storeBit}`,
         'vendor-kyc-approved-sell',
       );
     }
 
     return this.userModel.findById(id).lean().exec() as unknown as User;
+  }
+
+  /** Activate/extend subscription after successful Paystack payment (webhook or verify). */
+  async activateSubscriptionFromPayment(
+    vendorId: string,
+    opts?: { amountGhs?: number; reference?: string },
+  ) {
+    const existing = await this.userModel.findById(vendorId).exec();
+    if (!existing || existing.role !== 'vendor') {
+      throw new NotFoundException('Vendor not found');
+    }
+
+    if (
+      opts?.reference &&
+      existing.subscriptionLastPaidNote &&
+      String(existing.subscriptionLastPaidNote).includes(opts.reference)
+    ) {
+      const already = existing.toObject();
+      return {
+        activated: true,
+        alreadyProcessed: true,
+        subscriptionEndsAt: already.subscriptionEndsAt,
+        amountPaid: already.subscriptionLastPaidAmount,
+        vendor: { ...already, id: already._id?.toString?.() || vendorId },
+      };
+    }
+
+    const fields = planFieldsAfterPayment(existing as any);
+    if (typeof opts?.amountGhs === 'number' && opts.amountGhs > 0) {
+      (fields as any).subscriptionLastPaidAmount = opts.amountGhs;
+    }
+    if (opts?.reference) {
+      (fields as any).subscriptionLastPaidNote = `Paystack ${opts.reference}`;
+    }
+
+    const user = await this.userModel
+      .findByIdAndUpdate(
+        vendorId,
+        { $set: fields, $unset: { lastSubscriptionReminderDate: 1 } },
+        { new: true },
+      )
+      .select('-password -resetPasswordToken -resetPasswordExpires')
+      .lean()
+      .exec();
+
+    if ((user as any)?.phone) {
+      const shop = (user as any).shopName || (user as any).name;
+      const ends = (user as any).subscriptionEndsAt
+        ? new Date((user as any).subscriptionEndsAt).toLocaleDateString()
+        : '';
+      this.sendRegistrationSms(
+        (user as any).phone,
+        `FLA: Subscription active for ${shop}${ends ? ` until ${ends}` : ''}. You can upload products now.`,
+        'vendor-subscription-paystack',
+      );
+    }
+
+    return {
+      activated: true,
+      subscriptionEndsAt: (user as any)?.subscriptionEndsAt,
+      amountPaid: (fields as any).subscriptionLastPaidAmount,
+      vendor: { ...(user as any), id: (user as any)?._id?.toString?.() || vendorId },
+    };
   }
 
   async getPublicVendorProfile(vendorId: string) {

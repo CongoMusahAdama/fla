@@ -204,6 +204,10 @@ export class User {
     @Prop()
     subscriptionEndsAt?: Date;
 
+    /** KYC approved but must pay subscription via Paystack before uploading products */
+    @Prop({ default: false })
+    subscriptionPaymentRequired?: boolean;
+
     /** YYYY-MM-DD — last daily subscription reminder sent */
     @Prop()
     lastSubscriptionReminderDate?: string;

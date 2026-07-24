@@ -1562,7 +1562,7 @@ function AuthContent() {
                             </span>
                         </Link>
                         <a
-                            href="mailto:Help@FlaPurchase.com"
+                            href="mailto:support@flamingo-store1.com"
                             className="hidden sm:inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-900 transition-colors"
                         >
                             <Mail className="w-3.5 h-3.5" />

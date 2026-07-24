@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { getImageUrl } from '@/lib/utils';
-import { ArrowLeft, Download, Loader2, Printer } from 'lucide-react';
+import { ArrowLeft, Download, Loader2, Printer, Send } from 'lucide-react';
 import Swal from 'sweetalert2';
 
 type LetterData = {
@@ -22,6 +22,7 @@ export default function VendorAgreementPage() {
   const [data, setData] = useState<LetterData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
+  const [sending, setSending] = useState(false);
 
   const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
@@ -39,7 +40,10 @@ export default function VendorAgreementPage() {
           headers: { Authorization: `Bearer ${token}` },
           credentials: 'include',
         });
-        if (!res.ok) throw new Error('Could not load agreement');
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.message || 'Could not load agreement');
+        }
         setData(await res.json());
       } catch (e: any) {
         setError(e.message || 'Failed to load');
@@ -51,12 +55,25 @@ export default function VendorAgreementPage() {
     if (!token || !id) return;
     setDownloading(true);
     try {
-      const res = await fetch(`${api}/users/admin/${id}/agreement-letter.pdf`, {
+      // Prefer /download path; fall back to legacy .pdf route
+      let res = await fetch(`${api}/users/admin/${id}/agreement-letter/download`, {
         headers: { Authorization: `Bearer ${token}` },
         credentials: 'include',
       });
-      if (!res.ok) throw new Error('Could not generate PDF');
+      if (!res.ok) {
+        res = await fetch(`${api}/users/admin/${id}/agreement-letter.pdf`, {
+          headers: { Authorization: `Bearer ${token}` },
+          credentials: 'include',
+        });
+      }
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || `Could not generate PDF (${res.status})`);
+      }
       const blob = await res.blob();
+      if (!blob.size) {
+        throw new Error('PDF was empty — try again or use Print');
+      }
       const disposition = res.headers.get('Content-Disposition') || '';
       const match = disposition.match(/filename="([^"]+)"/);
       const filename = match?.[1] || `FLA-Vendor-Agreement.pdf`;
@@ -72,6 +89,29 @@ export default function VendorAgreementPage() {
       Swal.fire('Download failed', e.message || 'Could not download PDF', 'error');
     } finally {
       setDownloading(false);
+    }
+  };
+
+  const sendToVendor = async () => {
+    if (!token || !id) return;
+    setSending(true);
+    try {
+      const res = await fetch(`${api}/users/admin/${id}/agreement-letter/send`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.message || 'Could not email agreement');
+      Swal.fire({
+        icon: 'success',
+        title: 'Agreement sent',
+        text: `PDF emailed to ${body.email || 'the vendor'}.`,
+      });
+    } catch (e: any) {
+      Swal.fire('Send failed', e.message || 'Could not email PDF', 'error');
+    } finally {
+      setSending(false);
     }
   };
 
@@ -110,7 +150,7 @@ export default function VendorAgreementPage() {
         </button>
         <div className="flex flex-wrap items-center gap-2">
           <p className="text-xs text-slate-500 mr-auto sm:mr-2 hidden sm:block">
-            Preview below · download or print when ready
+            Preview below · download, print, or email to vendor
           </p>
           <button
             type="button"
@@ -120,6 +160,15 @@ export default function VendorAgreementPage() {
           >
             {downloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
             Download PDF
+          </button>
+          <button
+            type="button"
+            onClick={sendToVendor}
+            disabled={sending}
+            className="inline-flex items-center gap-2 h-10 px-4 border border-slate-300 bg-white text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+          >
+            {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+            Email to vendor
           </button>
           <button
             type="button"
@@ -202,7 +251,7 @@ export default function VendorAgreementPage() {
               </tr>
               <tr className="border-b border-slate-100">
                 <td className="p-3 font-semibold bg-slate-50">Type</td>
-                <td className="p-3 uppercase text-xs font-semibold tracking-widest">{v.subscriptionPlan || 'trial'}</td>
+                <td className="p-3 uppercase text-xs font-semibold tracking-widest">{v.subscriptionPlan || 'intro'}</td>
               </tr>
               <tr className="border-b border-slate-100">
                 <td className="p-3 font-semibold bg-slate-50">Commercial terms</td>
@@ -225,10 +274,10 @@ export default function VendorAgreementPage() {
             3. Key terms
           </h2>
           <p>
-            <strong className="text-slate-900">Marketplace & storefront.</strong> Vendor may sell through the FLA marketplace and a dedicated storefront URL once identity documents are approved by FLA.
+            <strong className="text-slate-900">Marketplace & storefront.</strong> Vendor may sell through the FLA marketplace and a dedicated storefront URL once identity documents are approved by FLA and the subscription fee is paid via Paystack.
           </p>
           <p>
-            <strong className="text-slate-900">Onboarding & KYC.</strong> Vendor must upload valid identification and supporting business documents after first login. Product listing is unlocked only after FLA admin approval (typically within 4–5 hours of a complete submission).
+            <strong className="text-slate-900">Onboarding & KYC.</strong> Vendor must upload valid identification and supporting business documents after first login. Product listing unlocks after FLA admin approval and successful subscription payment (intro GHS 10, then GHS 50 / month).
           </p>
           <p>
             <strong className="text-slate-900">Payments.</strong> Customer payments are processed via FLA&apos;s payment provider with an agreed platform split; Vendor payouts settle to the registered MoMo/bank account on file.

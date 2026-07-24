@@ -10,11 +10,11 @@ import {
  * Override via env in production so the addresses can change without a redeploy.
  */
 export function getFlaReportEmail(): string {
-  return process.env.NEXT_PUBLIC_FLA_REPORT_EMAIL?.trim() || 'report@flamingo.com';
+  return process.env.NEXT_PUBLIC_FLA_REPORT_EMAIL?.trim() || 'report@flamingo-store1.com';
 }
 
 export function getFlaSupportEmail(): string {
-  return process.env.NEXT_PUBLIC_FLA_SUPPORT_EMAIL?.trim() || 'support@flamingo.co';
+  return process.env.NEXT_PUBLIC_FLA_SUPPORT_EMAIL?.trim() || 'support@flamingo-store1.com';
 }
 
 function formatSupportPhonePretty(digitsOrRaw: string): string {

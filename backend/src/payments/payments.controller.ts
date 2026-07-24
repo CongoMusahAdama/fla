@@ -1,4 +1,17 @@
-import { Controller, Post, Body, Logger, Get, UseGuards, Request, Param, Headers, UnauthorizedException } from '@nestjs/common';
+import {
+    Controller,
+    Post,
+    Body,
+    Logger,
+    Get,
+    UseGuards,
+    Request,
+    Param,
+    Headers,
+    UnauthorizedException,
+    ForbiddenException,
+    BadRequestException,
+} from '@nestjs/common';
 import { PaystackService } from '../common/paystack.service';
 import { ShuftiService } from '../common/shufti.service';
 import { OrdersService } from '../orders/orders.service';
@@ -11,6 +24,8 @@ import { ConfigService } from '@nestjs/config';
 import { AuthGuard } from '@nestjs/passport';
 import { WithdrawalService } from './withdrawal.service';
 import { RequestWithdrawalDto } from './dto/request-withdrawal.dto';
+import { amountDueForRenewal } from '../users/vendor-subscription.util';
+import * as crypto from 'crypto';
 
 @Controller('payments')
 export class PaymentsController {
@@ -105,15 +120,28 @@ export class PaymentsController {
             const reference = data.reference;
             const status = data.status;
             const transactionId = data.id?.toString();
-            const metadata = data.metadata;
+            const metadata = data.metadata || {};
 
             if (status === 'success') {
-                const orderId = metadata?.orderId || reference;
                 const paymentType = metadata?.paymentType;
 
-                if (paymentType === 'first_mile_fee') {
-                    this.logger.warn(`Ignored Paystack first_mile_fee for order ${orderId} — delivery fees are off-platform`);
+                if (paymentType === 'vendor_subscription') {
+                    const vendorId = metadata.vendorId || metadata.userId;
+                    if (!vendorId) {
+                        this.logger.error(`Paystack subscription charge missing vendorId (ref=${reference})`);
+                    } else {
+                        const amountGhs =
+                            typeof data.amount === 'number' ? data.amount / 100 : undefined;
+                        await this.usersService.activateSubscriptionFromPayment(vendorId, {
+                            amountGhs,
+                            reference,
+                        });
+                        this.logger.log(`Vendor subscription activated for ${vendorId} (ref=${reference})`);
+                    }
+                } else if (paymentType === 'first_mile_fee') {
+                    this.logger.warn(`Ignored Paystack first_mile_fee for order — delivery fees are off-platform`);
                 } else {
+                    const orderId = metadata?.orderId || reference;
                     this.logger.log(`Paystack: Main order payment successful for order: ${orderId}`);
                     await this.ordersService.handlePaymentSuccess(orderId, transactionId);
                 }
@@ -121,6 +149,86 @@ export class PaymentsController {
         }
 
         return { status: 'success' };
+    }
+
+    /**
+     * Vendor subscription unlock/renew — Paystack checkout (no admin MoMo).
+     * Full amount goes to the main Paystack account (no subaccount split).
+     */
+    @UseGuards(AuthGuard('jwt'))
+    @Post('subscription/initialize')
+    async initializeVendorSubscription(@Request() req) {
+        if (req.user.role !== 'vendor') {
+            throw new ForbiddenException('Only vendors can pay subscriptions');
+        }
+        const vendor = await this.usersService.findOneById(req.user.userId);
+        if (!vendor || (vendor as any).role !== 'vendor') {
+            throw new BadRequestException('Vendor not found');
+        }
+        if (!(vendor as any).kycApprovedAt) {
+            throw new ForbiddenException(
+                'Complete document verification and wait for admin approval before paying for uploads.',
+            );
+        }
+
+        const amountGhs = amountDueForRenewal(vendor as any);
+        const frontend =
+            this.configService.get<string>('FRONTEND_URL')?.replace(/\/$/, '') ||
+            'https://flamingo-store1.com';
+        const reference = `FLA-SUB-${req.user.userId.slice(-8)}-${crypto.randomBytes(4).toString('hex')}`;
+
+        const init = await this.paystackService.initializePayment({
+            email: (vendor as any).email,
+            amount: amountGhs,
+            reference,
+            callback_url: `${frontend}/vendor?subscription=paid`,
+            metadata: {
+                paymentType: 'vendor_subscription',
+                vendorId: req.user.userId,
+                amountGhs,
+                plan: (vendor as any).subscriptionPlan || 'intro',
+            },
+        });
+
+        return {
+            authorizationUrl: init.authorization_url,
+            accessCode: init.access_code,
+            reference: init.reference || reference,
+            amountGhs,
+        };
+    }
+
+    /** Client-side verify after Paystack redirect (webhook may lag). */
+    @UseGuards(AuthGuard('jwt'))
+    @Post('subscription/verify')
+    async verifyVendorSubscription(@Request() req, @Body() body: { reference?: string }) {
+        if (req.user.role !== 'vendor') {
+            throw new ForbiddenException('Only vendors can verify subscriptions');
+        }
+        const reference = body?.reference?.trim();
+        if (!reference) {
+            throw new BadRequestException('Payment reference is required');
+        }
+
+        const tx = await this.paystackService.verifyTransaction(reference);
+        if (!tx || tx.status !== 'success') {
+            throw new BadRequestException('Payment not successful yet');
+        }
+
+        const meta = tx.metadata || {};
+        if (meta.paymentType && meta.paymentType !== 'vendor_subscription') {
+            throw new BadRequestException('Not a subscription payment');
+        }
+        const vendorId = meta.vendorId || meta.userId || req.user.userId;
+        if (vendorId !== req.user.userId) {
+            throw new ForbiddenException('This payment belongs to another account');
+        }
+
+        const amountGhs = typeof tx.amount === 'number' ? tx.amount / 100 : undefined;
+        return this.usersService.activateSubscriptionFromPayment(req.user.userId, {
+            amountGhs,
+            reference,
+        });
     }
 
     @Get('lookup-name/:bankCode/:accountNumber')

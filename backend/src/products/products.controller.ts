@@ -7,6 +7,8 @@ import { AuthGuard } from '@nestjs/passport';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { User, UserDocument } from '../users/schemas/user.schema';
+import { isSubscriptionActive } from '../users/vendor-subscription.util';
+import { FLA_CONSTANTS } from '../common/constants';
 
 @Controller('products')
 export class ProductsController {
@@ -40,7 +42,7 @@ export class ProductsController {
     if (req.user.role === 'vendor') {
       const vendor = await this.userModel
         .findById(req.user.userId)
-        .select('mustChangePassword kycApprovedAt subscriptionEndsAt')
+        .select('mustChangePassword kycApprovedAt subscriptionEndsAt subscriptionPaymentRequired subscriptionPlan subscriptionLastPaidAt')
         .lean()
         .exec();
       if ((vendor as any)?.mustChangePassword) {
@@ -51,16 +53,14 @@ export class ProductsController {
           'Upload your verification documents and wait for admin approval (usually 4–5 hours) before you can list products.',
         );
       }
-      // Missing subscriptionEndsAt = legacy vendor (grandfathered). Only block when an
-      // explicit end date exists and is in the past — keeps existing sellers selling.
-      const endsRaw = (vendor as any)?.subscriptionEndsAt;
-      if (endsRaw) {
-        const endsAt = new Date(endsRaw);
-        if (!Number.isNaN(endsAt.getTime()) && endsAt.getTime() <= Date.now()) {
-          throw new ForbiddenException(
-            'Your subscription has ended. Pay FLA (MoMo) to renew — you can still sell existing products, but new uploads are locked until renewal.',
-          );
-        }
+      if (!isSubscriptionActive(vendor as any)) {
+        const intro = !(vendor as any)?.subscriptionLastPaidAt;
+        const amount = intro
+          ? FLA_CONSTANTS.SUBSCRIPTION_INTRO_GHS
+          : FLA_CONSTANTS.SUBSCRIPTION_MONTHLY_GHS;
+        throw new ForbiddenException(
+          `Product uploads are locked until you pay GHS ${amount} via Paystack in your vendor dashboard. Existing listings stay live.`,
+        );
       }
     }
 

@@ -26,7 +26,7 @@ export function getFlaTermsSections(role: TermsRole) {
     },
     {
       title: '6. Privacy & data',
-      body: 'We collect account, order, and verification data to operate the service. KYC documents for vendors are reviewed for compliance. Contact Help@FlaPurchase.com for data questions.',
+      body: 'We collect account, order, and verification data to operate the service. KYC documents for vendors are reviewed for compliance. Contact support@flamingo-store1.com for data questions.',
     },
     {
       title: '7. Limitation of liability',

@@ -7,6 +7,9 @@ export type VendorSubscriptionFields = {
   subscriptionPriceGhs?: number | null;
   subscriptionPriceText?: string | null;
   subscriptionLabel?: string | null;
+  subscriptionLastPaidAt?: Date | string | null;
+  /** When true, KYC is approved but uploads stay locked until Paystack subscription payment. */
+  subscriptionPaymentRequired?: boolean | null;
 };
 
 export function addDays(from: Date, days: number): Date {
@@ -17,25 +20,32 @@ export function startOfDayIsoDate(d = new Date()): string {
   return d.toISOString().slice(0, 10);
 }
 
-/**
- * True when vendor may upload new products.
- * Missing subscriptionEndsAt = legacy/grandfathered (treat as active) so existing
- * sellers are not locked out before backfill assigns a window.
- */
+/** True when vendor may upload new products. */
 export function isSubscriptionActive(vendor: VendorSubscriptionFields, now = new Date()): boolean {
-  if (!vendor.subscriptionEndsAt) return true;
+  if (vendor.subscriptionPaymentRequired === true) return false;
+  if (!vendor.subscriptionEndsAt) return true; // legacy grandfather (no paywall flag)
   const ends = new Date(vendor.subscriptionEndsAt);
   if (Number.isNaN(ends.getTime())) return true;
   return ends.getTime() > now.getTime();
 }
 
-/** Whole days remaining until end (0 if ends today later, negative if expired). */
 export function daysUntilSubscriptionEnd(vendor: VendorSubscriptionFields, now = new Date()): number | null {
   if (!vendor.subscriptionEndsAt) return null;
   const ends = new Date(vendor.subscriptionEndsAt);
   if (Number.isNaN(ends.getTime())) return null;
   const ms = ends.getTime() - now.getTime();
   return Math.ceil(ms / (24 * 60 * 60 * 1000));
+}
+
+/** Pending unlock after KYC — must pay intro (or monthly) via Paystack before uploads. */
+export function unpaidIntroSubscriptionFields() {
+  return {
+    subscriptionPlan: 'intro' as const,
+    subscriptionLabel: 'Intro month',
+    subscriptionPriceText: `GHS ${FLA_CONSTANTS.SUBSCRIPTION_INTRO_GHS} / 30 days`,
+    subscriptionPriceGhs: FLA_CONSTANTS.SUBSCRIPTION_INTRO_GHS,
+    subscriptionPaymentRequired: true,
+  };
 }
 
 export function introSubscriptionFields(now = new Date()) {
@@ -48,6 +58,7 @@ export function introSubscriptionFields(now = new Date()) {
     subscriptionPriceGhs: FLA_CONSTANTS.SUBSCRIPTION_INTRO_GHS,
     subscriptionStartsAt: startsAt,
     subscriptionEndsAt: endsAt,
+    subscriptionPaymentRequired: false,
   };
 }
 
@@ -60,21 +71,44 @@ export function monthlySubscriptionFields(fromEndsOrNow: Date, now = new Date())
     subscriptionPriceText: `GHS ${FLA_CONSTANTS.SUBSCRIPTION_MONTHLY_GHS} / month`,
     subscriptionPriceGhs: FLA_CONSTANTS.SUBSCRIPTION_MONTHLY_GHS,
     subscriptionEndsAt: endsAt,
+    subscriptionPaymentRequired: false,
   };
 }
 
+/** Amount to charge on Paystack for unlock/renew. */
 export function amountDueForRenewal(vendor: VendorSubscriptionFields): number {
-  if (vendor.subscriptionPlan === 'intro' || vendor.subscriptionPriceGhs === FLA_CONSTANTS.SUBSCRIPTION_INTRO_GHS) {
-    // After intro period ends, renewals are monthly
-    if (!isSubscriptionActive(vendor)) {
+  if (vendor.subscriptionPaymentRequired || !vendor.subscriptionLastPaidAt) {
+    if (vendor.subscriptionPlan === 'monthly') {
       return FLA_CONSTANTS.SUBSCRIPTION_MONTHLY_GHS;
     }
-  }
-  if (typeof vendor.subscriptionPriceGhs === 'number' && vendor.subscriptionPriceGhs > 0) {
-    // Reminder while still on intro: pay intro amount if somehow renewing early; else monthly
-    if (vendor.subscriptionPlan === 'intro' && isSubscriptionActive(vendor)) {
-      return FLA_CONSTANTS.SUBSCRIPTION_MONTHLY_GHS;
-    }
+    return FLA_CONSTANTS.SUBSCRIPTION_INTRO_GHS;
   }
   return FLA_CONSTANTS.SUBSCRIPTION_MONTHLY_GHS;
+}
+
+export function planFieldsAfterPayment(vendor: VendorSubscriptionFields, now = new Date()) {
+  const amount = amountDueForRenewal(vendor);
+  const isIntroFirstPay =
+    amount === FLA_CONSTANTS.SUBSCRIPTION_INTRO_GHS &&
+    (!vendor.subscriptionLastPaidAt || vendor.subscriptionPaymentRequired);
+
+  if (isIntroFirstPay) {
+    return {
+      ...introSubscriptionFields(now),
+      subscriptionLastPaidAt: now,
+      subscriptionLastPaidAmount: amount,
+      subscriptionPaymentRequired: false,
+    };
+  }
+
+  const currentEnds = vendor.subscriptionEndsAt ? new Date(vendor.subscriptionEndsAt) : now;
+  const base =
+    !Number.isNaN(currentEnds.getTime()) && currentEnds.getTime() > now.getTime() ? currentEnds : now;
+  return {
+    ...monthlySubscriptionFields(base, now),
+    subscriptionStartsAt: vendor.subscriptionStartsAt || now,
+    subscriptionLastPaidAt: now,
+    subscriptionLastPaidAmount: amount,
+    subscriptionPaymentRequired: false,
+  };
 }

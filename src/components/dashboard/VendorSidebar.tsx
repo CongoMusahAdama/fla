@@ -69,6 +69,11 @@ export const VendorSidebar: React.FC<VendorSidebarProps> = ({
               : 'Upload KYC docs in Studio Identity to unlock selling.'}
           </p>
         )}
+        {!limitedMode && user?.kycApprovedAt && (
+          <p className="px-4 pb-3 text-[9px] font-bold text-white/55 uppercase tracking-widest leading-relaxed">
+            Store link: open Overview → Copy link
+          </p>
+        )}
         {visibleItems.map((item) => (
           <button
             key={item.id}

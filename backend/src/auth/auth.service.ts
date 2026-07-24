@@ -98,6 +98,8 @@ export class AuthService {
       subscriptionPriceGhs: user.subscriptionPriceGhs,
       subscriptionStartsAt: user.subscriptionStartsAt,
       subscriptionEndsAt: user.subscriptionEndsAt,
+      subscriptionPaymentRequired: Boolean(user.subscriptionPaymentRequired),
+      subscriptionLastPaidAt: user.subscriptionLastPaidAt,
       walletBalance: user.walletBalance,
       pendingBalance: user.pendingBalance,
       ghanaCardFront: user.ghanaCardFront,
@@ -311,6 +313,7 @@ export class AuthService {
       subscriptionPriceGhs,
       subscriptionStartsAt: startsAt,
       subscriptionEndsAt: endsAt,
+      subscriptionPaymentRequired: false,
       verificationStatus: 'pending',
       isIdentityVerified: false,
     });
@@ -322,13 +325,7 @@ export class AuthService {
       .ensureStoreSlug(user._id.toString(), userData.shopName || userData.name)
       .catch((err) => this.logger.error(`storeSlug on admin create: ${err.message}`));
 
-    await this.usersService
-      .syncVendorSubaccount(user._id.toString())
-      .catch((err) =>
-        this.logger.error(
-          `Failed to sync Paystack subaccount for admin-created vendor: ${err.message}`,
-        ),
-      );
+    // Paystack subaccount is created only when admin taps KYC Approve — not at onboard.
 
     const loginUrl =
       process.env.FRONTEND_URL?.replace(/\/$/, '') ||

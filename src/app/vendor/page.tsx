@@ -77,6 +77,7 @@ export default function VendorDashboard() {
     const [formImageLabels, setFormImageLabels] = useState<string[]>(['Front', 'Back', 'Side', 'Details']);
     const [customColorInput, setCustomColorInput] = useState('');
     const [customSizeInput, setCustomSizeInput] = useState('');
+    const [payingSubscription, setPayingSubscription] = useState(false);
 
     const PRESET_SIZES = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL'];
 
@@ -120,14 +121,79 @@ export default function VendorDashboard() {
     const subscriptionDaysLeft = subscriptionEndsAt && !Number.isNaN(subscriptionEndsAt.getTime())
         ? Math.ceil((subscriptionEndsAt.getTime() - Date.now()) / (24 * 60 * 60 * 1000))
         : null;
-    const subscriptionExpired = canSell && (subscriptionDaysLeft == null || subscriptionDaysLeft <= 0);
+    const paymentRequired = Boolean(user?.subscriptionPaymentRequired);
+    // Legacy: approved + no endsAt + no paywall flag = grandfathered (still can upload)
+    const subscriptionExpired =
+        canSell &&
+        (paymentRequired ||
+            (subscriptionEndsAt != null && (subscriptionDaysLeft == null || subscriptionDaysLeft <= 0)));
     const subscriptionExpiringSoon =
         canSell && !subscriptionExpired && subscriptionDaysLeft != null && subscriptionDaysLeft <= 5;
     const canUploadProducts = canSell && !subscriptionExpired;
+    const subscriptionAmountDue =
+        typeof user?.subscriptionPriceGhs === 'number' && user.subscriptionPriceGhs > 0
+            ? user.subscriptionPriceGhs
+            : user?.subscriptionLastPaidAt
+              ? 50
+              : 10;
 
     useEffect(() => {
         setIsHydrated(true);
     }, []);
+
+    // Return from Paystack subscription checkout
+    useEffect(() => {
+        if (typeof window === 'undefined' || !token) return;
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('subscription') !== 'paid') return;
+
+        const reference =
+            params.get('reference') ||
+            params.get('trxref') ||
+            sessionStorage.getItem('fla_sub_ref') ||
+            '';
+
+        (async () => {
+            try {
+                const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+                if (reference) {
+                    const res = await fetch(`${api}/payments/subscription/verify`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            Authorization: `Bearer ${token}`,
+                        },
+                        credentials: 'include',
+                        body: JSON.stringify({ reference }),
+                    });
+                    const data = await res.json().catch(() => ({}));
+                    if (res.ok && data?.vendor) {
+                        updateUser(data.vendor);
+                    }
+                }
+                // Refresh session fields either way
+                const me = await fetch(`${api}/auth/me`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                    credentials: 'include',
+                });
+                if (me.ok) {
+                    const payload = await me.json();
+                    if (payload.user) updateUser(payload.user);
+                }
+                sessionStorage.removeItem('fla_sub_ref');
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Subscription active',
+                    text: 'You can upload products now.',
+                    customClass: { popup: 'rounded-[32px]' },
+                });
+            } catch {
+                /* webhook may still activate — refresh on next login */
+            } finally {
+                router.replace('/vendor');
+            }
+        })();
+    }, [token, updateUser, router]);
 
     useEffect(() => {
         if (isPendingReview) {
@@ -499,10 +565,10 @@ export default function VendorDashboard() {
                     bio, 
                     ...(profileImage ? { profileImage } : {}),
                     ...(bannerImage ? { bannerImage } : {}),
-                    ...(businessRegistration ? { businessRegistration } : {}),
-                    ...(ghanaCardFront ? { ghanaCardFront } : {}),
-                    ...(ghanaCardBack ? { ghanaCardBack } : {}),
-                    ...(selfie ? { selfie } : {}),
+                    businessRegistration: businessRegistration || undefined,
+                    ghanaCardFront: ghanaCardFront || undefined,
+                    ghanaCardBack: ghanaCardBack || undefined,
+                    selfie: selfie || undefined,
                     paymentMethods: [{
                         network: momoNetwork,
                         accountNumber: momoNumber,
@@ -520,19 +586,56 @@ export default function VendorDashboard() {
             }
             const updated = await res.json();
             updateUser(updated);
+            // Keep local doc previews in sync with what we just saved
+            if (ghanaCardFront) setGhanaCardFront(ghanaCardFront);
+            if (ghanaCardBack) setGhanaCardBack(ghanaCardBack);
+            if (selfie) setSelfie(selfie);
+            if (businessRegistration) setBusinessRegistration(businessRegistration);
             const submitted = Boolean(updated.kycSubmittedAt || (ghanaCardFront && selfie));
             Swal.fire({
                 icon: 'success',
                 title: user?.status === 'pending' ? 'DETAILS SAVED' : submitted ? 'DOCS SUBMITTED' : 'IDENTITY UPDATED',
                 text: user?.status === 'pending'
-                    ? 'Your MoMo and shop details are saved. We will link your Paystack payout when your application is approved.'
+                    ? 'Your MoMo and shop details are saved. Paystack payout is linked only after admin approves your documents.'
                     : submitted
-                    ? 'Documents received. Approval usually takes 4–5 hours. We will SMS you when you can start selling.'
+                    ? 'Documents received. Approval usually takes 4–5 hours. After approval, pay GHS 10 via Paystack on Overview to unlock uploads.'
                     : 'Your information has been successfully saved. Upload Ghana Card + selfie to submit for approval.',
                 customClass: { popup: 'rounded-[32px]' },
             });
         } catch (err: any) {
             Swal.fire('Update Failed', err?.message || 'Internal synchronization error.', 'error');
+        }
+    };
+
+    const startSubscriptionPayment = async () => {
+        if (!token) {
+            Swal.fire('Sign in required', 'Please log in again to pay.', 'warning');
+            return;
+        }
+        setPayingSubscription(true);
+        try {
+            const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+            const res = await fetch(`${api}/payments/subscription/initialize`, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${token}` },
+                credentials: 'include',
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(data.message || 'Could not start Paystack payment');
+            }
+            if (data.reference) {
+                sessionStorage.setItem('fla_sub_ref', data.reference);
+            }
+            if (data.authorizationUrl) {
+                window.location.href = data.authorizationUrl;
+                return;
+            }
+            throw new Error('No Paystack checkout URL returned');
+        } catch (err: any) {
+            Swal.fire('Payment failed', err?.message || 'Could not open Paystack', 'error');
+        } finally {
+            setPayingSubscription(false);
         }
     };
 
@@ -719,7 +822,7 @@ export default function VendorDashboard() {
                             <p className="text-sm text-slate-500 leading-relaxed">
                                 {awaitingKycApproval
                                     ? 'Your documents are under review. Approval usually takes 4–5 hours. We will SMS you when you can start selling.'
-                                    : 'Upload your Ghana Card, selfie, and supporting documents in Studio Identity. After admin approval you can list products.'}
+                                    : 'Upload your Ghana Card, selfie, and supporting documents in Studio Identity. After admin approval, pay GHS 10 via Paystack on Overview to list products.'}
                             </p>
                             <button
                                 type="button"
@@ -737,11 +840,23 @@ export default function VendorDashboard() {
                             <div className="max-w-xl mx-auto py-10 text-center space-y-4 bg-white rounded-[32px] border border-orange-100 p-10">
                                 <ShieldAlert className="w-12 h-12 text-orange-500 mx-auto" />
                                 <h2 className="text-xl font-black text-slate-900 uppercase tracking-tighter">
-                                    Subscription due — uploads locked
+                                    {paymentRequired ? 'Pay to unlock uploads' : 'Subscription due — uploads locked'}
                                 </h2>
                                 <p className="text-sm text-slate-500 leading-relaxed">
-                                    Your plan has ended. Pay FLA (MoMo) to renew. You can still sell products already listed and accept payments; new uploads stay locked until admin confirms payment.
+                                    {paymentRequired
+                                        ? `Documents approved. Pay GHS ${subscriptionAmountDue} via Paystack to unlock product uploads for 30 days — unlocks automatically after payment.`
+                                        : `Pay GHS ${subscriptionAmountDue} via Paystack to renew. Existing listings stay live; new uploads unlock automatically after payment.`}
                                 </p>
+                                <button
+                                    type="button"
+                                    onClick={startSubscriptionPayment}
+                                    disabled={payingSubscription}
+                                    className="px-8 py-3 bg-brand-lemon text-slate-900 rounded-full text-[10px] font-black uppercase tracking-widest disabled:opacity-60"
+                                >
+                                    {payingSubscription
+                                        ? 'Opening Paystack…'
+                                        : `Pay GHS ${subscriptionAmountDue} on Paystack`}
+                                </button>
                             </div>
                             <VendorProducts
                                 products={vendorProducts}
@@ -1040,33 +1155,59 @@ export default function VendorDashboard() {
                         </div>
                     )}
                     {canSell && subscriptionExpiringSoon && (
-                        <div className="mb-8 p-6 md:p-8 bg-amber-50 border border-amber-200 rounded-[32px] space-y-2">
-                            <p className="text-[10px] font-black text-amber-900 uppercase tracking-widest">
-                                Subscription ends in {subscriptionDaysLeft} day{subscriptionDaysLeft === 1 ? '' : 's'}
-                            </p>
-                            <p className="text-sm text-amber-950/80 leading-relaxed">
-                                Renew with FLA (MoMo) — GHS 50 / month after intro. When due, you keep selling existing products but cannot upload new ones until renewed.
-                            </p>
+                        <div className="mb-8 p-6 md:p-8 bg-amber-50 border border-amber-200 rounded-[32px] space-y-4">
+                            <div className="space-y-2">
+                                <p className="text-[10px] font-black text-amber-900 uppercase tracking-widest">
+                                    Subscription ends in {subscriptionDaysLeft} day{subscriptionDaysLeft === 1 ? '' : 's'}
+                                </p>
+                                <p className="text-sm text-amber-950/80 leading-relaxed">
+                                    Renew via Paystack — GHS {subscriptionAmountDue}. When due, existing products stay live but new uploads lock until you pay.
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={startSubscriptionPayment}
+                                disabled={payingSubscription}
+                                className="h-11 px-6 rounded-full bg-brand-blue text-white text-xs font-semibold hover:bg-slate-800 disabled:opacity-60"
+                            >
+                                {payingSubscription ? 'Opening Paystack…' : `Renew GHS ${subscriptionAmountDue} on Paystack`}
+                            </button>
                         </div>
                     )}
                     {canSell && subscriptionExpired && (
-                        <div className="mb-8 p-6 md:p-8 bg-orange-50 border border-orange-200 rounded-[32px] space-y-2">
-                            <p className="text-[10px] font-black text-orange-900 uppercase tracking-widest">
-                                Subscription due — new uploads locked
-                            </p>
-                            <p className="text-sm text-orange-950/80 leading-relaxed">
-                                Pay FLA via MoMo to renew. Existing listings stay live and can still accept payment.
-                            </p>
+                        <div className="mb-8 p-6 md:p-8 bg-orange-50 border border-orange-200 rounded-[32px] space-y-4">
+                            <div className="space-y-2">
+                                <p className="text-[10px] font-black text-orange-900 uppercase tracking-widest">
+                                    {paymentRequired
+                                        ? 'Pay to unlock product uploads'
+                                        : 'Subscription due — new uploads locked'}
+                                </p>
+                                <p className="text-sm text-orange-950/80 leading-relaxed">
+                                    {paymentRequired
+                                        ? `Your documents are approved. Pay GHS ${subscriptionAmountDue} via Paystack to open product uploads for 30 days. No admin MoMo — payment unlocks automatically.`
+                                        : `Pay GHS ${subscriptionAmountDue} via Paystack to renew. Existing listings stay live and can still accept payment.`}
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={startSubscriptionPayment}
+                                disabled={payingSubscription}
+                                className="h-11 px-6 rounded-full bg-brand-lemon text-slate-900 text-xs font-black uppercase tracking-widest hover:bg-white disabled:opacity-60"
+                            >
+                                {payingSubscription
+                                    ? 'Opening Paystack…'
+                                    : `Pay GHS ${subscriptionAmountDue} on Paystack`}
+                            </button>
                         </div>
                     )}
-                    {canSell && activeSection === 'dashboard' && (
+                    {activeSection === 'dashboard' && (
                         <div className="mb-8 p-6 md:p-8 bg-brand-blue rounded-[32px] text-white space-y-4 shadow-sm">
                             <div>
                                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-lemon mb-1">
                                     Your public store link
                                 </p>
                                 <p className="text-sm text-white/70 leading-relaxed">
-                                    Share this link with customers so they can shop your storefront directly.
+                                    Copy this link from Overview anytime and share it with customers.
                                 </p>
                             </div>
                             {user?.storeSlug ? (
@@ -1095,7 +1236,7 @@ export default function VendorDashboard() {
                                             className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-5 py-3 rounded-full bg-brand-lemon text-slate-900 text-[10px] font-black uppercase tracking-widest hover:bg-white transition-colors"
                                         >
                                             <Copy className="w-3.5 h-3.5" />
-                                            Copy
+                                            Copy link
                                         </button>
                                         <a
                                             href={storeHomePath(user.storeSlug)}
