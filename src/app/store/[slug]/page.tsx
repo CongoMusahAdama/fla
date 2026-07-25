@@ -82,14 +82,29 @@ export default function VendorStorePage() {
         setVendor(v);
 
         const vendorId = v._id;
-        const productsRes = await fetch(
-          `${apiBase()}/products?vendorId=${encodeURIComponent(vendorId)}&limit=100`,
-        );
-        if (productsRes.ok) {
+        const collected: StoreProduct[] = [];
+        let page = 1;
+        let totalPages = 1;
+
+        // Paginated fetch — backend caps page size at 48, so loop until every
+        // active listing for this store is loaded (not just the first 100).
+        do {
+          const productsRes = await fetch(
+            `${apiBase()}/products?vendorId=${encodeURIComponent(vendorId)}&page=${page}&limit=48`,
+          );
+          if (!productsRes.ok) break;
           const raw = await productsRes.json();
-          const list = Array.isArray(raw) ? raw : raw.products || raw.data || [];
-          if (!cancelled) setProducts(list);
-        }
+          if (Array.isArray(raw)) {
+            collected.push(...raw);
+            totalPages = 1;
+            break;
+          }
+          collected.push(...(raw.products || raw.data || []));
+          totalPages = Math.max(1, Number(raw.totalPages) || 1);
+          page += 1;
+        } while (page <= totalPages && page <= 50); // hard safety against runaway loops
+
+        if (!cancelled) setProducts(collected);
       } catch (e: any) {
         if (!cancelled) setError(e.message || 'Failed to load store');
       } finally {

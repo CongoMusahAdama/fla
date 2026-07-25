@@ -472,64 +472,6 @@ export default function AdminDashboard() {
         }
     };
 
-    const handleRenewSubscription = async (userId: string, shopLabel?: string) => {
-        const result = await Swal.fire({
-            title: 'Mark subscription paid?',
-            html: `Confirm MoMo payment received for <strong>${shopLabel || 'this vendor'}</strong>. This extends the plan by <strong>30 days</strong> (GHS 50 / month).`,
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonText: 'Yes, renew 30 days',
-            cancelButtonText: 'Cancel',
-            confirmButtonColor: '#0F2744',
-            customClass: { popup: 'rounded-[32px]' },
-        });
-        if (!result.isConfirmed) return;
-
-        try {
-            const response = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/users/admin/${userId}/subscription/renew`,
-                {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        Authorization: `Bearer ${token}`,
-                    },
-                    credentials: 'include',
-                    body: JSON.stringify({ months: 1, amountGhs: 50 }),
-                },
-            );
-            const body = await response.json().catch(() => ({}));
-            if (!response.ok) throw new Error(body.message || 'Could not renew subscription');
-
-            const ends = body.subscriptionEndsAt
-                ? new Date(body.subscriptionEndsAt).toLocaleDateString()
-                : 'updated';
-            Swal.fire({
-                icon: 'success',
-                title: 'Subscription renewed',
-                text: `Valid until ${ends}.`,
-                timer: 2500,
-                showConfirmButton: false,
-            });
-
-            await refreshData();
-            setSelectedKycVendor((prev: any) =>
-                prev && String(prev._id) === String(userId)
-                    ? {
-                        ...prev,
-                        subscriptionEndsAt: body.subscriptionEndsAt || body.vendor?.subscriptionEndsAt,
-                        subscriptionPlan: 'monthly',
-                        subscriptionLabel: 'Monthly Partner Plan',
-                        subscriptionPriceText: 'GHS 50 / month',
-                        subscriptionPriceGhs: 50,
-                    }
-                    : prev,
-            );
-        } catch (error: any) {
-            Swal.fire({ icon: 'error', title: 'Renew failed', text: error.message });
-        }
-    };
-
     const handleDeleteUser = async (userId: string) => {
         const result = await Swal.fire({
             title: 'DELETE USER?',
@@ -3087,13 +3029,6 @@ export default function AdminDashboard() {
                                 >
                                     <FileText className="w-4 h-4" /> Preview & download agreement
                                 </a>
-                                <button
-                                    type="button"
-                                    onClick={() => handleRenewSubscription(v._id, v.shopName || v.name)}
-                                    className="inline-flex items-center justify-center gap-2 h-11 px-4 bg-brand-lemon text-slate-900 text-sm font-medium hover:bg-brand-lemon-hover"
-                                >
-                                    Renew subscription
-                                </button>
                                 <button
                                     type="button"
                                     onClick={() => setSelectedKycVendor(null)}
