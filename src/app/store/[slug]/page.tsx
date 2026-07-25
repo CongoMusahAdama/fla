@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { ArrowLeft, MapPin, ShoppingBag, Copy, Check } from 'lucide-react';
+import { ArrowLeft, MapPin, ShoppingBag, Copy, Check, Search, X } from 'lucide-react';
 import { getImageUrl, getVendorDisplayLocation } from '@/lib/utils';
 import { isVendorDocumented } from '@/lib/kyc';
 import { VendorTrustBadge } from '@/components/VendorTrustBadge';
@@ -49,6 +49,7 @@ export default function VendorStorePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [storeSearch, setStoreSearch] = useState('');
 
   useEffect(() => {
     if (!slug) {
@@ -102,6 +103,10 @@ export default function VendorStorePage() {
   }, [slug]);
 
   const shopName = vendor?.shopName || vendor?.name || 'Store';
+  const normalizedSearch = storeSearch.trim().toLowerCase();
+  const filteredProducts = normalizedSearch
+    ? products.filter((p) => p.name?.toLowerCase().includes(normalizedSearch))
+    : products;
   const documented = vendor
     ? isVendorDocumented({
         vendorTier: vendor.vendorTier,
@@ -257,7 +262,7 @@ export default function VendorStorePage() {
       </section>
 
       <section className="max-w-6xl mx-auto px-4 py-12 md:py-16">
-        <div className="flex items-end justify-between mb-8">
+        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-8">
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-1">
               Catalog
@@ -266,9 +271,31 @@ export default function VendorStorePage() {
               All products
             </h2>
           </div>
-          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-            {products.length} item{products.length === 1 ? '' : 's'}
-          </span>
+          <div className="flex items-center gap-3 md:flex-col md:items-end">
+            <div className="relative flex-1 md:flex-none">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+              <input
+                type="text"
+                value={storeSearch}
+                onChange={(e) => setStoreSearch(e.target.value)}
+                placeholder={`Search ${shopName}…`}
+                className="w-full md:w-72 pl-11 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-full text-base sm:text-sm focus:bg-white focus:outline-none focus:border-brand-lemon transition-all"
+              />
+              {storeSearch && (
+                <button
+                  type="button"
+                  onClick={() => setStoreSearch('')}
+                  aria-label="Clear search"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 whitespace-nowrap">
+              {filteredProducts.length} item{filteredProducts.length === 1 ? '' : 's'}
+            </span>
+          </div>
         </div>
 
         {products.length === 0 ? (
@@ -278,9 +305,23 @@ export default function VendorStorePage() {
             </p>
             <p className="text-sm mt-2">Check back soon — new pieces are on the way.</p>
           </div>
+        ) : filteredProducts.length === 0 ? (
+          <div className="py-24 text-center text-slate-400">
+            <p className="text-lg font-bold text-slate-900 uppercase tracking-tighter">
+              No matches for “{storeSearch}”
+            </p>
+            <p className="text-sm mt-2">Try a different word, or clear the search.</p>
+            <button
+              type="button"
+              onClick={() => setStoreSearch('')}
+              className="mt-6 px-8 py-3 bg-brand-lemon text-slate-900 rounded-full text-[10px] font-black uppercase tracking-widest"
+            >
+              Clear search
+            </button>
+          </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
-            {products.map((product, i) => {
+            {filteredProducts.map((product, i) => {
               const soldOut = (product.stock ?? 0) <= 0;
               return (
                 <Link
@@ -310,6 +351,21 @@ export default function VendorStorePage() {
                   </h3>
                   <p className="mt-1 text-sm font-black text-slate-900">
                     GHS {Number(product.price).toLocaleString()}
+                  </p>
+                  <p
+                    className={`mt-1 text-[9px] font-black uppercase tracking-widest ${
+                      soldOut
+                        ? 'text-slate-400'
+                        : (product.stock ?? 0) <= 5
+                          ? 'text-orange-500'
+                          : 'text-emerald-600'
+                    }`}
+                  >
+                    {soldOut
+                      ? 'Sold out'
+                      : (product.stock ?? 0) <= 5
+                        ? `Only ${product.stock} left`
+                        : `${product.stock} in stock`}
                   </p>
                   {product.tailoringTime && (
                     <p className="mt-1 text-[9px] font-black uppercase tracking-widest text-slate-400">

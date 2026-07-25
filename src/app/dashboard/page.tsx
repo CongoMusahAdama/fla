@@ -1812,10 +1812,12 @@ export default function CustomerDashboard() {
                                             case 'confirmed': return { label: 'Order Confirmed', desc: 'Vendor has accepted your request', color: 'bg-blue-500' };
                                             case 'processing': case 'in_printing': return { label: 'In Production', desc: 'Your bespoke design is being crafted', color: 'bg-purple-500' };
                                             case 'preparing_shipment': return { label: 'Preparing Shipment', desc: 'Vendor is packaging your items', color: 'bg-indigo-500' };
-                                            case 'in_transit_to_first_mile': return { label: 'In Transit to Skynet', desc: 'Moving to Skynet', color: 'bg-blue-600' };
-                                            case 'arrived_at_first_mile': return { label: 'At Sorting Hub', desc: 'Processing at regional station', color: 'bg-cyan-500' };
-                                            case 'in_transit_to_last_mile': return { label: 'In Final Transit', desc: 'Moving to your local delivery hub', color: 'bg-blue-700' };
-                                            case 'in_transit': case 'shipped': return { label: 'In Transit (Direct to Customer)', desc: 'Your package is on its way to you', color: 'bg-brand-lemon' };
+                                            case 'in_transit_to_first_mile':
+                                            case 'arrived_at_first_mile':
+                                            case 'in_transit_to_last_mile':
+                                            case 'in_transit':
+                                            case 'shipped':
+                                                return { label: 'In Transit', desc: 'Your package is on its way to you', color: 'bg-brand-lemon' };
                                             case 'delivered': return { label: 'Delivered', desc: 'Package arrived at destination', color: 'bg-emerald-600' };
                                             case 'completed': return { label: 'Order Completed', desc: 'Transaction finalized', color: 'bg-slate-900' };
                                             case 'disputed': return { label: 'In Dispute', desc: 'Resolution center is reviewing case', color: 'bg-red-500' };
@@ -1919,15 +1921,9 @@ export default function CustomerDashboard() {
                                                 done: isPassed(status, ['in_transit_to_first_mile', 'in_transit', 'arrived_at_first_mile', 'in_transit_to_last_mile', 'shipped', 'delivered', 'completed']) 
                                             },
                                             { 
-                                                title: 'In Transit to Skynet', 
-                                                time: isPassed(status, ['in_transit', 'shipped', 'delivered', 'completed']) ? 'Done' : isPassed(status, ['in_transit_to_first_mile', 'arrived_at_first_mile', 'in_transit_to_last_mile']) ? 'In Progress' : 'Pending', 
-                                                desc: 'Moving to Skynet for regional sorting.', 
-                                                done: isPassed(status, ['in_transit', 'shipped', 'delivered', 'completed']) 
-                                            },
-                                            { 
-                                                title: 'In Transit (Direct to Customer)', 
-                                                time: isPassed(status, ['delivered', 'completed']) ? 'Done' : isPassed(status, ['in_transit', 'shipped']) ? 'In Progress' : 'Pending', 
-                                                desc: 'On its way directly to your location.', 
+                                                title: 'In Transit', 
+                                                time: isPassed(status, ['delivered', 'completed']) ? 'Done' : isPassed(status, ['in_transit_to_first_mile', 'arrived_at_first_mile', 'in_transit_to_last_mile', 'in_transit', 'shipped']) ? 'In Progress' : 'Pending', 
+                                                desc: 'On its way to your location.', 
                                                 done: isPassed(status, ['delivered', 'completed']) 
                                             },
                                             { 

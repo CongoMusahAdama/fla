@@ -10,6 +10,7 @@ import { Suspense } from 'react';
 
 import { GHANA_REGIONS } from '@/lib/ghana-regions';
 import { useProductCategories } from '@/hooks/useProductCategories';
+import { restoreMarketplaceScrollIfNeeded, peekPendingMarketplaceScroll } from '@/lib/marketplace-return';
 
 const REGION_ALL_LABEL = 'All Regions';
 const PRICE_ALL_LABEL = 'All Prices';
@@ -71,7 +72,12 @@ function ShopContent() {
         setActiveCategory(urlCategory || 'All Product');
         setCatalogFilter(urlFilter);
         setCatalogSort(urlSort);
-        setCurrentPage(1);
+        const pending = peekPendingMarketplaceScroll();
+        if (pending?.shopPage && pending.shopPage > 1) {
+            setCurrentPage(pending.shopPage);
+        } else {
+            setCurrentPage(1);
+        }
     }, [urlSearch, urlCategory, urlFilter, urlSort]);
 
     // Compact sticky search once the hero scrolls away
@@ -138,6 +144,9 @@ function ShopContent() {
     }, [localSearch]);
 
     useEffect(() => {
+        const pending = peekPendingMarketplaceScroll();
+        // Don't wipe a pending restore page on the initial hydrate from URL/filters.
+        if (pending?.shopPage && pending.shopPage > 1) return;
         setCurrentPage(1);
     }, [activeCategory, localSearch, activeFilters.Region, activeFilters.Price, catalogFilter, catalogSort]);
 
@@ -191,6 +200,20 @@ function ShopContent() {
             controller.abort();
         };
     }, [activeCategory, localSearch, activeFilters.Region, activeFilters.Price, currentPage, catalogFilter, catalogSort]);
+
+    useEffect(() => {
+        try {
+            sessionStorage.setItem('fla_shop_page', String(currentPage));
+        } catch {
+            // ignore
+        }
+    }, [currentPage]);
+
+    useEffect(() => {
+        if (!loading && products.length > 0) {
+            restoreMarketplaceScrollIfNeeded();
+        }
+    }, [loading, products.length, currentPage]);
 
     useEffect(() => {
         if (!openDropdown) return;

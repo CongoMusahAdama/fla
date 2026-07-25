@@ -4,13 +4,17 @@ import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Clock, MapPin, ShoppingBag } from 'lucide-react';
+import { ArrowLeft, Clock, MapPin, Store } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { getImageUrl, getVendorDisplayLocation } from '@/lib/utils';
 import { storeHomePath } from '@/lib/storefront';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
 import Footer from '@/components/Footer';
+import {
+  getMarketplaceReturn,
+  markMarketplaceScrollRestore,
+} from '@/lib/marketplace-return';
 
 type ProductDetail = {
   _id: string;
@@ -38,7 +42,7 @@ export default function StoreProductPage() {
   const router = useRouter();
   const slug = String(params?.slug || '');
   const productId = String(params?.productId || '');
-  const { addToCart, cartCount, setIsCartOpen } = useCart();
+  const { addToCart } = useCart();
   const { isAuthenticated, user, token } = useAuth();
 
   const [product, setProduct] = useState<ProductDetail | null>(null);
@@ -305,21 +309,25 @@ export default function StoreProductPage() {
   return (
     <main className="min-h-screen bg-[#f6f7f9]">
       <div className="max-w-6xl mx-auto px-4 pt-24 pb-4 flex items-center justify-between gap-3">
-        <Link
-          href={storeHomePath(slug)}
+        <button
+          type="button"
+          onClick={() => {
+            const ret = getMarketplaceReturn();
+            markMarketplaceScrollRestore(ret);
+            router.push(ret.path, { scroll: false });
+          }}
           className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-900"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
-          {shopName}
-        </Link>
-        <button
-          type="button"
-          onClick={() => setIsCartOpen(true)}
+          Back to marketplace
+        </button>
+        <Link
+          href={storeHomePath(slug)}
           className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:text-slate-900"
         >
-          <ShoppingBag className="w-4 h-4" />
-          Cart{cartCount > 0 ? ` (${cartCount})` : ''}
-        </button>
+          <Store className="w-4 h-4" />
+          {shopName}
+        </Link>
       </div>
 
       <section className="max-w-6xl mx-auto px-4 py-6 md:py-10 grid md:grid-cols-2 gap-8 md:gap-12">
@@ -372,6 +380,21 @@ export default function StoreProductPage() {
               GHS {Number(product.price).toLocaleString()}
             </p>
             <div className="mt-3 flex flex-wrap items-center gap-4 text-slate-400">
+              <span
+                className={`inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest ${
+                  soldOut
+                    ? 'text-slate-400'
+                    : (product.stock ?? 0) <= 5
+                      ? 'text-orange-500'
+                      : 'text-emerald-600'
+                }`}
+              >
+                {soldOut
+                  ? 'Sold out'
+                  : (product.stock ?? 0) <= 5
+                    ? `Only ${product.stock} left`
+                    : `${product.stock} in stock`}
+              </span>
               {location && (
                 <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest">
                   <MapPin className="w-3.5 h-3.5 text-brand-lemon" />

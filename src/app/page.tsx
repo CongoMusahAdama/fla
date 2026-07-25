@@ -10,6 +10,7 @@ import { Product } from '@/lib/types';
 import { PRODUCT_FILTERS } from '@/lib/constants';
 import { GHANA_REGIONS } from '@/lib/ghana-regions';
 import { useProductCategories } from '@/hooks/useProductCategories';
+import { restoreMarketplaceScrollIfNeeded, peekPendingMarketplaceScroll } from '@/lib/marketplace-return';
 
 const HOME_PAGE_SIZE = 12;
 
@@ -107,6 +108,29 @@ export default function Home() {
   useEffect(() => {
     fetchLatestProducts(activeCategory, activeFilter, activeRegion);
   }, [activeCategory, activeFilter, activeRegion]);
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem('fla_home_loaded_count', String(products.length));
+    } catch {
+      // ignore
+    }
+  }, [products.length]);
+
+  useEffect(() => {
+    if (loading || loadingMore) return;
+    const pending = peekPendingMarketplaceScroll();
+    if (!pending?.homeLoadedCount) {
+      if (products.length > 0) restoreMarketplaceScrollIfNeeded();
+      return;
+    }
+    // Re-load enough "Show more" batches so the tapped product can exist again.
+    if (products.length < pending.homeLoadedCount && hasMore) {
+      handleShowMore();
+      return;
+    }
+    if (products.length > 0) restoreMarketplaceScrollIfNeeded();
+  }, [loading, loadingMore, products.length, hasMore]);
 
   return (
     <main className="min-h-screen bg-white">

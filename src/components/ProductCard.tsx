@@ -9,6 +9,7 @@ import { getImageUrl, getOptimizedImage, getVendorDisplayLocation } from '@/lib/
 import { isVendorDocumented } from '@/lib/kyc';
 import { VendorTrustBadge } from '@/components/VendorTrustBadge';
 import { resolveStoreSlug, storeHomePath, storeProductPath } from '@/lib/storefront';
+import { saveMarketplaceReturn } from '@/lib/marketplace-return';
 
 import Swal from 'sweetalert2';
 
@@ -74,6 +75,7 @@ export default React.memo(function ProductCard({ id, name, price, images, sizes 
 
     const openStoreProduct = () => {
         if (resolvedStoreSlug) {
+            saveMarketplaceReturn(id);
             router.push(storeProductPath(resolvedStoreSlug, id));
             return;
         }
@@ -600,6 +602,7 @@ export default React.memo(function ProductCard({ id, name, price, images, sizes 
     return (
         <>
             <div
+                data-product-id={id}
                 onClick={openStoreProduct}
                 style={{ contentVisibility: 'auto', containIntrinsicSize: '280px 420px' }}
                 className="bg-white rounded-xl overflow-hidden group hover:shadow-md transition-shadow duration-200 cursor-pointer will-change-auto"

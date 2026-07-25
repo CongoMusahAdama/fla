@@ -9,11 +9,12 @@ import {
     Eye, EyeOff, ArrowLeft, Printer, MapPin, Copy, FileText
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { getImageUrl } from '@/lib/utils';
 import Swal from 'sweetalert2';
+import { Suspense } from 'react';
 
 // Modular Components
 import { VendorSidebar } from '@/components/dashboard/VendorSidebar';
@@ -34,13 +35,22 @@ import { storeHomePath, storefrontUrl } from '@/lib/storefront';
 
 type VendorSection = 'dashboard' | 'products' | 'orders' | 'wallet' | 'reviews' | 'notifications' | 'settings' | 'help';
 
+const VENDOR_SECTIONS: VendorSection[] = [
+    'dashboard', 'products', 'orders', 'wallet', 'reviews', 'notifications', 'settings', 'help',
+];
 
+const SUBSCRIPTION_INTRO_GHS = 10;
+const SUBSCRIPTION_MONTHLY_GHS = 50;
 
-export default function VendorDashboard() {
+function VendorDashboardInner() {
     const { categories: PRODUCT_CATEGORIES } = useProductCategories({ includeAll: true });
     const { user, token, logout, updateUser, changePassword, isAuthenticated, isLoading } = useAuth();
     const router = useRouter();
-    const [activeSection, setActiveSection] = useState<VendorSection>('dashboard');
+    const searchParams = useSearchParams();
+    const tabFromUrl = searchParams.get('tab') as VendorSection | null;
+    const [activeSection, setActiveSectionState] = useState<VendorSection>(
+        tabFromUrl && VENDOR_SECTIONS.includes(tabFromUrl) ? tabFromUrl : 'dashboard',
+    );
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [showAddProduct, setShowAddProduct] = useState(false);
     const [tempPassword, setTempPassword] = useState('');
@@ -130,12 +140,31 @@ export default function VendorDashboard() {
     const subscriptionExpiringSoon =
         canSell && !subscriptionExpired && subscriptionDaysLeft != null && subscriptionDaysLeft <= 5;
     const canUploadProducts = canSell && !subscriptionExpired;
+    // Match backend amountDueForRenewal: intro GHS 10 until first paid period, then GHS 50.
     const subscriptionAmountDue =
-        typeof user?.subscriptionPriceGhs === 'number' && user.subscriptionPriceGhs > 0
-            ? user.subscriptionPriceGhs
-            : user?.subscriptionLastPaidAt
-              ? 50
-              : 10;
+        paymentRequired || !user?.subscriptionLastPaidAt
+            ? user?.subscriptionPlan === 'monthly'
+                ? SUBSCRIPTION_MONTHLY_GHS
+                : SUBSCRIPTION_INTRO_GHS
+            : SUBSCRIPTION_MONTHLY_GHS;
+
+    const setActiveSection = (section: VendorSection) => {
+        setActiveSectionState(section);
+        if (typeof window === 'undefined') return;
+        const params = new URLSearchParams(window.location.search);
+        params.delete('subscription');
+        params.delete('reference');
+        params.delete('trxref');
+        params.set('tab', section);
+        router.replace(`/vendor?${params.toString()}`, { scroll: false });
+    };
+
+    useEffect(() => {
+        const tab = searchParams.get('tab') as VendorSection | null;
+        if (tab && VENDOR_SECTIONS.includes(tab) && tab !== activeSection) {
+            setActiveSectionState(tab);
+        }
+    }, [searchParams, activeSection]);
 
     useEffect(() => {
         setIsHydrated(true);
@@ -170,27 +199,50 @@ export default function VendorDashboard() {
                     if (res.ok && data?.vendor) {
                         updateUser(data.vendor);
                     }
+                    // Refresh session fields either way
+                    const me = await fetch(`${api}/auth/me`, {
+                        headers: { Authorization: `Bearer ${token}` },
+                        credentials: 'include',
+                    });
+                    if (me.ok) {
+                        const payload = await me.json();
+                        if (payload.user) updateUser(payload.user);
+                    }
+                    sessionStorage.removeItem('fla_sub_ref');
+
+                    const activated =
+                        res.ok &&
+                        (data?.activated === true ||
+                            data?.vendor?.subscriptionPaymentRequired === false ||
+                            Boolean(data?.vendor?.subscriptionEndsAt));
+
+                    if (activated) {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Subscription active',
+                            text: 'You can upload products now.',
+                            customClass: { popup: 'rounded-[32px]' },
+                        });
+                    } else {
+                        Swal.fire({
+                            icon: 'info',
+                            title: 'Payment pending',
+                            text: 'We could not confirm payment yet. If you paid, wait a moment and refresh — or tap Pay again if the charge did not go through.',
+                            customClass: { popup: 'rounded-[32px]' },
+                        });
+                    }
+                } else {
+                    Swal.fire({
+                        icon: 'info',
+                        title: 'No payment reference',
+                        text: 'Open Overview and tap Pay on Paystack to complete your subscription.',
+                        customClass: { popup: 'rounded-[32px]' },
+                    });
                 }
-                // Refresh session fields either way
-                const me = await fetch(`${api}/auth/me`, {
-                    headers: { Authorization: `Bearer ${token}` },
-                    credentials: 'include',
-                });
-                if (me.ok) {
-                    const payload = await me.json();
-                    if (payload.user) updateUser(payload.user);
-                }
-                sessionStorage.removeItem('fla_sub_ref');
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Subscription active',
-                    text: 'You can upload products now.',
-                    customClass: { popup: 'rounded-[32px]' },
-                });
             } catch {
                 /* webhook may still activate — refresh on next login */
             } finally {
-                router.replace('/vendor');
+                router.replace('/vendor?tab=dashboard');
             }
         })();
     }, [token, updateUser, router]);
@@ -598,7 +650,7 @@ export default function VendorDashboard() {
                 text: user?.status === 'pending'
                     ? 'Your MoMo and shop details are saved. Paystack payout is linked only after admin approves your documents.'
                     : submitted
-                    ? 'Documents received. Approval usually takes 4–5 hours. After approval, pay GHS 10 via Paystack on Overview to unlock uploads.'
+                    ? 'Documents received. Approval usually takes 4–5 hours. After approval, open Overview and tap Pay on Paystack to unlock uploads.'
                     : 'Your information has been successfully saved. Upload Ghana Card + selfie to submit for approval.',
                 customClass: { popup: 'rounded-[32px]' },
             });
@@ -807,8 +859,77 @@ export default function VendorDashboard() {
         switch (activeSection) {
             case 'dashboard':
                 return (
-                    <div className="space-y-12 animate-in fade-in duration-700">
-                      <VendorStatsGrid dashboardData={dashboardData} productsCount={vendorProducts.length} />
+                    <div className="space-y-8 animate-in fade-in duration-700">
+                        {/* Always-visible subscription status — Pay button lives here */}
+                        {(paymentRequired || subscriptionExpired || subscriptionExpiringSoon || !canSell) && (
+                            <div
+                                className={`p-6 md:p-8 rounded-[32px] border space-y-4 ${
+                                    canSell && (paymentRequired || subscriptionExpired)
+                                        ? 'bg-orange-50 border-orange-200'
+                                        : subscriptionExpiringSoon
+                                          ? 'bg-amber-50 border-amber-200'
+                                          : 'bg-slate-50 border-slate-200'
+                                }`}
+                            >
+                                <div className="space-y-2">
+                                    <p
+                                        className={`text-[10px] font-black uppercase tracking-widest ${
+                                            canSell && (paymentRequired || subscriptionExpired)
+                                                ? 'text-orange-900'
+                                                : subscriptionExpiringSoon
+                                                  ? 'text-amber-900'
+                                                  : 'text-slate-500'
+                                        }`}
+                                    >
+                                        {!canSell
+                                            ? 'Subscription payment'
+                                            : paymentRequired || subscriptionExpired
+                                              ? paymentRequired
+                                                  ? 'Pay to unlock product uploads'
+                                                  : 'Subscription due — new uploads locked'
+                                              : `Subscription ends in ${subscriptionDaysLeft} day${subscriptionDaysLeft === 1 ? '' : 's'}`}
+                                    </p>
+                                    <p className="text-sm text-slate-700 leading-relaxed">
+                                        {!canSell
+                                            ? awaitingKycApproval
+                                                ? `After your documents are approved, pay GHS ${subscriptionAmountDue} here via Paystack to unlock uploads for 30 days.`
+                                                : `Upload your Ghana Card + selfie in Studio Identity first. After approval, pay GHS ${subscriptionAmountDue} here via Paystack to unlock uploads.`
+                                            : paymentRequired
+                                              ? `Your documents are approved. Tap below to pay GHS ${subscriptionAmountDue} on Paystack — uploads unlock automatically after payment.`
+                                              : subscriptionExpired
+                                                ? `Pay GHS ${subscriptionAmountDue} via Paystack to renew. Existing listings stay live.`
+                                                : `Renew via Paystack — GHS ${subscriptionAmountDue}. When due, existing products stay live but new uploads lock until you pay.`}
+                                    </p>
+                                    <p className="text-2xl font-black text-slate-900 tracking-tighter">
+                                        GHS {subscriptionAmountDue}
+                                        <span className="ml-2 text-xs font-bold text-slate-400 uppercase tracking-widest">
+                                            / 30 days
+                                        </span>
+                                    </p>
+                                </div>
+                                {canSell && (paymentRequired || subscriptionExpired || subscriptionExpiringSoon) ? (
+                                    <button
+                                        type="button"
+                                        onClick={startSubscriptionPayment}
+                                        disabled={payingSubscription}
+                                        className="h-12 px-8 rounded-full bg-brand-lemon text-slate-900 text-xs font-black uppercase tracking-widest hover:bg-white disabled:opacity-60 shadow-sm"
+                                    >
+                                        {payingSubscription
+                                            ? 'Opening Paystack…'
+                                            : `Pay GHS ${subscriptionAmountDue} on Paystack`}
+                                    </button>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        onClick={() => setActiveSection('settings')}
+                                        className="h-11 px-6 rounded-full bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800"
+                                    >
+                                        {awaitingKycApproval ? 'View studio identity' : 'Upload verification docs'}
+                                    </button>
+                                )}
+                            </div>
+                        )}
+                        <VendorStatsGrid dashboardData={dashboardData} productsCount={vendorProducts.length} />
                     </div>
                 );
             case 'products':
@@ -821,16 +942,25 @@ export default function VendorDashboard() {
                             </h2>
                             <p className="text-sm text-slate-500 leading-relaxed">
                                 {awaitingKycApproval
-                                    ? 'Your documents are under review. Approval usually takes 4–5 hours. We will SMS you when you can start selling.'
-                                    : 'Upload your Ghana Card, selfie, and supporting documents in Studio Identity. After admin approval, pay GHS 10 via Paystack on Overview to list products.'}
+                                    ? 'Your documents are under review. Approval usually takes 4–5 hours. After approval, open Overview and pay via Paystack to unlock uploads.'
+                                    : 'Upload your Ghana Card, selfie, and supporting documents in Studio Identity first. After admin approval, open Overview and pay via Paystack to list products.'}
                             </p>
-                            <button
-                                type="button"
-                                onClick={() => setActiveSection('settings')}
-                                className="px-8 py-3 bg-brand-lemon text-slate-900 rounded-full text-[10px] font-black uppercase tracking-widest"
-                            >
-                                {awaitingKycApproval ? 'View studio identity' : 'Upload verification docs'}
-                            </button>
+                            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                                <button
+                                    type="button"
+                                    onClick={() => setActiveSection('settings')}
+                                    className="px-8 py-3 bg-brand-lemon text-slate-900 rounded-full text-[10px] font-black uppercase tracking-widest"
+                                >
+                                    {awaitingKycApproval ? 'View studio identity' : 'Upload verification docs'}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setActiveSection('dashboard')}
+                                    className="px-8 py-3 bg-slate-900 text-white rounded-full text-[10px] font-black uppercase tracking-widest"
+                                >
+                                    Go to Overview
+                                </button>
+                            </div>
                         </div>
                     );
                 }
@@ -945,7 +1075,6 @@ export default function VendorDashboard() {
                                             <select id="swal-status" class="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold">
                                                 <option value="processing">In Production</option>
                                                 <option value="preparing_shipment">Preparing Shipment</option>
-                                                <option value="in_transit_to_first_mile">In Transit to Skynet</option>
                                                 <option value="in_transit">In Transit (Direct to Customer)</option>
                                                 <option value="delivered">Shipment Delivered</option>
                                                 <option value="cancelled">Cancelled</option>
@@ -1638,5 +1767,19 @@ export default function VendorDashboard() {
                 />
             )}
         </div>
+    );
+}
+
+export default function VendorDashboard() {
+    return (
+        <Suspense
+            fallback={
+                <div className="min-h-screen bg-[#FDFDFF] flex items-center justify-center">
+                    <div className="w-10 h-10 border-4 border-slate-100 border-t-brand-lemon rounded-full animate-spin" />
+                </div>
+            }
+        >
+            <VendorDashboardInner />
+        </Suspense>
     );
 }
