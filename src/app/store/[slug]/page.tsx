@@ -9,6 +9,12 @@ import { getImageUrl, getVendorDisplayLocation } from '@/lib/utils';
 import { isVendorDocumented } from '@/lib/kyc';
 import { VendorTrustBadge } from '@/components/VendorTrustBadge';
 import { storeProductPath, storefrontUrl } from '@/lib/storefront';
+import {
+  saveStoreReturn,
+  restoreStoreScrollIfNeeded,
+  cacheStorePage,
+  readStoreCache,
+} from '@/lib/store-return';
 import { useCart } from '@/context/CartContext';
 import Footer from '@/components/Footer';
 
@@ -51,6 +57,18 @@ export default function VendorStorePage() {
   const [copied, setCopied] = useState(false);
   const [storeSearch, setStoreSearch] = useState('');
 
+  // Instant restore when returning from a product (avoids full reload flash)
+  useEffect(() => {
+    if (!slug) return;
+    const cached = readStoreCache(slug);
+    if (cached?.vendor) {
+      setVendor(cached.vendor);
+      setProducts(cached.products || []);
+      setLoading(false);
+      restoreStoreScrollIfNeeded(slug);
+    }
+  }, [slug]);
+
   useEffect(() => {
     if (!slug) {
       setLoading(false);
@@ -60,7 +78,10 @@ export default function VendorStorePage() {
     let cancelled = false;
 
     (async () => {
-      setLoading(true);
+      // Only show skeleton if we have nothing to paint yet
+      if (!readStoreCache(slug)?.vendor) {
+        setLoading(true);
+      }
       setError(null);
       try {
         const storeRes = await fetch(`${apiBase()}/users/store/${encodeURIComponent(slug)}`);
@@ -104,7 +125,11 @@ export default function VendorStorePage() {
           page += 1;
         } while (page <= totalPages && page <= 50); // hard safety against runaway loops
 
-        if (!cancelled) setProducts(collected);
+        if (!cancelled) {
+          setProducts(collected);
+          cacheStorePage(slug, { vendor: v, products: collected });
+          restoreStoreScrollIfNeeded(slug);
+        }
       } catch (e: any) {
         if (!cancelled) setError(e.message || 'Failed to load store');
       } finally {
@@ -342,6 +367,8 @@ export default function VendorStorePage() {
                 <Link
                   key={product._id}
                   href={storeProductPath(slug, product._id)}
+                  data-product-id={product._id}
+                  onClick={() => saveStoreReturn(slug, product._id)}
                   className="group bg-white rounded-3xl border border-slate-100 p-3 md:p-4 hover:shadow-xl hover:border-slate-200 transition-all duration-500"
                   style={{ animationDelay: `${i * 40}ms` }}
                 >

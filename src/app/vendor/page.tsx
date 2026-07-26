@@ -1405,8 +1405,8 @@ function VendorDashboardInner() {
 
             {/* Mobile Interface Bridge */}
             {isSidebarOpen && (
-                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 lg:hidden" onClick={() => setIsSidebarOpen(false)}>
-                    <aside className="w-80 h-full bg-white animate-in slide-in-from-left duration-300" onClick={(e) => e.stopPropagation()}>
+                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[200] lg:hidden" onClick={() => setIsSidebarOpen(false)}>
+                    <aside className="w-80 h-full bg-white animate-in slide-in-from-left duration-300 relative z-[201]" onClick={(e) => e.stopPropagation()}>
                         <VendorSidebar activeSection={activeSection} setActiveSection={(s) => { setActiveSection(s); setIsSidebarOpen(false); }} handleLogout={handleLogout} limitedMode={limitedMode} />
                     </aside>
                 </div>

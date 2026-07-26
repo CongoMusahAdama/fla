@@ -10,7 +10,7 @@ export default function ChatSupport() {
   const supportEmail = getFlaSupportEmail();
 
   return (
-    <div className="fixed bottom-24 md:bottom-6 right-6 z-[50] flex flex-col items-end pointer-events-none">
+    <div className={`fixed bottom-24 md:bottom-6 right-6 z-[10040] flex flex-col items-end pointer-events-none`}>
       {isSupportOpen && (
         <div className="mb-4 w-72 bg-white rounded-[28px] shadow-2xl border border-slate-100 overflow-hidden animate-in slide-in-from-bottom-10 fade-in duration-300 pointer-events-auto origin-bottom-right">
           <div className="bg-slate-900 p-5 text-white">

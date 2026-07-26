@@ -15,6 +15,7 @@ import {
   getMarketplaceReturn,
   markMarketplaceScrollRestore,
 } from '@/lib/marketplace-return';
+import { getStoreReturn, markStoreScrollRestore } from '@/lib/store-return';
 
 type ProductDetail = {
   _id: string;
@@ -321,13 +322,18 @@ export default function StoreProductPage() {
           <ArrowLeft className="w-3.5 h-3.5" />
           Back to marketplace
         </button>
-        <Link
-          href={storeHomePath(slug)}
+        <button
+          type="button"
+          onClick={() => {
+            const ret = getStoreReturn(slug);
+            markStoreScrollRestore(ret);
+            router.push(ret.path, { scroll: false });
+          }}
           className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:text-slate-900"
         >
           <Store className="w-4 h-4" />
           {shopName}
-        </Link>
+        </button>
       </div>
 
       <section className="max-w-6xl mx-auto px-4 py-6 md:py-10 grid md:grid-cols-2 gap-8 md:gap-12">
@@ -367,12 +373,17 @@ export default function StoreProductPage() {
 
         <div className="space-y-6">
           <div>
-            <Link
-              href={storeHomePath(slug)}
+            <button
+              type="button"
+              onClick={() => {
+                const ret = getStoreReturn(slug);
+                markStoreScrollRestore(ret);
+                router.push(ret.path, { scroll: false });
+              }}
               className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-brand-blue"
             >
               by {shopName}
-            </Link>
+            </button>
             <h1 className="mt-2 text-3xl md:text-4xl font-black text-slate-900 tracking-tighter leading-tight">
               {product.name}
             </h1>

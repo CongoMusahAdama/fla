@@ -223,6 +223,7 @@ export default function Navbar() {
   const isShopPage = pathname === '/shop' || pathname?.startsWith('/shop/');
 
   return (
+    <>
     <header
       className={`sticky top-0 z-[100] w-full bg-white transition-shadow ${
         isScrolled ? 'shadow-md' : 'shadow-sm'
@@ -529,10 +530,17 @@ export default function Navbar() {
           </div>
         </div>
       </div>
+    </header>
 
-      {/* Mobile drawer */}
+      {/* Mobile drawer — outside sticky header so it is not trapped under page modals */}
       {isMenuOpen && (
-        <div className="fixed inset-0 bg-black/50 z-[200] md:hidden">
+        <div className="fixed inset-0 bg-black/50 z-[10050] md:hidden" role="dialog" aria-modal="true">
+          <button
+            type="button"
+            className="absolute inset-0 cursor-default"
+            aria-label="Close menu"
+            onClick={() => setIsMenuOpen(false)}
+          />
           <div className="absolute top-0 right-0 w-[85%] max-w-sm h-full bg-white shadow-2xl p-6 flex flex-col">
             <div className="flex justify-between items-center mb-8">
               <span className="font-heading text-xl font-bold">Menu</span>
@@ -608,6 +616,6 @@ export default function Navbar() {
           </div>
         </div>
       )}
-    </header>
+    </>
   );
 }

@@ -44,14 +44,17 @@ export class AuthController {
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
   async register(@Body() createUserDto: CreateUserDto, @Request() req) {
-    // SECURITY: Verify human status via Cloudflare Turnstile
+    // SECURITY: Verify human status via Cloudflare Turnstile.
+    // Do not pass req.ip — behind Render/Vercel proxies a wrong remoteip makes siteverify fail.
     if (createUserDto.turnstileToken) {
-      const isHuman = await this.turnstileService.verifyToken(createUserDto.turnstileToken, req.ip);
+      const isHuman = await this.turnstileService.verifyToken(createUserDto.turnstileToken);
       if (!isHuman) {
-        throw new BadRequestException('Security verification failed. Please try again.');
+        throw new BadRequestException(
+          'Security verification failed. Refresh the checkbox below Sign Up and try again.',
+        );
       }
     } else if (process.env.NODE_ENV === 'production') {
-      throw new BadRequestException('Security verification is required.');
+      throw new BadRequestException('Security verification is required. Complete the checkbox and try again.');
     }
 
     // SECURITY: Prevent privilege escalation. Only 'customer' and 'vendor' are allowed via public registration.

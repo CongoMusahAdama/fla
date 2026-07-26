@@ -718,8 +718,6 @@ export default function AdminDashboard() {
         { id: 'customers', label: 'Customers', icon: Users },
         { id: 'orders', label: 'Orders', icon: ShoppingBag },
         { id: 'products', label: 'Products', icon: Package },
-        { id: 'disputes', label: 'Disputes', icon: MessageSquare },
-        { id: 'delivery', label: 'Delivery', icon: Truck },
         { id: 'reports', label: 'Reports', icon: BarChart3 },
         { id: 'settings', label: 'Settings', icon: Settings },
     ] as const;

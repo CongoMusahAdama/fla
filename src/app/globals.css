@@ -231,3 +231,8 @@ h6 {
   z-index: 20;
   background-color: var(--color-brand-blue, #0f2744);
 }
+
+/* Always paint SweetAlert above product sheets / drawers on mobile */
+.swal2-container {
+  z-index: 100000 !important;
+}

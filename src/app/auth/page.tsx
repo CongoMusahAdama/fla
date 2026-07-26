@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { Suspense } from 'react';
-import { Turnstile } from '@marsidev/react-turnstile';
+import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile';
 import { TermsAcceptanceScreen } from '@/components/auth/TermsAcceptanceScreen';
 import { FLA_TERMS_VERSION } from '@/lib/fla-terms';
 import { GHANA_REGIONS } from '@/lib/ghana-regions';
@@ -264,7 +264,15 @@ const ForgotPasswordForm = ({ onBack, onSubmit, onResetWithOTP }: { onBack: () =
 
 
 
-export const RegisterForm = ({ role, onSignup }: { role: UserRole, onSignup: (data: any) => void }) => {
+export const RegisterForm = ({
+    role,
+    onSignup,
+    turnstileResetKey = 0,
+}: {
+    role: UserRole;
+    onSignup: (data: any) => void;
+    turnstileResetKey?: number;
+}) => {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [phone, setPhone] = useState('');
@@ -273,7 +281,14 @@ export const RegisterForm = ({ role, onSignup }: { role: UserRole, onSignup: (da
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+    const turnstileRef = useRef<TurnstileInstance | null>(null);
     const [step, setStep] = useState(1);
+
+    useEffect(() => {
+        if (!turnstileResetKey) return;
+        setTurnstileToken(null);
+        turnstileRef.current?.reset?.();
+    }, [turnstileResetKey]);
 
     // KYC Fields
     const [ghanaCardFront, setGhanaCardFront] = useState<File | null>(null);
@@ -520,6 +535,8 @@ export const RegisterForm = ({ role, onSignup }: { role: UserRole, onSignup: (da
                             {role === 'customer' && (
                                 <div className="pt-4 flex justify-center">
                                     <Turnstile
+                                        key={`customer-ts-${turnstileResetKey}`}
+                                        ref={turnstileRef}
                                         siteKey={process.env.NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY || ''}
                                         onSuccess={(token) => setTurnstileToken(token)}
                                         onExpire={() => setTurnstileToken(null)}
@@ -627,6 +644,8 @@ export const RegisterForm = ({ role, onSignup }: { role: UserRole, onSignup: (da
                             </div>
                             <div className="pt-4 flex justify-center">
                                 <Turnstile
+                                    key={`final-ts-${turnstileResetKey}`}
+                                    ref={turnstileRef}
                                     siteKey={process.env.NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY || ''}
                                     onSuccess={(token) => setTurnstileToken(token)}
                                     onExpire={() => setTurnstileToken(null)}
@@ -767,6 +786,8 @@ export const RegisterForm = ({ role, onSignup }: { role: UserRole, onSignup: (da
 
                             <div className="pt-2 flex justify-center">
                                 <Turnstile
+                                    key={`vendor-ts-${turnstileResetKey}`}
+                                    ref={turnstileRef}
                                     siteKey={process.env.NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY || ''}
                                     onSuccess={(token) => setTurnstileToken(token)}
                                     onExpire={() => setTurnstileToken(null)}
@@ -862,6 +883,8 @@ function AuthContent() {
     const [termsPendingMessage, setTermsPendingMessage] = useState<string | undefined>();
     const [termsIsLoginFlow, setTermsIsLoginFlow] = useState(false);
     const [termsSubmitting, setTermsSubmitting] = useState(false);
+    const [turnstileResetKey, setTurnstileResetKey] = useState(0);
+    const [signupBusy, setSignupBusy] = useState(false);
 
     const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
@@ -1034,11 +1057,13 @@ function AuthContent() {
     };
 
     const handleSignup = async (data: any) => {
+        if (signupBusy) return;
         if (data.password !== data.confirmPassword) {
             Swal.fire({ icon: 'error', title: 'Password Mismatch', text: 'Passwords do not match.' });
             return;
         }
 
+        setSignupBusy(true);
         try {
             Swal.fire({
                 title: role === 'vendor' ? 'Creating your shop…' : 'Creating your account...',
@@ -1158,6 +1183,12 @@ function AuthContent() {
             await Swal.close();
             const msg = error.message || '';
             if (
+                msg.toLowerCase().includes('security verification') ||
+                msg.toLowerCase().includes('checkbox')
+            ) {
+                setTurnstileResetKey((k) => k + 1);
+            }
+            if (
                 role === 'vendor' &&
                 (msg.toLowerCase().includes('already registered') || msg.toLowerCase().includes('sign in'))
             ) {
@@ -1175,6 +1206,8 @@ function AuthContent() {
                 return;
             }
             showError(msg);
+        } finally {
+            setSignupBusy(false);
         }
     };
 
@@ -1674,7 +1707,11 @@ function AuthContent() {
                                         onForgotPassword={() => setShowForgotPassword(true)}
                                     />
                                 ) : (
-                                    <RegisterForm role={role} onSignup={handleSignup} />
+                                    <RegisterForm
+                                        role={role}
+                                        onSignup={handleSignup}
+                                        turnstileResetKey={turnstileResetKey}
+                                    />
                                 )}
 
                                 {/* Mobile switch — desktop uses the brand panel */}

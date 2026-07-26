@@ -41,7 +41,7 @@ export class TurnstileService {
         return response.json() as Promise<{ success?: boolean; 'error-codes'?: string[] }>;
     }
 
-    async verifyToken(token: string, remoteIp?: string): Promise<boolean> {
+    async verifyToken(token: string, _remoteIp?: string): Promise<boolean> {
         if (!token) {
             throw new BadRequestException('Security verification token is missing');
         }
@@ -56,7 +56,8 @@ export class TurnstileService {
         }
 
         try {
-            const result = await this.verifyWithSecret(this.secretKey, token, remoteIp);
+            // Omit remoteip: optional for Cloudflare, and incorrect behind reverse proxies.
+            const result = await this.verifyWithSecret(this.secretKey, token);
 
             if (result.success) {
                 return true;

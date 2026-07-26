@@ -338,6 +338,9 @@ export default React.memo(function ProductCard({ id, name, price, images, sizes 
             return;
         }
 
+        // Close product sheet so delivery popup is not trapped behind it on mobile
+        setIsDetailModalOpen(false);
+
         // Enforce Authentication - No Guest Checkout
         if (!isAuthenticated) {
             Swal.fire({
