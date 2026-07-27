@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { ArrowLeft, MapPin, ShoppingBag, Copy, Check, Search, X } from 'lucide-react';
+import { ArrowLeft, MapPin, ShoppingBag, Copy, Check, Search, X, ChevronDown } from 'lucide-react';
 import { getImageUrl, getVendorDisplayLocation } from '@/lib/utils';
 import { isVendorDocumented } from '@/lib/kyc';
 import { VendorTrustBadge } from '@/components/VendorTrustBadge';
@@ -16,8 +16,18 @@ import {
   readStoreCache,
 } from '@/lib/store-return';
 import { resolveStoreTheme, storeThemeStyle } from '@/lib/store-theme';
+import { useProductCategories } from '@/hooks/useProductCategories';
 import { useCart } from '@/context/CartContext';
 import Footer from '@/components/Footer';
+
+const CATEGORY_DROPDOWN_PANEL =
+  'z-[70] bg-white shadow-2xl border border-gray-100 transition-all duration-200 ' +
+  'fixed inset-x-0 bottom-0 top-auto max-h-[75dvh] overflow-y-auto overscroll-contain touch-pan-y rounded-t-3xl p-3 ' +
+  'sm:absolute sm:inset-auto sm:left-0 sm:right-auto sm:bottom-auto sm:top-full sm:mt-4 sm:w-56 sm:max-h-[min(50vh,360px)] sm:rounded-xl sm:p-2 sm:shadow-xl';
+
+function categoryDropdownClass(isOpen: boolean) {
+  return `${CATEGORY_DROPDOWN_PANEL} ${isOpen ? 'opacity-100 translate-y-0 pointer-events-auto' : 'opacity-0 translate-y-4 pointer-events-none sm:translate-y-0'}`;
+}
 
 type StoreVendor = {
   _id: string;
@@ -41,6 +51,7 @@ type StoreProduct = {
   _id: string;
   name: string;
   price: number;
+  category?: string;
   images?: string[];
   stock?: number;
   tailoringTime?: string;
@@ -53,6 +64,7 @@ export default function VendorStorePage() {
   const rawSlug = params?.slug;
   const slug = Array.isArray(rawSlug) ? rawSlug[0] : String(rawSlug || '');
   const { cartCount, setIsCartOpen } = useCart();
+  const { categories } = useProductCategories({ includeAll: true });
 
   const [vendor, setVendor] = useState<StoreVendor | null>(null);
   const [products, setProducts] = useState<StoreProduct[]>([]);
@@ -60,6 +72,8 @@ export default function VendorStorePage() {
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [storeSearch, setStoreSearch] = useState('');
+  const [activeCategory, setActiveCategory] = useState('All Product');
+  const [categoryOpen, setCategoryOpen] = useState(false);
 
   // Instant restore when returning from a product (avoids full reload flash)
   useEffect(() => {
@@ -146,12 +160,50 @@ export default function VendorStorePage() {
     };
   }, [slug]);
 
+  useEffect(() => {
+    if (!categoryOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [categoryOpen]);
+
   const shopName = vendor?.shopName || vendor?.name || 'Store';
   const theme = resolveStoreTheme(vendor);
   const normalizedSearch = storeSearch.trim().toLowerCase();
-  const filteredProducts = normalizedSearch
-    ? products.filter((p) => p.name?.toLowerCase().includes(normalizedSearch))
-    : products;
+
+  const storeCategories = useMemo(() => {
+    const fromProducts = new Set(
+      products.map((p) => (p.category || '').trim()).filter(Boolean),
+    );
+    const withCounts = categories
+      .filter((cat) => cat === 'All Product' || fromProducts.has(cat))
+      .map((cat) => ({
+        label: cat,
+        count:
+          cat === 'All Product'
+            ? products.length
+            : products.filter((p) => p.category === cat).length,
+      }));
+    return withCounts.length > 1 ? withCounts : [{ label: 'All Product', count: products.length }];
+  }, [categories, products]);
+
+  const filteredProducts = useMemo(() => {
+    return products.filter((p) => {
+      const matchesSearch = !normalizedSearch || p.name?.toLowerCase().includes(normalizedSearch);
+      const matchesCategory =
+        activeCategory === 'All Product' || p.category === activeCategory;
+      return matchesSearch && matchesCategory;
+    });
+  }, [products, normalizedSearch, activeCategory]);
+
+  const shelfLabel =
+    activeCategory !== 'All Product'
+      ? activeCategory
+      : normalizedSearch
+        ? `Results for “${storeSearch.trim()}”`
+        : 'All products';
   const documented = vendor
     ? isVendorDocumented({
         vendorTier: vendor.vendorTier,
@@ -312,24 +364,99 @@ export default function VendorStorePage() {
       </section>
 
       <section className="max-w-6xl mx-auto px-4 py-12 md:py-16">
-        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-8">
+        {categoryOpen && (
+          <button
+            type="button"
+            aria-label="Close category menu"
+            className="fixed inset-0 z-[65] bg-slate-900/30 cursor-default"
+            onClick={() => setCategoryOpen(false)}
+          />
+        )}
+
+        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-6">
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-1">
               Catalog
             </p>
             <h2 className="text-2xl font-black text-slate-900 tracking-tighter uppercase">
-              All products
+              {shelfLabel}
             </h2>
           </div>
-          <div className="flex items-center gap-3 md:flex-col md:items-end">
-            <div className="relative flex-1 md:flex-none">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setCategoryOpen((o) => !o)}
+                className={`inline-flex items-center gap-1 rounded-lg text-xs font-medium border transition-colors h-9 px-3 ${
+                  activeCategory === 'All Product'
+                    ? 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
+                    : 'text-white'
+                }`}
+                style={
+                  activeCategory !== 'All Product'
+                    ? { backgroundColor: theme.theme, borderColor: theme.theme }
+                    : undefined
+                }
+              >
+                {activeCategory === 'All Product' ? 'Category' : activeCategory.split('/')[0]}
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${categoryOpen ? 'rotate-180' : ''}`} />
+              </button>
+              <div className={categoryDropdownClass(categoryOpen)}>
+                {categoryOpen && (
+                  <div className="sm:hidden sticky top-0 bg-white z-10 pb-2 mb-1 border-b border-slate-100">
+                    <div className="mx-auto mt-1 mb-3 h-1.5 w-12 rounded-full bg-slate-200" />
+                    <div className="flex items-center justify-between px-3">
+                      <p className="text-[11px] font-semibold text-slate-500 tracking-wide">
+                        Categories ({storeCategories.length})
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setCategoryOpen(false)}
+                        className="text-[11px] font-semibold px-2 py-1"
+                        style={{ color: theme.theme }}
+                      >
+                        Done
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {storeCategories.map(({ label, count }) => (
+                  <button
+                    key={label}
+                    type="button"
+                    onClick={() => {
+                      setActiveCategory(label);
+                      setCategoryOpen(false);
+                    }}
+                    className={`w-full text-left px-4 py-3 rounded-lg text-sm font-medium flex justify-between items-center gap-3 hover:bg-slate-50 transition-colors ${
+                      activeCategory === label ? 'bg-slate-50' : 'text-slate-700'
+                    }`}
+                    style={activeCategory === label ? { color: theme.theme } : undefined}
+                  >
+                    <span>{label}</span>
+                    <span className="flex items-center gap-2 shrink-0">
+                      <span className="text-[10px] font-bold text-slate-400">{count}</span>
+                      {activeCategory === label && <Check className="w-3.5 h-3.5" />}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="relative flex-1 min-w-[200px] md:flex-none">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
               <input
                 type="text"
                 value={storeSearch}
                 onChange={(e) => setStoreSearch(e.target.value)}
                 placeholder={`Search ${shopName}…`}
-                className="w-full md:w-72 pl-11 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-full text-base sm:text-sm focus:bg-white focus:outline-none focus:border-brand-lemon transition-all"
+                className="w-full md:w-72 pl-11 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-full text-base sm:text-sm focus:bg-white focus:outline-none transition-all"
+                onFocus={(e) => {
+                  e.currentTarget.style.borderColor = theme.accent;
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = '';
+                }}
               />
               {storeSearch && (
                 <button
@@ -348,6 +475,32 @@ export default function VendorStorePage() {
           </div>
         </div>
 
+        {storeCategories.length > 1 && (
+          <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-1 px-1 pb-6">
+            {storeCategories.map(({ label, count }) => (
+              <button
+                key={label}
+                type="button"
+                onClick={() => setActiveCategory(label)}
+                className={`shrink-0 h-8 px-3.5 rounded-full text-[11px] font-medium transition-all ${
+                  activeCategory === label
+                    ? 'text-slate-900'
+                    : 'bg-slate-100 text-slate-600 hover:text-slate-900'
+                }`}
+                style={
+                  activeCategory === label
+                    ? { backgroundColor: theme.accent }
+                    : undefined
+                }
+              >
+                {label === 'All Product' ? `All (${count})` : `${label.split('/')[0]} (${count})`}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div className="mb-2" />
+
         {products.length === 0 ? (
           <div className="py-24 text-center text-slate-400">
             <p className="text-lg font-bold text-slate-900 uppercase tracking-tighter">
@@ -358,16 +511,27 @@ export default function VendorStorePage() {
         ) : filteredProducts.length === 0 ? (
           <div className="py-24 text-center text-slate-400">
             <p className="text-lg font-bold text-slate-900 uppercase tracking-tighter">
-              No matches for “{storeSearch}”
+              {activeCategory !== 'All Product'
+                ? `No ${activeCategory} items yet`
+                : normalizedSearch
+                  ? `No matches for “${storeSearch}”`
+                  : 'No products found'}
             </p>
-            <p className="text-sm mt-2">Try a different word, or clear the search.</p>
+            <p className="text-sm mt-2">
+              {activeCategory !== 'All Product'
+                ? `This store has no listings in ${activeCategory} right now.`
+                : 'Try a different word, or clear your filters.'}
+            </p>
             <button
               type="button"
-              onClick={() => setStoreSearch('')}
+              onClick={() => {
+                setStoreSearch('');
+                setActiveCategory('All Product');
+              }}
               className="mt-6 px-8 py-3 text-slate-900 rounded-full text-[10px] font-black uppercase tracking-widest"
               style={{ backgroundColor: theme.accent }}
             >
-              Clear search
+              Show all items
             </button>
           </div>
         ) : (
