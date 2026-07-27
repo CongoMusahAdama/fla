@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { ChevronRight } from "lucide-react";
 import { getFlaTermsSections, FLA_TERMS_VERSION, type TermsRole } from "@/lib/fla-terms";
+import { getFlaSupportEmail } from "@/lib/support-contacts";
 
 interface TermsAcceptanceScreenProps {
   role: TermsRole;
@@ -27,7 +28,7 @@ export function TermsAcceptanceScreen({
     const body = encodeURIComponent(
       `Please send me a copy of the FLA Purchase Terms and Conditions (version ${FLA_TERMS_VERSION}).\n\nMy account email: ${userEmail || ""}`
     );
-    window.location.href = `mailto:support@flamingo-store1.com?subject=${subject}&body=${body}`;
+    window.location.href = `mailto:${getFlaSupportEmail()}?subject=${subject}&body=${body}`;
   };
 
   return (
@@ -38,57 +39,51 @@ export function TermsAcceptanceScreen({
         onClick={handleSendEmail}
         className="text-sm text-blue-600 font-medium text-center mb-6 hover:underline"
       >
-        Send by Email
+        Email me a copy
       </button>
 
-      <div className="flex-1 overflow-y-auto rounded-2xl border border-slate-100 bg-slate-50/80 px-5 py-4 mb-6 max-h-[50vh] custom-scrollbar">
-        <p className="text-xs font-bold text-slate-900 uppercase tracking-wide mb-3">IMPORTANT</p>
-        <p className="text-sm text-slate-600 leading-relaxed mb-4">
-          Please read these Terms and Conditions carefully before using FLA Purchase. By selecting Agree, you
-          enter a binding agreement with FLA for your {role === "vendor" ? "vendor studio" : "customer"} account.
-        </p>
-        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">{intro} · v{FLA_TERMS_VERSION}</p>
+      <p className="text-sm text-slate-600 mb-6 leading-relaxed">{intro}</p>
 
-        {sections.map((section, index) => (
-          <div key={section.title} className="border-b border-slate-200/80 last:border-0">
+      <div className="flex-1 space-y-2 mb-8">
+        {sections.map((section, idx) => (
+          <div key={section.title} className="border border-slate-100 rounded-2xl overflow-hidden">
             <button
               type="button"
-              onClick={() => setExpanded(expanded === index ? null : index)}
-              className="w-full flex items-center justify-between py-3 text-left"
+              onClick={() => setExpanded(expanded === idx ? null : idx)}
+              className="w-full flex items-center justify-between px-5 py-4 text-left bg-white hover:bg-slate-50 transition-colors"
             >
-              <span className="text-sm font-semibold text-slate-900">{section.title}</span>
+              <span className="text-sm font-bold text-slate-900">{section.title}</span>
               <ChevronRight
-                className={`w-4 h-4 text-slate-400 shrink-0 transition-transform ${expanded === index ? "rotate-90" : ""}`}
+                className={`w-4 h-4 text-slate-400 transition-transform ${expanded === idx ? "rotate-90" : ""}`}
               />
             </button>
-            {expanded === index && (
-              <p className="text-sm text-slate-600 leading-relaxed pb-4 pr-2">{section.body}</p>
+            {expanded === idx && (
+              <div className="px-5 pb-4 text-sm text-slate-600 leading-relaxed border-t border-slate-50 pt-3">
+                {section.body}
+              </div>
             )}
           </div>
         ))}
-
-        <p className="text-xs text-slate-500 mt-4 leading-relaxed">
-          PLEASE READ THESE TERMS CAREFULLY. IF YOU DO NOT AGREE, SELECT DISAGREE — YOU WILL NOT BE ABLE TO USE
-          YOUR NEW ACCOUNT.
-        </p>
       </div>
 
-      <button
-        type="button"
-        disabled={isSubmitting}
-        onClick={() => onAgree()}
-        className="w-full py-4 rounded-full bg-blue-600 text-white font-semibold text-base hover:bg-blue-700 transition-colors disabled:opacity-50 shadow-lg shadow-blue-600/20"
-      >
-        {isSubmitting ? "Saving…" : "Agree"}
-      </button>
-      <button
-        type="button"
-        disabled={isSubmitting}
-        onClick={onDisagree}
-        className="w-full py-4 mt-2 text-slate-900 font-semibold text-base hover:bg-slate-50 rounded-full transition-colors disabled:opacity-50"
-      >
-        Disagree
-      </button>
+      <div className="sticky bottom-0 bg-white pt-4 pb-2 space-y-3 border-t border-slate-100">
+        <button
+          type="button"
+          onClick={onAgree}
+          disabled={isSubmitting}
+          className="w-full h-14 rounded-2xl bg-brand-lemon text-slate-900 font-black uppercase tracking-widest text-xs hover:bg-brand-lemon-hover transition-colors disabled:opacity-60"
+        >
+          {isSubmitting ? "Saving…" : "I Agree"}
+        </button>
+        <button
+          type="button"
+          onClick={onDisagree}
+          disabled={isSubmitting}
+          className="w-full h-12 rounded-2xl border border-slate-200 text-slate-600 font-bold text-sm hover:bg-slate-50 transition-colors disabled:opacity-60"
+        >
+          I Do Not Agree
+        </button>
+      </div>
     </div>
   );
 }

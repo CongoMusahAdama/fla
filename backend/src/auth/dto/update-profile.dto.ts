@@ -51,6 +51,18 @@ export class UpdateProfileDto {
 
   @IsOptional()
   @IsString()
+  productTypes?: string;
+
+  @IsOptional()
+  @IsString()
+  storeAccentColor?: string;
+
+  @IsOptional()
+  @IsString()
+  storeThemeColor?: string;
+
+  @IsOptional()
+  @IsString()
   businessRegistration?: string;
 
   @IsOptional()

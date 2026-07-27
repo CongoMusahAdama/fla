@@ -16,6 +16,7 @@ import {
   markMarketplaceScrollRestore,
 } from '@/lib/marketplace-return';
 import { getStoreReturn, markStoreScrollRestore } from '@/lib/store-return';
+import { resolveStoreTheme } from '@/lib/store-theme';
 
 type ProductDetail = {
   _id: string;
@@ -47,6 +48,11 @@ export default function StoreProductPage() {
   const { isAuthenticated, user, token } = useAuth();
 
   const [product, setProduct] = useState<ProductDetail | null>(null);
+  const [storeVendor, setStoreVendor] = useState<{
+    storeAccentColor?: string;
+    storeThemeColor?: string;
+    productTypes?: string;
+  } | null>(null);
   const [shopName, setShopName] = useState('Store');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -89,6 +95,7 @@ export default function StoreProductPage() {
 
         if (cancelled) return;
         setProduct(p);
+        setStoreVendor(storeData.vendor || null);
         setShopName(storeData.vendor?.shopName || storeData.vendor?.name || p.vendorName || 'Store');
       } catch (e: any) {
         if (!cancelled) setError(e.message || 'Failed to load product');
@@ -307,6 +314,8 @@ export default function StoreProductPage() {
     );
   }
 
+  const theme = resolveStoreTheme(storeVendor);
+
   return (
     <main className="min-h-screen bg-[#f6f7f9]">
       <div className="max-w-6xl mx-auto px-4 pt-24 pb-4 flex items-center justify-between gap-3">
@@ -361,8 +370,9 @@ export default function StoreProductPage() {
                   type="button"
                   onClick={() => setImageIndex(i)}
                   className={`relative w-16 h-16 rounded-xl overflow-hidden border-2 shrink-0 ${
-                    i === imageIndex ? 'border-brand-lemon' : 'border-transparent'
+                    i === imageIndex ? '' : 'border-transparent'
                   }`}
+                  style={i === imageIndex ? { borderColor: theme.accent } : undefined}
                 >
                   <Image src={getImageUrl(img)} alt="" fill unoptimized className="object-cover" />
                 </button>
@@ -480,7 +490,8 @@ export default function StoreProductPage() {
               type="button"
               disabled={soldOut || isAdding}
               onClick={handleAddToCart}
-              className="flex-1 px-8 py-4 rounded-full bg-brand-lemon text-slate-900 text-[11px] font-black uppercase tracking-widest hover:bg-black hover:text-white transition-all disabled:opacity-50"
+              className="flex-1 px-8 py-4 rounded-full text-slate-900 text-[11px] font-black uppercase tracking-widest hover:bg-black hover:text-white transition-all disabled:opacity-50"
+              style={{ backgroundColor: theme.accent }}
             >
               Add to cart
             </button>

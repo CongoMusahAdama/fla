@@ -75,6 +75,9 @@ function VendorDashboardInner() {
     const [formName, setFormName] = useState('');
     const [formPrice, setFormPrice] = useState('');
     const [formCategory, setFormCategory] = useState('Electronics');
+    const vendorProductCategories = user?.productTypes
+        ? PRODUCT_CATEGORIES.filter((c) => c === user.productTypes)
+        : PRODUCT_CATEGORIES.filter((c) => c !== 'All Product');
     const [formQuantity, setFormQuantity] = useState('');
     const [formTailoring, setFormTailoring] = useState('');
     const [formRegion, setFormRegion] = useState('Greater Accra');
@@ -112,6 +115,9 @@ function VendorDashboardInner() {
     const [accountName, setAccountName] = useState('');
     const [shopLocation, setShopLocation] = useState('');
     const [bio, setBio] = useState('');
+    const [storeCategory, setStoreCategory] = useState('');
+    const [storeAccentColor, setStoreAccentColor] = useState('#F6B01E');
+    const [storeThemeColor, setStoreThemeColor] = useState('#0f2744');
     const [profileImage, setProfileImage] = useState('');
     const [bannerImage, setBannerImage] = useState('');
     const [businessRegistration, setBusinessRegistration] = useState('');
@@ -292,6 +298,10 @@ function VendorDashboardInner() {
             setMomoNetwork(user.paymentMethods?.[0]?.network || 'MTN');
             setShopLocation(user.location || '');
             setBio(user.bio || '');
+            setStoreCategory(user.productTypes || '');
+            setStoreAccentColor(user.storeAccentColor || '#F6B01E');
+            setStoreThemeColor(user.storeThemeColor || '#0f2744');
+            if (user.productTypes) setFormCategory(user.productTypes);
             setProfileImage(user.profileImage || '');
             setBannerImage(user.bannerImage || '');
             setBusinessRegistration(user.businessRegistration || '');
@@ -611,6 +621,9 @@ function VendorDashboardInner() {
                 body: JSON.stringify({ 
                     shopName, 
                     phone, 
+                    productTypes: storeCategory || undefined,
+                    storeAccentColor: storeAccentColor || undefined,
+                    storeThemeColor: storeThemeColor || undefined,
                     momoNumber, 
                     accountName, 
                     location: shopLocation, 
@@ -805,7 +818,7 @@ function VendorDashboardInner() {
         setEditingProduct(null);
         setFormName('');
         setFormPrice('');
-        setFormCategory('Electronics');
+        setFormCategory(user?.productTypes || 'Electronics');
         setFormQuantity('');
         setFormTailoring('');
         setFormRegion('Greater Accra');
@@ -1152,7 +1165,7 @@ function VendorDashboardInner() {
                     />
                 );
             case 'wallet': return <VendorFinances user={user} dashboardData={dashboardData} commissionRate={commissionRate} handleWithdrawal={handleWithdrawal} />;
-            case 'settings': return <VendorSettings user={user} shopName={shopName} setShopName={setShopName} phone={phone} setPhone={setPhone} momoNumber={momoNumber} setMomoNumber={setMomoNumber} momoNetwork={momoNetwork} setMomoNetwork={setMomoNetwork} accountName={accountName} setAccountName={setAccountName} shopLocation={shopLocation} setShopLocation={setShopLocation} bio={bio} setBio={setBio} bannerImage={bannerImage} profileImage={profileImage} businessRegistration={businessRegistration} ghanaCardFront={ghanaCardFront} ghanaCardBack={ghanaCardBack} selfie={selfie} handleImageUpload={handleImageUpload} handleUpdateVendorProfile={handleUpdateVendorProfile} startOnDocuments={needsKycUpload} />;
+            case 'settings': return <VendorSettings user={user} shopName={shopName} setShopName={setShopName} storeCategory={storeCategory} setStoreCategory={setStoreCategory} storeAccentColor={storeAccentColor} setStoreAccentColor={setStoreAccentColor} storeThemeColor={storeThemeColor} setStoreThemeColor={setStoreThemeColor} phone={phone} setPhone={setPhone} momoNumber={momoNumber} setMomoNumber={setMomoNumber} momoNetwork={momoNetwork} setMomoNetwork={setMomoNetwork} accountName={accountName} setAccountName={setAccountName} shopLocation={shopLocation} setShopLocation={setShopLocation} bio={bio} setBio={setBio} bannerImage={bannerImage} profileImage={profileImage} businessRegistration={businessRegistration} ghanaCardFront={ghanaCardFront} ghanaCardBack={ghanaCardBack} selfie={selfie} handleImageUpload={handleImageUpload} handleUpdateVendorProfile={handleUpdateVendorProfile} startOnDocuments={needsKycUpload} />;
             case 'notifications': return <VendorNotifications notifications={notifications} />;
             case 'help': return <VendorHelp />;
             default: return null;
@@ -1564,7 +1577,7 @@ function VendorDashboardInner() {
                                 <div className="space-y-4">
                                     <label htmlFor="p-category" className="text-[12px] font-black text-slate-900 uppercase tracking-widest ml-1 cursor-pointer">Category</label>
                                     <select id="p-category" name="category" value={formCategory} onChange={(e) => setFormCategory(e.target.value)} className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-slate-900/10 h-14">
-                                        {PRODUCT_CATEGORIES.filter((c) => c !== 'All Product').map((cat) => (
+                                        {vendorProductCategories.map((cat) => (
                                             <option key={cat} value={cat}>{cat}</option>
                                         ))}
                                     </select>

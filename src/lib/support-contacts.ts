@@ -9,12 +9,22 @@ import {
  * FLA email contacts. Reports and general support go to different inboxes.
  * Override via env in production so the addresses can change without a redeploy.
  */
+/** Primary FLA inbox until custom domain mail is wired up. */
+const FLA_DEFAULT_INBOX = 'fadilansalifu58@gmail.com';
+
 export function getFlaReportEmail(): string {
-  return process.env.NEXT_PUBLIC_FLA_REPORT_EMAIL?.trim() || 'report@flamingo-store1.com';
+  return process.env.NEXT_PUBLIC_FLA_REPORT_EMAIL?.trim() || FLA_DEFAULT_INBOX;
 }
 
 export function getFlaSupportEmail(): string {
-  return process.env.NEXT_PUBLIC_FLA_SUPPORT_EMAIL?.trim() || 'support@flamingo-store1.com';
+  return process.env.NEXT_PUBLIC_FLA_SUPPORT_EMAIL?.trim() || FLA_DEFAULT_INBOX;
+}
+
+/** mailto: for the support inbox (navbar, help widgets). */
+export function getFlaSupportMailtoHref(subject?: string): string {
+  const email = getFlaSupportEmail();
+  if (!subject?.trim()) return `mailto:${email}`;
+  return `mailto:${email}?subject=${encodeURIComponent(subject)}`;
 }
 
 function formatSupportPhonePretty(digitsOrRaw: string): string {

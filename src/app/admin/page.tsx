@@ -813,9 +813,35 @@ export default function AdminDashboard() {
                     rejected: 'Rejected',
                     banned: 'Suspended',
                 };
+                const getKycBucket = (v: any): 'pending' | 'active' | 'rejected' | 'all' => {
+                    if (v.status === 'rejected' || v.status === 'banned') return 'rejected';
+                    if (v.kycApprovedAt) return 'active';
+                    if (v.status === 'pending' || (Boolean(v.kycSubmittedAt) && !v.kycApprovedAt)) return 'pending';
+                    return 'all';
+                };
+
+                const getKycDisplayStatus = (v: any): { label: string; className: string } => {
+                    if (v.status === 'rejected') {
+                        return { label: 'Rejected', className: kycStatusStyles.rejected };
+                    }
+                    if (v.status === 'banned') {
+                        return { label: 'Suspended', className: kycStatusStyles.banned };
+                    }
+                    if (v.kycApprovedAt) {
+                        return { label: 'Approved', className: kycStatusStyles.active };
+                    }
+                    if (v.kycSubmittedAt) {
+                        return { label: 'Docs under review', className: kycStatusStyles.pending };
+                    }
+                    if (v.status === 'pending') {
+                        return { label: 'Pending', className: kycStatusStyles.pending };
+                    }
+                    return { label: 'No docs yet', className: 'bg-sky-50 text-sky-700 border-sky-100' };
+                };
+
                 const filteredKycVendors = (kycFilter === 'all'
                     ? kycVendors
-                    : kycVendors.filter((v) => v.status === kycFilter)
+                    : kycVendors.filter((v) => getKycBucket(v) === kycFilter)
                 ).filter((v) => {
                     if (!searchQuery.trim()) return true;
                     const momo = v.paymentMethods?.[0];
@@ -833,12 +859,9 @@ export default function AdminDashboard() {
                         momo?.network,
                     ].some((f) => f?.toLowerCase().includes(q));
                 });
-                const pendingKycCount = kycVendors.filter(
-                    (v) =>
-                        v.status === 'pending' ||
-                        (Boolean(v.kycSubmittedAt) && !v.kycApprovedAt),
-                ).length;
-                const approvedKycCount = kycVendors.filter((v) => v.status === 'active').length;
+                const pendingKycCount = kycVendors.filter((v) => getKycBucket(v) === 'pending').length;
+                const approvedKycCount = kycVendors.filter((v) => getKycBucket(v) === 'active').length;
+                const rejectedKycCount = kycVendors.filter((v) => getKycBucket(v) === 'rejected').length;
 
                 return (
                     <div className="space-y-6 animate-in fade-in duration-500">
@@ -894,7 +917,13 @@ export default function AdminDashboard() {
                                         <span className="ml-1.5 opacity-70">
                                             {tab.id === 'all'
                                                 ? kycVendors.length
-                                                : kycVendors.filter((v) => v.status === tab.id).length}
+                                                : tab.id === 'pending'
+                                                    ? pendingKycCount
+                                                    : tab.id === 'active'
+                                                        ? approvedKycCount
+                                                        : tab.id === 'rejected'
+                                                            ? rejectedKycCount
+                                                            : 0}
                                         </span>
                                     </button>
                                 ))}
@@ -937,6 +966,7 @@ export default function AdminDashboard() {
                                         ) : (
                                             filteredKycVendors.map((v, i) => {
                                                 const kyc = getShuftiKycStatus(v);
+                                                const kycDisplay = getKycDisplayStatus(v);
                                                 const docCount = [
                                                     v.ghanaCardFront,
                                                     v.ghanaCardBack,
@@ -969,8 +999,8 @@ export default function AdminDashboard() {
                                                             <p className="text-[11px] text-slate-500 mt-0.5">{kyc.label}</p>
                                                         </td>
                                                         <td className="px-5 py-4">
-                                                            <span className={`inline-flex px-2.5 py-1 text-[11px] font-medium border ${kycStatusStyles[v.status] || 'bg-slate-100 text-slate-600 border-slate-200'}`}>
-                                                                {kycStatusLabels[v.status] || v.status}
+                                                            <span className={`inline-flex px-2.5 py-1 text-[11px] font-medium border ${kycDisplay.className}`}>
+                                                                {kycDisplay.label}
                                                             </span>
                                                         </td>
                                                         <td className="px-5 py-4 text-right">

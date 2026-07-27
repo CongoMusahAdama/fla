@@ -15,6 +15,7 @@ import {
   cacheStorePage,
   readStoreCache,
 } from '@/lib/store-return';
+import { resolveStoreTheme, storeThemeStyle } from '@/lib/store-theme';
 import { useCart } from '@/context/CartContext';
 import Footer from '@/components/Footer';
 
@@ -31,6 +32,9 @@ type StoreVendor = {
   storeSlug?: string;
   vendorTier?: string;
   businessRegistration?: string;
+  productTypes?: string;
+  storeAccentColor?: string;
+  storeThemeColor?: string;
 };
 
 type StoreProduct = {
@@ -143,6 +147,7 @@ export default function VendorStorePage() {
   }, [slug]);
 
   const shopName = vendor?.shopName || vendor?.name || 'Store';
+  const theme = resolveStoreTheme(vendor);
   const normalizedSearch = storeSearch.trim().toLowerCase();
   const filteredProducts = normalizedSearch
     ? products.filter((p) => p.name?.toLowerCase().includes(normalizedSearch))
@@ -208,9 +213,9 @@ export default function VendorStorePage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#f6f7f9]">
+    <main className="min-h-screen bg-[#f6f7f9]" style={storeThemeStyle(vendor)}>
       {/* Full-bleed banner hero */}
-      <section className="relative w-full min-h-[42vh] md:min-h-[48vh] overflow-hidden bg-brand-blue">
+      <section className="relative w-full min-h-[42vh] md:min-h-[48vh] overflow-hidden" style={{ backgroundColor: theme.theme }}>
         {vendor.bannerImage ? (
           <Image
             src={getImageUrl(vendor.bannerImage)}
@@ -221,7 +226,7 @@ export default function VendorStorePage() {
             className="object-cover opacity-70"
           />
         ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-brand-blue via-[#1a3a5c] to-[#0a1a2e]" />
+          <div className="absolute inset-0 opacity-90" style={{ background: `linear-gradient(to bottom right, ${theme.theme}, ${theme.theme}dd, #0a1a2e)` }} />
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-transparent" />
 
@@ -229,7 +234,7 @@ export default function VendorStorePage() {
           <div className="flex flex-wrap items-center gap-3 mb-4">
             <Link
               href="/shop"
-              className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-white/80 hover:text-brand-lemon transition-colors"
+              className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-white/80 transition-colors"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
               FLA Marketplace
@@ -237,7 +242,7 @@ export default function VendorStorePage() {
             <button
               type="button"
               onClick={() => setIsCartOpen(true)}
-              className="ml-auto inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white/90 hover:text-brand-lemon"
+              className="ml-auto inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white/90"
             >
               <ShoppingBag className="w-4 h-4" />
               Cart{cartCount > 0 ? ` (${cartCount})` : ''}
@@ -245,7 +250,7 @@ export default function VendorStorePage() {
           </div>
 
           <div className="flex items-end gap-4 md:gap-6">
-            <div className="relative w-16 h-16 md:w-20 md:h-20 rounded-2xl overflow-hidden border-2 border-brand-lemon/80 bg-white shrink-0 shadow-lg">
+            <div className="relative w-16 h-16 md:w-20 md:h-20 rounded-2xl overflow-hidden border-2 bg-white shrink-0 shadow-lg" style={{ borderColor: theme.accent }}>
               {vendor.profileImage ? (
                 <Image
                   src={getImageUrl(vendor.profileImage)}
@@ -255,7 +260,7 @@ export default function VendorStorePage() {
                   className="object-cover"
                 />
               ) : (
-                <div className="w-full h-full flex items-center justify-center bg-brand-lemon text-slate-900 text-2xl font-black">
+                <div className="w-full h-full flex items-center justify-center text-slate-900 text-2xl font-black" style={{ backgroundColor: theme.accent }}>
                   {shopName.charAt(0)}
                 </div>
               )}
@@ -264,7 +269,7 @@ export default function VendorStorePage() {
               <div className="flex items-center gap-2 mb-1">
                 <VendorTrustBadge documented={documented} size="md" />
                 {vendor.uniqueVendorId && (
-                  <span className="text-[9px] font-black uppercase tracking-widest text-brand-lemon bg-black/40 px-2 py-0.5 rounded-full">
+                  <span className="text-[9px] font-black uppercase tracking-widest bg-black/40 px-2 py-0.5 rounded-full" style={{ color: theme.accent }}>
                     {vendor.uniqueVendorId}
                   </span>
                 )}
@@ -272,9 +277,14 @@ export default function VendorStorePage() {
               <h1 className="font-heading text-3xl md:text-5xl font-black text-white tracking-tighter leading-none truncate">
                 {shopName}
               </h1>
+              {vendor.productTypes && (
+                <p className="mt-2 inline-flex text-[9px] font-black uppercase tracking-widest text-slate-900 px-2.5 py-1 rounded-full" style={{ backgroundColor: theme.accent }}>
+                  {vendor.productTypes}
+                </p>
+              )}
               {location && (
                 <p className="mt-2 flex items-center gap-1.5 text-white/70 text-xs font-bold uppercase tracking-widest">
-                  <MapPin className="w-3.5 h-3.5 text-brand-lemon" />
+                  <MapPin className="w-3.5 h-3.5" style={{ color: theme.accent }} />
                   {location}
                 </p>
               )}
@@ -354,7 +364,8 @@ export default function VendorStorePage() {
             <button
               type="button"
               onClick={() => setStoreSearch('')}
-              className="mt-6 px-8 py-3 bg-brand-lemon text-slate-900 rounded-full text-[10px] font-black uppercase tracking-widest"
+              className="mt-6 px-8 py-3 text-slate-900 rounded-full text-[10px] font-black uppercase tracking-widest"
+              style={{ backgroundColor: theme.accent }}
             >
               Clear search
             </button>

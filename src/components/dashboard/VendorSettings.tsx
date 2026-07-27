@@ -13,11 +13,25 @@ import {
   ArrowRight,
 } from 'lucide-react';
 import { getImageUrl } from '@/lib/utils';
+import { useProductCategories } from '@/hooks/useProductCategories';
+import {
+  STORE_ACCENT_PRESETS,
+  STORE_THEME_PRESETS,
+  DEFAULT_STORE_ACCENT,
+  DEFAULT_STORE_THEME,
+  normalizeStoreHex,
+} from '@/lib/store-theme';
 
 interface VendorSettingsProps {
   user: any;
   shopName: string;
   setShopName: (val: string) => void;
+  storeCategory: string;
+  setStoreCategory: (val: string) => void;
+  storeAccentColor: string;
+  setStoreAccentColor: (val: string) => void;
+  storeThemeColor: string;
+  setStoreThemeColor: (val: string) => void;
   phone: string;
   setPhone: (val: string) => void;
   momoNumber: string;
@@ -56,6 +70,12 @@ export const VendorSettings: React.FC<VendorSettingsProps> = ({
   user,
   shopName,
   setShopName,
+  storeCategory,
+  setStoreCategory,
+  storeAccentColor,
+  setStoreAccentColor,
+  storeThemeColor,
+  setStoreThemeColor,
   phone,
   setPhone,
   momoNumber,
@@ -78,6 +98,7 @@ export const VendorSettings: React.FC<VendorSettingsProps> = ({
   handleUpdateVendorProfile,
   startOnDocuments = false,
 }) => {
+  const { categories: categoryOptions } = useProductCategories({ includeAll: false });
   const needsDocs = !user?.kycApprovedAt && !user?.kycSubmittedAt;
   const [step, setStep] = React.useState<WizardStep>(
     startOnDocuments || needsDocs ? 'documents' : 'brand',
@@ -263,6 +284,20 @@ export const VendorSettings: React.FC<VendorSettingsProps> = ({
                 />
               </div>
               <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Store category</label>
+                <select
+                  value={storeCategory}
+                  onChange={(e) => setStoreCategory(e.target.value)}
+                  className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20 outline-none appearance-none cursor-pointer"
+                >
+                  <option value="" disabled>Select category</option>
+                  {categoryOptions.map((cat) => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+                <p className="text-[10px] text-slate-400 ml-1">Shown on your storefront and used as the default when you add products.</p>
+              </div>
+              <div className="space-y-1.5">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Contact Phone</label>
                 <input
                   type="text"
@@ -288,6 +323,74 @@ export const VendorSettings: React.FC<VendorSettingsProps> = ({
                   onChange={(e) => setBio(e.target.value)}
                   className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20 resize-none outline-none"
                 />
+              </div>
+            </div>
+
+            <div className="space-y-4 pt-2 border-t border-slate-100">
+              <div>
+                <h3 className="text-[11px] font-black text-slate-900 uppercase tracking-widest">Store colors</h3>
+                <p className="text-[10px] text-slate-400 mt-1">Customize your public storefront header and button accents.</p>
+              </div>
+              <div className="grid md:grid-cols-2 gap-6">
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Accent color</label>
+                  <div className="flex flex-wrap gap-2">
+                    {STORE_ACCENT_PRESETS.map((preset) => (
+                      <button
+                        key={preset.value}
+                        type="button"
+                        title={preset.label}
+                        onClick={() => setStoreAccentColor(preset.value)}
+                        className={`w-9 h-9 rounded-xl border-2 transition-transform hover:scale-105 ${storeAccentColor === preset.value ? 'border-slate-900 scale-105' : 'border-transparent'}`}
+                        style={{ backgroundColor: preset.value }}
+                      />
+                    ))}
+                  </div>
+                  <input
+                    type="color"
+                    value={normalizeStoreHex(storeAccentColor, DEFAULT_STORE_ACCENT)}
+                    onChange={(e) => setStoreAccentColor(e.target.value)}
+                    className="w-full h-10 rounded-xl cursor-pointer border border-slate-100"
+                  />
+                </div>
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Header theme</label>
+                  <div className="flex flex-wrap gap-2">
+                    {STORE_THEME_PRESETS.map((preset) => (
+                      <button
+                        key={preset.value}
+                        type="button"
+                        title={preset.label}
+                        onClick={() => setStoreThemeColor(preset.value)}
+                        className={`w-9 h-9 rounded-xl border-2 transition-transform hover:scale-105 ${storeThemeColor === preset.value ? 'border-brand-lemon scale-105' : 'border-white/20'}`}
+                        style={{ backgroundColor: preset.value }}
+                      />
+                    ))}
+                  </div>
+                  <input
+                    type="color"
+                    value={normalizeStoreHex(storeThemeColor, DEFAULT_STORE_THEME)}
+                    onChange={(e) => setStoreThemeColor(e.target.value)}
+                    className="w-full h-10 rounded-xl cursor-pointer border border-slate-100"
+                  />
+                </div>
+              </div>
+              <div
+                className="rounded-2xl overflow-hidden border border-slate-100"
+                style={{ backgroundColor: normalizeStoreHex(storeThemeColor, DEFAULT_STORE_THEME) }}
+              >
+                <div className="p-5 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-white/70 text-[9px] font-black uppercase tracking-widest">Preview</p>
+                    <p className="text-white font-black uppercase tracking-tight truncate">{shopName || 'Your Store'}</p>
+                  </div>
+                  <span
+                    className="px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest text-slate-900 shrink-0"
+                    style={{ backgroundColor: normalizeStoreHex(storeAccentColor, DEFAULT_STORE_ACCENT) }}
+                  >
+                    Shop now
+                  </span>
+                </div>
               </div>
             </div>
           </div>

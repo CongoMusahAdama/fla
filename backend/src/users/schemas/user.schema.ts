@@ -36,6 +36,14 @@ export class User {
     @Prop()
     productTypes?: string;
 
+    /** Storefront accent (buttons, highlights) — hex e.g. #F6B01E */
+    @Prop()
+    storeAccentColor?: string;
+
+    /** Storefront header/theme background — hex e.g. #0f2744 */
+    @Prop()
+    storeThemeColor?: string;
+
     @Prop()
     location?: string;
 

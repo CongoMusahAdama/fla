@@ -20,6 +20,8 @@ export type User = {
     bannerImage?: string;
     shopName?: string;
     productTypes?: string;
+    storeAccentColor?: string;
+    storeThemeColor?: string;
     accountName?: string;
     momoNumber?: string;
     bio?: string;
@@ -91,6 +93,8 @@ function mapApiUser(raw: Record<string, unknown>): User {
         accountName: raw.accountName as string | undefined,
         bio: raw.bio as string | undefined,
         productTypes: raw.productTypes as string | undefined,
+        storeAccentColor: raw.storeAccentColor as string | undefined,
+        storeThemeColor: raw.storeThemeColor as string | undefined,
         status: raw.status as string | undefined,
         uniqueVendorId: raw.uniqueVendorId as string | undefined,
         storeSlug: raw.storeSlug as string | undefined,

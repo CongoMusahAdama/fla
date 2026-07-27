@@ -83,6 +83,8 @@ export class AuthService {
       paymentMethods: user.paymentMethods,
       bio: user.bio,
       productTypes: user.productTypes,
+      storeAccentColor: user.storeAccentColor,
+      storeThemeColor: user.storeThemeColor,
       momoNumber: user.momoNumber,
       accountName: user.accountName,
       status: user.status,

@@ -16,6 +16,8 @@ import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile';
 import { TermsAcceptanceScreen } from '@/components/auth/TermsAcceptanceScreen';
 import { FLA_TERMS_VERSION } from '@/lib/fla-terms';
 import { GHANA_REGIONS } from '@/lib/ghana-regions';
+import { getFlaSupportMailtoHref } from '@/lib/support-contacts';
+import { DEFAULT_PRODUCT_CATEGORY_LABELS } from '@/lib/product-categories';
 
 // Memoized Input Component to prevent re-renders of the entire page on every keystroke
 const AuthInput = React.memo(({ label, type, placeholder, value, onChange, required, icon: Icon }: any) => {
@@ -461,6 +463,15 @@ export const RegisterForm = ({
             });
             return;
         }
+        if (role === 'vendor' && step === 3 && !productTypes.trim()) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Store category required',
+                text: 'Choose the main category for your store.',
+                confirmButtonColor: '#F9CF5A',
+            });
+            return;
+        }
         setStep(prev => Math.min(prev + 1, role === 'vendor' ? 4 : 2));
     };
     const prevStep = () => setStep(prev => Math.max(prev - 1, 1));
@@ -608,6 +619,27 @@ export const RegisterForm = ({
                                 </div>
 
                                 <AuthInput label="Shop Name" type="text" placeholder="Eg. FLA Boutique" required value={shopName} onChange={setShopName} icon={Store} />
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-bold text-slate-700 ml-1">
+                                        Store category <span className="text-rose-600">*</span>
+                                    </label>
+                                    <div className="relative">
+                                        <Package className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                                        <select
+                                            value={productTypes}
+                                            onChange={(e) => setProductTypes(e.target.value)}
+                                            required
+                                            className="w-full pl-11 pr-4 py-4 bg-white border-2 border-slate-100 rounded-2xl text-base md:text-sm transition-all focus:border-slate-900 outline-none appearance-none cursor-pointer"
+                                        >
+                                            <option value="" disabled>Select what you sell</option>
+                                            {DEFAULT_PRODUCT_CATEGORY_LABELS.map((cat) => (
+                                                <option key={cat} value={cat}>{cat}</option>
+                                            ))}
+                                        </select>
+                                        <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 rotate-90 pointer-events-none" />
+                                    </div>
+                                    <p className="text-xs text-slate-500 ml-1">This category labels your storefront and defaults new product listings.</p>
+                                </div>
                                 <div className="space-y-1.5">
                                     <label className="text-xs font-bold text-slate-700 ml-1">Business Description <span className="font-medium text-slate-400">(optional)</span></label>
                                     <textarea 
@@ -1595,7 +1627,7 @@ function AuthContent() {
                             </span>
                         </Link>
                         <a
-                            href="mailto:support@flamingo-store1.com"
+                            href={getFlaSupportMailtoHref('FLA Help')}
                             className="hidden sm:inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-900 transition-colors"
                         >
                             <Mail className="w-3.5 h-3.5" />

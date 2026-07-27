@@ -20,7 +20,7 @@ import Swal from 'sweetalert2';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
-import { getFlaSupportPhoneDisplay, getFlaSupportTelHref } from '@/lib/support-contacts';
+import { getFlaSupportEmail, getFlaSupportMailtoHref } from '@/lib/support-contacts';
 import { useProductCategories } from '@/hooks/useProductCategories';
 
 export default function Navbar() {
@@ -32,8 +32,8 @@ export default function Navbar() {
   const { user, token, isAuthenticated, logout } = useAuth();
   const router = useRouter();
 
-  const supportPhone = getFlaSupportPhoneDisplay();
-  const supportTelHref = getFlaSupportTelHref();
+  const supportEmail = getFlaSupportEmail();
+  const supportMailtoHref = getFlaSupportMailtoHref('FLA Support');
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isCatOpen, setIsCatOpen] = useState(false);
@@ -345,11 +345,12 @@ export default function Navbar() {
             {/* Right tools */}
             <div className="flex items-center gap-2 sm:gap-4 ml-auto shrink-0">
               <a
-                href={supportTelHref}
-                className="hidden lg:flex flex-col items-end text-right leading-tight hover:opacity-80"
+                href={supportMailtoHref}
+                className="hidden lg:flex flex-col items-end text-right leading-tight hover:opacity-80 max-w-[220px]"
+                title={supportEmail}
               >
-                <span className="text-sm font-bold text-slate-900">{supportPhone}</span>
-                <span className="text-[10px] font-medium text-slate-400">Support 24/7</span>
+                <span className="text-sm font-bold text-slate-900 truncate w-full">{supportEmail}</span>
+                <span className="text-[10px] font-medium text-slate-400">Email support</span>
               </a>
 
               <Link href={accountHref} className="p-2 text-slate-700 hover:text-brand-lemon transition-colors" aria-label="Account">
