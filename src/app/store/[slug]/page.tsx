@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { ArrowLeft, MapPin, ShoppingBag, Copy, Check, Search, X, ChevronDown } from 'lucide-react';
+import { ArrowLeft, MapPin, ShoppingBag, Copy, Check, ChevronDown } from 'lucide-react';
 import { getImageUrl, getVendorDisplayLocation } from '@/lib/utils';
 import { isVendorDocumented } from '@/lib/kyc';
 import { VendorTrustBadge } from '@/components/VendorTrustBadge';
@@ -71,7 +71,6 @@ export default function VendorStorePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const [storeSearch, setStoreSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState('All Product');
   const [categoryOpen, setCategoryOpen] = useState(false);
 
@@ -171,7 +170,6 @@ export default function VendorStorePage() {
 
   const shopName = vendor?.shopName || vendor?.name || 'Store';
   const theme = resolveStoreTheme(vendor);
-  const normalizedSearch = storeSearch.trim().toLowerCase();
 
   const storeCategories = useMemo(() => {
     const fromProducts = new Set(
@@ -191,19 +189,16 @@ export default function VendorStorePage() {
 
   const filteredProducts = useMemo(() => {
     return products.filter((p) => {
-      const matchesSearch = !normalizedSearch || p.name?.toLowerCase().includes(normalizedSearch);
       const matchesCategory =
         activeCategory === 'All Product' || p.category === activeCategory;
-      return matchesSearch && matchesCategory;
+      return matchesCategory;
     });
-  }, [products, normalizedSearch, activeCategory]);
+  }, [products, activeCategory]);
 
   const shelfLabel =
     activeCategory !== 'All Product'
       ? activeCategory
-      : normalizedSearch
-        ? `Results for “${storeSearch.trim()}”`
-        : 'All products';
+      : 'All products';
   const documented = vendor
     ? isVendorDocumented({
         vendorTier: vendor.vendorTier,
@@ -442,33 +437,6 @@ export default function VendorStorePage() {
                 ))}
               </div>
             </div>
-
-            <div className="relative flex-1 min-w-[200px] md:flex-none">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-              <input
-                type="text"
-                value={storeSearch}
-                onChange={(e) => setStoreSearch(e.target.value)}
-                placeholder={`Search ${shopName}…`}
-                className="w-full md:w-72 pl-11 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-full text-base sm:text-sm focus:bg-white focus:outline-none transition-all"
-                onFocus={(e) => {
-                  e.currentTarget.style.borderColor = theme.accent;
-                }}
-                onBlur={(e) => {
-                  e.currentTarget.style.borderColor = '';
-                }}
-              />
-              {storeSearch && (
-                <button
-                  type="button"
-                  onClick={() => setStoreSearch('')}
-                  aria-label="Clear search"
-                  className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
-            </div>
             <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 whitespace-nowrap">
               {filteredProducts.length} item{filteredProducts.length === 1 ? '' : 's'}
             </span>
@@ -513,25 +481,22 @@ export default function VendorStorePage() {
             <p className="text-lg font-bold text-slate-900 uppercase tracking-tighter">
               {activeCategory !== 'All Product'
                 ? `No ${activeCategory} items yet`
-                : normalizedSearch
-                  ? `No matches for “${storeSearch}”`
-                  : 'No products found'}
+                : 'No products found'}
             </p>
             <p className="text-sm mt-2">
               {activeCategory !== 'All Product'
                 ? `This store has no listings in ${activeCategory} right now.`
-                : 'Try a different word, or clear your filters.'}
+                : 'This store has no listings yet.'}
             </p>
             <button
               type="button"
               onClick={() => {
-                setStoreSearch('');
                 setActiveCategory('All Product');
               }}
               className="mt-6 px-8 py-3 text-slate-900 rounded-full text-[10px] font-black uppercase tracking-widest"
               style={{ backgroundColor: theme.accent }}
             >
-              Show all items
+              View all items
             </button>
           </div>
         ) : (
