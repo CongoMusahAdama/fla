@@ -221,6 +221,8 @@ export default function Navbar() {
 
   const browseCategories = PRODUCT_CATEGORIES.filter((c) => c !== 'All Product');
   const isShopPage = pathname === '/shop' || pathname?.startsWith('/shop/');
+  const isStorePage = pathname === '/store' || pathname?.startsWith('/store/');
+  const hideGlobalSearch = isShopPage || isStorePage;
 
   return (
     <>
@@ -256,8 +258,8 @@ export default function Navbar() {
               </div>
             </Link>
 
-            {/* Search — hidden on shop (page has its own search) */}
-            {!isShopPage && (
+            {/* Search — marketplace only; hidden on shop and vendor storefronts */}
+            {!hideGlobalSearch && (
             <div className="relative flex-1 max-w-2xl mx-auto hidden md:block">
               <div className="flex items-stretch h-12 rounded-md border-2 border-brand-lemon overflow-hidden bg-white">
                 <div className="relative shrink-0" ref={searchCatRef}>
@@ -339,8 +341,8 @@ export default function Navbar() {
             </div>
             )}
 
-            {/* Spacer when shop page has no center search */}
-            {isShopPage && <div className="hidden md:block flex-1" />}
+            {/* Spacer when pages have no center search */}
+            {hideGlobalSearch && <div className="hidden md:block flex-1" />}
 
             {/* Right tools */}
             <div className="flex items-center gap-2 sm:gap-4 ml-auto shrink-0">
@@ -411,8 +413,8 @@ export default function Navbar() {
             </div>
           </div>
 
-          {/* Mobile search — hidden on shop */}
-          {!isShopPage && (
+          {/* Mobile search — marketplace only */}
+          {!hideGlobalSearch && (
             <div className="mt-3 md:hidden">
               <div className="flex h-11 rounded-md border-2 border-brand-lemon overflow-hidden">
                 <input
