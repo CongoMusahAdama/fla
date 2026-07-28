@@ -220,9 +220,8 @@ export default function Navbar() {
   ];
 
   const browseCategories = PRODUCT_CATEGORIES.filter((c) => c !== 'All Product');
-  const isShopPage = pathname === '/shop' || pathname?.startsWith('/shop/');
   const isStorePage = pathname === '/store' || pathname?.startsWith('/store/');
-  const hideGlobalSearch = isShopPage || isStorePage;
+  const hideGlobalSearch = isStorePage;
 
   return (
     <>
