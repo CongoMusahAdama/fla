@@ -594,6 +594,24 @@ export default React.memo(function ProductCard({ id, name, price, images, sizes 
 
     const handleCheckoutFlow = async (deliveryDetails: { deliveryAddress: string, deliveryCity: string, deliveryRegion: string, totalProductAmount: number }, guestInfo: { phone: string, email: string } | null = null) => {
         try {
+            if (guestInfo) {
+                const { openWhatsAppChat, getFlaAdminWhatsAppPhone } = await import('@/lib/whatsapp');
+                const message = `*GUEST ORDER*
+*Product:* ${name} (x1)
+*Size:* ${selectedSize || 'Universal'} | *Color:* ${selectedColor || 'Universal'}
+*Total:* GH₵ ${deliveryDetails.totalProductAmount.toLocaleString()}
+*Vendor:* ${vendorName || 'Unknown Vendor'}
+
+*Guest Info*
+*WhatsApp:* ${guestInfo.phone}
+*Email:* ${guestInfo.email}
+
+*Delivery Address*
+${deliveryDetails.deliveryAddress}, ${deliveryDetails.deliveryCity}, ${deliveryDetails.deliveryRegion}`;
+
+                openWhatsAppChat(getFlaAdminWhatsAppPhone(), message);
+                return;
+            }
 
             Swal.fire({
                 title: 'PREPARING PAYMENT...',
@@ -621,12 +639,12 @@ export default React.memo(function ProductCard({ id, name, price, images, sizes 
                 shippingAddress: deliveryDetails.deliveryAddress,
                 shippingCity: deliveryDetails.deliveryCity,
                 shippingRegion: deliveryDetails.deliveryRegion,
-                customerName: user?.name || 'Guest User',
-                customerEmail: user?.email || guestInfo?.email,
-                customerPhone: user?.phone || guestInfo?.phone,
+                customerName: user?.name,
+                customerEmail: user?.email,
+                customerPhone: user?.phone,
                 customerId: user?._id || user?.id || user?.userId || null,
                 paymentMethod: 'paystack',
-                notes: 'Quick Buy Checkout (Skynet Express)' + (guestInfo ? ' (Guest Checkout)' : '')
+                notes: 'Quick Buy Checkout (Skynet Express)'
             };
 
             const headers: Record<string, string> = {

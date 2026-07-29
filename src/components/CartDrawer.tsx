@@ -323,6 +323,33 @@ export default function CartDrawer() {
         if (isConfirmed && formValues) {
             setIsProcessingCheckout(true);
             try {
+                if (guestInfo) {
+                    const { openWhatsAppChat, getFlaAdminWhatsAppPhone } = await import('@/lib/whatsapp');
+                    
+                    let itemsList = '';
+                    vendorGroups.forEach(group => {
+                        itemsList += `\n*Vendor: ${group.vendorName}*\n`;
+                        group.items.forEach(item => {
+                            itemsList += `- ${item.name} (x${item.quantity}) - GH₵ ${(item.price * item.quantity).toLocaleString()}\n`;
+                        });
+                    });
+
+                    const message = `*GUEST CART ORDER*
+${itemsList}
+*Grand Total:* GH₵ ${subtotal.toLocaleString()}
+
+*Guest Info*
+*WhatsApp:* ${guestInfo.phone}
+*Email:* ${guestInfo.email}
+
+*Delivery Address*
+${formValues.deliveryAddress}, ${formValues.deliveryCity}, ${formValues.deliveryRegion}`;
+                    
+                    setIsProcessingCheckout(false);
+                    openWhatsAppChat(getFlaAdminWhatsAppPhone(), message);
+                    return;
+                }
+
                 Swal.fire({
                     title: 'PREPARING PAYMENT...',
                     text: 'Connecting to secure gateway...',
@@ -338,11 +365,11 @@ export default function CartDrawer() {
                     shippingAddress: formValues.deliveryAddress,
                     shippingCity: formValues.deliveryCity,
                     shippingRegion: formValues.deliveryRegion,
-                    customerName: user?.name || 'Guest User',
-                    customerEmail: user?.email || guestInfo?.email,
-                    customerPhone: user?.phone || guestInfo?.phone,
+                    customerName: user?.name,
+                    customerEmail: user?.email,
+                    customerPhone: user?.phone,
                     customerId: user?._id || user?.id || user?.userId || null,
-                    notes: `Delivery to ${formValues.deliveryCity}` + (guestInfo ? ' (Guest Checkout)' : ''),
+                    notes: `Delivery to ${formValues.deliveryCity}`,
                     vendorGroups: vendorGroups.map(group => ({
                         vendorId: group.vendorId,
                         vendorName: group.vendorName,
