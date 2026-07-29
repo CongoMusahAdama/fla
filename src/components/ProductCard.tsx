@@ -341,65 +341,136 @@ export default React.memo(function ProductCard({ id, name, price, images, sizes 
         // Close product sheet so delivery popup is not trapped behind it on mobile
         setIsDetailModalOpen(false);
 
-        // Enforce Authentication - No Guest Checkout
+        // Guest Checkout Flow
         if (!isAuthenticated) {
-            Swal.fire({
-                title: 'Sign In Required',
-                text: 'Please sign in or create an account to track your order.',
-                icon: 'info',
-                showCancelButton: true,
-                confirmButtonText: 'Sign In / Register',
-                cancelButtonText: 'Cancel',
-                confirmButtonColor: '#0f172a',
-                cancelButtonColor: '#cbd5e1'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    router.push('/auth?role=customer');
-                }
-            });
-            return;
-        }
-
-        // Proceed directly to payment since we know they are authenticated
-        // No guestInfo needed as user is authenticated
-        const guestInfo = null;
-
-        // Made-to-order items may take longer to produce
-        // We assume simple check: if stock > 0 but needs time, or just based on duration text
-        const isMadeToOrder = duration && !duration.toLowerCase().includes('ready') && !duration.toLowerCase().includes('stock');
-
-        if (isMadeToOrder) {
-            Swal.fire({
-                title: 'Made to Order',
-                icon: 'info',
+            const { isConfirmed: wantAccount, isDenied: wantGuest, isDismissed } = await Swal.fire({
+                title: 'CHOOSE CHECKOUT',
                 html: `
-                    <div class="text-left text-sm space-y-3">
-                        <p>This item requires <b class="text-slate-900 font-bold underline decoration-brand-lemon decoration-2">${duration}</b> to be tailored.</p>
-                        <div class="bg-brand-lemon/10 p-3 rounded-lg border border-brand-lemon/20 text-slate-700">
-                             <p class="font-bold flex items-center gap-2"> Paystack Payment</p>
-                            <p class="text-xs mt-1">You pay via Paystack at checkout. Delivery fees are arranged directly with the vendor.</p>
+                    <div class="text-left space-y-4">
+                        <div class="bg-brand-lemon/10 p-4 rounded-xl border border-brand-lemon/20">
+                            <h4 class="font-black text-slate-900 mb-2">Create Account (Recommended)</h4>
+                            <ul class="text-xs text-slate-700 space-y-1 list-disc pl-4">
+                                <li>Monetize your order and earn</li>
+                                <li>Full buyer protection</li>
+                                <li>Ability to open disputes</li>
+                            </ul>
                         </div>
-                        <p class="text-center font-bold text-slate-900 mt-2">Do you accept?</p>
+                        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                            <h4 class="font-black text-slate-500 mb-2">Guest Checkout</h4>
+                            <ul class="text-xs text-slate-500 space-y-1 list-disc pl-4">
+                                <li>No buyer protection</li>
+                                <li>Cannot open disputes</li>
+                                <li>Receive SMS notification with vendor's WhatsApp</li>
+                            </ul>
+                        </div>
                     </div>
                 `,
                 showCancelButton: true,
-                confirmButtonText: 'Accept & Pay',
-                cancelButtonText: 'Decline',
+                showDenyButton: true,
+                confirmButtonText: 'Create Account',
+                denyButtonText: 'Buy without Account',
+                cancelButtonText: 'Cancel',
                 confirmButtonColor: '#0f172a',
-                cancelButtonColor: '#64748b',
-                reverseButtons: true
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    handleDeliveryDetails();
+                denyButtonColor: '#64748b',
+                customClass: {
+                    popup: 'rounded-[32px] border-none shadow-2xl p-6 md:p-8 bg-white w-full max-w-md',
+                    title: 'text-xl font-black text-slate-900 tracking-tighter uppercase mb-2',
+                    actions: 'flex flex-col gap-2 w-full mt-4',
+                    confirmButton: 'bg-slate-900 text-white rounded-full px-6 py-4 text-[11px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all w-full m-0',
+                    denyButton: 'bg-slate-100 text-slate-500 rounded-full px-6 py-4 text-[11px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all w-full m-0',
+                    cancelButton: 'hidden' // hide default cancel to use deny as guest
                 }
             });
+
+            if (wantAccount) {
+                router.push('/auth?role=customer');
+                return;
+            } else if (wantGuest) {
+                const { value: guestDetails } = await Swal.fire({
+                    title: 'GUEST DETAILS',
+                    html: `
+                        <div class="text-left space-y-4 py-4">
+                            <div class="space-y-2">
+                                <label class="text-[10px] text-slate-400 font-black uppercase tracking-widest ml-1">WhatsApp Number</label>
+                                <input id="guest-whatsapp" type="tel" placeholder="e.g. 024xxxxxxx" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20" />
+                            </div>
+                            <div class="space-y-2">
+                                <label class="text-[10px] text-slate-400 font-black uppercase tracking-widest ml-1">Email Address</label>
+                                <input id="guest-email" type="email" placeholder="e.g. you@example.com" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20" />
+                            </div>
+                        </div>
+                    `,
+                    showCancelButton: true,
+                    confirmButtonText: 'Continue',
+                    cancelButtonText: 'Cancel',
+                    preConfirm: () => {
+                        const phone = (document.getElementById('guest-whatsapp') as HTMLInputElement).value;
+                        const email = (document.getElementById('guest-email') as HTMLInputElement).value;
+                        
+                        if (!phone || !email) {
+                            Swal.showValidationMessage('Please provide both WhatsApp number and Email');
+                            return false;
+                        }
+                        return { phone, email };
+                    },
+                    customClass: {
+                        popup: 'rounded-3xl border border-slate-100 shadow-2xl p-10 bg-white',
+                        title: 'text-2xl font-black text-slate-900 tracking-tighter uppercase mb-6',
+                        confirmButton: 'bg-slate-900 text-white rounded-full px-10 py-4 text-[11px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all mx-2 shadow-lg',
+                        cancelButton: 'bg-slate-100 text-slate-500 rounded-full px-10 py-4 text-[11px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all mx-2'
+                    },
+                });
+
+                if (!guestDetails) return; 
+                
+                processOrder(guestDetails);
+                return;
+            } else {
+                return; // cancelled
+            }
         } else {
-            handleDeliveryDetails();
+            // User is authenticated
+            processOrder(null);
+        }
+
+        function processOrder(guestInfo: { phone: string, email: string } | null) {
+            // Made-to-order items may take longer to produce
+            // We assume simple check: if stock > 0 but needs time, or just based on duration text
+            const isMadeToOrder = duration && !duration.toLowerCase().includes('ready') && !duration.toLowerCase().includes('stock');
+
+            if (isMadeToOrder) {
+                Swal.fire({
+                    title: 'Made to Order',
+                    icon: 'info',
+                    html: `
+                        <div class="text-left text-sm space-y-3">
+                            <p>This item requires <b class="text-slate-900 font-bold underline decoration-brand-lemon decoration-2">${duration}</b> to be tailored.</p>
+                            <div class="bg-brand-lemon/10 p-3 rounded-lg border border-brand-lemon/20 text-slate-700">
+                                 <p class="font-bold flex items-center gap-2"> Paystack Payment</p>
+                                <p class="text-xs mt-1">You pay via Paystack at checkout. Delivery fees are arranged directly with the vendor.</p>
+                            </div>
+                            <p class="text-center font-bold text-slate-900 mt-2">Do you accept?</p>
+                        </div>
+                    `,
+                    showCancelButton: true,
+                    confirmButtonText: 'Accept & Pay',
+                    cancelButtonText: 'Decline',
+                    confirmButtonColor: '#0f172a',
+                    cancelButtonColor: '#64748b',
+                    reverseButtons: true
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        handleDeliveryDetails(guestInfo);
+                    }
+                });
+            } else {
+                handleDeliveryDetails(guestInfo);
+            }
         }
     };
 
 
-    const handleDeliveryDetails = async () => {
+    const handleDeliveryDetails = async (guestInfo: { phone: string, email: string } | null = null) => {
         const { value: formValues, isConfirmed } = await Swal.fire({
             title: 'DELIVERY DETAILS',
             html: `
@@ -517,11 +588,11 @@ export default React.memo(function ProductCard({ id, name, price, images, sizes 
         });
 
         if (isConfirmed && formValues) {
-            handleCheckoutFlow(formValues);
+            handleCheckoutFlow(formValues, guestInfo);
         }
     };
 
-    const handleCheckoutFlow = async (deliveryDetails: { deliveryAddress: string, deliveryCity: string, deliveryRegion: string, totalProductAmount: number }) => {
+    const handleCheckoutFlow = async (deliveryDetails: { deliveryAddress: string, deliveryCity: string, deliveryRegion: string, totalProductAmount: number }, guestInfo: { phone: string, email: string } | null = null) => {
         try {
 
             Swal.fire({
@@ -550,20 +621,24 @@ export default React.memo(function ProductCard({ id, name, price, images, sizes 
                 shippingAddress: deliveryDetails.deliveryAddress,
                 shippingCity: deliveryDetails.deliveryCity,
                 shippingRegion: deliveryDetails.deliveryRegion,
-                customerName: user?.name,
-                customerEmail: user?.email,
-                customerPhone: user?.phone,
-                customerId: user?._id || user?.id || user?.userId,
+                customerName: user?.name || 'Guest User',
+                customerEmail: user?.email || guestInfo?.email,
+                customerPhone: user?.phone || guestInfo?.phone,
+                customerId: user?._id || user?.id || user?.userId || null,
                 paymentMethod: 'paystack',
-                notes: 'Quick Buy Checkout (Skynet Express)'
+                notes: 'Quick Buy Checkout (Skynet Express)' + (guestInfo ? ' (Guest Checkout)' : '')
             };
+
+            const headers: Record<string, string> = {
+                'Content-Type': 'application/json'
+            };
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
 
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
+                headers,
                 credentials: 'include',
                 body: JSON.stringify(orderData)
             });

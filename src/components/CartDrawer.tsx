@@ -67,33 +67,96 @@ export default function CartDrawer() {
     const handleCheckout = async () => {
         if (cartItems.length === 0 || isProcessingCheckout) return;
 
+        let guestInfo: { phone: string, email: string } | null = null;
+
         if (!isAuthenticated) {
             setIsCartOpen(false);
-            Swal.fire({
-                title: 'SIGN IN REQUIRED',
-                text: 'Please log in to proceed with your bag checkout.',
-                icon: 'info',
-                iconColor: '#0F172A',
+            const { isConfirmed: wantAccount, isDenied: wantGuest } = await Swal.fire({
+                title: 'CHOOSE CHECKOUT',
+                html: `
+                    <div class="text-left space-y-4">
+                        <div class="bg-brand-lemon/10 p-4 rounded-xl border border-brand-lemon/20">
+                            <h4 class="font-black text-slate-900 mb-2">Create Account (Recommended)</h4>
+                            <ul class="text-xs text-slate-700 space-y-1 list-disc pl-4">
+                                <li>Monetize your order and earn</li>
+                                <li>Full buyer protection</li>
+                                <li>Ability to open disputes</li>
+                            </ul>
+                        </div>
+                        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                            <h4 class="font-black text-slate-500 mb-2">Guest Checkout</h4>
+                            <ul class="text-xs text-slate-500 space-y-1 list-disc pl-4">
+                                <li>No buyer protection</li>
+                                <li>Cannot open disputes</li>
+                                <li>Receive SMS notification with vendor's WhatsApp</li>
+                            </ul>
+                        </div>
+                    </div>
+                `,
                 showCancelButton: true,
-                confirmButtonText: 'Sign In Now',
-                cancelButtonText: 'Later',
-                buttonsStyling: false,
+                showDenyButton: true,
+                confirmButtonText: 'Create Account',
+                denyButtonText: 'Buy without Account',
+                cancelButtonText: 'Cancel',
+                confirmButtonColor: '#0f172a',
+                denyButtonColor: '#64748b',
                 customClass: {
-                    popup: 'rounded-[32px] border-none shadow-2xl p-8 md:p-12 bg-white',
-                    title: 'text-2xl font-black text-slate-900 tracking-tighter uppercase mb-2',
-                    htmlContainer: 'text-slate-500 font-medium text-sm mb-8',
-                    confirmButton: 'bg-slate-900 text-white rounded-full px-8 py-4 text-[11px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all mx-2',
-                    cancelButton: 'bg-slate-100 text-slate-500 rounded-full px-8 py-4 text-[11px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all mx-2'
-                }
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    router.push('/auth?role=customer&redirect=/#cart');
+                    popup: 'rounded-[32px] border-none shadow-2xl p-6 md:p-8 bg-white w-full max-w-md',
+                    title: 'text-xl font-black text-slate-900 tracking-tighter uppercase mb-2',
+                    actions: 'flex flex-col gap-2 w-full mt-4',
+                    confirmButton: 'bg-slate-900 text-white rounded-full px-6 py-4 text-[11px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all w-full m-0',
+                    denyButton: 'bg-slate-100 text-slate-500 rounded-full px-6 py-4 text-[11px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all w-full m-0',
+                    cancelButton: 'hidden' // hide default cancel to use deny as guest
                 }
             });
-            return;
-        }
 
-        setIsCartOpen(false);
+            if (wantAccount) {
+                router.push('/auth?role=customer&redirect=/#cart');
+                return;
+            } else if (wantGuest) {
+                const { value: guestDetails } = await Swal.fire({
+                    title: 'GUEST DETAILS',
+                    html: `
+                        <div class="text-left space-y-4 py-4">
+                            <div class="space-y-2">
+                                <label class="text-[10px] text-slate-400 font-black uppercase tracking-widest ml-1">WhatsApp Number</label>
+                                <input id="guest-whatsapp" type="tel" placeholder="e.g. 024xxxxxxx" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20" />
+                            </div>
+                            <div class="space-y-2">
+                                <label class="text-[10px] text-slate-400 font-black uppercase tracking-widest ml-1">Email Address</label>
+                                <input id="guest-email" type="email" placeholder="e.g. you@example.com" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20" />
+                            </div>
+                        </div>
+                    `,
+                    showCancelButton: true,
+                    confirmButtonText: 'Continue',
+                    cancelButtonText: 'Cancel',
+                    preConfirm: () => {
+                        const phone = (document.getElementById('guest-whatsapp') as HTMLInputElement).value;
+                        const email = (document.getElementById('guest-email') as HTMLInputElement).value;
+                        
+                        if (!phone || !email) {
+                            Swal.showValidationMessage('Please provide both WhatsApp number and Email');
+                            return false;
+                        }
+                        return { phone, email };
+                    },
+                    customClass: {
+                        popup: 'rounded-3xl border border-slate-100 shadow-2xl p-10 bg-white',
+                        title: 'text-2xl font-black text-slate-900 tracking-tighter uppercase mb-6',
+                        confirmButton: 'bg-slate-900 text-white rounded-full px-10 py-4 text-[11px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all mx-2 shadow-lg',
+                        cancelButton: 'bg-slate-100 text-slate-500 rounded-full px-10 py-4 text-[11px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all mx-2'
+                    },
+                });
+
+                if (!guestDetails) return; 
+                guestInfo = guestDetails;
+            } else {
+                return; // cancelled
+            }
+        } else {
+            setIsCartOpen(false);
+        }
 
         const vendorGroups = groupCartByVendor(cartItems);
         if (vendorGroups.length === 0) {
@@ -275,10 +338,11 @@ export default function CartDrawer() {
                     shippingAddress: formValues.deliveryAddress,
                     shippingCity: formValues.deliveryCity,
                     shippingRegion: formValues.deliveryRegion,
-                    customerName: user?.name,
-                    customerEmail: user?.email,
-                    customerPhone: user?.phone,
-                    notes: `Delivery to ${formValues.deliveryCity}`,
+                    customerName: user?.name || 'Guest User',
+                    customerEmail: user?.email || guestInfo?.email,
+                    customerPhone: user?.phone || guestInfo?.phone,
+                    customerId: user?._id || user?.id || user?.userId || null,
+                    notes: `Delivery to ${formValues.deliveryCity}` + (guestInfo ? ' (Guest Checkout)' : ''),
                     vendorGroups: vendorGroups.map(group => ({
                         vendorId: group.vendorId,
                         vendorName: group.vendorName,
@@ -295,12 +359,16 @@ export default function CartDrawer() {
                     })),
                 };
 
+                const headers: Record<string, string> = {
+                    'Content-Type': 'application/json'
+                };
+                if (token) {
+                    headers['Authorization'] = `Bearer ${token}`;
+                }
+
                 const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders/checkout-cart`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
+                    headers,
                     credentials: 'include',
                     body: JSON.stringify(checkoutPayload)
                 });
