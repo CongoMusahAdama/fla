@@ -5,6 +5,7 @@ import { CheckoutCartDto } from './dto/checkout-cart.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { OrderPaginationDto } from './dto/order-pagination.dto';
 import { AuthGuard } from '@nestjs/passport';
+import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
 
 @Controller('orders')
 export class OrdersController {
@@ -15,18 +16,20 @@ export class OrdersController {
     return this.ordersService.trackOrder(id);
   }
 
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(OptionalJwtAuthGuard)
   @Post()
   create(@Body() createOrderDto: CreateOrderDto, @Request() req) {
     // Ensure the customerId matches the logged in user unless admin
-    createOrderDto.customerId = req.user.userId;
+    if (req.user) {
+      createOrderDto.customerId = req.user.userId;
+    }
     return this.ordersService.create(createOrderDto);
   }
 
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(OptionalJwtAuthGuard)
   @Post('checkout-cart')
   checkoutCart(@Body() dto: CheckoutCartDto, @Request() req) {
-    return this.ordersService.checkoutCart(req.user.userId, dto);
+    return this.ordersService.checkoutCart(req.user?.userId || null, dto);
   }
 
   @UseGuards(AuthGuard('jwt'))

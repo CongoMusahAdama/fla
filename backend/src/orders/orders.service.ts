@@ -338,7 +338,7 @@ export class OrdersService implements OnModuleInit {
   async initializePayment(orderId: string, customerId: string): Promise<{ paymentLink: string }> {
     const order = await this.orderModel.findById(orderId).exec();
     if (!order) throw new NotFoundException(`Order not found`);
-    if (order.customerId.toString() !== customerId) throw new ForbiddenException('Unauthorized');
+    if (order.customerId?.toString() !== customerId) throw new ForbiddenException('Unauthorized');
     if (order.isPaid) throw new BadRequestException('Order is already paid');
 
     let vendor: any = null;
@@ -454,14 +454,16 @@ export class OrdersService implements OnModuleInit {
             this.logger.error(`Customer payment SMS failed: ${err.message}`),
           );
         }
-        this.notificationsService.create(order.customerId.toString(), {
-          title: 'Payment Confirmed ✅',
-          message: vendorWaPhone
-            ? `Order #ORD-${orderShortId} is paid. Open your dashboard or use the WhatsApp link in your SMS to message ${shopName}.`
-            : `Your payment for Order #ORD-${orderShortId} has been verified. Your vendor is now preparing your item(s).`,
-          type: 'order',
-          orderId: order._id,
-        }).catch(err => this.logger.error(`Customer in-app notification failed: ${err.message}`));
+        if (order.customerId) {
+          this.notificationsService.create(order.customerId.toString(), {
+            title: 'Payment Confirmed ✅',
+            message: vendorWaPhone
+              ? `Order #ORD-${orderShortId} is paid. Open your dashboard or use the WhatsApp link in your SMS to message ${shopName}.`
+              : `Order #ORD-${orderShortId} is paid. Open your dashboard to message ${shopName}.`,
+            type: 'order',
+            orderId: order._id,
+          }).catch(err => this.logger.error(`Failed to notify customer: ${err.message}`));
+        }
       }
 
       if (vendor) {
@@ -537,7 +539,7 @@ export class OrdersService implements OnModuleInit {
     user: { role: string; userId: string },
   ): boolean {
     if (user.role === 'admin') return true;
-    if (order.customerId.toString() === user.userId) return true;
+    if (order.customerId?.toString() === user.userId) return true;
     const vendorId = order.vendorId?.toString();
     return Boolean(vendorId && vendorId === user.userId);
   }
@@ -594,12 +596,14 @@ export class OrdersService implements OnModuleInit {
         }
 
         // Notify Customer
-        await this.notificationsService.create(order.customerId.toString(), {
-          title: 'Order Cancelled ⚠️',
-          message: `Your Order #ORD-${order._id.toString().slice(-6).toUpperCase()} has been cancelled. ${order.isPaid ? 'The vendor will contact you to process your refund manually.' : ''}`,
-          type: 'order',
-          orderId: order._id
-        });
+        if (order.customerId) {
+          await this.notificationsService.create(order.customerId.toString(), {
+            title: 'Order Cancelled ⚠️',
+            message: `Your Order #ORD-${order._id.toString().slice(-6).toUpperCase()} has been cancelled. ${order.isPaid ? 'The vendor will contact you to process your refund manually.' : ''}`,
+            type: 'order',
+            orderId: order._id
+          });
+        }
 
         // Email to Customer
         const customer = await this.userModel.findById(order.customerId).exec();
@@ -785,7 +789,7 @@ export class OrdersService implements OnModuleInit {
   async submitPaymentProof(orderId: string, customerId: string, proofUrl: string): Promise<Order> {
     const order = await this.orderModel.findById(orderId).exec();
     if (!order) throw new NotFoundException(`Order not found`);
-    if (order.customerId.toString() !== customerId) throw new NotFoundException('Unauthorized');
+    if (order.customerId?.toString() !== customerId) throw new NotFoundException('Unauthorized');
 
     order.paymentProof = proofUrl;
     order.paymentSubmittedAt = new Date();
@@ -854,7 +858,7 @@ export class OrdersService implements OnModuleInit {
   async confirmReceipt(orderId: string, customerId: string): Promise<Order> {
     const order = await this.orderModel.findById(orderId).exec();
     if (!order) throw new NotFoundException(`Order not found`);
-    if (order.customerId.toString() !== customerId) throw new NotFoundException('Unauthorized');
+    if (order.customerId?.toString() !== customerId) throw new NotFoundException('Unauthorized');
 
     order.status = 'delivered';
     order.deliveryConfirmationDate = new Date();
@@ -866,7 +870,7 @@ export class OrdersService implements OnModuleInit {
   async markAsSatisfied(orderId: string, customerId: string): Promise<Order> {
     const order = await this.orderModel.findById(orderId).exec();
     if (!order) throw new NotFoundException(`Order not found`);
-    if (order.customerId.toString() !== customerId) throw new ForbiddenException('Unauthorized');
+    if (order.customerId?.toString() !== customerId) throw new ForbiddenException('Unauthorized');
 
     if (order.status !== 'delivered') {
       throw new Error('Order must be confirmed as received before marking as satisfied');
@@ -881,7 +885,7 @@ export class OrdersService implements OnModuleInit {
   async fileDispute(orderId: string, customerId: string, reason: string): Promise<Order> {
     const order = await this.orderModel.findById(orderId).exec();
     if (!order) throw new NotFoundException(`Order not found`);
-    if (order.customerId.toString() !== customerId) throw new NotFoundException('Unauthorized');
+    if (order.customerId?.toString() !== customerId) throw new NotFoundException('Unauthorized');
 
     order.status = 'disputed';
     order.disputeReason = reason;
