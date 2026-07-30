@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { ArrowLeft, MapPin, ShoppingBag, Copy, Check, ChevronDown } from 'lucide-react';
+import { ArrowLeft, MapPin, ShoppingBag, Copy, Check, ChevronDown, Search } from 'lucide-react';
 import { getImageUrl, getVendorDisplayLocation } from '@/lib/utils';
 import { isVendorDocumented } from '@/lib/kyc';
 import { VendorTrustBadge } from '@/components/VendorTrustBadge';
@@ -73,6 +73,7 @@ export default function VendorStorePage() {
   const [copied, setCopied] = useState(false);
   const [activeCategory, setActiveCategory] = useState('All Product');
   const [categoryOpen, setCategoryOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Instant restore when returning from a product (avoids full reload flash)
   useEffect(() => {
@@ -191,9 +192,10 @@ export default function VendorStorePage() {
     return products.filter((p) => {
       const matchesCategory =
         activeCategory === 'All Product' || p.category === activeCategory;
-      return matchesCategory;
+      const matchesSearch = !searchQuery || p.name.toLowerCase().includes(searchQuery.toLowerCase());
+      return matchesCategory && matchesSearch;
     });
-  }, [products, activeCategory]);
+  }, [products, activeCategory, searchQuery]);
 
   const shelfLabel =
     activeCategory !== 'All Product'
@@ -377,7 +379,17 @@ export default function VendorStorePage() {
               {shelfLabel}
             </h2>
           </div>
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full md:w-auto">
+            <div className="relative flex-1 sm:flex-none">
+              <input
+                type="text"
+                placeholder="Search products..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-9 pl-9 pr-3 rounded-lg text-xs font-medium border border-slate-200 bg-white text-slate-900 focus:outline-none focus:border-slate-300 w-full sm:w-48 md:w-64 transition-all"
+              />
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            </div>
             <div className="relative">
               <button
                 type="button"
