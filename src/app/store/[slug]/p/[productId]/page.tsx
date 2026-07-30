@@ -283,6 +283,7 @@ export default function StoreProductPage() {
   };
 
   const processCheckout = async (guestInfo: { phone: string, email: string } | null) => {
+    if (!product) return;
 
     if (hasSizes && !selectedSize) {
       Swal.fire({ icon: 'warning', title: 'Size Required', confirmButtonColor: '#0f172a' });
@@ -346,7 +347,7 @@ export default function StoreProductPage() {
         shippingAddress: formValues.deliveryAddress,
         shippingCity: formValues.deliveryCity,
         shippingRegion: formValues.deliveryRegion,
-        customerName: guestInfo ? \`Guest (\${guestInfo.phone})\` : user?.name,
+        customerName: guestInfo ? `Guest (${guestInfo.phone})` : user?.name,
         customerEmail: guestInfo ? guestInfo.email : user?.email,
         customerPhone: guestInfo ? guestInfo.phone : user?.phone,
         customerId: guestInfo ? null : (user?._id || user?.id || user?.userId),
