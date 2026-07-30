@@ -175,19 +175,114 @@ export default function StoreProductPage() {
   const handleBuyNow = async () => {
     if (!product || soldOut) return;
     if (!isAuthenticated) {
-      Swal.fire({
-        title: 'Sign In Required',
-        text: 'Sign in to complete your purchase.',
-        icon: 'info',
-        confirmButtonText: 'Sign In',
-        confirmButtonColor: '#0f172a',
-      }).then((r) => {
-        if (r.isConfirmed) {
-          router.push(`/auth?role=customer&redirect=${encodeURIComponent(window.location.pathname)}`);
+      const { isConfirmed: wantAccount, isDenied: wantGuest, isDismissed } = await Swal.fire({
+        title: 'CHOOSE CHECKOUT',
+        html: `
+            <div class="text-left space-y-4">
+                <div class="bg-brand-lemon/10 p-4 rounded-xl border border-brand-lemon/20">
+                    <h4 class="font-black text-slate-900 mb-2">Sign In / Create Account (Recommended)</h4>
+                    <ul class="text-xs text-slate-700 space-y-1 list-disc pl-4">
+                        <li>Monetize your order and earn</li>
+                        <li>Full buyer protection</li>
+                        <li>Ability to open disputes</li>
+                    </ul>
+                    <div class="mt-3 flex gap-2">
+                        <button id="swal-signin-btn" class="flex-1 py-2.5 bg-slate-900 text-white rounded-full text-[10px] font-black uppercase tracking-widest">Sign In</button>
+                        <button id="swal-register-btn" class="flex-1 py-2.5 border-2 border-slate-900 text-slate-900 rounded-full text-[10px] font-black uppercase tracking-widest">Create Account</button>
+                    </div>
+                </div>
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                    <h4 class="font-black text-slate-500 mb-2">Guest Checkout</h4>
+                    <ul class="text-xs text-slate-500 space-y-1 list-disc pl-4">
+                        <li>Pay securely via Paystack</li>
+                        <li>Receipt sent to your email</li>
+                        <li>Receive SMS notification with vendor's WhatsApp</li>
+                    </ul>
+                </div>
+            </div>
+        `,
+        showCancelButton: false,
+        showConfirmButton: false,
+        showDenyButton: true,
+        denyButtonText: 'Buy without Account',
+        denyButtonColor: '#64748b',
+        didOpen: () => {
+            document.getElementById('swal-signin-btn')?.addEventListener('click', () => {
+                (Swal.getPopup() as any)?.__swalSignIn?.();
+                Swal.clickConfirm();
+                sessionStorage.setItem('fla_checkout_intent', 'signin');
+            });
+            document.getElementById('swal-register-btn')?.addEventListener('click', () => {
+                Swal.clickConfirm();
+                sessionStorage.setItem('fla_checkout_intent', 'register');
+            });
+        },
+        customClass: {
+            popup: 'rounded-[32px] border-none shadow-2xl p-6 md:p-8 bg-white w-full max-w-md',
+            title: 'text-xl font-black text-slate-900 tracking-tighter uppercase mb-2',
+            actions: 'flex flex-col gap-2 w-full mt-4',
+            denyButton: 'bg-slate-100 text-slate-500 rounded-full px-6 py-4 text-[11px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all w-full m-0',
         }
       });
-      return;
+
+      if (wantAccount) {
+          const intent = sessionStorage.getItem('fla_checkout_intent') || 'register';
+          sessionStorage.removeItem('fla_checkout_intent');
+          const returnUrl = encodeURIComponent(window.location.pathname);
+          if (intent === 'signin') {
+              router.push(`/auth?role=customer&view=login&redirect=${returnUrl}`);
+          } else {
+              router.push(`/auth?role=customer&view=register&redirect=${returnUrl}`);
+          }
+          return;
+      } else if (wantGuest) {
+          const { value: guestDetails } = await Swal.fire({
+              title: 'GUEST DETAILS',
+              html: `
+                  <div class="text-left space-y-4 py-4">
+                      <div class="space-y-2">
+                          <label class="text-[10px] text-slate-400 font-black uppercase tracking-widest ml-1">WhatsApp Number</label>
+                          <input id="guest-whatsapp" type="tel" placeholder="e.g. 024xxxxxxx" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20" />
+                      </div>
+                      <div class="space-y-2">
+                          <label class="text-[10px] text-slate-400 font-black uppercase tracking-widest ml-1">Email Address</label>
+                          <input id="guest-email" type="email" placeholder="e.g. you@example.com" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20" />
+                      </div>
+                  </div>
+              `,
+              showCancelButton: true,
+              confirmButtonText: 'Continue',
+              cancelButtonText: 'Cancel',
+              preConfirm: () => {
+                  const phone = (document.getElementById('guest-whatsapp') as HTMLInputElement).value;
+                  const email = (document.getElementById('guest-email') as HTMLInputElement).value;
+                  
+                  if (!phone || !email) {
+                      Swal.showValidationMessage('Please provide both WhatsApp number and Email');
+                      return false;
+                  }
+                  return { phone, email };
+              },
+              customClass: {
+                  popup: 'rounded-3xl border border-slate-100 shadow-2xl p-10 bg-white',
+                  title: 'text-2xl font-black text-slate-900 tracking-tighter uppercase mb-6',
+                  confirmButton: 'bg-slate-900 text-white rounded-full px-10 py-4 text-[11px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all mx-2 shadow-lg',
+                  cancelButton: 'bg-slate-100 text-slate-500 rounded-full px-10 py-4 text-[11px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all mx-2'
+              },
+          });
+
+          if (!guestDetails) return;
+          processCheckout(guestDetails);
+          return;
+      } else {
+          return; // dismissed
+      }
+    } else {
+      processCheckout(null);
     }
+  };
+
+  const processCheckout = async (guestInfo: { phone: string, email: string } | null) => {
 
     if (hasSizes && !selectedSize) {
       Swal.fire({ icon: 'warning', title: 'Size Required', confirmButtonColor: '#0f172a' });
@@ -251,10 +346,12 @@ export default function StoreProductPage() {
         shippingAddress: formValues.deliveryAddress,
         shippingCity: formValues.deliveryCity,
         shippingRegion: formValues.deliveryRegion,
-        customerName: user?.name,
-        customerEmail: user?.email,
-        customerPhone: user?.phone,
-        customerId: user?._id || user?.id || user?.userId,
+        customerName: guestInfo ? \`Guest (\${guestInfo.phone})\` : user?.name,
+        customerEmail: guestInfo ? guestInfo.email : user?.email,
+        customerPhone: guestInfo ? guestInfo.phone : user?.phone,
+        customerId: guestInfo ? null : (user?._id || user?.id || user?.userId),
+        isGuestCheckout: !!guestInfo,
+        guestWhatsApp: guestInfo?.phone || null,
         paymentMethod: 'paystack',
         notes: 'Storefront Checkout',
       };
