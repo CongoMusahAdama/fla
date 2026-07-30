@@ -348,42 +348,59 @@ export default React.memo(function ProductCard({ id, name, price, images, sizes 
                 html: `
                     <div class="text-left space-y-4">
                         <div class="bg-brand-lemon/10 p-4 rounded-xl border border-brand-lemon/20">
-                            <h4 class="font-black text-slate-900 mb-2">Create Account (Recommended)</h4>
+                            <h4 class="font-black text-slate-900 mb-2">Sign In / Create Account (Recommended)</h4>
                             <ul class="text-xs text-slate-700 space-y-1 list-disc pl-4">
                                 <li>Monetize your order and earn</li>
                                 <li>Full buyer protection</li>
                                 <li>Ability to open disputes</li>
                             </ul>
+                            <div class="mt-3 flex gap-2">
+                                <button id="swal-signin-btn" class="flex-1 py-2.5 bg-slate-900 text-white rounded-full text-[10px] font-black uppercase tracking-widest">Sign In</button>
+                                <button id="swal-register-btn" class="flex-1 py-2.5 border-2 border-slate-900 text-slate-900 rounded-full text-[10px] font-black uppercase tracking-widest">Create Account</button>
+                            </div>
                         </div>
                         <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
                             <h4 class="font-black text-slate-500 mb-2">Guest Checkout</h4>
                             <ul class="text-xs text-slate-500 space-y-1 list-disc pl-4">
-                                <li>No buyer protection</li>
-                                <li>Cannot open disputes</li>
+                                <li>Pay securely via Paystack</li>
+                                <li>Receipt sent to your email</li>
                                 <li>Receive SMS notification with vendor's WhatsApp</li>
                             </ul>
                         </div>
                     </div>
                 `,
-                showCancelButton: true,
+                showCancelButton: false,
+                showConfirmButton: false,
                 showDenyButton: true,
-                confirmButtonText: 'Create Account',
                 denyButtonText: 'Buy without Account',
-                cancelButtonText: 'Cancel',
-                confirmButtonColor: '#0f172a',
                 denyButtonColor: '#64748b',
+                didOpen: () => {
+                    document.getElementById('swal-signin-btn')?.addEventListener('click', () => {
+                        (Swal.getPopup() as any)?.__swalSignIn?.();
+                        Swal.clickConfirm();
+                        sessionStorage.setItem('fla_checkout_intent', 'signin');
+                    });
+                    document.getElementById('swal-register-btn')?.addEventListener('click', () => {
+                        Swal.clickConfirm();
+                        sessionStorage.setItem('fla_checkout_intent', 'register');
+                    });
+                },
                 customClass: {
                     popup: 'rounded-[32px] border-none shadow-2xl p-6 md:p-8 bg-white w-full max-w-md',
                     title: 'text-xl font-black text-slate-900 tracking-tighter uppercase mb-2',
                     actions: 'flex flex-col gap-2 w-full mt-4',
-                    confirmButton: 'bg-slate-900 text-white rounded-full px-6 py-4 text-[11px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all w-full m-0',
                     denyButton: 'bg-slate-100 text-slate-500 rounded-full px-6 py-4 text-[11px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all w-full m-0',
-                    cancelButton: 'hidden' // hide default cancel to use deny as guest
                 }
             });
 
             if (wantAccount) {
-                router.push('/auth?role=customer');
+                const intent = sessionStorage.getItem('fla_checkout_intent') || 'register';
+                sessionStorage.removeItem('fla_checkout_intent');
+                if (intent === 'signin') {
+                    router.push('/auth?role=customer&view=login');
+                } else {
+                    router.push('/auth?role=customer&view=register');
+                }
                 return;
             } else if (wantGuest) {
                 const { value: guestDetails } = await Swal.fire({
@@ -594,24 +611,9 @@ export default React.memo(function ProductCard({ id, name, price, images, sizes 
 
     const handleCheckoutFlow = async (deliveryDetails: { deliveryAddress: string, deliveryCity: string, deliveryRegion: string, totalProductAmount: number }, guestInfo: { phone: string, email: string } | null = null) => {
         try {
-            if (guestInfo) {
-                const { openWhatsAppChat, getFlaAdminWhatsAppPhone } = await import('@/lib/whatsapp');
-                const message = `*GUEST ORDER*
-*Product:* ${name} (x1)
-*Size:* ${selectedSize || 'Universal'} | *Color:* ${selectedColor || 'Universal'}
-*Total:* GH₵ ${deliveryDetails.totalProductAmount.toLocaleString()}
-*Vendor:* ${vendorName || 'Unknown Vendor'}
-
-*Guest Info*
-*WhatsApp:* ${guestInfo.phone}
-*Email:* ${guestInfo.email}
-
-*Delivery Address*
-${deliveryDetails.deliveryAddress}, ${deliveryDetails.deliveryCity}, ${deliveryDetails.deliveryRegion}`;
-
-                openWhatsAppChat(getFlaAdminWhatsAppPhone(), message);
-                return;
-            }
+            // Guest checkout goes through Paystack just like a logged-in user.
+            // The WhatsApp number is for SMS notification only (handled by backend).
+            // The email is used by Paystack to send the payment receipt.
 
             Swal.fire({
                 title: 'PREPARING PAYMENT...',
@@ -639,10 +641,12 @@ ${deliveryDetails.deliveryAddress}, ${deliveryDetails.deliveryCity}, ${deliveryD
                 shippingAddress: deliveryDetails.deliveryAddress,
                 shippingCity: deliveryDetails.deliveryCity,
                 shippingRegion: deliveryDetails.deliveryRegion,
-                customerName: user?.name,
-                customerEmail: user?.email,
-                customerPhone: user?.phone,
-                customerId: user?._id || user?.id || user?.userId || null,
+                customerName: guestInfo ? `Guest (${guestInfo.phone})` : user?.name,
+                customerEmail: guestInfo ? guestInfo.email : user?.email,
+                customerPhone: guestInfo ? guestInfo.phone : user?.phone,
+                customerId: guestInfo ? null : (user?._id || user?.id || user?.userId || null),
+                isGuestCheckout: !!guestInfo,
+                guestWhatsApp: guestInfo?.phone || null,
                 paymentMethod: 'paystack',
                 notes: 'Quick Buy Checkout (Skynet Express)'
             };
