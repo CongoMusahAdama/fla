@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
-import { Megaphone, Plus, Trash2, CheckCircle2, Clock } from 'lucide-react';
+import { Megaphone, Plus, Trash2, CheckCircle2, Clock, UploadCloud, ImageIcon, X } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { getImageUrl } from '@/lib/utils';
 
@@ -66,6 +66,7 @@ export default function AdminBillboards({
   const [items, setItems] = useState<Billboard[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const windowDefaults = defaultWindow();
 
   const [form, setForm] = useState({
@@ -129,9 +130,22 @@ export default function AdminBillboards({
   };
 
   const handleImageUpload = async (file: File) => {
-    if (!token) return;
+    if (!token) {
+      Swal.fire('Sign in required', 'Please log in again as admin to upload.', 'warning');
+      return;
+    }
+    if (!file.type.startsWith('image/')) {
+      Swal.fire('Invalid file', 'Please choose a JPG, PNG, or WebP image.', 'warning');
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      Swal.fire('File too large', 'Image must be under 8MB.', 'warning');
+      return;
+    }
+
     const body = new FormData();
     body.append('file', file);
+    setUploading(true);
     try {
       const res = await fetch(`${api}/upload`, {
         method: 'POST',
@@ -139,13 +153,26 @@ export default function AdminBillboards({
         credentials: 'include',
         body,
       });
-      if (!res.ok) throw new Error('Upload failed');
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.message || 'Upload failed');
+      }
       const data = await res.json();
       const url = data.url || data.secure_url || data.path;
       if (!url) throw new Error('No image URL returned');
       setForm((prev) => ({ ...prev, imageUrl: url }));
+      Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'success',
+        title: 'Image uploaded',
+        showConfirmButton: false,
+        timer: 1600,
+      });
     } catch (err: any) {
       Swal.fire('Upload failed', err.message || 'Could not upload image', 'error');
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -284,13 +311,21 @@ export default function AdminBillboards({
             </select>
           </div>
           <div className="space-y-1.5">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Priority</label>
-            <input
-              type="number"
-              value={form.priority}
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+              Priority
+            </label>
+            <select
+              value={String(form.priority)}
               onChange={(e) => setForm((p) => ({ ...p, priority: Number(e.target.value) }))}
               className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold outline-none"
-            />
+            >
+              <option value="20">High — show first if ads overlap</option>
+              <option value="10">Normal</option>
+              <option value="1">Low</option>
+            </select>
+            <p className="text-[10px] text-slate-400 ml-1">
+              Only matters when two ads are scheduled for the same slot at the same time.
+            </p>
           </div>
           <div className="space-y-1.5">
             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Vendor</label>
@@ -358,29 +393,71 @@ export default function AdminBillboards({
               className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold outline-none"
             />
           </div>
-          <div className="md:col-span-2 space-y-1.5">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Image</label>
-            <div className="flex flex-col sm:flex-row gap-3">
+          <div className="md:col-span-2 space-y-2">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+              Ad image
+            </label>
+            <label
+              className={`relative flex flex-col items-center justify-center gap-3 min-h-[160px] rounded-2xl border-2 border-dashed transition-colors cursor-pointer ${
+                form.imageUrl
+                  ? 'border-slate-200 bg-slate-50 overflow-hidden'
+                  : 'border-slate-200 bg-slate-50 hover:border-brand-lemon hover:bg-brand-lemon/5'
+              }`}
+            >
+              {form.imageUrl ? (
+                <>
+                  <Image
+                    src={getImageUrl(form.imageUrl)}
+                    alt="Ad preview"
+                    fill
+                    className="object-cover"
+                    unoptimized
+                  />
+                  <div className="absolute inset-0 bg-slate-900/45 opacity-0 hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 text-white">
+                    <UploadCloud className="w-7 h-7" />
+                    <span className="text-xs font-black uppercase tracking-widest">
+                      {uploading ? 'Uploading…' : 'Replace image'}
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="w-12 h-12 rounded-2xl bg-white border border-slate-100 flex items-center justify-center text-slate-400">
+                    {uploading ? (
+                      <div className="w-5 h-5 border-2 border-slate-200 border-t-brand-lemon rounded-full animate-spin" />
+                    ) : (
+                      <ImageIcon className="w-6 h-6" />
+                    )}
+                  </div>
+                  <div className="text-center px-4">
+                    <p className="text-sm font-bold text-slate-800">
+                      {uploading ? 'Uploading…' : 'Tap to upload ad image'}
+                    </p>
+                    <p className="text-[11px] text-slate-400 mt-1">JPG, PNG, or WebP · max 8MB</p>
+                  </div>
+                </>
+              )}
               <input
-                value={form.imageUrl}
-                onChange={(e) => setForm((p) => ({ ...p, imageUrl: e.target.value }))}
-                className="flex-1 px-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold outline-none"
-                placeholder="Image URL or upload"
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/jpg"
+                className="hidden"
+                disabled={uploading}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleImageUpload(file);
+                  e.target.value = '';
+                }}
               />
-              <label className="inline-flex items-center justify-center px-5 py-3 rounded-2xl bg-slate-900 text-white text-xs font-black uppercase tracking-widest cursor-pointer">
-                Upload
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => e.target.files?.[0] && handleImageUpload(e.target.files[0])}
-                />
-              </label>
-            </div>
+            </label>
             {form.imageUrl && (
-              <div className="relative h-36 w-full max-w-md rounded-2xl overflow-hidden border border-slate-100 mt-2">
-                <Image src={getImageUrl(form.imageUrl)} alt="" fill className="object-cover" unoptimized />
-              </div>
+              <button
+                type="button"
+                onClick={() => setForm((p) => ({ ...p, imageUrl: '' }))}
+                className="inline-flex items-center gap-1.5 text-[11px] font-bold text-slate-500 hover:text-rose-600"
+              >
+                <X className="w-3.5 h-3.5" />
+                Remove image
+              </button>
             )}
           </div>
           <div className="space-y-1.5">
