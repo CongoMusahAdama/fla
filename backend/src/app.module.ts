@@ -19,6 +19,7 @@ import { PaymentsModule } from './payments/payments.module';
 import { SettingsModule } from './settings/settings.module';
 import { CommonModule } from './common/common.module';
 import { LogisticsModule } from './logistics/logistics.module';
+import { BillboardsModule } from './billboards/billboards.module';
 
 @Module({
   imports: [
@@ -41,7 +42,8 @@ import { LogisticsModule } from './logistics/logistics.module';
     PaymentsModule,
     SettingsModule,
     CommonModule,
-    LogisticsModule
+    LogisticsModule,
+    BillboardsModule,
   ],
   controllers: [AppController],
   providers: [

@@ -401,10 +401,10 @@ export class OrdersService implements OnModuleInit {
       await session.commitTransaction();
 
       // Side Effects: Notifications & Emails (Outside transaction for performance)
-      const customer = await this.userModel.findById(order.customerId).exec();
-      if (customer) {
-        this.sendPaymentSuccessNotifications(order, customer);
-      }
+      const customer = order.customerId
+        ? await this.userModel.findById(order.customerId).exec()
+        : null;
+      this.sendPaymentSuccessNotifications(order, customer);
     } catch (error) {
       await session.abortTransaction();
       this.logger.error(`Error handling payment success: ${error.message}`, error.stack);
@@ -414,12 +414,16 @@ export class OrdersService implements OnModuleInit {
     }
   }
 
-  private async sendPaymentSuccessNotifications(order: OrderDocument, customer: UserDocument) {
+  private async sendPaymentSuccessNotifications(
+    order: OrderDocument,
+    customer: UserDocument | null,
+  ) {
     try {
       const orderShortId = order._id.toString().slice(-6).toUpperCase();
       const shopName = order.vendorName || 'your vendor';
       const customerName = order.customerName || customer?.name || 'Customer';
-      const customerPhone =
+      // Prefer checkout WhatsApp/phone on the order (guests often only provide this)
+      const customerSmsPhone =
         order.customerPhone || customer?.phone || null;
 
       let vendor: UserDocument | null = null;
@@ -428,7 +432,8 @@ export class OrdersService implements OnModuleInit {
       }
 
       const vendorWaPhone = normalizeWhatsAppPhone(vendor?.phone);
-      const customerWaPhone = normalizeWhatsAppPhone(customerPhone);
+      const customerWaPhone = normalizeWhatsAppPhone(customerSmsPhone);
+      const vendorSmsPhone = vendor?.phone || null;
 
       if (customer?.email) {
         const emailBody = vendorWaPhone
@@ -440,34 +445,43 @@ export class OrdersService implements OnModuleInit {
       }
 
       // --- SMS + In-App (only after Paystack confirms payment) ---
-      if (customer) {
-        if (customer.phone) {
-          let customerMsg = `FLA: Payment confirmed for #ORD-${orderShortId}. Your vendor will prepare your order.`;
-          if (vendorWaPhone) {
-            const waLink = buildWaMeLink(
-              vendorWaPhone,
-              buildShortCustomerToVendorWaText(orderShortId, shopName, customerName),
-            );
-            customerMsg = appendWhatsAppLinkToSms(customerMsg, waLink);
-          }
-          this.smsService.sendSms(customer.phone, customerMsg).catch(err =>
-            this.logger.error(`Customer payment SMS failed: ${err.message}`),
+      if (customerSmsPhone) {
+        let customerMsg = `FLA: Payment confirmed for #ORD-${orderShortId}. Your vendor will prepare your order.`;
+        if (vendorWaPhone) {
+          const waLink = buildWaMeLink(
+            vendorWaPhone,
+            buildShortCustomerToVendorWaText(orderShortId, shopName, customerName),
           );
+          customerMsg = appendWhatsAppLinkToSms(customerMsg, waLink);
         }
-        if (order.customerId) {
-          this.notificationsService.create(order.customerId.toString(), {
-            title: 'Payment Confirmed ✅',
-            message: vendorWaPhone
-              ? `Order #ORD-${orderShortId} is paid. Open your dashboard or use the WhatsApp link in your SMS to message ${shopName}.`
-              : `Order #ORD-${orderShortId} is paid. Open your dashboard to message ${shopName}.`,
-            type: 'order',
-            orderId: order._id,
-          }).catch(err => this.logger.error(`Failed to notify customer: ${err.message}`));
-        }
+        this.smsService.sendSms(customerSmsPhone, customerMsg).then((ok) => {
+          if (!ok) {
+            this.logger.error(
+              `Customer payment SMS failed for #ORD-${orderShortId}: ${this.smsService.lastError || 'unknown'}`,
+            );
+          }
+        }).catch(err =>
+          this.logger.error(`Customer payment SMS failed: ${err.message}`),
+        );
+      } else {
+        this.logger.warn(
+          `Customer payment SMS skipped for #ORD-${orderShortId}: no phone on order or account`,
+        );
+      }
+
+      if (order.customerId) {
+        this.notificationsService.create(order.customerId.toString(), {
+          title: 'Payment Confirmed ✅',
+          message: vendorWaPhone
+            ? `Order #ORD-${orderShortId} is paid. Open your dashboard or use the WhatsApp link in your SMS to message ${shopName}.`
+            : `Order #ORD-${orderShortId} is paid. Open your dashboard to message ${shopName}.`,
+          type: 'order',
+          orderId: order._id,
+        }).catch(err => this.logger.error(`Failed to notify customer: ${err.message}`));
       }
 
       if (vendor) {
-        if (vendor.phone) {
+        if (vendorSmsPhone) {
           let vendorMsg = `FLA: New paid order #ORD-${orderShortId}. Amount GHS ${order.totalAmount}. Begin fulfillment in your dashboard.`;
           if (customerWaPhone) {
             const waLink = buildWaMeLink(
@@ -476,8 +490,18 @@ export class OrdersService implements OnModuleInit {
             );
             vendorMsg = appendWhatsAppLinkToSms(vendorMsg, waLink);
           }
-          this.smsService.sendSms(vendor.phone, vendorMsg).catch(err =>
+          this.smsService.sendSms(vendorSmsPhone, vendorMsg).then((ok) => {
+            if (!ok) {
+              this.logger.error(
+                `Vendor payment SMS failed for #ORD-${orderShortId}: ${this.smsService.lastError || 'unknown'}`,
+              );
+            }
+          }).catch(err =>
             this.logger.error(`Vendor payment SMS failed: ${err.message}`),
+          );
+        } else {
+          this.logger.warn(
+            `Vendor payment SMS skipped for #ORD-${orderShortId}: vendor has no phone`,
           );
         }
         this.notificationsService.create(order.vendorId.toString(), {
@@ -777,6 +801,12 @@ export class OrdersService implements OnModuleInit {
 
       const savedOrder = await order.save({ session });
       await session.commitTransaction();
+
+      const customer = savedOrder.customerId
+        ? await this.userModel.findById(savedOrder.customerId).exec()
+        : null;
+      this.sendPaymentSuccessNotifications(savedOrder, customer);
+
       return savedOrder;
     } catch (error) {
       await session.abortTransaction();

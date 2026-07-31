@@ -277,6 +277,39 @@ export default function CustomerDashboard() {
     }, [isHydrated, loading, token, orders]);
 
     useEffect(() => {
+        if (!isHydrated || !token) return;
+        if (typeof window === 'undefined') return;
+
+        const params = new URLSearchParams(window.location.search);
+        const orderId = params.get('order_id');
+        const reference = params.get('reference') || params.get('trxref');
+        if (!orderId || !reference) return;
+
+        const verifyKey = `fla_order_verify_${reference}`;
+        if (sessionStorage.getItem(verifyKey)) return;
+        sessionStorage.setItem(verifyKey, '1');
+
+        const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+        (async () => {
+            try {
+                await fetch(`${api}/payments/order/verify`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`,
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({ reference, orderId }),
+                });
+            } catch {
+                /* webhook may still catch up */
+            } finally {
+                fetchDashboardData();
+            }
+        })();
+    }, [isHydrated, token, fetchDashboardData]);
+
+    useEffect(() => {
         if (!isHydrated || loading || !orders.length) return;
 
         const queue = getMultiCheckoutQueue();

@@ -4,7 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowRight, ShoppingBag } from 'lucide-react';
 import { getImageUrl } from '@/lib/utils';
-import { storeProductPath, resolveStoreSlug } from '@/lib/storefront';
+import { storeProductPath, storeHomePath, resolveStoreSlug } from '@/lib/storefront';
 import { useProductCategories } from '@/hooks/useProductCategories';
 import { DEFAULT_PRODUCT_CATEGORY_LABELS } from '@/lib/product-categories';
 
@@ -48,12 +48,20 @@ type DayProduct = {
   vendorId?: string | { storeSlug?: string; _id?: string; id?: string };
 };
 
+type HeroCard = {
+  title: string;
+  subtitle?: string;
+  image: string;
+  href: string;
+  ctaLabel?: string;
+  eyebrow?: string;
+};
+
 type CategoryTile = {
   label: string;
   image: string;
 };
 
-/** Stable “today” index so hero images rotate once per calendar day. */
 function daySeed(): number {
   const now = new Date();
   const start = new Date(now.getFullYear(), 0, 0);
@@ -76,6 +84,18 @@ function productHref(p: DayProduct) {
   return `/shop`;
 }
 
+function billboardHref(ad: any): string {
+  if (ad.linkUrl?.trim()) return ad.linkUrl.trim();
+  const product = ad.productId && typeof ad.productId === 'object' ? ad.productId : null;
+  const vendor = ad.vendorId && typeof ad.vendorId === 'object' ? ad.vendorId : null;
+  if (product?._id) {
+    const slug = resolveStoreSlug(product.storeSlug, vendor || product.vendorId);
+    if (slug) return storeProductPath(slug, product._id);
+  }
+  if (vendor?.storeSlug) return storeHomePath(vendor.storeSlug);
+  return '/shop';
+}
+
 function buildCategoryTiles(labels: string[], products: DayProduct[]): CategoryTile[] {
   const byCategory = new Map<string, string>();
   for (const p of products) {
@@ -95,7 +115,8 @@ function buildCategoryTiles(labels: string[], products: DayProduct[]): CategoryT
 
 export default function Hero() {
   const { categories } = useProductCategories({ includeAll: false });
-  const [todayPicks, setTodayPicks] = useState<DayProduct[]>([]);
+  const [mainCard, setMainCard] = useState<HeroCard | null>(null);
+  const [sideCard, setSideCard] = useState<HeroCard | null>(null);
   const [categoryTiles, setCategoryTiles] = useState<CategoryTile[]>(() =>
     buildCategoryTiles(DEFAULT_PRODUCT_CATEGORY_LABELS.slice(0, 12), []),
   );
@@ -104,13 +125,26 @@ export default function Hero() {
     const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
     const load = async () => {
+      let ads: any[] = [];
+      try {
+        const adsRes = await fetch(`${api}/billboards/active`);
+        if (adsRes.ok) {
+          const data = await adsRes.json();
+          ads = Array.isArray(data) ? data : [];
+        }
+      } catch {
+        /* fall through to product picks */
+      }
+
+      const mainAd = ads.find((a) => a.slot === 'hero_main') || null;
+      const sideAd = ads.find((a) => a.slot === 'hero_side') || null;
+
       const tryUrls = [
         `${api}/products?limit=80&filter=${encodeURIComponent('Best Seller')}`,
         `${api}/products?limit=80&sort=latest`,
       ];
 
       let pool: DayProduct[] = [];
-
       for (const url of tryUrls) {
         try {
           const res = await fetch(url);
@@ -147,31 +181,69 @@ export default function Hero() {
         }
       }
 
-      if (pool.length) {
-        setTodayPicks(pickToday(pool, 2));
+      const picks = pickToday(pool, 2);
+
+      if (mainAd) {
+        setMainCard({
+          title: mainAd.title,
+          subtitle: mainAd.subtitle,
+          image: getImageUrl(mainAd.imageUrl),
+          href: billboardHref(mainAd),
+          ctaLabel: mainAd.ctaLabel || 'Shop now',
+          eyebrow: 'Sponsored',
+        });
+      } else if (picks[0]) {
+        setMainCard({
+          title: picks[0].name,
+          subtitle:
+            picks[0].price != null
+              ? `Today’s pick · GH₵${picks[0].price.toLocaleString()}`
+              : undefined,
+          image: picks[0].image,
+          href: productHref(picks[0]),
+          ctaLabel: 'Shop now',
+        });
+      } else {
+        setMainCard(null);
       }
+
+      if (sideAd) {
+        setSideCard({
+          title: sideAd.title,
+          subtitle: sideAd.subtitle,
+          image: getImageUrl(sideAd.imageUrl),
+          href: billboardHref(sideAd),
+          eyebrow: 'Sponsored',
+        });
+      } else if (picks[1]) {
+        setSideCard({
+          title: picks[1].name,
+          image: picks[1].image,
+          href: productHref(picks[1]),
+          eyebrow: 'Top pick today',
+        });
+      } else {
+        setSideCard(null);
+      }
+
       setCategoryTiles(buildCategoryTiles(categories.slice(0, 12), pool));
     };
 
     load();
   }, [categories]);
 
-  const main = todayPicks[0];
-  const side = todayPicks[1];
-
   return (
     <section className="relative w-full overflow-hidden bg-[#f7f8fa]">
       <div className="relative max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
-        {/* Dual promo — today’s product images */}
         <div className="grid lg:grid-cols-12 gap-4 md:gap-5">
           <Link
-            href={main ? productHref(main) : '/shop'}
+            href={mainCard?.href || '/shop'}
             className="lg:col-span-8 relative min-h-[260px] sm:min-h-[320px] lg:min-h-[380px] rounded-2xl overflow-hidden bg-slate-200 group block"
           >
-            {main ? (
+            {mainCard ? (
               <Image
-                src={main.image}
-                alt={main.name}
+                src={mainCard.image}
+                alt={mainCard.title}
                 fill
                 className="object-cover object-center transition-transform duration-700 group-hover:scale-[1.03]"
                 sizes="(max-width: 1024px) 100vw, 66vw"
@@ -186,16 +258,20 @@ export default function Hero() {
               <p className="font-heading text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-white mb-2">
                 FLA
               </p>
+              {mainCard?.eyebrow && (
+                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-brand-lemon mb-1">
+                  {mainCard.eyebrow}
+                </p>
+              )}
               <h1 className="font-heading text-xl sm:text-2xl lg:text-3xl font-bold text-white leading-snug text-balance">
-                {main ? main.name : 'Everything you need, from trusted shops'}
+                {mainCard ? mainCard.title : 'Everything you need, from trusted shops'}
               </h1>
               <p className="mt-2 text-sm text-white/80 max-w-sm leading-relaxed">
-                {main?.price != null
-                  ? `Today’s pick · GH₵${main.price.toLocaleString()}`
-                  : 'Browse the marketplace or shop a vendor storefront — delivered across Ghana.'}
+                {mainCard?.subtitle ||
+                  'Browse the marketplace or shop a vendor storefront — delivered across Ghana.'}
               </p>
               <span className="mt-5 inline-flex items-center gap-2 h-11 px-6 rounded-md bg-white text-slate-900 text-sm font-semibold w-fit shadow-sm group-hover:bg-brand-lemon transition-colors">
-                Shop now
+                {mainCard?.ctaLabel || 'Shop now'}
                 <ArrowRight className="w-4 h-4" />
               </span>
             </div>
@@ -203,13 +279,13 @@ export default function Hero() {
 
           <div className="lg:col-span-4 grid grid-rows-2 gap-4 md:gap-5 min-h-[220px] lg:min-h-[380px]">
             <Link
-              href={side ? productHref(side) : '/shop'}
+              href={sideCard?.href || '/shop'}
               className="relative rounded-2xl overflow-hidden bg-slate-200 group block min-h-[140px]"
             >
-              {side ? (
+              {sideCard ? (
                 <Image
-                  src={side.image}
-                  alt={side.name}
+                  src={sideCard.image}
+                  alt={sideCard.title}
                   fill
                   className="object-cover transition-transform duration-700 group-hover:scale-[1.04]"
                   sizes="(max-width: 1024px) 100vw, 33vw"
@@ -221,11 +297,14 @@ export default function Hero() {
               <div className="absolute inset-0 bg-gradient-to-t from-slate-900/75 via-slate-900/20 to-transparent" />
               <div className="absolute inset-x-0 bottom-0 p-5">
                 <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-brand-lemon mb-1">
-                  Top pick today
+                  {sideCard?.eyebrow || 'Top pick today'}
                 </p>
                 <p className="font-heading text-base font-bold text-white line-clamp-2">
-                  {side?.name || 'Fresh from verified shops'}
+                  {sideCard?.title || 'Fresh from verified shops'}
                 </p>
+                {sideCard?.subtitle && (
+                  <p className="mt-1 text-xs text-white/75 line-clamp-1">{sideCard.subtitle}</p>
+                )}
               </div>
             </Link>
 
@@ -252,7 +331,6 @@ export default function Hero() {
           </div>
         </div>
 
-        {/* Browse by category — real product photos */}
         <div className="mt-10 md:mt-12">
           <div className="flex items-end justify-between gap-4 mb-6">
             <h2 className="font-heading text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">

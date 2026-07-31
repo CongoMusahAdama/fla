@@ -200,6 +200,44 @@ export class PaymentsController {
 
     /** Client-side verify after Paystack redirect (webhook may lag). */
     @UseGuards(AuthGuard('jwt'))
+    @Post('order/verify')
+    async verifyOrderPayment(
+        @Request() req,
+        @Body() body: { reference?: string; orderId?: string },
+    ) {
+        const reference = body?.reference?.trim();
+        if (!reference) {
+            throw new BadRequestException('Payment reference is required');
+        }
+
+        const tx = await this.paystackService.verifyTransaction(reference);
+        if (!tx || tx.status !== 'success') {
+            throw new BadRequestException('Payment not successful yet');
+        }
+
+        const meta = tx.metadata || {};
+        if (meta.paymentType === 'vendor_subscription' || meta.paymentType === 'first_mile_fee') {
+            throw new BadRequestException('Not an order payment');
+        }
+
+        const orderId = String(meta.orderId || body?.orderId || reference).trim();
+        if (!orderId) {
+            throw new BadRequestException('Order id missing from payment');
+        }
+
+        // Ensures the caller owns the order (or is admin)
+        await this.ordersService.findOne(orderId, {
+            role: req.user.role,
+            userId: req.user.userId,
+        });
+
+        const transactionId = tx.id?.toString?.() || reference;
+        await this.ordersService.handlePaymentSuccess(orderId, transactionId);
+        return { success: true, orderId };
+    }
+
+    /** Client-side verify after Paystack redirect (webhook may lag). */
+    @UseGuards(AuthGuard('jwt'))
     @Post('subscription/verify')
     async verifyVendorSubscription(@Request() req, @Body() body: { reference?: string }) {
         if (req.user.role !== 'vendor') {

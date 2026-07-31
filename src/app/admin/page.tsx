@@ -13,7 +13,7 @@ import {
     Wallet, Package, Truck, MessageSquare, BarChart3, ShieldCheck, ShieldAlert,
     CheckCircle2, XCircle, Eye, EyeOff, Search,
     ArrowUpRight, Download, Menu, X, Trash2, Shield, Clock, TrendingUp, Phone, Plus, User, Store,
-    CreditCard, Camera, FileText, ExternalLink, Link2, Tag
+    CreditCard, Camera, FileText, ExternalLink, Link2, Tag, Megaphone
 } from 'lucide-react';
 import Image from 'next/image';
 import Swal from 'sweetalert2';
@@ -23,6 +23,7 @@ import { RevenueChart } from '@/components/admin/RevenueChart';
 import { RecentTransactionsTable } from '@/components/admin/RecentTransactionsTable';
 import { AdminDisputeCaseCard } from '@/components/admin/AdminDisputeCaseCard';
 import { DEFAULT_PRODUCT_CATEGORY_LABELS, normalizeCategoryList } from '@/lib/product-categories';
+import AdminBillboards from '@/components/admin/AdminBillboards';
 
 function formatKycDetailValue(value: unknown): string {
     if (value == null || value === '') return '—';
@@ -39,7 +40,7 @@ function isProbablyImageUrl(url: string): boolean {
     return true;
 }
 
-type AdminSection = 'dashboard' | 'vendors' | 'customers' | 'orders' | 'products' | 'disputes' | 'delivery' | 'settings' | 'reports' | 'kyc';
+type AdminSection = 'dashboard' | 'vendors' | 'customers' | 'orders' | 'products' | 'disputes' | 'delivery' | 'settings' | 'reports' | 'kyc' | 'billboards';
 
 /** Products API may return vendorId as ObjectId string or populated user object. */
 function resolveProductVendorId(product: { vendorId?: string | { _id?: string } | null }): string {
@@ -718,6 +719,7 @@ export default function AdminDashboard() {
         { id: 'customers', label: 'Customers', icon: Users },
         { id: 'orders', label: 'Orders', icon: ShoppingBag },
         { id: 'products', label: 'Products', icon: Package },
+        { id: 'billboards', label: 'Billboards', icon: Megaphone },
         { id: 'reports', label: 'Reports', icon: BarChart3 },
         { id: 'settings', label: 'Settings', icon: Settings },
     ] as const;
@@ -2102,6 +2104,18 @@ export default function AdminDashboard() {
                         </div>
                     </div>
                 );
+            case 'billboards': {
+                const vendors = (Array.isArray(allUsers) ? allUsers : []).filter(
+                    (u: any) => u.role === 'vendor',
+                );
+                return (
+                    <AdminBillboards
+                        token={token}
+                        vendors={vendors}
+                        products={Array.isArray(allProducts) ? allProducts : []}
+                    />
+                );
+            }
             case 'settings':
                 return (
                     <div className="space-y-8 animate-in fade-in duration-500 max-w-4xl">
