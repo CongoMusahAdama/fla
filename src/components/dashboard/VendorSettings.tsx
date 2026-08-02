@@ -11,6 +11,7 @@ import {
   Clock,
   ArrowLeft,
   ArrowRight,
+  ChevronRight,
 } from 'lucide-react';
 import { getImageUrl } from '@/lib/utils';
 import { useProductCategories } from '@/hooks/useProductCategories';
@@ -105,6 +106,7 @@ export const VendorSettings: React.FC<VendorSettingsProps> = ({
   );
   const [isVerifying, setIsVerifying] = React.useState(false);
   const [verificationError, setVerificationError] = React.useState<string | null>(null);
+  const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = React.useState(false);
 
   React.useEffect(() => {
     if (startOnDocuments || needsDocs) {
@@ -283,18 +285,61 @@ export const VendorSettings: React.FC<VendorSettingsProps> = ({
                   className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20 outline-none"
                 />
               </div>
-              <div className="space-y-1.5">
+              <div className="space-y-1.5 relative">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Store category</label>
-                <select
-                  value={storeCategory}
-                  onChange={(e) => setStoreCategory(e.target.value)}
-                  className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20 outline-none appearance-none cursor-pointer"
-                >
-                  <option value="" disabled>Select category</option>
-                  {categoryOptions.map((cat) => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setIsCategoryDropdownOpen(!isCategoryDropdownOpen)}
+                    className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-left text-sm transition-all focus:ring-2 focus:ring-brand-lemon/20 outline-none flex items-center justify-between cursor-pointer"
+                  >
+                    <span className={storeCategory ? "text-slate-900 font-bold truncate" : "text-slate-400 font-bold truncate"}>
+                      {storeCategory || "Select categories"}
+                    </span>
+                    <ChevronRight className={`w-4 h-4 text-slate-400 transition-transform shrink-0 ml-2 ${isCategoryDropdownOpen ? 'rotate-90' : 'rotate-0'}`} />
+                  </button>
+
+                  {isCategoryDropdownOpen && (
+                    <>
+                      <div 
+                        className="fixed inset-0 z-10" 
+                        onClick={() => setIsCategoryDropdownOpen(false)}
+                      />
+                      <div className="absolute left-0 right-0 mt-2 p-2 bg-white border border-slate-100 rounded-2xl shadow-xl z-20 max-h-60 overflow-y-auto space-y-1">
+                        {categoryOptions.map((cat) => {
+                          const selectedCats = storeCategory ? storeCategory.split(',').map((s: string) => s.trim()).filter(Boolean) : [];
+                          const isSelected = selectedCats.includes(cat);
+                          return (
+                            <button
+                              key={cat}
+                              type="button"
+                              onClick={() => {
+                                let nextCats: string[];
+                                if (isSelected) {
+                                  nextCats = selectedCats.filter(c => c !== cat);
+                                } else {
+                                  nextCats = [...selectedCats, cat];
+                                }
+                                setStoreCategory(nextCats.join(', '));
+                              }}
+                              className={`w-full px-4 py-2.5 text-left text-sm rounded-xl transition-all flex items-center justify-between hover:bg-slate-50 ${
+                                isSelected ? 'bg-slate-50 text-slate-900 font-bold' : 'text-slate-600 font-medium'
+                              }`}
+                            >
+                              <span className="truncate pr-2">{cat}</span>
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                readOnly
+                                className="w-4 h-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900 cursor-pointer accent-slate-950 shrink-0"
+                              />
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
+                </div>
                 <p className="text-[10px] text-slate-400 ml-1">Shown on your storefront and used as the default when you add products.</p>
               </div>
               <div className="space-y-1.5">

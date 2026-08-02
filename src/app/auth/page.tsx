@@ -318,6 +318,7 @@ export const RegisterForm = ({
     // Vendor Specific
     const [shopName, setShopName] = useState('');
     const [productTypes, setProductTypes] = useState('');
+    const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
     const [logoFile, setLogoFile] = useState<File | null>(null);
     const [logoPreview, setLogoPreview] = useState<string | null>(null);
     const logoInputRef = useRef<HTMLInputElement>(null);
@@ -624,19 +625,58 @@ export const RegisterForm = ({
                                         Store category <span className="text-rose-600">*</span>
                                     </label>
                                     <div className="relative">
-                                        <Package className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                                        <select
-                                            value={productTypes}
-                                            onChange={(e) => setProductTypes(e.target.value)}
-                                            required
-                                            className="w-full pl-11 pr-4 py-4 bg-white border-2 border-slate-100 rounded-2xl text-base md:text-sm transition-all focus:border-slate-900 outline-none appearance-none cursor-pointer"
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsCategoryDropdownOpen(!isCategoryDropdownOpen)}
+                                            className="w-full pl-11 pr-10 py-4 bg-white border-2 border-slate-100 rounded-2xl text-left text-base md:text-sm transition-all focus:border-slate-900 outline-none flex items-center justify-between cursor-pointer"
                                         >
-                                            <option value="" disabled>Select what you sell</option>
-                                            {DEFAULT_PRODUCT_CATEGORY_LABELS.map((cat) => (
-                                                <option key={cat} value={cat}>{cat}</option>
-                                            ))}
-                                        </select>
-                                        <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 rotate-90 pointer-events-none" />
+                                            <span className={productTypes ? "text-slate-900 font-semibold" : "text-slate-400 font-medium"}>
+                                                {productTypes || "Select what you sell (choose multiple)"}
+                                            </span>
+                                            <ChevronRight className={`w-4 h-4 text-slate-400 transition-transform ${isCategoryDropdownOpen ? 'rotate-90' : 'rotate-0'}`} />
+                                        </button>
+                                        <Package className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+
+                                        {isCategoryDropdownOpen && (
+                                            <>
+                                                <div 
+                                                    className="fixed inset-0 z-10" 
+                                                    onClick={() => setIsCategoryDropdownOpen(false)}
+                                                />
+                                                <div className="absolute left-0 right-0 mt-2 p-2 bg-white border-2 border-slate-100 rounded-2xl shadow-xl z-20 max-h-60 overflow-y-auto space-y-1">
+                                                    {DEFAULT_PRODUCT_CATEGORY_LABELS.map((cat) => {
+                                                        const selectedCats = productTypes ? productTypes.split(',').map((s: string) => s.trim()) : [];
+                                                        const isSelected = selectedCats.includes(cat);
+                                                        return (
+                                                            <button
+                                                                key={cat}
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    let nextCats: string[];
+                                                                    if (isSelected) {
+                                                                        nextCats = selectedCats.filter(c => c !== cat);
+                                                                    } else {
+                                                                        nextCats = [...selectedCats, cat];
+                                                                    }
+                                                                    setProductTypes(nextCats.join(', '));
+                                                                }}
+                                                                className={`w-full px-4 py-2.5 text-left text-sm rounded-xl transition-all flex items-center justify-between hover:bg-slate-50 ${
+                                                                    isSelected ? 'bg-slate-50 text-slate-900 font-bold' : 'text-slate-600 font-medium'
+                                                                }`}
+                                                            >
+                                                                <span>{cat}</span>
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={isSelected}
+                                                                    readOnly
+                                                                    className="w-4 h-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900 cursor-pointer accent-slate-950"
+                                                                />
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </>
+                                        )}
                                     </div>
                                     <p className="text-xs text-slate-500 ml-1">This category labels your storefront and defaults new product listings.</p>
                                 </div>

@@ -236,6 +236,12 @@ export class UsersService implements OnModuleInit {
         else verificationDeclineReason = tempVerification.payload?.declined_reason;
       }
 
+      let kycSubmittedAt: Date | undefined = undefined;
+      if (role === 'vendor' && createUserDto.ghanaCardFront && createUserDto.selfie) {
+        kycSubmittedAt = new Date();
+        verificationStatus = 'submitted';
+      }
+
       const createdUser = new this.userModel({
         ...createUserDto,
         // Store email lowercase for consistent fast index lookups
@@ -252,6 +258,7 @@ export class UsersService implements OnModuleInit {
         isEmailVerified: true,
         // Vendors get dashboard access immediately; selling stays locked until KYC + Paystack subscription.
         status: 'active',
+        kycSubmittedAt,
         ...(role === 'vendor' ? unpaidIntroSubscriptionFields() : {}),
       });
       const savedUser = await createdUser.save();
@@ -267,6 +274,12 @@ export class UsersService implements OnModuleInit {
             // Registration received (same message as before). OTP code SMS is sent separately from AuthService.
             const vendorMsg = `Welcome to FLA, ${namePart}! Your vendor application is under review. We'll notify you once approved.`;
             this.sendRegistrationSms(savedUser.phone, vendorMsg, 'vendor-register');
+
+            // Notify admin about the new vendor creation
+            const adminMsg = `New vendor account created: Shop Name: "${savedUser.shopName || 'N/A'}", Owner Name: "${savedUser.name}", Phone: ${savedUser.phone || 'N/A'}. Please review.`;
+            this.smsService.sendAdminNotification(adminMsg).catch((err) => {
+              this.logger.error(`Failed to send admin notification for new vendor: ${err.message}`);
+            });
           }
         }
 

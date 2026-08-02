@@ -75,10 +75,8 @@ function VendorDashboardInner() {
     const [formName, setFormName] = useState('');
     const [formPrice, setFormPrice] = useState('');
     const [formCategory, setFormCategory] = useState('Electronics');
-    const vendorProductCategories = user?.productTypes
-        ? PRODUCT_CATEGORIES.filter((c) => c === user.productTypes)
-        : PRODUCT_CATEGORIES.filter((c) => c !== 'All Product');
     const [formQuantity, setFormQuantity] = useState('');
+    const vendorProductCategories = PRODUCT_CATEGORIES.filter((c) => c !== 'All Product');
     const [formTailoring, setFormTailoring] = useState('');
     const [formRegion, setFormRegion] = useState('Greater Accra');
     const [formNarrative, setFormNarrative] = useState('');

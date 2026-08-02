@@ -174,6 +174,24 @@ export default function StoreProductPage() {
 
   const handleBuyNow = async () => {
     if (!product || soldOut) return;
+    if (hasSizes && !selectedSize) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Size Required',
+        text: 'Please select a size to continue.',
+        confirmButtonColor: '#0f172a',
+      });
+      return;
+    }
+    if (hasColors && !selectedColor) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Color Required',
+        text: 'Please select a color to continue.',
+        confirmButtonColor: '#0f172a',
+      });
+      return;
+    }
     if (!isAuthenticated) {
       const { isConfirmed: wantAccount, isDenied: wantGuest, isDismissed } = await Swal.fire({
         title: 'CHOOSE CHECKOUT',
