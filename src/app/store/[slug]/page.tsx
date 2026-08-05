@@ -338,13 +338,6 @@ export default function VendorStorePage() {
               )}
             </div>
             <div className="min-w-0 flex-1">
-              {vendor.uniqueVendorId && (
-                <div className="mb-1">
-                  <span className="text-[9px] font-black uppercase tracking-widest bg-black/40 px-2 py-0.5 rounded-full" style={{ color: theme.accent }}>
-                    {vendor.uniqueVendorId}
-                  </span>
-                </div>
-              )}
               <h1 className="font-heading text-3xl md:text-5xl font-black text-white tracking-tighter leading-none truncate">
                 {shopName}
               </h1>
