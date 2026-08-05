@@ -646,7 +646,12 @@ export default React.memo(function ProductCard({ id, name, price, images, sizes 
                 customerPhone: guestInfo ? guestInfo.phone : user?.phone,
                 customerId: guestInfo ? null : (user?._id || user?.id || user?.userId || null),
                 paymentMethod: 'paystack',
-                notes: 'Quick Buy Checkout (Skynet Express)'
+                notes: 'Quick Buy Checkout (Skynet Express)',
+                ...(guestInfo && resolvedStoreSlug
+                  ? { callbackPath: storeHomePath(resolvedStoreSlug) }
+                  : guestInfo
+                    ? { callbackPath: '/shop' }
+                    : {}),
             };
 
             const headers: Record<string, string> = {

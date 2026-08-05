@@ -130,9 +130,10 @@ export class AuthController {
   }
 
   @Post('verify-otp')
-  async verifyOTP(@Body() body: { phone: string; code: string }) {
+  async verifyOTP(@Body() body: { phone: string; code: string | number }) {
     try {
-      const isValid = await this.authService.verifyVendorOTP(body.phone, body.code);
+      const code = String(body?.code ?? '').trim();
+      const isValid = await this.authService.verifyVendorOTP(body.phone, code);
       if (isValid) {
         return { message: 'OTP verified successfully', success: true };
       } else {
@@ -200,7 +201,7 @@ export class AuthController {
   @Post('forgot-password-otp')
   async forgotPasswordOTP(@Body() body: { email: string }) {
     try {
-      await this.authService.forgotPasswordOTP(body.email);
+      await this.authService.forgotPasswordOTP(String(body?.email || '').trim());
       return { message: 'If an account exists with that email, a reset code has been sent.', success: true };
     } catch (error) {
       return { message: 'Failed to process request', success: false };
@@ -208,9 +209,13 @@ export class AuthController {
   }
 
   @Post('reset-password-otp')
-  async resetPasswordWithOTP(@Body() body: { email: string; code: string; password: string }) {
+  async resetPasswordWithOTP(@Body() body: { email: string; code: string | number; password: string }) {
     try {
-      await this.authService.resetPasswordWithOTP(body.email, body.code, body.password);
+      await this.authService.resetPasswordWithOTP(
+        String(body?.email || '').trim(),
+        String(body?.code ?? '').trim(),
+        body.password,
+      );
       return { message: 'Password has been reset successfully', success: true };
     } catch (error) {
       return { message: error.message || 'Failed to reset password', success: false };

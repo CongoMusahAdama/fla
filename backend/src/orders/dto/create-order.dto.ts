@@ -116,4 +116,12 @@ export class CreateOrderDto {
     @IsNumber()
     @IsOptional()
     totalProductAmount?: number;
+
+    /**
+     * Relative path only (e.g. /store/my-shop). Used for guest Paystack return
+     * so buyers land back on the vendor storefront instead of login.
+     */
+    @IsString()
+    @IsOptional()
+    callbackPath?: string;
 }

@@ -16,6 +16,7 @@ import {
   buildShortCustomerToVendorWaText,
   buildShortVendorToCustomerWaText,
   appendWhatsAppLinkToSms,
+  extractOrderWaDetails,
 } from '../common/whatsapp.util';
 
 import { NotificationsService } from '../notifications/notifications.service';
@@ -240,6 +241,18 @@ export class OrdersService implements OnModuleInit {
     };
   }
 
+  /** Prevent open redirects: only same-site relative paths, never /auth. */
+  private sanitizeCallbackPath(path?: string): string | null {
+    if (!path || typeof path !== 'string') return null;
+    const trimmed = path.trim();
+    if (!trimmed.startsWith('/') || trimmed.startsWith('//')) return null;
+    if (trimmed.includes('://') || trimmed.includes('\\')) return null;
+    const pathname = trimmed.split('?')[0]?.split('#')[0] || '';
+    if (!pathname || pathname.startsWith('/auth')) return null;
+    if (!/^\/[a-zA-Z0-9\-._/~%]*$/.test(pathname)) return null;
+    return pathname;
+  }
+
   private async createOrderWithPayment(
     createOrderDto: CreateOrderDto,
     options?: { multiCheckout?: boolean },
@@ -258,11 +271,13 @@ export class OrdersService implements OnModuleInit {
 
       const vendor = await this.userModel.findById(createOrderDto.vendorId).exec();
 
-      const { customerId, vendorId, items, ...remainingDto } = createOrderDto;
+      const { customerId, vendorId, items, callbackPath, ...remainingDto } = createOrderDto;
+
+      const hasCustomer =
+        !!customerId && Types.ObjectId.isValid(customerId) && String(customerId).length === 24;
 
       const orderData: any = {
         ...remainingDto,
-        customerId: new Types.ObjectId(customerId),
         totalAmount,
         deliveryFee,
         totalProductAmount,
@@ -273,6 +288,10 @@ export class OrdersService implements OnModuleInit {
         commissionRate,
         paymentRef: orderId.toString(),
       };
+
+      if (hasCustomer) {
+        orderData.customerId = new Types.ObjectId(customerId);
+      }
 
       if (vendorId) {
         orderData.vendorId = new Types.ObjectId(vendorId);
@@ -296,10 +315,20 @@ export class OrdersService implements OnModuleInit {
       });
       const savedOrder = await createdOrder.save();
 
-      const frontendBase = process.env.FRONTEND_URL || 'http://localhost:3000';
-      const callbackUrl = options?.multiCheckout
-        ? `${frontendBase}/dashboard?order_id=${orderId}&multi_checkout=1`
-        : `${frontendBase}/dashboard?order_id=${orderId}`;
+      const frontendBase = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
+      // Guests with a storefront return path should not hit /dashboard (forces login).
+      const guestCallback = !hasCustomer ? this.sanitizeCallbackPath(callbackPath) : null;
+      let callbackUrl: string;
+      if (guestCallback) {
+        callbackUrl = `${frontendBase}${guestCallback}?order_id=${orderId}&paid=1`;
+      } else if (!hasCustomer) {
+        // Guest without store path → marketplace, not auth/login.
+        callbackUrl = `${frontendBase}/shop?order_id=${orderId}&paid=1`;
+      } else if (options?.multiCheckout) {
+        callbackUrl = `${frontendBase}/dashboard?order_id=${orderId}&multi_checkout=1`;
+      } else {
+        callbackUrl = `${frontendBase}/dashboard?order_id=${orderId}`;
+      }
 
       const paystackPayload: any = {
         reference: orderId.toString(),
@@ -312,6 +341,7 @@ export class OrdersService implements OnModuleInit {
           deliveryFee: 0,
           paymentNotes: 'Delivery costs are arranged and paid outside FLA',
           multiCheckout: options?.multiCheckout ? '1' : '0',
+          guest: hasCustomer ? '0' : '1',
         },
       };
 
@@ -434,10 +464,11 @@ export class OrdersService implements OnModuleInit {
       const vendorWaPhone = normalizeWhatsAppPhone(vendor?.phone);
       const customerWaPhone = normalizeWhatsAppPhone(customerSmsPhone);
       const vendorSmsPhone = vendor?.phone || null;
+      const waDetails = extractOrderWaDetails(order);
 
       if (customer?.email) {
         const emailBody = vendorWaPhone
-          ? `Payment for Order #ORD-${orderShortId} is verified. Message your vendor on WhatsApp: ${buildWaMeLink(vendorWaPhone, buildShortCustomerToVendorWaText(orderShortId, shopName, customerName))}`
+          ? `Payment for Order #ORD-${orderShortId} is verified. Message your vendor on WhatsApp: ${buildWaMeLink(vendorWaPhone, buildShortCustomerToVendorWaText(orderShortId, shopName, customerName, waDetails))}`
           : `Payment for Order #ORD-${orderShortId} verified! Your vendor has been notified to begin fulfillment.`;
         this.emailService
           .sendGenericNotification(customer.email, customer.name || 'Customer', 'Payment Verified ✅', emailBody)
@@ -450,7 +481,7 @@ export class OrdersService implements OnModuleInit {
         if (vendorWaPhone) {
           const waLink = buildWaMeLink(
             vendorWaPhone,
-            buildShortCustomerToVendorWaText(orderShortId, shopName, customerName),
+            buildShortCustomerToVendorWaText(orderShortId, shopName, customerName, waDetails),
           );
           customerMsg = appendWhatsAppLinkToSms(customerMsg, waLink);
         }
@@ -486,7 +517,7 @@ export class OrdersService implements OnModuleInit {
           if (customerWaPhone) {
             const waLink = buildWaMeLink(
               customerWaPhone,
-              buildShortVendorToCustomerWaText(orderShortId, vendor.shopName || shopName, customerName),
+              buildShortVendorToCustomerWaText(orderShortId, vendor.shopName || shopName, customerName, waDetails),
             );
             vendorMsg = appendWhatsAppLinkToSms(vendorMsg, waLink);
           }

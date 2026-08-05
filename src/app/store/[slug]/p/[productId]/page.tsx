@@ -13,7 +13,9 @@ import { useAuth } from '@/context/AuthContext';
 import Footer from '@/components/Footer';
 import {
   getMarketplaceReturn,
+  getProductNavOrigin,
   markMarketplaceScrollRestore,
+  type ProductNavOrigin,
 } from '@/lib/marketplace-return';
 import { getStoreReturn, markStoreScrollRestore } from '@/lib/store-return';
 import { resolveStoreTheme } from '@/lib/store-theme';
@@ -60,6 +62,23 @@ export default function StoreProductPage() {
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
+  const [navOrigin, setNavOrigin] = useState<ProductNavOrigin>('store');
+
+  useEffect(() => {
+    setNavOrigin(getProductNavOrigin());
+  }, [slug, productId]);
+
+  const goBackToStore = () => {
+    const ret = getStoreReturn(slug);
+    markStoreScrollRestore(ret);
+    router.push(ret.path, { scroll: false });
+  };
+
+  const goBackToMarketplace = () => {
+    const ret = getMarketplaceReturn();
+    markMarketplaceScrollRestore(ret);
+    router.push(ret.path, { scroll: false });
+  };
 
   useEffect(() => {
     if (!slug || !productId) return;
@@ -371,14 +390,20 @@ export default function StoreProductPage() {
         customerId: guestInfo ? null : (user?._id || user?.id || user?.userId),
         paymentMethod: 'paystack',
         notes: 'Storefront Checkout',
+        // Guest Paystack return → vendor store (not dashboard/login)
+        ...(guestInfo ? { callbackPath: storeHomePath(slug) } : {}),
       };
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
 
       const response = await fetch(`${apiBase()}/orders`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
+        headers,
         credentials: 'include',
         body: JSON.stringify(orderData),
       });
@@ -433,30 +458,36 @@ export default function StoreProductPage() {
   return (
     <main className="min-h-screen bg-[#f6f7f9]">
       <div className="max-w-6xl mx-auto px-4 pt-24 pb-4 flex items-center justify-between gap-3">
-        <button
-          type="button"
-          onClick={() => {
-            const ret = getMarketplaceReturn();
-            markMarketplaceScrollRestore(ret);
-            router.push(ret.path, { scroll: false });
-          }}
-          className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-900"
-        >
-          <ArrowLeft className="w-3.5 h-3.5" />
-          Back to marketplace
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            const ret = getStoreReturn(slug);
-            markStoreScrollRestore(ret);
-            router.push(ret.path, { scroll: false });
-          }}
-          className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:text-slate-900"
-        >
-          <Store className="w-4 h-4" />
-          {shopName}
-        </button>
+        {navOrigin === 'marketplace' ? (
+          <>
+            <button
+              type="button"
+              onClick={goBackToMarketplace}
+              className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-900"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              Back to marketplace
+            </button>
+            <button
+              type="button"
+              onClick={goBackToStore}
+              className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:text-slate-900"
+            >
+              <Store className="w-4 h-4" />
+              {shopName}
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            onClick={goBackToStore}
+            className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:text-slate-900"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <Store className="w-4 h-4" />
+            {shopName}
+          </button>
+        )}
       </div>
 
       <section className="max-w-6xl mx-auto px-4 py-6 md:py-10 grid md:grid-cols-2 gap-8 md:gap-12">
@@ -619,12 +650,14 @@ export default function StoreProductPage() {
             </button>
           </div>
 
-          <Link
-            href="/shop"
-            className="inline-block text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-900"
-          >
-            Browse FLA marketplace →
-          </Link>
+          {navOrigin === 'marketplace' && (
+            <Link
+              href="/shop"
+              className="inline-block text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-900"
+            >
+              Browse FLA marketplace →
+            </Link>
+          )}
         </div>
       </section>
 

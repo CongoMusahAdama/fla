@@ -1,3 +1,5 @@
+import { setProductNavOrigin } from '@/lib/marketplace-return';
+
 const RETURN_KEY = 'fla_store_return';
 const PENDING_SCROLL_KEY = 'fla_store_pending_scroll';
 const CACHE_PREFIX = 'fla_store_cache_';
@@ -24,6 +26,7 @@ export function saveStoreReturn(slug: string, productId?: string): void {
     productId,
   };
   sessionStorage.setItem(RETURN_KEY, JSON.stringify(payload));
+  setProductNavOrigin('store');
 }
 
 export function getStoreReturn(slug: string): StoreReturn {

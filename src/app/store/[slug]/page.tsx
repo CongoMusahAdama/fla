@@ -4,10 +4,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { ArrowLeft, MapPin, ShoppingBag, Copy, Check, ChevronDown, Search } from 'lucide-react';
+import { MapPin, ShoppingBag, Copy, Check, ChevronDown, Search } from 'lucide-react';
+import Swal from 'sweetalert2';
 import { getImageUrl, getVendorDisplayLocation } from '@/lib/utils';
-import { isVendorDocumented } from '@/lib/kyc';
-import { VendorTrustBadge } from '@/components/VendorTrustBadge';
 import { storeProductPath, storefrontUrl } from '@/lib/storefront';
 import {
   saveStoreReturn,
@@ -86,6 +85,43 @@ export default function VendorStorePage() {
       restoreStoreScrollIfNeeded(slug);
     }
   }, [slug]);
+
+  // Guest checkout return from Paystack — stay on storefront (not login/dashboard)
+  useEffect(() => {
+    if (typeof window === 'undefined' || !slug) return;
+    const params = new URLSearchParams(window.location.search);
+    const orderId = params.get('order_id');
+    const paid = params.get('paid');
+    if (!orderId || paid !== '1') return;
+
+    const seenKey = `fla_store_guest_paid_${orderId}`;
+    if (sessionStorage.getItem(seenKey)) {
+      window.history.replaceState({}, '', window.location.pathname);
+      return;
+    }
+    sessionStorage.setItem(seenKey, '1');
+    window.history.replaceState({}, '', window.location.pathname);
+
+    Swal.fire({
+      icon: 'success',
+      iconColor: '#059669',
+      title: 'Payment received',
+      html: `
+        <p class="text-slate-600 text-sm leading-relaxed">
+          Thank you for shopping with <strong>${vendor?.shopName || vendor?.name || 'this store'}</strong>.
+          A receipt will be sent to your email. The vendor may contact you on WhatsApp about delivery.
+        </p>
+      `,
+      confirmButtonText: 'Keep browsing',
+      buttonsStyling: false,
+      customClass: {
+        popup: 'rounded-[32px] border-none shadow-2xl p-8 bg-white',
+        title: 'text-xl font-black text-slate-900 tracking-tighter uppercase',
+        confirmButton:
+          'bg-slate-900 text-white rounded-full px-10 py-4 text-[11px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all',
+      },
+    });
+  }, [slug, vendor?.shopName, vendor?.name]);
 
   useEffect(() => {
     if (!slug) {
@@ -201,12 +237,6 @@ export default function VendorStorePage() {
     activeCategory !== 'All Product'
       ? activeCategory
       : 'All products';
-  const documented = vendor
-    ? isVendorDocumented({
-        vendorTier: vendor.vendorTier,
-        businessRegistration: vendor.businessRegistration,
-      })
-    : false;
   const location = getVendorDisplayLocation({
     location: vendor?.location,
     region: vendor?.region,
@@ -280,18 +310,11 @@ export default function VendorStorePage() {
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-transparent" />
 
         <div className="relative z-10 max-w-6xl mx-auto px-4 pt-24 pb-10 md:pt-28 md:pb-14 flex flex-col justify-end min-h-[42vh] md:min-h-[48vh]">
-          <div className="flex flex-wrap items-center gap-3 mb-4">
-            <Link
-              href="/shop"
-              className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-white/80 transition-colors"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              FLA Marketplace
-            </Link>
+          <div className="flex flex-wrap items-center justify-end gap-3 mb-4">
             <button
               type="button"
               onClick={() => setIsCartOpen(true)}
-              className="ml-auto inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white/90"
+              className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white/90"
             >
               <ShoppingBag className="w-4 h-4" />
               Cart{cartCount > 0 ? ` (${cartCount})` : ''}
@@ -315,14 +338,13 @@ export default function VendorStorePage() {
               )}
             </div>
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 mb-1">
-                <VendorTrustBadge documented={documented} size="md" />
-                {vendor.uniqueVendorId && (
+              {vendor.uniqueVendorId && (
+                <div className="mb-1">
                   <span className="text-[9px] font-black uppercase tracking-widest bg-black/40 px-2 py-0.5 rounded-full" style={{ color: theme.accent }}>
                     {vendor.uniqueVendorId}
                   </span>
-                )}
-              </div>
+                </div>
+              )}
               <h1 className="font-heading text-3xl md:text-5xl font-black text-white tracking-tighter leading-none truncate">
                 {shopName}
               </h1>

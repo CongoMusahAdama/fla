@@ -1,5 +1,30 @@
 const RETURN_KEY = 'fla_marketplace_return';
 const PENDING_SCROLL_KEY = 'fla_marketplace_pending_scroll';
+/** Where the user opened the product detail page from (drives back-link UI). */
+const PRODUCT_ORIGIN_KEY = 'fla_product_nav_origin';
+
+export type ProductNavOrigin = 'marketplace' | 'store';
+
+export function setProductNavOrigin(origin: ProductNavOrigin): void {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.setItem(PRODUCT_ORIGIN_KEY, origin);
+  } catch {
+    // ignore
+  }
+}
+
+/** Default to store (storefront URL / deep link) — marketplace is only set when leaving / or /shop. */
+export function getProductNavOrigin(): ProductNavOrigin {
+  if (typeof window === 'undefined') return 'store';
+  try {
+    const v = sessionStorage.getItem(PRODUCT_ORIGIN_KEY);
+    if (v === 'marketplace') return 'marketplace';
+  } catch {
+    // ignore
+  }
+  return 'store';
+}
 
 export type MarketplaceReturn = {
   path: string;
@@ -39,6 +64,7 @@ export function saveMarketplaceReturn(productId?: string): void {
   }
 
   sessionStorage.setItem(RETURN_KEY, JSON.stringify(payload));
+  setProductNavOrigin('marketplace');
 }
 
 export function getMarketplaceReturn(): MarketplaceReturn {

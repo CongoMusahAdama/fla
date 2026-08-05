@@ -22,6 +22,8 @@ import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
 import { getFlaSupportEmail, getFlaSupportMailtoHref } from '@/lib/support-contacts';
 import { useProductCategories } from '@/hooks/useProductCategories';
+import { getImageUrl } from '@/lib/utils';
+import { storeHomePath } from '@/lib/storefront';
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -45,6 +47,10 @@ export default function Navbar() {
   const catRef = useRef<HTMLDivElement>(null);
   const searchCatRef = useRef<HTMLDivElement>(null);
   const [searchCatOpen, setSearchCatOpen] = useState(false);
+  const [storeBrand, setStoreBrand] = useState<{
+    shopName: string;
+    profileImage?: string;
+  } | null>(null);
 
   const cartTotal = useMemo(
     () => cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0),
@@ -143,6 +149,38 @@ export default function Navbar() {
     }
   }, [isAuthenticated, token]);
 
+  // On vendor storefronts, load shop logo for header branding (not FLA).
+  useEffect(() => {
+    const match = pathname?.match(/^\/store\/([^/]+)/);
+    const slug = match?.[1] ? decodeURIComponent(match[1]) : null;
+    if (!slug) {
+      setStoreBrand(null);
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+        const res = await fetch(`${api}/users/store/${encodeURIComponent(slug)}`);
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        const vendor = data?.vendor;
+        if (!vendor || cancelled) return;
+        setStoreBrand({
+          shopName: vendor.shopName || vendor.name || 'Store',
+          profileImage: vendor.profileImage || undefined,
+        });
+      } catch {
+        if (!cancelled) setStoreBrand(null);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pathname]);
+
   const goToShop = (overrides?: {
     search?: string;
     category?: string;
@@ -220,8 +258,11 @@ export default function Navbar() {
   ];
 
   const browseCategories = PRODUCT_CATEGORIES.filter((c) => c !== 'All Product');
-  const isStorePage = pathname === '/store' || pathname?.startsWith('/store/');
+  const storeSlugMatch = pathname?.match(/^\/store\/([^/]+)/);
+  const storeSlug = storeSlugMatch?.[1] ? decodeURIComponent(storeSlugMatch[1]) : null;
+  const isStorePage = Boolean(storeSlug);
   const hideGlobalSearch = isStorePage;
+  const storeHref = storeSlug ? storeHomePath(storeSlug) : '/';
 
   return (
     <>
@@ -238,26 +279,54 @@ export default function Navbar() {
           }`}
         >
           <div className="flex items-center gap-3 md:gap-6">
-            <Link href="/" className="flex items-center gap-2.5 shrink-0 min-w-0">
-              <Image
-                src="/logo.jpeg"
-                alt="FLA"
-                width={48}
-                height={48}
-                className="h-10 w-10 md:h-12 md:w-12 object-contain rounded-xl"
-                priority
-              />
-              <div className="hidden sm:block leading-tight">
-                <span className="font-heading text-xl md:text-2xl font-extrabold text-slate-900 tracking-tight block">
-                  FLA
-                </span>
-                <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-                  Purchase
-                </span>
-              </div>
-            </Link>
+            {isStorePage ? (
+              <Link href={storeHref} className="flex items-center gap-2.5 shrink-0 min-w-0">
+                {storeBrand?.profileImage ? (
+                  <Image
+                    src={getImageUrl(storeBrand.profileImage)}
+                    alt={storeBrand.shopName || 'Store'}
+                    width={48}
+                    height={48}
+                    className="h-10 w-10 md:h-12 md:w-12 object-cover rounded-xl border border-slate-100"
+                    unoptimized
+                    priority
+                  />
+                ) : (
+                  <div className="h-10 w-10 md:h-12 md:w-12 rounded-xl bg-brand-lemon text-slate-900 font-black text-lg flex items-center justify-center shrink-0">
+                    {(storeBrand?.shopName || 'S').charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <div className="hidden sm:block leading-tight min-w-0">
+                  <span className="font-heading text-lg md:text-xl font-extrabold text-slate-900 tracking-tight block truncate max-w-[200px]">
+                    {storeBrand?.shopName || 'Store'}
+                  </span>
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                    Store on FLA
+                  </span>
+                </div>
+              </Link>
+            ) : (
+              <Link href="/" className="flex items-center gap-2.5 shrink-0 min-w-0">
+                <Image
+                  src="/logo.jpeg"
+                  alt="FLA"
+                  width={48}
+                  height={48}
+                  className="h-10 w-10 md:h-12 md:w-12 object-contain rounded-xl"
+                  priority
+                />
+                <div className="hidden sm:block leading-tight">
+                  <span className="font-heading text-xl md:text-2xl font-extrabold text-slate-900 tracking-tight block">
+                    FLA
+                  </span>
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                    Purchase
+                  </span>
+                </div>
+              </Link>
+            )}
 
-            {/* Search — marketplace only; hidden on shop and vendor storefronts */}
+            {/* Search — marketplace only; hidden on vendor storefronts */}
             {!hideGlobalSearch && (
             <div className="relative flex-1 max-w-2xl mx-auto hidden md:block">
               <div className="flex items-stretch h-12 rounded-md border-2 border-brand-lemon overflow-hidden bg-white">
@@ -433,10 +502,12 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* Bottom nav — collapses on scroll to free vertical space */}
+      {/* Bottom nav — marketplace only; storefronts keep a store-branded top bar */}
       <div
         className={`border-b border-slate-100 bg-white hidden md:block overflow-hidden transition-all duration-300 ease-out ${
-          isScrolled ? 'max-h-0 opacity-0 border-transparent' : 'max-h-12 opacity-100'
+          isStorePage || isScrolled
+            ? 'max-h-0 opacity-0 border-transparent'
+            : 'max-h-12 opacity-100'
         }`}
       >
         <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 h-12 flex items-center gap-6">
@@ -551,49 +622,73 @@ export default function Navbar() {
               </button>
             </div>
             <div className="flex flex-col gap-1 overflow-y-auto">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">Categories</p>
-              {browseCategories.slice(0, 12).map((cat) => (
-                <button
-                  key={cat}
-                  type="button"
-                  onClick={() => {
-                    setSearchCategory(cat);
-                    goToShop({ category: cat, search: '', clearFilter: true });
-                  }}
-                  className="py-2.5 text-left text-sm font-semibold text-slate-800 border-b border-slate-50"
-                >
-                  {cat}
-                </button>
-              ))}
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mt-6 mb-2">Explore</p>
-              {navLinks.map((item) => (
-                item.kind === 'filter' ? (
-                  <button
-                    key={item.name}
-                    type="button"
-                    onClick={() =>
-                      goToShop({
-                        search: '',
-                        category: 'All Product',
-                        filter: item.value,
-                        clearFilter: false,
-                      })
-                    }
+              {isStorePage ? (
+                <>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">
+                    This store
+                  </p>
+                  <Link
+                    href={storeHref}
+                    onClick={() => setIsMenuOpen(false)}
+                    className="py-2.5 text-left text-sm font-semibold text-slate-800 border-b border-slate-50"
+                  >
+                    {storeBrand?.shopName || 'Store home'}
+                  </Link>
+                  <Link
+                    href="/"
+                    onClick={() => setIsMenuOpen(false)}
                     className="py-2.5 text-left text-sm font-semibold text-slate-800"
                   >
-                    {item.name}
-                  </button>
-                ) : (
-                  <Link
-                    key={item.name}
-                    href={item.href}
-                    onClick={() => setIsMenuOpen(false)}
-                    className="py-2.5 text-sm font-semibold text-slate-800"
-                  >
-                    {item.name}
+                    Browse FLA Marketplace
                   </Link>
-                )
-              ))}
+                </>
+              ) : (
+                <>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">Categories</p>
+                  {browseCategories.slice(0, 12).map((cat) => (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => {
+                        setSearchCategory(cat);
+                        goToShop({ category: cat, search: '', clearFilter: true });
+                      }}
+                      className="py-2.5 text-left text-sm font-semibold text-slate-800 border-b border-slate-50"
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mt-6 mb-2">Explore</p>
+                  {navLinks.map((item) => (
+                    item.kind === 'filter' ? (
+                      <button
+                        key={item.name}
+                        type="button"
+                        onClick={() =>
+                          goToShop({
+                            search: '',
+                            category: 'All Product',
+                            filter: item.value,
+                            clearFilter: false,
+                          })
+                        }
+                        className="py-2.5 text-left text-sm font-semibold text-slate-800"
+                      >
+                        {item.name}
+                      </button>
+                    ) : (
+                      <Link
+                        key={item.name}
+                        href={item.href}
+                        onClick={() => setIsMenuOpen(false)}
+                        className="py-2.5 text-sm font-semibold text-slate-800"
+                      >
+                        {item.name}
+                      </Link>
+                    )
+                  ))}
+                </>
+              )}
             </div>
             <div className="mt-auto pt-6 space-y-3">
               <button
@@ -606,7 +701,7 @@ export default function Navbar() {
               >
                 Contact Support
               </button>
-              {!isAuthenticated && (
+              {!isAuthenticated && !isStorePage && (
                 <Link
                   href="/auth?role=vendor&view=register"
                   className="block w-full py-3 bg-brand-lemon text-slate-900 text-center text-xs font-bold rounded-md"

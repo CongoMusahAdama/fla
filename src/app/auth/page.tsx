@@ -1006,7 +1006,7 @@ function AuthContent() {
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/auth/forgot-password-otp`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email })
+                body: JSON.stringify({ email: email.toLowerCase().trim() })
             });
 
             const result = await response.json();
@@ -1048,7 +1048,11 @@ function AuthContent() {
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/auth/reset-password-otp`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, code, password: pass })
+                body: JSON.stringify({
+                    email: email.toLowerCase().trim(),
+                    code: String(code || '').replace(/\D/g, ''),
+                    password: pass,
+                })
             });
 
             const result = await response.json();
@@ -1446,7 +1450,10 @@ function AuthContent() {
             const response = await fetch(`${apiBase}/auth/verify-otp`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ phone: normalizePhoneForApi(pendingVendorPhone), code }),
+                body: JSON.stringify({
+                    phone: normalizePhoneForApi(pendingVendorPhone),
+                    code: String(code || '').replace(/\D/g, ''),
+                }),
             });
 
             const result = await response.json();

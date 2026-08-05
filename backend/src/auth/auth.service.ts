@@ -225,10 +225,16 @@ export class AuthService {
   async verifyVendorOTP(phone: string, code: string): Promise<boolean> {
     const user = await this.usersService.findByPhone(phone);
     if (!user?.phone) {
+      this.logger.warn(`verifyVendorOTP: no user for phone ${this.maskPhone(phone || '')}`);
       return false;
     }
 
     const otpKey = this.otpService.normalizePhone(user.phone);
+    if (!otpKey) {
+      this.logger.warn(`verifyVendorOTP: could not normalize stored phone`);
+      return false;
+    }
+
     const isValid = await this.otpService.verifyOTP('phone', otpKey, code);
 
     if (isValid) {
@@ -426,21 +432,22 @@ export class AuthService {
   }
 
   async forgotPasswordOTP(email: string): Promise<void> {
-    this.logger.log(`ForgotPassword: OTP Request for: ${this.maskEmail(email)}`);
-    const user = await this.usersService.findOne(email);
+    const normalizedEmail = this.otpService.normalizeEmail(email);
+    this.logger.log(`ForgotPassword: OTP Request for: ${this.maskEmail(normalizedEmail)}`);
+    const user = await this.usersService.findOne(normalizedEmail);
     if (!user) {
-      this.logger.warn(`ForgotPassword: No user found with email: ${this.maskEmail(email)}`);
+      this.logger.warn(`ForgotPassword: No user found with email: ${this.maskEmail(normalizedEmail)}`);
       // Security best practice: don't leak user existence
       return;
     }
 
     this.logger.log(`ForgotPassword: User found: ${user.name}. Generating OTP...`);
     const otp = this.otpService.generateOTP();
-    await this.otpService.storeOTP('email', email, otp);
+    await this.otpService.storeOTP('email', normalizedEmail, otp);
 
     try {
-      await this.emailService.sendPasswordResetOTP(email, user.name || 'User', otp);
-      this.logger.log(`ForgotPassword: OTP email triggered for: ${this.maskEmail(email)}`);
+      await this.emailService.sendPasswordResetOTP(normalizedEmail, user.name || 'User', otp);
+      this.logger.log(`ForgotPassword: OTP email triggered for: ${this.maskEmail(normalizedEmail)}`);
     } catch (error) {
       this.logger.error(`ForgotPassword: Failed to trigger email: ${error.message}`);
       throw error;
@@ -448,17 +455,18 @@ export class AuthService {
   }
 
   async resetPasswordWithOTP(email: string, code: string, newPassword: string): Promise<void> {
-    const isValid = await this.otpService.verifyOTP('email', email, code);
+    const normalizedEmail = this.otpService.normalizeEmail(email);
+    const isValid = await this.otpService.verifyOTP('email', normalizedEmail, code);
     if (!isValid) {
       throw new Error('Invalid or expired verification code');
     }
 
-    const user = await this.usersService.findOne(email);
+    const user = await this.usersService.findOne(normalizedEmail);
     if (!user) {
       throw new Error('User not found');
     }
 
     await this.usersService.updatePassword((user as any)._id.toString(), newPassword);
-    await this.otpService.deleteOTP('email', email);
+    await this.otpService.deleteOTP('email', normalizedEmail);
   }
 }

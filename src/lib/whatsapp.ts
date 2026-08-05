@@ -79,29 +79,55 @@ export function buildCustomerToVendorMessage(
   order: {
     _id?: string;
     vendorName?: string;
-    items?: Array<{ name?: string }>;
+    items?: Array<{ name?: string; price?: number; quantity?: number }>;
     shippingCity?: string;
     shippingRegion?: string;
+    shippingAddress?: string;
+    totalAmount?: number;
+    totalProductAmount?: number;
   },
   customerName?: string,
 ): string {
   const orderRef = order._id?.slice(-6)?.toUpperCase() || '------';
   const shopName = order.vendorName || 'there';
-  const item = order.items?.[0]?.name || 'my order';
-  const delivery = [order.shippingCity, order.shippingRegion].filter(Boolean).join(', ') || 'as on FLA';
+  const names = (order.items || []).map((i) => i.name?.trim()).filter(Boolean) as string[];
+  const item =
+    names.length === 0
+      ? 'my order'
+      : names.length === 1
+        ? names[0]
+        : `${names[0]} +${names.length - 1} more`;
+  const location =
+    [order.shippingAddress, order.shippingCity, order.shippingRegion]
+      .filter(Boolean)
+      .join(', ') || 'as on FLA';
+  const amountSource =
+    order.totalAmount ??
+    order.totalProductAmount ??
+    (order.items || []).reduce(
+      (sum, i) => sum + (Number(i.price) || 0) * (Number(i.quantity) || 1),
+      0,
+    );
+  const price =
+    amountSource != null && Number.isFinite(Number(amountSource))
+      ? `GH₵ ${Number(amountSource).toLocaleString()}`
+      : null;
 
   return [
     `Hello ${shopName},`,
     '',
     `I placed order #ORD-${orderRef} on FLA Marketplace.`,
-    `Item: ${item}`,
-    `Delivery: ${delivery}`,
+    `Product: ${item}`,
+    price ? `Price: ${price}` : null,
+    `Location: ${location}`,
     'Payment: confirmed via Paystack on FLA.',
     '',
     'I would like to coordinate delivery and any tailoring details. Thank you!',
     '',
     `— ${customerName || 'Customer'}`,
-  ].join('\n');
+  ]
+    .filter(Boolean)
+    .join('\n');
 }
 
 /** Vendor → customer after the vendor cancels an order. */
@@ -177,10 +203,12 @@ export function buildVendorToCustomerMessage(
   order: {
     _id?: string;
     customerName?: string;
-    items?: Array<{ name?: string; size?: string; quantity?: number }>;
+    items?: Array<{ name?: string; size?: string; quantity?: number; price?: number }>;
     shippingCity?: string;
     shippingRegion?: string;
     shippingAddress?: string;
+    totalAmount?: number;
+    totalProductAmount?: number;
   },
   shopName?: string,
 ): string {
@@ -190,14 +218,28 @@ export function buildVendorToCustomerMessage(
   const itemLine = item
     ? `${item.name}${item.size ? ` (${item.size})` : ''} ×${item.quantity ?? 1}`
     : 'your order';
-  const delivery = [order.shippingAddress, order.shippingCity, order.shippingRegion].filter(Boolean).join(', ');
+  const location = [order.shippingAddress, order.shippingCity, order.shippingRegion]
+    .filter(Boolean)
+    .join(', ');
+  const amountSource =
+    order.totalAmount ??
+    order.totalProductAmount ??
+    (order.items || []).reduce(
+      (sum, i) => sum + (Number(i.price) || 0) * (Number(i.quantity) || 1),
+      0,
+    );
+  const price =
+    amountSource != null && Number.isFinite(Number(amountSource))
+      ? `GH₵ ${Number(amountSource).toLocaleString()}`
+      : null;
 
   return [
     `Hello ${customer},`,
     '',
     `This is ${shopName || 'your FLA vendor'} regarding order #ORD-${orderRef}.`,
-    `Item: ${itemLine}`,
-    delivery ? `Delivery: ${delivery}` : '',
+    `Product: ${itemLine}`,
+    price ? `Price: ${price}` : null,
+    location ? `Location: ${location}` : null,
     '',
     'Your payment is confirmed on FLA. Please reply here for sizing, delivery timing, or any questions.',
     '',
