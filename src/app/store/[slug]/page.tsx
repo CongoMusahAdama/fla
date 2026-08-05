@@ -321,23 +321,7 @@ export default function VendorStorePage() {
             </button>
           </div>
 
-          <div className="flex items-end gap-4 md:gap-6">
-            <div className="relative w-16 h-16 md:w-20 md:h-20 rounded-2xl overflow-hidden border-2 bg-white shrink-0 shadow-lg" style={{ borderColor: theme.accent }}>
-              {vendor.profileImage ? (
-                <Image
-                  src={getImageUrl(vendor.profileImage)}
-                  alt={shopName}
-                  fill
-                  unoptimized
-                  className="object-cover"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-slate-900 text-2xl font-black" style={{ backgroundColor: theme.accent }}>
-                  {shopName.charAt(0)}
-                </div>
-              )}
-            </div>
-            <div className="min-w-0 flex-1">
+          <div className="min-w-0">
               <h1 className="font-heading text-3xl md:text-5xl font-black text-white tracking-tighter leading-none truncate">
                 {shopName}
               </h1>
@@ -353,7 +337,6 @@ export default function VendorStorePage() {
                 </p>
               )}
             </div>
-          </div>
         </div>
       </section>
 
