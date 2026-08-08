@@ -237,7 +237,7 @@ export default function AdminDashboard() {
 
             const [statsRes, ordersRes, usersRes, productsRes, allDisputesRes, settingsRes] = await Promise.all([
                 fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/dashboard/admin/stats`, { headers, credentials: 'include' }),
-                fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders`, { headers, credentials: 'include' }),
+                fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders?page=1&limit=500`, { headers, credentials: 'include' }),
                 fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/users`, { headers, credentials: 'include' }),
                 fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/products?showAll=true`, { headers, credentials: 'include' }),
                 fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/support/my-disputes`, { headers, credentials: 'include' }),
@@ -1743,6 +1743,14 @@ export default function AdminDashboard() {
                                             <div>
                                                 <p className="font-black text-slate-900 text-sm">#ORD-{o._id.slice(-6).toUpperCase()}</p>
                                                 <p className="text-[10px] font-bold text-slate-400">{new Date(o.createdAt).toLocaleDateString()}</p>
+                                                {o.items?.[0] && (
+                                                    <p className="text-[9px] font-bold text-slate-500 uppercase mt-1">
+                                                        {[
+                                                            o.items[0].size && `Size: ${o.items[0].size}`,
+                                                            o.items[0].color && `Color: ${o.items[0].color}`,
+                                                        ].filter(Boolean).join(' · ') || 'No size/color'}
+                                                    </p>
+                                                )}
                                             </div>
                                         </div>
                                         <span className="text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-tighter bg-slate-100 text-slate-600">
@@ -1776,6 +1784,9 @@ export default function AdminDashboard() {
                                     </button>
                                 </div>
                             ))}
+                            {paginatedOrders.length === 0 && (
+                                <p className="text-center text-sm text-slate-400 py-12">No orders found.</p>
+                            )}
                         </div>
 
                         {/* Desktop Table View */}
@@ -1806,6 +1817,14 @@ export default function AdminDashboard() {
                                                         <div>
                                                             <p className="font-black text-slate-900 text-sm">#ORD-{o._id.slice(-6).toUpperCase()}</p>
                                                             <p className="text-[10px] font-bold text-slate-400">{new Date(o.createdAt).toLocaleDateString()}</p>
+                                                            {o.items?.[0] && (
+                                                                <p className="text-[9px] font-bold text-slate-500 uppercase mt-1 max-w-[180px]">
+                                                                    {[
+                                                                        o.items[0].size && `Size: ${o.items[0].size}`,
+                                                                        o.items[0].color && `Color: ${o.items[0].color}`,
+                                                                    ].filter(Boolean).join(' · ') || null}
+                                                                </p>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 </td>
@@ -1848,46 +1867,61 @@ export default function AdminDashboard() {
                                     </tbody>
                                 </table>
                             </div>
-
-                            {ordersTotalPages > 1 && (
-                                <div className="px-10 py-6 bg-slate-50 border-t border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4">
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                                        Showing <span className="text-slate-900">{(ordersPage - 1) * itemsPerPage + 1} - {Math.min(ordersPage * itemsPerPage, filteredOrders.length)}</span> of <span className="text-slate-900">{filteredOrders.length}</span> Orders
-                                    </p>
-                                    <div className="flex items-center gap-2">
-                                        <button
-                                            onClick={() => setOrdersPage(prev => Math.max(1, prev - 1))}
-                                            disabled={ordersPage === 1}
-                                            className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-200"
-                                        >
-                                            Prev
-                                        </button>
-                                        <div className="flex items-center gap-1">
-                                            {[...Array(ordersTotalPages)].map((_, i) => (
-                                                <button
-                                                    key={i}
-                                                    onClick={() => setOrdersPage(i + 1)}
-                                                    className={`w-8 h-8 rounded-xl text-[10px] font-black transition-all ${
-                                                        ordersPage === i + 1 
-                                                            ? 'bg-slate-900 text-white shadow-lg' 
-                                                            : 'text-slate-400 hover:bg-slate-200'
-                                                    }`}
-                                                >
-                                                    {i + 1}
-                                                </button>
-                                            ))}
-                                        </div>
-                                        <button
-                                            onClick={() => setOrdersPage(prev => Math.min(ordersTotalPages, prev + 1))}
-                                            disabled={ordersPage === ordersTotalPages}
-                                            className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-200"
-                                        >
-                                            Next
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
                         </div>
+
+                        {ordersTotalPages > 1 && (
+                            <div className="px-4 md:px-10 py-6 bg-white border border-slate-200 rounded-2xl md:rounded-none flex flex-col md:flex-row justify-between items-center gap-4">
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center md:text-left">
+                                    Showing <span className="text-slate-900">{(ordersPage - 1) * itemsPerPage + 1} - {Math.min(ordersPage * itemsPerPage, filteredOrders.length)}</span> of <span className="text-slate-900">{filteredOrders.length}</span> Orders
+                                </p>
+                                <div className="flex items-center gap-2 flex-wrap justify-center">
+                                    <button
+                                        onClick={() => setOrdersPage(prev => Math.max(1, prev - 1))}
+                                        disabled={ordersPage === 1}
+                                        className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-200"
+                                    >
+                                        Prev
+                                    </button>
+                                    <div className="flex items-center gap-1 flex-wrap justify-center max-w-[280px] md:max-w-none">
+                                        {Array.from({ length: ordersTotalPages }, (_, i) => i + 1)
+                                            .filter((page) => {
+                                                if (ordersTotalPages <= 9) return true;
+                                                if (page === 1 || page === ordersTotalPages) return true;
+                                                return Math.abs(page - ordersPage) <= 2;
+                                            })
+                                            .map((page, idx, arr) => {
+                                                const prev = arr[idx - 1];
+                                                const showEllipsis = prev != null && page - prev > 1;
+                                                return (
+                                                    <span key={page} className="inline-flex items-center gap-1">
+                                                        {showEllipsis && (
+                                                            <span className="w-6 text-center text-slate-300 text-[10px] font-black">…</span>
+                                                        )}
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setOrdersPage(page)}
+                                                            className={`w-8 h-8 rounded-xl text-[10px] font-black transition-all ${
+                                                                ordersPage === page
+                                                                    ? 'bg-slate-900 text-white shadow-lg'
+                                                                    : 'text-slate-400 hover:bg-slate-200'
+                                                            }`}
+                                                        >
+                                                            {page}
+                                                        </button>
+                                                    </span>
+                                                );
+                                            })}
+                                    </div>
+                                    <button
+                                        onClick={() => setOrdersPage(prev => Math.min(ordersTotalPages, prev + 1))}
+                                        disabled={ordersPage === ordersTotalPages}
+                                        className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-200"
+                                    >
+                                        Next
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 );
             }
@@ -2650,7 +2684,12 @@ export default function AdminDashboard() {
                                                     <div className="flex-1 min-w-0">
                                                         <h4 className="font-black text-slate-900 text-[13px] uppercase tracking-tighter truncate">{item.name}</h4>
                                                         <div className="flex flex-wrap gap-2 mt-2">
-                                                            <span className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded text-[9px] font-black uppercase tracking-widest">SIZE: {item.size}</span>
+                                                            {item.size && (
+                                                                <span className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded text-[9px] font-black uppercase tracking-widest">SIZE: {item.size}</span>
+                                                            )}
+                                                            {item.color && (
+                                                                <span className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded text-[9px] font-black uppercase tracking-widest">COLOR: {item.color}</span>
+                                                            )}
                                                             <span className="px-2 py-0.5 bg-slate-900 text-white rounded text-[9px] font-black uppercase tracking-widest">QTY: {item.quantity}</span>
                                                         </div>
                                                         <p className="text-sm font-black text-slate-900 mt-3 tabular-nums">GH₵ {item.price.toLocaleString()}</p>
@@ -2683,7 +2722,17 @@ export default function AdminDashboard() {
                                                             </div>
                                                         </td>
                                                         <td className="px-6 py-4">
-                                                            <span className="text-xs font-bold text-slate-600 uppercase">Size: {item.size}</span>
+                                                            <div className="flex flex-col gap-1">
+                                                                {item.size && (
+                                                                    <span className="text-xs font-bold text-slate-600 uppercase">Size: {item.size}</span>
+                                                                )}
+                                                                {item.color && (
+                                                                    <span className="text-xs font-bold text-slate-600 uppercase">Color: {item.color}</span>
+                                                                )}
+                                                                {!item.size && !item.color && (
+                                                                    <span className="text-xs font-bold text-slate-400 uppercase">—</span>
+                                                                )}
+                                                            </div>
                                                         </td>
                                                         <td className="px-6 py-4 text-center">
                                                             <span className="bg-slate-900 text-white w-6 h-6 rounded-full inline-flex items-center justify-center text-[10px] font-black">{item.quantity}</span>

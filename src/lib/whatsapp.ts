@@ -75,11 +75,31 @@ export function canShowOrderWhatsApp(order: { isPaid?: boolean; status?: string 
   return Boolean(order.isPaid && order.status !== 'cancelled');
 }
 
+function formatItemWithOptions(item?: {
+  name?: string;
+  size?: string;
+  color?: string;
+  quantity?: number;
+}): string {
+  if (!item) return 'item';
+  const name = item.name?.trim() || 'item';
+  const size = item.size?.trim();
+  const color = item.color?.trim();
+  const meaningful = (v?: string) =>
+    Boolean(v) && !['n/a', 'na', 'none', '-', 'universal', 'standard'].includes(v!.toLowerCase());
+  const opts = [meaningful(size) ? size : null, meaningful(color) ? color : null]
+    .filter(Boolean)
+    .join(' / ');
+  const base = opts ? `${name} (${opts})` : name;
+  const qty = item.quantity != null && item.quantity > 1 ? ` ×${item.quantity}` : '';
+  return `${base}${qty}`;
+}
+
 export function buildCustomerToVendorMessage(
   order: {
     _id?: string;
     vendorName?: string;
-    items?: Array<{ name?: string; price?: number; quantity?: number }>;
+    items?: Array<{ name?: string; price?: number; quantity?: number; size?: string; color?: string }>;
     shippingCity?: string;
     shippingRegion?: string;
     shippingAddress?: string;
@@ -90,13 +110,13 @@ export function buildCustomerToVendorMessage(
 ): string {
   const orderRef = order._id?.slice(-6)?.toUpperCase() || '------';
   const shopName = order.vendorName || 'there';
-  const names = (order.items || []).map((i) => i.name?.trim()).filter(Boolean) as string[];
+  const items = order.items || [];
   const item =
-    names.length === 0
+    items.length === 0
       ? 'my order'
-      : names.length === 1
-        ? names[0]
-        : `${names[0]} +${names.length - 1} more`;
+      : items.length === 1
+        ? formatItemWithOptions(items[0])
+        : `${formatItemWithOptions(items[0])} +${items.length - 1} more`;
   const location =
     [order.shippingAddress, order.shippingCity, order.shippingRegion]
       .filter(Boolean)
@@ -122,7 +142,7 @@ export function buildCustomerToVendorMessage(
     `Location: ${location}`,
     'Payment: confirmed via Paystack on FLA.',
     '',
-    'I would like to coordinate delivery and any tailoring details. Thank you!',
+    'I would like to coordinate delivery. Thank you!',
     '',
     `— ${customerName || 'Customer'}`,
   ]
@@ -135,16 +155,14 @@ export function buildVendorCancelledOrderToCustomerMessage(
   order: {
     _id?: string;
     customerName?: string;
-    items?: Array<{ name?: string; size?: string; quantity?: number }>;
+    items?: Array<{ name?: string; size?: string; color?: string; quantity?: number }>;
   },
   shopName?: string,
 ): string {
   const orderRef = order._id?.slice(-6)?.toUpperCase() || '------';
   const customer = order.customerName || 'there';
   const item = order.items?.[0];
-  const itemLine = item
-    ? `${item.name}${item.size ? ` (${item.size})` : ''} ×${item.quantity ?? 1}`
-    : 'your order';
+  const itemLine = item ? formatItemWithOptions(item) : 'your order';
 
   return [
     `Hello ${customer},`,
@@ -166,14 +184,14 @@ export function buildCustomerReportToAdminMessage(
     vendorName?: string;
     vendorId?: { phone?: string; momoNumber?: string } | string;
     vendorPhone?: string;
-    items?: Array<{ name?: string }>;
+    items?: Array<{ name?: string; size?: string; color?: string; quantity?: number }>;
     status?: string;
     totalAmount?: number;
   },
   customerName?: string,
 ): string {
   const orderRef = order._id?.slice(-6)?.toUpperCase() || '------';
-  const item = order.items?.[0]?.name || 'order';
+  const item = order.items?.[0] ? formatItemWithOptions(order.items[0]) : 'order';
   const vendor = order.vendorName || 'vendor';
   const vendorNumber = formatPhoneForDisplay(getVendorRawPhoneFromOrder(order));
   const status = order.status || 'unknown';
@@ -203,7 +221,7 @@ export function buildVendorToCustomerMessage(
   order: {
     _id?: string;
     customerName?: string;
-    items?: Array<{ name?: string; size?: string; quantity?: number; price?: number }>;
+    items?: Array<{ name?: string; size?: string; color?: string; quantity?: number; price?: number }>;
     shippingCity?: string;
     shippingRegion?: string;
     shippingAddress?: string;
@@ -215,9 +233,7 @@ export function buildVendorToCustomerMessage(
   const orderRef = order._id?.slice(-6)?.toUpperCase() || '------';
   const customer = order.customerName || 'there';
   const item = order.items?.[0];
-  const itemLine = item
-    ? `${item.name}${item.size ? ` (${item.size})` : ''} ×${item.quantity ?? 1}`
-    : 'your order';
+  const itemLine = item ? formatItemWithOptions(item) : 'your order';
   const location = [order.shippingAddress, order.shippingCity, order.shippingRegion]
     .filter(Boolean)
     .join(', ');
@@ -241,7 +257,7 @@ export function buildVendorToCustomerMessage(
     price ? `Price: ${price}` : null,
     location ? `Location: ${location}` : null,
     '',
-    'Your payment is confirmed on FLA. Please reply here for sizing, delivery timing, or any questions.',
+    'Your payment is confirmed on FLA. Please reply here for delivery timing or any questions.',
     '',
     'Thank you for shopping with us!',
   ]

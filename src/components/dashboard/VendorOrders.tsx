@@ -16,6 +16,7 @@ import {
 import { WhatsAppButton } from '@/components/WhatsAppButton';
 import { TableSearch } from '@/components/ui/TableSearch';
 import { matchesTableSearch, vendorOrderSearchValues } from '@/lib/table-search';
+import { formatOrderItemLedgerMeta } from '@/lib/order-item-display';
 
 const WhatsAppIcon = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 24 24" className={className} fill="currentColor" xmlns="http://www.w3.org/2000/svg">
@@ -210,7 +211,7 @@ export const VendorOrders: React.FC<VendorOrdersProps> = ({
                   <div className="flex-1 min-w-0">
                     <p className="font-black text-slate-900 uppercase text-[10px] truncate">{order.items?.[0]?.name || order.productName}</p>
                     <p className="text-[9px] font-bold text-slate-400 uppercase mt-1">
-                      {order.items?.[0]?.size || 'Standard'} • Qty: {order.items?.[0]?.quantity || 1}
+                      {formatOrderItemLedgerMeta(order.items?.[0])}
                     </p>
                     <div className="flex items-center justify-between mt-2">
                         <div className="flex items-center gap-1.5 text-slate-900 font-black text-[9px] uppercase">
@@ -335,7 +336,9 @@ export const VendorOrders: React.FC<VendorOrdersProps> = ({
                               {order.items.length > 1 && (
                                 <span className="text-[8px] font-black text-white bg-slate-900 px-2 py-0.5 rounded-lg w-fit uppercase tracking-tighter">+{order.items.length - 1} Collection Members</span>
                               )}
-                              <span className="text-[10px] font-bold text-slate-400">Qty: {order.items[0].quantity} • {order.items[0].size || 'Standard'}</span>
+                              <span className="text-[10px] font-bold text-slate-400">
+                                {formatOrderItemLedgerMeta(order.items[0])}
+                              </span>
                             </div>
                           ) : (
                             <span className="font-black text-slate-900 uppercase text-[10px]">{order.productName || 'Custom Craft'}</span>

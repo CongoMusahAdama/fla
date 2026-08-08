@@ -477,7 +477,10 @@ export class OrdersService implements OnModuleInit {
 
       // --- SMS + In-App (only after Paystack confirms payment) ---
       if (customerSmsPhone) {
-        let customerMsg = `FLA: Payment confirmed for #ORD-${orderShortId}. Your vendor will prepare your order.`;
+        const productSnippet = waDetails.productName
+          ? ` ${waDetails.productName}.`
+          : '';
+        let customerMsg = `FLA: Payment confirmed for #ORD-${orderShortId}.${productSnippet} Your vendor will prepare your order.`;
         if (vendorWaPhone) {
           const waLink = buildWaMeLink(
             vendorWaPhone,
@@ -513,7 +516,10 @@ export class OrdersService implements OnModuleInit {
 
       if (vendor) {
         if (vendorSmsPhone) {
-          let vendorMsg = `FLA: New paid order #ORD-${orderShortId}. Amount GHS ${order.totalAmount}. Begin fulfillment in your dashboard.`;
+          const productSnippet = waDetails.productName
+            ? ` ${waDetails.productName}.`
+            : '';
+          let vendorMsg = `FLA: New paid order #ORD-${orderShortId}.${productSnippet} Amount GHS ${order.totalAmount}. Begin fulfillment in your dashboard.`;
           if (customerWaPhone) {
             const waLink = buildWaMeLink(
               customerWaPhone,

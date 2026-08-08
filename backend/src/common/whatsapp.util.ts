@@ -22,9 +22,31 @@ export type OrderWaDetails = {
   price?: number | string | null;
 };
 
+function isMeaningfulOption(value?: string | null): boolean {
+  if (!value?.trim()) return false;
+  const v = value.trim().toLowerCase();
+  return !['n/a', 'na', 'none', '-', 'universal', 'standard'].includes(v);
+}
+
+/** e.g. "Gold Attar (M / Amber) ×2" */
+function formatOrderItemLine(item?: {
+  name?: string;
+  size?: string;
+  color?: string;
+  quantity?: number;
+}): string {
+  const name = item?.name?.trim() || 'item';
+  const size = isMeaningfulOption(item?.size) ? String(item!.size).trim() : '';
+  const color = isMeaningfulOption(item?.color) ? String(item!.color).trim() : '';
+  const opts = [size, color].filter(Boolean).join(' / ');
+  const base = opts ? `${name} (${opts})` : name;
+  const qty = item?.quantity != null && Number(item.quantity) > 1 ? ` ×${item.quantity}` : '';
+  return `${base}${qty}`;
+}
+
 /** Build product / location / price lines from a saved order. */
 export function extractOrderWaDetails(order: {
-  items?: Array<{ name?: string; price?: number; quantity?: number }>;
+  items?: Array<{ name?: string; price?: number; quantity?: number; size?: string; color?: string }>;
   shippingAddress?: string;
   shippingCity?: string;
   shippingRegion?: string;
@@ -32,10 +54,12 @@ export function extractOrderWaDetails(order: {
   totalProductAmount?: number;
 }): OrderWaDetails {
   const items = order.items || [];
-  const names = items.map((i) => i.name?.trim()).filter(Boolean) as string[];
   let productName = 'item';
-  if (names.length === 1) productName = names[0];
-  else if (names.length > 1) productName = `${names[0]} +${names.length - 1} more`;
+  if (items.length === 1) {
+    productName = formatOrderItemLine(items[0]);
+  } else if (items.length > 1) {
+    productName = `${formatOrderItemLine(items[0])} +${items.length - 1} more`;
+  }
 
   const location =
     [order.shippingAddress, order.shippingCity, order.shippingRegion]
@@ -49,7 +73,7 @@ export function extractOrderWaDetails(order: {
     items.reduce((sum, i) => sum + (Number(i.price) || 0) * (Number(i.quantity) || 1), 0);
 
   return {
-    productName: productName.slice(0, 60),
+    productName: productName.slice(0, 90),
     location: location?.slice(0, 80),
     price: Number.isFinite(Number(price)) ? Number(price) : undefined,
   };
@@ -74,7 +98,7 @@ export function buildShortCustomerToVendorWaText(
 ): string {
   const shop = (shopName || 'vendor').slice(0, 40);
   const who = (customerName || 'Customer').slice(0, 30);
-  const product = (details?.productName || 'item').slice(0, 50);
+  const product = (details?.productName || 'item').slice(0, 80);
   const location = (details?.location || 'as discussed').slice(0, 70);
   const price = formatPrice(details?.price);
   const pricePart = price ? ` Price: ${price}.` : '';
@@ -98,7 +122,7 @@ export function buildShortVendorToCustomerWaText(
 ): string {
   const shop = (shopName || 'FLA vendor').slice(0, 40);
   const who = (customerName || 'there').slice(0, 30);
-  const product = (details?.productName || 'your order').slice(0, 50);
+  const product = (details?.productName || 'your order').slice(0, 80);
   const location = (details?.location || 'your delivery location').slice(0, 70);
   const price = formatPrice(details?.price);
   const pricePart = price ? ` Price: ${price}.` : '';
@@ -106,7 +130,7 @@ export function buildShortVendorToCustomerWaText(
     `Hello ${who}, your FLA order #ORD-${orderShortId} is paid. ` +
     `Product: ${product}.${pricePart} ` +
     `Location: ${location}. ` +
-    `${shop} here — reply for delivery and sizing.`
+    `${shop} here — reply for delivery.`
   );
 }
 

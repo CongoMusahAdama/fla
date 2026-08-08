@@ -327,7 +327,7 @@ function VendorDashboardInner() {
                 const results = await Promise.allSettled([
                     fetch(`${api}/dashboard/vendor/stats`, { headers: { 'Authorization': `Bearer ${token}` }, credentials: 'include' }),
                     fetch(`${api}/products?vendorId=${user.id}&showAll=true`, { headers: { 'Authorization': `Bearer ${token}` }, credentials: 'include' }),
-                    fetch(`${api}/orders/vendor-orders`, { headers: { 'Authorization': `Bearer ${token}` }, credentials: 'include' }),
+                    fetch(`${api}/orders/vendor-orders?page=1&limit=500`, { headers: { 'Authorization': `Bearer ${token}` }, credentials: 'include' }),
                     fetch(`${api}/notifications/my-notifications`, { headers: { 'Authorization': `Bearer ${token}` }, credentials: 'include' }),
                     fetch(`${api}/payments/withdrawals/my-history`, { headers: { 'Authorization': `Bearer ${token}` }, credentials: 'include' }),
                     fetch(`${api}/settings`, { headers: { 'Authorization': `Bearer ${token}` }, credentials: 'include' })
