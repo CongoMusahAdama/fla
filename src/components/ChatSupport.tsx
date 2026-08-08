@@ -1,16 +1,23 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import { Mail, X, Send } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { getFlaSupportEmail, getSupportMailtoUrl } from "@/lib/support-contacts";
 
 export default function ChatSupport() {
-  const { isSupportOpen, setIsSupportOpen } = useCart();
+  const { isSupportOpen, setIsSupportOpen, isCartOpen } = useCart();
   const supportEmail = getFlaSupportEmail();
 
+  // Don't sit on top of the cart drawer subtotal/checkout row
+  useEffect(() => {
+    if (isCartOpen) setIsSupportOpen(false);
+  }, [isCartOpen, setIsSupportOpen]);
+
+  if (isCartOpen) return null;
+
   return (
-    <div className={`fixed bottom-24 md:bottom-6 right-6 z-[10040] flex flex-col items-end pointer-events-none`}>
+    <div className="fixed bottom-24 md:bottom-6 right-6 z-[90] flex flex-col items-end pointer-events-none">
       {isSupportOpen && (
         <div className="mb-4 w-72 bg-white rounded-[28px] shadow-2xl border border-slate-100 overflow-hidden animate-in slide-in-from-bottom-10 fade-in duration-300 pointer-events-auto origin-bottom-right">
           <div className="bg-slate-900 p-5 text-white">
