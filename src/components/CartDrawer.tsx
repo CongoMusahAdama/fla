@@ -370,7 +370,7 @@ export default function CartDrawer() {
                     customerName: guestInfo ? `Guest (${guestInfo.phone})` : user?.name,
                     customerEmail: guestInfo ? guestInfo.email : user?.email,
                     customerPhone: guestInfo ? guestInfo.phone : user?.phone,
-                    customerId: guestInfo ? null : (user?._id || user?.id || user?.userId || null),
+                    // customerId comes from JWT on the server — do not send in body
                     notes: `Delivery to ${formValues.deliveryCity}`,
                     vendorGroups: vendorGroups.map(group => ({
                         vendorId: group.vendorId,

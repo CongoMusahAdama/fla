@@ -644,7 +644,6 @@ export default React.memo(function ProductCard({ id, name, price, images, sizes 
                 customerName: guestInfo ? `Guest (${guestInfo.phone})` : user?.name,
                 customerEmail: guestInfo ? guestInfo.email : user?.email,
                 customerPhone: guestInfo ? guestInfo.phone : user?.phone,
-                customerId: guestInfo ? null : (user?._id || user?.id || user?.userId || null),
                 paymentMethod: 'paystack',
                 notes: 'Quick Buy Checkout (Skynet Express)',
                 ...(guestInfo && resolvedStoreSlug

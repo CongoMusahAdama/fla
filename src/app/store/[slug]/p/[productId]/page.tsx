@@ -387,7 +387,6 @@ export default function StoreProductPage() {
         customerName: guestInfo ? `Guest (${guestInfo.phone})` : user?.name,
         customerEmail: guestInfo ? guestInfo.email : user?.email,
         customerPhone: guestInfo ? guestInfo.phone : user?.phone,
-        customerId: guestInfo ? null : (user?._id || user?.id || user?.userId),
         paymentMethod: 'paystack',
         notes: 'Storefront Checkout',
         // Guest Paystack return → vendor store (not dashboard/login)
