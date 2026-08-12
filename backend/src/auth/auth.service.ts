@@ -282,17 +282,13 @@ export class AuthService {
         : intro.subscriptionEndsAt;
 
     const subscriptionLabel =
-      userData.subscriptionLabel ||
-      (plan === 'monthly' ? 'Monthly Partner Plan' : 'Intro month');
+      userData.subscriptionLabel || 'Monthly sales plan';
     const subscriptionPriceText =
-      userData.subscriptionPriceText ||
-      (plan === 'monthly' ? 'GHS 50 / month' : 'GHS 10 / 30 days');
+      userData.subscriptionPriceText || 'GHS 100 / month';
     const subscriptionPriceGhs =
       typeof userData.subscriptionPriceGhs === 'number'
         ? userData.subscriptionPriceGhs
-        : plan === 'monthly'
-          ? 50
-          : 10;
+        : 100;
 
     // Slim onboard — no KYC docs at admin create time
     const user = (await this.usersService.create({

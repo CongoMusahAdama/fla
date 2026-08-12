@@ -39,8 +39,7 @@ const VENDOR_SECTIONS: VendorSection[] = [
     'dashboard', 'products', 'orders', 'wallet', 'reviews', 'notifications', 'settings', 'help',
 ];
 
-const SUBSCRIPTION_INTRO_GHS = 10;
-const SUBSCRIPTION_MONTHLY_GHS = 50;
+const SUBSCRIPTION_MONTHLY_GHS = 100;
 
 function VendorDashboardInner() {
     const { categories: PRODUCT_CATEGORIES } = useProductCategories({ includeAll: true });
@@ -145,13 +144,8 @@ function VendorDashboardInner() {
     const subscriptionExpiringSoon =
         canSell && !subscriptionExpired && subscriptionDaysLeft != null && subscriptionDaysLeft <= 5;
     const canUploadProducts = canSell && !subscriptionExpired;
-    // Match backend amountDueForRenewal: intro GHS 10 until first paid period, then GHS 50.
-    const subscriptionAmountDue =
-        paymentRequired || !user?.subscriptionLastPaidAt
-            ? user?.subscriptionPlan === 'monthly'
-                ? SUBSCRIPTION_MONTHLY_GHS
-                : SUBSCRIPTION_INTRO_GHS
-            : SUBSCRIPTION_MONTHLY_GHS;
+    // Flat GHS 100 / month for sales access (every billing period).
+    const subscriptionAmountDue = SUBSCRIPTION_MONTHLY_GHS;
 
     const setActiveSection = (section: VendorSection) => {
         setActiveSectionState(section);
@@ -686,8 +680,34 @@ function VendorDashboardInner() {
             });
             const data = await res.json().catch(() => ({}));
             if (!res.ok) {
-                throw new Error(data.message || 'Could not start Paystack payment');
+                const msg = Array.isArray(data.message) ? data.message.join(', ') : data.message;
+                throw new Error(msg || 'Could not start Paystack payment');
             }
+
+            // Temporary gateway bypass — server unlocked without charging
+            if (data.unlocked) {
+                if (data.vendor) {
+                    updateUser({
+                        subscriptionPaymentRequired: Boolean(data.vendor.subscriptionPaymentRequired),
+                        subscriptionEndsAt: data.vendor.subscriptionEndsAt ?? null,
+                        subscriptionStartsAt: data.vendor.subscriptionStartsAt ?? null,
+                        subscriptionLastPaidAt: data.vendor.subscriptionLastPaidAt ?? null,
+                        subscriptionPlan: data.vendor.subscriptionPlan,
+                        subscriptionLabel: data.vendor.subscriptionLabel,
+                        subscriptionPriceText: data.vendor.subscriptionPriceText,
+                        subscriptionPriceGhs: data.vendor.subscriptionPriceGhs,
+                    });
+                }
+                await Swal.fire({
+                    icon: 'success',
+                    title: 'UPLOADS UNLOCKED',
+                    text: data.message || 'You can upload products now.',
+                    customClass: { popup: 'rounded-[32px]' },
+                });
+                setActiveSection('products');
+                return;
+            }
+
             if (data.reference) {
                 sessionStorage.setItem('fla_sub_ref', data.reference);
             }
@@ -905,7 +925,7 @@ function VendorDashboardInner() {
                                         {!canSell
                                             ? awaitingKycApproval
                                                 ? `After your documents are approved, pay GHS ${subscriptionAmountDue} here via Paystack to unlock uploads for 30 days.`
-                                                : `Upload your Ghana Card + selfie in Studio Identity first. After approval, pay GHS ${subscriptionAmountDue} here via Paystack to unlock uploads.`
+                                                : `Upload your Business Registration, Ghana Card, and selfie in Studio Identity first. After approval, pay GHS ${subscriptionAmountDue} here via Paystack to unlock uploads.`
                                             : paymentRequired
                                               ? `Your documents are approved. Tap below to pay GHS ${subscriptionAmountDue} on Paystack — uploads unlock automatically after payment.`
                                               : subscriptionExpired
@@ -915,7 +935,7 @@ function VendorDashboardInner() {
                                     <p className="text-2xl font-black text-slate-900 tracking-tighter">
                                         GHS {subscriptionAmountDue}
                                         <span className="ml-2 text-xs font-bold text-slate-400 uppercase tracking-widest">
-                                            / 30 days
+                                            / month
                                         </span>
                                     </p>
                                 </div>
@@ -927,8 +947,8 @@ function VendorDashboardInner() {
                                         className="h-12 px-8 rounded-full bg-brand-lemon text-slate-900 text-xs font-black uppercase tracking-widest hover:bg-white disabled:opacity-60 shadow-sm"
                                     >
                                         {payingSubscription
-                                            ? 'Opening Paystack…'
-                                            : `Pay GHS ${subscriptionAmountDue} on Paystack`}
+                                            ? 'Unlocking…'
+                                            : `Unlock uploads (GHS ${subscriptionAmountDue})`}
                                     </button>
                                 ) : (
                                     <button
@@ -955,7 +975,7 @@ function VendorDashboardInner() {
                             <p className="text-sm text-slate-500 leading-relaxed">
                                 {awaitingKycApproval
                                     ? 'Your documents are under review. Approval usually takes 4–5 hours. After approval, open Overview and pay via Paystack to unlock uploads.'
-                                    : 'Upload your Ghana Card, selfie, and supporting documents in Studio Identity first. After admin approval, open Overview and pay via Paystack to list products.'}
+                                    : 'Upload your Business Registration, Ghana Card, and selfie in Studio Identity first. After admin approval, open Overview and pay via Paystack to list products.'}
                             </p>
                             <div className="flex flex-col sm:flex-row gap-3 justify-center">
                                 <button
@@ -996,8 +1016,8 @@ function VendorDashboardInner() {
                                     className="px-8 py-3 bg-brand-lemon text-slate-900 rounded-full text-[10px] font-black uppercase tracking-widest disabled:opacity-60"
                                 >
                                     {payingSubscription
-                                        ? 'Opening Paystack…'
-                                        : `Pay GHS ${subscriptionAmountDue} on Paystack`}
+                                        ? 'Unlocking…'
+                                        : `Unlock uploads (GHS ${subscriptionAmountDue})`}
                                 </button>
                             </div>
                             <VendorProducts
@@ -1311,7 +1331,7 @@ function VendorDashboardInner() {
                                 disabled={payingSubscription}
                                 className="h-11 px-6 rounded-full bg-brand-blue text-white text-xs font-semibold hover:bg-slate-800 disabled:opacity-60"
                             >
-                                {payingSubscription ? 'Opening Paystack…' : `Renew GHS ${subscriptionAmountDue} on Paystack`}
+                                {payingSubscription ? 'Unlocking…' : `Unlock uploads (GHS ${subscriptionAmountDue})`}
                             </button>
                         </div>
                     )}
@@ -1336,8 +1356,8 @@ function VendorDashboardInner() {
                                 className="h-11 px-6 rounded-full bg-brand-lemon text-slate-900 text-xs font-black uppercase tracking-widest hover:bg-white disabled:opacity-60"
                             >
                                 {payingSubscription
-                                    ? 'Opening Paystack…'
-                                    : `Pay GHS ${subscriptionAmountDue} on Paystack`}
+                                    ? 'Unlocking…'
+                                    : `Unlock uploads (GHS ${subscriptionAmountDue})`}
                             </button>
                         </div>
                     )}

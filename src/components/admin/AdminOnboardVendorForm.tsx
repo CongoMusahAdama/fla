@@ -47,9 +47,9 @@ export default function AdminOnboardVendorForm({ token, onCreated, onClose }: Pr
   const [momoNetwork, setMomoNetwork] = useState('MTN');
   const [momoNumber, setMomoNumber] = useState('');
   const [accountName, setAccountName] = useState('');
-  const [plan, setPlan] = useState<'intro' | 'monthly'>('intro');
-  const [planLabel, setPlanLabel] = useState('Intro month');
-  const [planPrice, setPlanPrice] = useState('GHS 10 / 30 days');
+  const [plan, setPlan] = useState<'intro' | 'monthly'>('monthly');
+  const [planLabel, setPlanLabel] = useState('Monthly sales plan');
+  const [planPrice, setPlanPrice] = useState('GHS 100 / month');
   const [submitting, setSubmitting] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [result, setResult] = useState<{
@@ -68,13 +68,8 @@ export default function AdminOnboardVendorForm({ token, onCreated, onClose }: Pr
 
   const applyPlanDefaults = (next: 'intro' | 'monthly') => {
     setPlan(next);
-    if (next === 'intro') {
-      setPlanLabel('Intro month');
-      setPlanPrice('GHS 10 / 30 days');
-    } else {
-      setPlanLabel('Monthly Partner Plan');
-      setPlanPrice('GHS 50 / month');
-    }
+    setPlanLabel('Monthly sales plan');
+    setPlanPrice('GHS 100 / month');
   };
 
   const onLogoSelected = (file: File | null) => {
@@ -486,35 +481,13 @@ export default function AdminOnboardVendorForm({ token, onCreated, onClose }: Pr
               <p className="text-sm text-slate-500 mt-0.5">Shown on the vendor agreement letter.</p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => applyPlanDefaults('intro')}
-                className={`text-left border p-4 transition-colors ${
-                  plan === 'intro' ? 'border-brand-blue bg-brand-blue/[0.04]' : 'border-slate-300 hover:border-slate-400 bg-white'
-                }`}
-              >
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm font-semibold text-slate-900">Intro</span>
-                  {plan === 'intro' && <Check className="w-4 h-4 text-brand-blue" />}
-                </div>
-                <p className="text-xs text-slate-500 leading-relaxed">First 30 days — pay GHS 10 to FLA (MoMo).</p>
-                <p className="mt-3 text-sm font-semibold text-slate-900">GHS 10 / 30 days</p>
-              </button>
-              <button
-                type="button"
-                onClick={() => applyPlanDefaults('monthly')}
-                className={`text-left border p-4 transition-colors ${
-                  plan === 'monthly' ? 'border-brand-blue bg-brand-blue/[0.04]' : 'border-slate-300 hover:border-slate-400 bg-white'
-                }`}
-              >
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm font-semibold text-slate-900">Monthly</span>
-                  {plan === 'monthly' && <Check className="w-4 h-4 text-brand-blue" />}
-                </div>
-                <p className="text-xs text-slate-500 leading-relaxed">Ongoing partner plan after intro.</p>
-                <p className="mt-3 text-sm font-semibold text-slate-900">GHS 50 / month</p>
-              </button>
+            <div className="p-4 border border-brand-blue bg-brand-blue/[0.04]">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-sm font-semibold text-slate-900">Monthly Plan</span>
+                <Check className="w-4 h-4 text-brand-blue" />
+              </div>
+              <p className="text-xs text-slate-500 leading-relaxed">Standard monthly sales plan for vendors.</p>
+              <p className="mt-3 text-sm font-semibold text-slate-900">GHS 100 / month</p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -1,4 +1,4 @@
-import { Injectable, ConflictException, InternalServerErrorException, NotFoundException, Inject, forwardRef, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, ConflictException, InternalServerErrorException, NotFoundException, BadRequestException, Inject, forwardRef, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -616,7 +616,7 @@ export class UsersService implements OnModuleInit {
 
     const update = {
       subscriptionPlan: 'monthly',
-      subscriptionLabel: 'Monthly Partner Plan',
+      subscriptionLabel: 'Monthly sales plan',
       subscriptionPriceText: `GHS ${FLA_CONSTANTS.SUBSCRIPTION_MONTHLY_GHS} / month`,
       subscriptionPriceGhs: FLA_CONSTANTS.SUBSCRIPTION_MONTHLY_GHS,
       subscriptionEndsAt: endsAt,
@@ -810,6 +810,12 @@ export class UsersService implements OnModuleInit {
     const existing = await this.userModel.findById(id).exec();
     if (!existing || existing.role !== 'vendor') {
       throw new NotFoundException('Vendor not found');
+    }
+
+    if (!existing.businessRegistration?.trim()) {
+      throw new BadRequestException(
+        'Vendor has not uploaded a Business Registration Certificate. They cannot be cleared to sell without business registration documents.',
+      );
     }
 
     const update: Record<string, unknown> = {

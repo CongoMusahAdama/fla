@@ -565,7 +565,7 @@ export const VendorSettings: React.FC<VendorSettingsProps> = ({
 
             {!user?.kycApprovedAt && !user?.kycSubmittedAt && (
               <div className="rounded-xl bg-brand-lemon/20 border border-brand-lemon/40 px-4 py-3 text-sm text-slate-800">
-                Tap each card to upload. You need at least <strong>Ghana Card (front)</strong> and a{' '}
+                Tap each card to upload. You need a <strong>Business Registration</strong>, <strong>Ghana Card (front)</strong>, and a{' '}
                 <strong>selfie with ID</strong>, then hit Save below.
               </div>
             )}
@@ -631,11 +631,11 @@ export const VendorSettings: React.FC<VendorSettingsProps> = ({
                   </div>
                 </div>
               ) : (
-                <label className="flex flex-col items-center justify-center gap-3 h-36 bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl hover:border-brand-lemon transition-all cursor-pointer">
+                <label className="flex flex-col items-center justify-center gap-3 h-36 bg-slate-50 border-2 border-dashed border-orange-200 rounded-2xl hover:border-brand-lemon transition-all cursor-pointer">
                   <UploadCloud className="w-7 h-7 text-slate-300" />
                   <div className="text-center px-4">
                     <p className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Business registration</p>
-                    <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-1">Optional · PDF or image</p>
+                    <p className="text-[8px] font-bold text-orange-500 uppercase tracking-widest mt-1">Required · PDF or image</p>
                   </div>
                   <input
                     type="file"

@@ -73,6 +73,7 @@ export class PaystackService {
         email: string;
         amount: number;
         reference: string;
+        currency?: string;
         subaccount?: string;
         transaction_charge?: number;
         bearer?: 'account' | 'subaccount';
@@ -80,15 +81,32 @@ export class PaystackService {
         metadata?: any;
     }) {
         try {
-            const params = { ...data, amount: Math.round(data.amount * 100) };
-            const response = await axios.post(`${this.baseUrl}/transaction/initialize`, params, { 
+            if (!this.secretKey) {
+                throw new Error('PAYSTACK_SECRET_KEY is not configured on the server');
+            }
+            const params = {
+                ...data,
+                email: (data.email || '').trim() || 'support@flamingo-store1.com',
+                amount: Math.round(Number(data.amount) * 100),
+                currency: data.currency || 'GHS',
+            };
+            const response = await axios.post(`${this.baseUrl}/transaction/initialize`, params, {
                 headers: this.headers,
-                timeout: 10000 
+                timeout: 15000,
             });
             return response.data.data;
-        } catch (error) {
-            this.logger.error(`Failed to initialize Paystack transaction: ${error.response?.data?.message || error.message}`);
-            throw error;
+        } catch (error: any) {
+            const paystackMessage =
+                error.response?.data?.message ||
+                error.response?.data?.data?.message ||
+                error.message ||
+                'Paystack initialize failed';
+            this.logger.error(`Failed to initialize Paystack transaction: ${paystackMessage}`);
+            const enriched = new Error(
+                Array.isArray(paystackMessage) ? paystackMessage.join(', ') : String(paystackMessage),
+            );
+            (enriched as any).response = error.response;
+            throw enriched;
         }
     }
 

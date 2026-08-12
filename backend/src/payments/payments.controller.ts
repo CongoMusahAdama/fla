@@ -25,6 +25,7 @@ import { AuthGuard } from '@nestjs/passport';
 import { WithdrawalService } from './withdrawal.service';
 import { RequestWithdrawalDto } from './dto/request-withdrawal.dto';
 import { amountDueForRenewal } from '../users/vendor-subscription.util';
+import { isVendorDocumented } from '../common/vendor-trust.util';
 import * as crypto from 'crypto';
 
 @Controller('payments')
@@ -154,6 +155,9 @@ export class PaymentsController {
     /**
      * Vendor subscription unlock/renew — Paystack checkout (no admin MoMo).
      * Full amount goes to the main Paystack account (no subaccount split).
+     *
+     * TEMP: Paystack billing is skipped unless REQUIRE_VENDOR_SUBSCRIPTION_PAYSTACK=true
+     * so KYC-approved vendors can upload while the gateway issue is fixed.
      */
     @UseGuards(AuthGuard('jwt'))
     @Post('subscription/initialize')
@@ -170,32 +174,76 @@ export class PaymentsController {
                 'Complete document verification and wait for admin approval before paying for uploads.',
             );
         }
+        if (!isVendorDocumented(vendor as any)) {
+            throw new BadRequestException('Business registration documents must be uploaded before subscription.');
+        }
 
         const amountGhs = amountDueForRenewal(vendor as any);
+        const requirePaystack =
+            String(this.configService.get('REQUIRE_VENDOR_SUBSCRIPTION_PAYSTACK') || '')
+                .toLowerCase()
+                .trim() === 'true';
+
+        // Temporary unlock path — re-enable charged Paystack with env flag on Render.
+        if (!requirePaystack) {
+            this.logger.warn(
+                `TEMP subscription unlock without Paystack for vendor ${req.user.userId} (set REQUIRE_VENDOR_SUBSCRIPTION_PAYSTACK=true to charge)`,
+            );
+            const activated = await this.usersService.activateSubscriptionFromPayment(req.user.userId, {
+                amountGhs: 0,
+                reference: `TEMP-UNLOCK-${req.user.userId.slice(-6)}-${Date.now()}`,
+            });
+            return {
+                unlocked: true,
+                temporaryUnlock: true,
+                amountGhs: 0,
+                vendor: activated.vendor,
+                message:
+                    'Product uploads unlocked for 30 days. Paystack billing is temporarily paused while we fix the payment gateway.',
+            };
+        }
+
         const frontend =
             this.configService.get<string>('FRONTEND_URL')?.replace(/\/$/, '') ||
             'https://flamingo-store1.com';
+        const vendorEmail = String((vendor as any).email || '').trim();
+        const email =
+            vendorEmail && vendorEmail.includes('@')
+                ? vendorEmail
+                : `vendor-${req.user.userId.slice(-8)}@flamingo-store1.com`;
         const reference = `FLA-SUB-${req.user.userId.slice(-8)}-${crypto.randomBytes(4).toString('hex')}`;
 
-        const init = await this.paystackService.initializePayment({
-            email: (vendor as any).email,
-            amount: amountGhs,
-            reference,
-            callback_url: `${frontend}/vendor?subscription=paid`,
-            metadata: {
-                paymentType: 'vendor_subscription',
-                vendorId: req.user.userId,
-                amountGhs,
-                plan: (vendor as any).subscriptionPlan || 'intro',
-            },
-        });
+        try {
+            const init = await this.paystackService.initializePayment({
+                email,
+                amount: amountGhs,
+                currency: 'GHS',
+                reference,
+                callback_url: `${frontend}/vendor?subscription=paid`,
+                metadata: {
+                    paymentType: 'vendor_subscription',
+                    vendorId: req.user.userId,
+                    amountGhs,
+                    plan: (vendor as any).subscriptionPlan || 'intro',
+                },
+            });
 
-        return {
-            authorizationUrl: init.authorization_url,
-            accessCode: init.access_code,
-            reference: init.reference || reference,
-            amountGhs,
-        };
+            return {
+                authorizationUrl: init.authorization_url,
+                accessCode: init.access_code,
+                reference: init.reference || reference,
+                amountGhs,
+            };
+        } catch (err: any) {
+            const msg =
+                err?.response?.data?.message ||
+                err?.message ||
+                'Could not start Paystack checkout';
+            this.logger.error(`Vendor subscription Paystack init failed: ${msg}`);
+            throw new BadRequestException(
+                Array.isArray(msg) ? msg.join(', ') : String(msg),
+            );
+        }
     }
 
     /** Client-side verify after Paystack redirect (webhook may lag). */

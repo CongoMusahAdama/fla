@@ -40,10 +40,10 @@ export function daysUntilSubscriptionEnd(vendor: VendorSubscriptionFields, now =
 /** Pending unlock after KYC — must pay intro (or monthly) via Paystack before uploads. */
 export function unpaidIntroSubscriptionFields() {
   return {
-    subscriptionPlan: 'intro' as const,
-    subscriptionLabel: 'Intro month',
-    subscriptionPriceText: `GHS ${FLA_CONSTANTS.SUBSCRIPTION_INTRO_GHS} / 30 days`,
-    subscriptionPriceGhs: FLA_CONSTANTS.SUBSCRIPTION_INTRO_GHS,
+    subscriptionPlan: 'monthly' as const,
+    subscriptionLabel: 'Monthly sales plan',
+    subscriptionPriceText: `GHS ${FLA_CONSTANTS.SUBSCRIPTION_MONTHLY_GHS} / month`,
+    subscriptionPriceGhs: FLA_CONSTANTS.SUBSCRIPTION_MONTHLY_GHS,
     subscriptionPaymentRequired: true,
   };
 }
@@ -52,10 +52,10 @@ export function introSubscriptionFields(now = new Date()) {
   const startsAt = now;
   const endsAt = addDays(now, FLA_CONSTANTS.SUBSCRIPTION_PERIOD_DAYS);
   return {
-    subscriptionPlan: 'intro' as const,
-    subscriptionLabel: 'Intro month',
-    subscriptionPriceText: `GHS ${FLA_CONSTANTS.SUBSCRIPTION_INTRO_GHS} / 30 days`,
-    subscriptionPriceGhs: FLA_CONSTANTS.SUBSCRIPTION_INTRO_GHS,
+    subscriptionPlan: 'monthly' as const,
+    subscriptionLabel: 'Monthly sales plan',
+    subscriptionPriceText: `GHS ${FLA_CONSTANTS.SUBSCRIPTION_MONTHLY_GHS} / month`,
+    subscriptionPriceGhs: FLA_CONSTANTS.SUBSCRIPTION_MONTHLY_GHS,
     subscriptionStartsAt: startsAt,
     subscriptionEndsAt: endsAt,
     subscriptionPaymentRequired: false,
@@ -67,7 +67,7 @@ export function monthlySubscriptionFields(fromEndsOrNow: Date, now = new Date())
   const endsAt = addDays(base, FLA_CONSTANTS.SUBSCRIPTION_PERIOD_DAYS);
   return {
     subscriptionPlan: 'monthly' as const,
-    subscriptionLabel: 'Monthly Partner Plan',
+    subscriptionLabel: 'Monthly sales plan',
     subscriptionPriceText: `GHS ${FLA_CONSTANTS.SUBSCRIPTION_MONTHLY_GHS} / month`,
     subscriptionPriceGhs: FLA_CONSTANTS.SUBSCRIPTION_MONTHLY_GHS,
     subscriptionEndsAt: endsAt,
@@ -75,24 +75,16 @@ export function monthlySubscriptionFields(fromEndsOrNow: Date, now = new Date())
   };
 }
 
-/** Amount to charge on Paystack for unlock/renew. */
-export function amountDueForRenewal(vendor: VendorSubscriptionFields): number {
-  if (vendor.subscriptionPaymentRequired || !vendor.subscriptionLastPaidAt) {
-    if (vendor.subscriptionPlan === 'monthly') {
-      return FLA_CONSTANTS.SUBSCRIPTION_MONTHLY_GHS;
-    }
-    return FLA_CONSTANTS.SUBSCRIPTION_INTRO_GHS;
-  }
+/** Amount to charge for unlock/renew — flat GHS 100 every month. */
+export function amountDueForRenewal(_vendor: VendorSubscriptionFields): number {
   return FLA_CONSTANTS.SUBSCRIPTION_MONTHLY_GHS;
 }
 
 export function planFieldsAfterPayment(vendor: VendorSubscriptionFields, now = new Date()) {
   const amount = amountDueForRenewal(vendor);
-  const isIntroFirstPay =
-    amount === FLA_CONSTANTS.SUBSCRIPTION_INTRO_GHS &&
-    (!vendor.subscriptionLastPaidAt || vendor.subscriptionPaymentRequired);
+  const isFirstPay = !vendor.subscriptionLastPaidAt || vendor.subscriptionPaymentRequired;
 
-  if (isIntroFirstPay) {
+  if (isFirstPay) {
     return {
       ...introSubscriptionFields(now),
       subscriptionLastPaidAt: now,

@@ -9,6 +9,7 @@ import { Model } from 'mongoose';
 import { User, UserDocument } from '../users/schemas/user.schema';
 import { isSubscriptionActive } from '../users/vendor-subscription.util';
 import { FLA_CONSTANTS } from '../common/constants';
+import { isVendorDocumented } from '../common/vendor-trust.util';
 
 @Controller('products')
 export class ProductsController {
@@ -42,7 +43,7 @@ export class ProductsController {
     if (req.user.role === 'vendor') {
       const vendor = await this.userModel
         .findById(req.user.userId)
-        .select('mustChangePassword kycApprovedAt subscriptionEndsAt subscriptionPaymentRequired subscriptionPlan subscriptionLastPaidAt')
+        .select('mustChangePassword kycApprovedAt subscriptionEndsAt subscriptionPaymentRequired subscriptionPlan subscriptionLastPaidAt businessRegistration vendorTier')
         .lean()
         .exec();
       if ((vendor as any)?.mustChangePassword) {
@@ -51,6 +52,11 @@ export class ProductsController {
       if (!(vendor as any)?.kycApprovedAt) {
         throw new ForbiddenException(
           'Upload your verification documents and wait for admin approval (usually 4–5 hours) before you can list products.',
+        );
+      }
+      if (!isVendorDocumented(vendor as any)) {
+        throw new ForbiddenException(
+          'You must upload your business registration documents in settings to list products on the platform.',
         );
       }
       if (!isSubscriptionActive(vendor as any)) {
