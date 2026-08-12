@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException, Logger, BadRequestException, InternalServerErrorException, OnModuleInit } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, Logger, BadRequestException, InternalServerErrorException, OnModuleInit, Inject, forwardRef } from '@nestjs/common';
 import { InjectModel, InjectConnection } from '@nestjs/mongoose';
 import { Model, Types, Connection, ClientSession } from 'mongoose';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -23,6 +23,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { EmailService } from '../email/email.service';
 import { SettingsService } from '../settings/settings.service';
 import { SmsService } from '../common/sms.service';
+import { ReferralService } from '../referral/referral.service';
 
 @Injectable()
 export class OrdersService implements OnModuleInit {
@@ -38,6 +39,7 @@ export class OrdersService implements OnModuleInit {
     private readonly emailService: EmailService,
     private readonly settingsService: SettingsService,
     private readonly smsService: SmsService,
+    @Inject(forwardRef(() => ReferralService)) private readonly referralService: ReferralService,
   ) { }
 
   onModuleInit() {
@@ -271,10 +273,23 @@ export class OrdersService implements OnModuleInit {
 
       const vendor = await this.userModel.findById(createOrderDto.vendorId).exec();
 
-      const { customerId, vendorId, items, callbackPath, ...remainingDto } = createOrderDto;
+      const { customerId, vendorId, items, callbackPath, refereeCode, ...remainingDto } = createOrderDto;
 
       const hasCustomer =
         !!customerId && Types.ObjectId.isValid(customerId) && String(customerId).length === 24;
+
+      // Resolve referee from code (if provided) to attach commission to order
+      let refereeId: Types.ObjectId | undefined;
+      let refereeCommission = 0;
+      let adjustedVendorShare = vendorShare;
+      if (refereeCode) {
+        const referee = await this.referralService.resolveRefereeByCode(refereeCode);
+        if (referee) {
+          refereeId = (referee as any)._id;
+          refereeCommission = Math.round(totalProductAmount * (FLA_CONSTANTS.REFEREE_COMMISSION_RATE / 100) * 100) / 100;
+          adjustedVendorShare = Math.max(0, vendorShare - refereeCommission);
+        }
+      }
 
       const orderData: any = {
         ...remainingDto,
@@ -284,9 +299,10 @@ export class OrdersService implements OnModuleInit {
         status: 'pending',
         isPaid: false,
         adminCommission,
-        vendorShare,
+        vendorShare: adjustedVendorShare,
         commissionRate,
         paymentRef: orderId.toString(),
+        ...(refereeId && { refereeId, refereeCode, refereeCommission, refereeCommissionPaid: false }),
       };
 
       if (hasCustomer) {
@@ -316,6 +332,7 @@ export class OrdersService implements OnModuleInit {
       const savedOrder = await createdOrder.save();
 
       const frontendBase = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
+
       // Guests with a storefront return path should not hit /dashboard (forces login).
       const guestCallback = !hasCustomer ? this.sanitizeCallbackPath(callbackPath) : null;
       let callbackUrl: string;
@@ -435,6 +452,15 @@ export class OrdersService implements OnModuleInit {
         ? await this.userModel.findById(order.customerId).exec()
         : null;
       this.sendPaymentSuccessNotifications(order, customer);
+
+      // Referee commission crediting (fire-and-forget, outside transaction)
+      if (order.refereeId && !order.refereeCommissionPaid) {
+        this.referralService
+          .creditRefereeCommission(order)
+          .catch((err) =>
+            this.logger.error(`Referee commission credit failed for order ${order._id}: ${err.message}`),
+          );
+      }
     } catch (error) {
       await session.abortTransaction();
       this.logger.error(`Error handling payment success: ${error.message}`, error.stack);

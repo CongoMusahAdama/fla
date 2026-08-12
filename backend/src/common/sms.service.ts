@@ -149,4 +149,24 @@ export class SmsService {
       this.logger.warn('ADMIN_PHONE_NOTIFICATION not set. Admin SMS skipped.');
     }
   }
+
+  /**
+   * Welcome SMS sent to a new referee on account creation.
+   * No WhatsApp link included (as per platform policy for referees).
+   */
+  async sendRefereeWelcomeSms(phone: string, refCode: string, name: string): Promise<boolean> {
+    const message = `Welcome to FLA Referrals, ${name}! Your referral code is ${refCode}. Log in to your dashboard, browse products from our vendors, and start earning by sharing links. Good luck!`;
+    return this.sendSms(phone, message);
+  }
+
+  /**
+   * Sale notification SMS sent to the referee when a referred order is paid.
+   * No WhatsApp link included (as per platform policy for referees).
+   */
+  async sendRefereeSaleSms(phone: string, commission: number, saleAmount: number, orderId: string): Promise<boolean> {
+    const shortId = orderId.slice(-6).toUpperCase();
+    const message = `FLA Referrals: A sale was made via your link! Order #ORD-${shortId} — Sale: GHS ${saleAmount.toFixed(2)}. Your commission: GHS ${commission.toFixed(2)} has been credited to your dashboard.`;
+    return this.sendSms(phone, message);
+  }
 }
+

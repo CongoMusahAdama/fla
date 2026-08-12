@@ -9,6 +9,7 @@ import { User, UserSchema } from '../users/schemas/user.schema';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { EmailModule } from '../email/email.module';
 import { SettingsModule } from '../settings/settings.module';
+import { ReferralModule } from '../referral/referral.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { SettingsModule } from '../settings/settings.module';
       { name: 'User', schema: UserSchema }
     ]),
     forwardRef(() => PaymentsModule),
+    forwardRef(() => ReferralModule),
     NotificationsModule,
     EmailModule,
     SettingsModule
@@ -27,3 +29,4 @@ import { SettingsModule } from '../settings/settings.module';
   exports: [OrdersService],
 })
 export class OrdersModule { }
+

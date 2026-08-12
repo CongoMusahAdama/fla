@@ -372,6 +372,7 @@ export default function CartDrawer() {
                     customerPhone: guestInfo ? guestInfo.phone : user?.phone,
                     // customerId comes from JWT on the server — do not send in body
                     notes: `Delivery to ${formValues.deliveryCity}`,
+                    refereeCode: cartItems.find(item => item.refereeCode)?.refereeCode,
                     vendorGroups: vendorGroups.map(group => ({
                         vendorId: group.vendorId,
                         vendorName: group.vendorName,

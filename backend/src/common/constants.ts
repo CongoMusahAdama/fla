@@ -9,6 +9,8 @@ export const FLA_CONSTANTS = {
   SUBSCRIPTION_MONTHLY_GHS: 50,
   SUBSCRIPTION_PERIOD_DAYS: 30,
   SUBSCRIPTION_REMINDER_DAYS: 5,
+  /** Referee affiliate commission taken from vendor's payout (%) */
+  REFEREE_COMMISSION_RATE: 2,
 };
 
 /** Must match src/lib/fla-terms.ts FLA_TERMS_VERSION */

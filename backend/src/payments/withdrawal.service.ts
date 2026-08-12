@@ -26,8 +26,9 @@ export class WithdrawalService {
             throw new BadRequestException(`Minimum withdrawal amount is GH₵ ${minWithdrawal}`);
         }
 
-        // Commission Logic: Use dynamic commission setting (default 10%)
-        const commissionRate = (await this.settingsService.getSetting('platform_commission')) || 6;
+        // Commission Logic: Use dynamic commission setting (default 10%), but 0% for referees (already calculated in earning)
+        const isReferee = vendor.role === 'referee';
+        const commissionRate = isReferee ? 0 : (await this.settingsService.getSetting('platform_commission')) || 6;
         const adminCommission = amount * (commissionRate / 100);
         const netAmount = amount - adminCommission;
 

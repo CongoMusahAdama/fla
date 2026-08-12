@@ -62,6 +62,7 @@ function VendorDashboardInner() {
     const [notifications, setNotifications] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [isHydrated, setIsHydrated] = useState(false);
+    const [togglingReferrals, setTogglingReferrals] = useState(false);
     
     // Performance and Logic States
     const [vendorProducts, setVendorProducts] = useState<Product[]>([]);
@@ -1410,6 +1411,41 @@ function VendorDashboardInner() {
                             )}
                         </div>
                     )}
+                    
+                    {activeSection === 'dashboard' && (
+                        <div className="mb-8 p-6 md:p-8 bg-white border border-slate-200 rounded-[32px] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                            <div>
+                                <h3 className="text-lg font-bold text-slate-900 tracking-tight">Referral Program</h3>
+                                <p className="text-sm text-slate-500 mt-1">Allow affiliates to promote your products and earn a 2% commission on their sales. Your share remains unaffected (absorbed by platform).</p>
+                            </div>
+                            <button
+                                onClick={async () => {
+                                    setTogglingReferrals(true);
+                                    try {
+                                        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/referral/vendor/toggle`, {
+                                            method: 'PATCH',
+                                            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                                            body: JSON.stringify({ accept: !user?.acceptReferrals }),
+                                        });
+                                        if (res.ok) {
+                                            const data = await res.json();
+                                            updateUser({ acceptReferrals: data.acceptReferrals });
+                                            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: data.acceptReferrals ? 'Referrals Enabled' : 'Referrals Disabled', showConfirmButton: false, timer: 2000 });
+                                        }
+                                    } catch (e) {
+                                        console.error('Toggle failed', e);
+                                    } finally {
+                                        setTogglingReferrals(false);
+                                    }
+                                }}
+                                disabled={togglingReferrals}
+                                className={`relative inline-flex h-8 w-14 shrink-0 cursor-pointer items-center justify-center rounded-full transition-colors duration-200 ease-in-out disabled:opacity-50 ${user?.acceptReferrals ? 'bg-brand-lemon' : 'bg-slate-200'}`}
+                            >
+                                <span className={`inline-block h-6 w-6 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${user?.acceptReferrals ? 'translate-x-3' : '-translate-x-3'}`} />
+                            </button>
+                        </div>
+                    )}
+
                     {renderContent()}
                 </div>
             </main>

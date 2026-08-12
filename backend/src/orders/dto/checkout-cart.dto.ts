@@ -57,4 +57,12 @@ export class CheckoutCartDto {
   @ValidateNested({ each: true })
   @Type(() => CheckoutVendorGroupDto)
   vendorGroups: CheckoutVendorGroupDto[];
+
+  /**
+   * Referee code from referral link.
+   * Passed through to each created order for commission crediting.
+   */
+  @IsString()
+  @IsOptional()
+  refereeCode?: string;
 }

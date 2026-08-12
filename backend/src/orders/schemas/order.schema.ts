@@ -186,6 +186,23 @@ export class Order {
 
     @Prop({ default: 0 })
     totalProductAmount: number;
+
+    // ─── Referral Fields ──────────────────────────────────────────────────
+    /** Referee user who shared the link that sourced this order */
+    @Prop({ type: Types.ObjectId, ref: 'User' })
+    refereeId?: Types.ObjectId;
+
+    /** Referee code for quick lookup (duplicated for performance) */
+    @Prop()
+    refereeCode?: string;
+
+    /** 2% of totalProductAmount credited to the referee (GHS) */
+    @Prop({ default: 0 })
+    refereeCommission: number;
+
+    /** True once the commission has been credited to referee's wallet */
+    @Prop({ default: false })
+    refereeCommissionPaid: boolean;
 }
 
 export const OrderSchema = SchemaFactory.createForClass(Order);

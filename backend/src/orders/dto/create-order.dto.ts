@@ -124,4 +124,12 @@ export class CreateOrderDto {
     @IsString()
     @IsOptional()
     callbackPath?: string;
+
+    /**
+     * Referee code from referral link (e.g. REF-A1B2C3).
+     * When present, 2% commission is credited to the referee on payment.
+     */
+    @IsString()
+    @IsOptional()
+    refereeCode?: string;
 }

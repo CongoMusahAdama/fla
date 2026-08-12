@@ -302,14 +302,14 @@ export class PaymentsController {
     @Post('withdrawals/request')
     async requestWithdrawal(@Request() req, @Body() body: RequestWithdrawalDto) {
         // Security: Authorization handled by Guard, logic by Service
-        if (req.user.role !== 'vendor') throw new Error('Only vendors can request withdrawals');
+        if (req.user.role !== 'vendor' && req.user.role !== 'referee') throw new Error('Only vendors or referees can request withdrawals');
         return this.withdrawalService.requestWithdrawal(req.user.userId, body.amount, body);
     }
 
     @UseGuards(AuthGuard('jwt'))
     @Get('withdrawals/my-history')
     async getMyWithdrawals(@Request() req) {
-        if (req.user.role !== 'vendor') throw new Error('Only vendors can view withdrawal history');
+        if (req.user.role !== 'vendor' && req.user.role !== 'referee') throw new Error('Only vendors or referees can view withdrawal history');
         return this.withdrawalService.getVendorWithdrawals(req.user.userId);
     }
 

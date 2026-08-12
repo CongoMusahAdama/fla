@@ -20,6 +20,7 @@ import { SettingsModule } from './settings/settings.module';
 import { CommonModule } from './common/common.module';
 import { LogisticsModule } from './logistics/logistics.module';
 import { BillboardsModule } from './billboards/billboards.module';
+import { ReferralModule } from './referral/referral.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { BillboardsModule } from './billboards/billboards.module';
     CommonModule,
     LogisticsModule,
     BillboardsModule,
+    ReferralModule,
   ],
   controllers: [AppController],
   providers: [

@@ -237,6 +237,32 @@ export class User {
 
     @Prop()
     resetPasswordExpires?: Date;
+
+    // ─── Vendor Referral Toggle ───────────────────────────────────────────────
+    /** When true, this vendor's products appear in all referee stores */
+    @Prop({ default: false })
+    acceptReferrals: boolean;
+
+    // ─── Referee (Affiliate) Fields ───────────────────────────────────────────
+    /** Unique short code used in referral links e.g. REF-A1B2C3 */
+    @Prop({ unique: true, sparse: true, index: true })
+    refereeCode?: string;
+
+    /** Public referee storefront path segment: /ref/{refereeStoreSlug} */
+    @Prop({ unique: true, sparse: true, index: true })
+    refereeStoreSlug?: string;
+
+    /** Accumulated unpaid referee commissions (GHS) */
+    @Prop({ default: 0 })
+    refereeWalletBalance: number;
+
+    /** Total commissions ever earned (GHS) */
+    @Prop({ default: 0 })
+    refereeLifetimeEarnings: number;
+
+    /** Product IDs the referee has hidden from their store */
+    @Prop({ type: [String], default: [] })
+    refereeHiddenProducts: string[];
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

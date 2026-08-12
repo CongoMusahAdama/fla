@@ -14,6 +14,7 @@ export type CartItem = {
     vendorName?: string;
     vendorRegion?: string;
     tailoringTime?: string;
+    refereeCode?: string;
 };
 
 type CartContextType = {

@@ -4,7 +4,7 @@ import React, { createContext, useContext, useState, ReactNode, useEffect, useCa
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
-export type UserRole = 'customer' | 'admin' | 'vendor';
+export type UserRole = 'customer' | 'admin' | 'vendor' | 'referee';
 
 export type User = {
     _id?: string;
@@ -60,6 +60,14 @@ export type User = {
     vendorTier?: 'low' | 'high';
     termsAcceptedAt?: string | Date | null;
     termsVersion?: string;
+    
+    // Referral fields
+    acceptReferrals?: boolean;
+    refereeCode?: string;
+    refereeStoreSlug?: string;
+    refereeWalletBalance?: number;
+    refereeLifetimeEarnings?: number;
+    refereeHiddenProducts?: string[];
 };
 
 type AuthContextType = {
@@ -98,6 +106,12 @@ function mapApiUser(raw: Record<string, unknown>): User {
         status: raw.status as string | undefined,
         uniqueVendorId: raw.uniqueVendorId as string | undefined,
         storeSlug: raw.storeSlug as string | undefined,
+        acceptReferrals: raw.acceptReferrals as boolean | undefined,
+        refereeCode: raw.refereeCode as string | undefined,
+        refereeStoreSlug: raw.refereeStoreSlug as string | undefined,
+        refereeWalletBalance: raw.refereeWalletBalance as number | undefined,
+        refereeLifetimeEarnings: raw.refereeLifetimeEarnings as number | undefined,
+        refereeHiddenProducts: raw.refereeHiddenProducts as string[] | undefined,
         mustChangePassword: Boolean(raw.mustChangePassword),
         kycApprovedAt: (raw.kycApprovedAt as string | Date | null | undefined) ?? null,
         kycSubmittedAt: (raw.kycSubmittedAt as string | Date | null | undefined) ?? null,
