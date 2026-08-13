@@ -1596,7 +1596,7 @@ function AuthContent() {
                                     </li>
                                     <li className="flex gap-3">
                                         <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-blue" />
-                                        <span>First month is <strong className="font-medium text-slate-900">GHS 10</strong>, then <strong className="font-medium text-slate-900">GHS 50/month</strong> (paid to FLA via MoMo).</span>
+                                        <span><strong className="font-medium text-slate-900">GHS 100 / month</strong> subscription for sales access (paid to FLA via Paystack).</span>
                                     </li>
                                 </ul>
                                 <p className="pt-1 text-sm text-slate-800/60">

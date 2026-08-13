@@ -430,7 +430,7 @@ export default function AdminDashboard() {
                 const next = await Swal.fire({
                     icon: 'success',
                     title: 'VENDOR APPROVED',
-                    html: 'Documents approved.<br/><br/>Vendor must pay <strong>GHS 10</strong> via Paystack on Overview to unlock uploads.<br/><br/>Next: <strong>preview and download</strong> the partnership agreement.',
+                    html: 'Documents approved.<br/><br/>Vendor must pay <strong>GHS 100</strong> via Paystack on Overview to unlock uploads.<br/><br/>Next: <strong>preview and download</strong> the partnership agreement.',
                     showCancelButton: true,
                     confirmButtonText: 'Review & download letter',
                     cancelButtonText: 'Later',
