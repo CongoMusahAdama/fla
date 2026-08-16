@@ -35,6 +35,7 @@ export default function Footer() {
                             <li><Link href="/about" className="hover:text-white transition-colors cursor-pointer">Our Story</Link></li>
                             <li><Link href="/#process" className="hover:text-white transition-colors cursor-pointer">Sustainability</Link></li>
                             <li><Link href="/#process" className="hover:text-white transition-colors cursor-pointer">Careers</Link></li>
+                            <li><Link href="/referee" className="hover:text-white transition-colors cursor-pointer">Become a Referral Partner</Link></li>
                             <li><Link href="/#process" className="hover:text-white transition-colors cursor-pointer">Terms & Conditions</Link></li>
                         </ul>
                     </div>

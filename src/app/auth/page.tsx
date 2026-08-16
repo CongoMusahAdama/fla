@@ -1774,6 +1774,12 @@ function AuthContent() {
                                     </div>
                                 )}
 
+                                {!isLogin && !showForgotPassword && !searchParams.get('role') && (
+                                    <p className="text-center text-xs text-slate-500 -mt-3 mb-6">
+                                        Want to earn commission instead? <Link href="/referee" className="font-semibold text-slate-900 hover:underline">Become a Referee</Link>
+                                    </p>
+                                )}
+
                                 {showForgotPassword ? (
                                     <ForgotPasswordForm
                                         onBack={() => setShowForgotPassword(false)}
