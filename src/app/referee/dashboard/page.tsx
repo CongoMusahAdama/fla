@@ -9,12 +9,13 @@ import Swal from 'sweetalert2';
 import { LayoutDashboard, Wallet, Calendar, Copy, LogOut, CheckCircle2, History, Package, Eye, EyeOff, RefreshCcw } from 'lucide-react';
 
 export default function RefereeDashboard() {
-    const { user, logout, isAuthenticated, isLoading } = useAuth();
+    const { user, token, logout, isAuthenticated, isLoading } = useAuth();
     const router = useRouter();
     const [dashboardData, setDashboardData] = useState<any>(null);
     const [storeProducts, setStoreProducts] = useState<any[]>([]);
     const [hiddenProducts, setHiddenProducts] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState(false);
     const [activeTab, setActiveTab] = useState<'overview' | 'store' | 'history'>('overview');
 
     useEffect(() => {
@@ -30,13 +31,19 @@ export default function RefereeDashboard() {
 
     const fetchDashboardData = async () => {
         setLoading(true);
+        setLoadError(false);
         try {
+            const authHeaders: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
             const [dashRes, storeRes] = await Promise.all([
-                fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/referral/dashboard`, { credentials: 'include' }),
-                fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/referral/my-store`, { credentials: 'include' })
+                fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/referral/dashboard`, { credentials: 'include', headers: authHeaders }),
+                fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/referral/my-store`, { credentials: 'include', headers: authHeaders })
             ]);
 
-            if (dashRes.ok) setDashboardData(await dashRes.json());
+            if (dashRes.ok) {
+                setDashboardData(await dashRes.json());
+            } else {
+                setLoadError(true);
+            }
             if (storeRes.ok) {
                 const storeData = await storeRes.json();
                 setStoreProducts(storeData.products || []);
@@ -44,6 +51,7 @@ export default function RefereeDashboard() {
             }
         } catch (error) {
             console.error('Error fetching dashboard data:', error);
+            setLoadError(true);
         } finally {
             setLoading(false);
         }
@@ -53,7 +61,7 @@ export default function RefereeDashboard() {
         try {
             const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/referral/my-store/toggle/${productId}`, {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
                 credentials: 'include'
             });
             
@@ -135,8 +143,7 @@ export default function RefereeDashboard() {
 
         try {
             Swal.fire({ title: 'Processing...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-            
-            const token = localStorage.getItem('token');
+
             const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/payments/withdrawals/request`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -163,7 +170,21 @@ export default function RefereeDashboard() {
         );
     }
 
-    if (!dashboardData) return null;
+    if (!dashboardData) {
+        return (
+            <div className="min-h-screen bg-[#EEF1F5] flex flex-col items-center justify-center gap-4 px-6 text-center">
+                <p className="text-slate-600 font-medium">
+                    {loadError ? "We couldn't load your dashboard. Please try again." : 'No dashboard data available.'}
+                </p>
+                <button
+                    onClick={fetchDashboardData}
+                    className="inline-flex items-center gap-2 h-10 px-5 bg-brand-lemon text-slate-900 font-semibold text-sm rounded-xl shadow-sm hover:bg-brand-lemon-hover transition-all"
+                >
+                    <RefreshCcw className="w-4 h-4" /> Retry
+                </button>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row">
