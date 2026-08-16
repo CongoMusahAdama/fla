@@ -207,6 +207,10 @@ export class Order {
     /** True once the commission has been credited to referee's wallet */
     @Prop({ default: false })
     refereeCommissionPaid: boolean;
+
+    /** True if the referee was auto-paid directly via a Paystack transaction split (not the wallet) */
+    @Prop({ default: false })
+    refereePaidViaSplit: boolean;
 }
 
 export const OrderSchema = SchemaFactory.createForClass(Order);

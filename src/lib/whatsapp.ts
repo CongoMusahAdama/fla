@@ -307,8 +307,8 @@ export function buildDisputeWhatsAppMessage(options: {
     ].join('\n');
 }
 
-export function promptMissingWhatsAppContact(role: 'vendor' | 'customer'): void {
-  const label = role === 'vendor' ? 'vendor' : 'customer';
+export function promptMissingWhatsAppContact(role: 'vendor' | 'customer' | 'referee'): void {
+  const label = role === 'vendor' ? 'vendor' : role === 'referee' ? 'referee' : 'customer';
   if (typeof window !== 'undefined') {
     import('sweetalert2').then(({ default: Swal }) => {
       Swal.fire({

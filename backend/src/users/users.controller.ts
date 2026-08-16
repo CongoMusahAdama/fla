@@ -65,6 +65,23 @@ export class UsersController {
     return this.usersService.findKycVendors(status || 'all');
   }
 
+  @Get('admin/referees/pending')
+  @UseGuards(AuthGuard('jwt'))
+  findPendingReferees(@Request() req) {
+    this.assertAdmin(req);
+    return this.usersService.findPendingReferees();
+  }
+
+  @Get('admin/referees/kyc')
+  @UseGuards(AuthGuard('jwt'))
+  findRefereeKycRecords(
+    @Request() req,
+    @Query('status') status?: 'pending' | 'active' | 'rejected' | 'banned' | 'all',
+  ) {
+    this.assertAdmin(req);
+    return this.usersService.findKycReferees(status || 'all');
+  }
+
   /** Public vendor storefront profile */
   @Get('vendor/:id/profile')
   getVendorProfile(@Param('id') id: string) {

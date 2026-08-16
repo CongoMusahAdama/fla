@@ -27,7 +27,7 @@ type WhatsAppButtonProps = {
   className?: string;
   fullWidth?: boolean;
   size?: "sm" | "md" | "lg";
-  missingContactRole?: "vendor" | "customer";
+  missingContactRole?: "vendor" | "customer" | "referee";
   /** When set, runs instead of default wa.me open (e.g. admin report handler). */
   onClick?: () => void;
 };

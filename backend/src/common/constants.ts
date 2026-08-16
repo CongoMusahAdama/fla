@@ -13,6 +13,10 @@ export const FLA_CONSTANTS = {
   REFEREE_COMMISSION_RATE: 2,
   /** Paystack transaction fee, borne by the vendor and deducted from their payout (%) */
   PAYSTACK_FEE_RATE: 1.95,
+  /** Max products a referee can feature in their curated store */
+  REFEREE_STORE_CAP: 50,
+  /** Of the cap, how many the platform auto-fills for the referee */
+  REFEREE_AUTO_FILL_COUNT: 10,
 };
 
 /** Must match src/lib/fla-terms.ts FLA_TERMS_VERSION */

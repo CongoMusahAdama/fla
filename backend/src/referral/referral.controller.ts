@@ -3,8 +3,10 @@ import {
   Post,
   Get,
   Patch,
+  Delete,
   Body,
   Param,
+  Query,
   Request,
   UseGuards,
   ForbiddenException,
@@ -27,6 +29,12 @@ export class ReferralController {
       email: string;
       phone: string;
       password: string;
+      region?: string;
+      socialMediaLinks?: string[];
+      paymentMethod?: { network: string; accountNumber: string; accountName: string };
+      ghanaCardFront?: string;
+      ghanaCardBack?: string;
+      selfie?: string;
     },
   ) {
     if (!body.name || !body.email || !body.phone || !body.password) {
@@ -65,6 +73,53 @@ export class ReferralController {
   async toggleHideProduct(@Request() req, @Param('productId') productId: string) {
     this.assertReferee(req);
     return this.referralService.toggleHideProduct(req.user.userId, productId);
+  }
+
+  // ─── Authenticated: Product Picker ────────────────────────────────────────
+
+  @UseGuards(AuthGuard('jwt'))
+  @Get('browse-products')
+  async browseProducts(
+    @Request() req,
+    @Query('region') region?: string,
+    @Query('search') search?: string,
+    @Query('category') category?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    this.assertReferee(req);
+    return this.referralService.browseProducts(req.user.userId, {
+      region,
+      search,
+      category,
+      page: page ? parseInt(page, 10) : undefined,
+      limit: limit ? parseInt(limit, 10) : undefined,
+    });
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Post('my-store/select/:productId')
+  async selectProduct(@Request() req, @Param('productId') productId: string) {
+    this.assertReferee(req);
+    return this.referralService.selectProduct(req.user.userId, productId);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Delete('my-store/select/:productId')
+  async unselectProduct(@Request() req, @Param('productId') productId: string) {
+    this.assertReferee(req);
+    return this.referralService.unselectProduct(req.user.userId, productId);
+  }
+
+  // ─── Authenticated: Vendor Visibility into Referee Selections ─────────────
+
+  @UseGuards(AuthGuard('jwt'))
+  @Get('vendor/product-selectors/:productId')
+  async getProductSelectors(@Request() req, @Param('productId') productId: string) {
+    if (req.user?.role !== 'vendor') {
+      throw new ForbiddenException('Only vendor accounts can view this.');
+    }
+    return this.referralService.getProductSelectors(req.user.userId, productId);
   }
 
   // ─── Authenticated: Referral Link Generator ───────────────────────────────

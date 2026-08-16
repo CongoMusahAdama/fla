@@ -6,7 +6,10 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import Swal from 'sweetalert2';
-import { LayoutDashboard, Wallet, Calendar, Copy, LogOut, CheckCircle2, History, Package, Eye, EyeOff, RefreshCcw } from 'lucide-react';
+import { LayoutDashboard, Wallet, Calendar, Copy, LogOut, CheckCircle2, History, Package, Eye, EyeOff, RefreshCcw, Search, MapPin, Plus, X as XIcon } from 'lucide-react';
+import { GHANA_REGIONS } from '@/lib/ghana-regions';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
 export default function RefereeDashboard() {
     const { user, token, logout, isAuthenticated, isLoading } = useAuth();
@@ -14,9 +17,21 @@ export default function RefereeDashboard() {
     const [dashboardData, setDashboardData] = useState<any>(null);
     const [storeProducts, setStoreProducts] = useState<any[]>([]);
     const [hiddenProducts, setHiddenProducts] = useState<string[]>([]);
+    const [storeCap, setStoreCap] = useState(50);
+    const [autoFillCount, setAutoFillCount] = useState(10);
     const [loading, setLoading] = useState(true);
     const [loadError, setLoadError] = useState(false);
     const [activeTab, setActiveTab] = useState<'overview' | 'store' | 'history'>('overview');
+    const [storeSubTab, setStoreSubTab] = useState<'mine' | 'browse'>('mine');
+
+    // Product picker (browse & add) state
+    const [pickerRegion, setPickerRegion] = useState('');
+    const [pickerSearch, setPickerSearch] = useState('');
+    const [pickerProducts, setPickerProducts] = useState<any[]>([]);
+    const [pickerLoading, setPickerLoading] = useState(false);
+    const [pickerSelectedIds, setPickerSelectedIds] = useState<string[]>([]);
+    const [pickerSuggestions, setPickerSuggestions] = useState<any[]>([]);
+    const [showSuggestions, setShowSuggestions] = useState(false);
 
     useEffect(() => {
         if (!isLoading && (!isAuthenticated || user?.role !== 'referee')) {
@@ -24,8 +39,10 @@ export default function RefereeDashboard() {
             return;
         }
 
-        if (isAuthenticated && user?.role === 'referee') {
+        if (isAuthenticated && user?.role === 'referee' && user.status === 'active') {
             fetchDashboardData();
+        } else if (isAuthenticated && user?.role === 'referee') {
+            setLoading(false);
         }
     }, [isAuthenticated, isLoading, user, router]);
 
@@ -48,12 +65,111 @@ export default function RefereeDashboard() {
                 const storeData = await storeRes.json();
                 setStoreProducts(storeData.products || []);
                 setHiddenProducts(storeData.hiddenIds || []);
+                setStoreCap(storeData.cap || 50);
+                setAutoFillCount(storeData.autoFillCount || 10);
+                setPickerSelectedIds((storeData.products || []).map((p: any) => p._id));
             }
         } catch (error) {
             console.error('Error fetching dashboard data:', error);
             setLoadError(true);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const authHeaders = (): HeadersInit => (token ? { Authorization: `Bearer ${token}` } : {});
+
+    const fetchBrowseProducts = async () => {
+        setPickerLoading(true);
+        try {
+            const params = new URLSearchParams();
+            if (pickerRegion) params.set('region', pickerRegion);
+            if (pickerSearch) params.set('search', pickerSearch);
+            const res = await fetch(`${API_URL}/referral/browse-products?${params.toString()}`, {
+                credentials: 'include',
+                headers: authHeaders(),
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setPickerProducts(data.products || []);
+            }
+        } catch (error) {
+            console.error('Error browsing products:', error);
+        } finally {
+            setPickerLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        if (storeSubTab === 'browse' && isAuthenticated && user?.role === 'referee' && user.status === 'active') {
+            fetchBrowseProducts();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [storeSubTab, pickerRegion]);
+
+    // Live suggestions dropdown as the referee types a product name.
+    useEffect(() => {
+        if (storeSubTab !== 'browse' || !pickerSearch.trim()) {
+            setPickerSuggestions([]);
+            return;
+        }
+        const handle = setTimeout(async () => {
+            try {
+                const params = new URLSearchParams({ search: pickerSearch, limit: '6' });
+                if (pickerRegion) params.set('region', pickerRegion);
+                const res = await fetch(`${API_URL}/referral/browse-products?${params.toString()}`, {
+                    credentials: 'include',
+                    headers: authHeaders(),
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    setPickerSuggestions(data.products || []);
+                    setShowSuggestions(true);
+                }
+            } catch (error) {
+                console.error('Error fetching suggestions:', error);
+            }
+        }, 300);
+        return () => clearTimeout(handle);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [pickerSearch, storeSubTab, pickerRegion]);
+
+    const handleSelectProduct = async (productId: string) => {
+        if (pickerSelectedIds.length >= storeCap) {
+            Swal.fire({ icon: 'warning', title: 'Store is full', text: `You can feature up to ${storeCap} products. Remove one first.` });
+            return;
+        }
+        try {
+            const res = await fetch(`${API_URL}/referral/my-store/select/${productId}`, {
+                method: 'POST',
+                credentials: 'include',
+                headers: authHeaders(),
+            });
+            if (res.ok) {
+                setPickerSelectedIds((prev) => [...prev, productId]);
+                fetchDashboardData();
+            } else {
+                const err = await res.json().catch(() => ({}));
+                Swal.fire({ icon: 'error', title: 'Could not add product', text: err.message || 'Please try again.' });
+            }
+        } catch (error) {
+            console.error('Error selecting product:', error);
+        }
+    };
+
+    const handleUnselectProduct = async (productId: string) => {
+        try {
+            const res = await fetch(`${API_URL}/referral/my-store/select/${productId}`, {
+                method: 'DELETE',
+                credentials: 'include',
+                headers: authHeaders(),
+            });
+            if (res.ok) {
+                setPickerSelectedIds((prev) => prev.filter((id) => id !== productId));
+                setStoreProducts((prev) => prev.filter((p: any) => p._id !== productId));
+            }
+        } catch (error) {
+            console.error('Error removing product:', error);
         }
     };
 
@@ -94,78 +210,35 @@ export default function RefereeDashboard() {
         }
     };
 
-    const handleWithdrawalRequest = async () => {
-        if (!dashboardData || dashboardData.walletBalance < 50) {
-            Swal.fire({ icon: 'error', title: 'Insufficient Balance', text: 'Minimum withdrawal amount is GHS 50.', confirmButtonColor: '#0f172a' });
-            return;
-        }
-
-        const { value: formValues } = await Swal.fire({
-            title: 'Request Withdrawal',
-            html: `
-                <div class="text-left space-y-4 py-2">
-                    <p class="text-sm text-slate-500">Available: GHS ${dashboardData.walletBalance.toFixed(2)}</p>
-                    <div class="space-y-2">
-                        <label class="text-[10px] text-slate-400 font-black uppercase tracking-widest ml-1">Amount (GHS)</label>
-                        <input id="swal-amount" type="number" min="50" max="${dashboardData.walletBalance}" class="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-xl" placeholder="Min 50" />
-                    </div>
-                    <div class="space-y-2">
-                        <label class="text-[10px] text-slate-400 font-black uppercase tracking-widest ml-1">MoMo Number</label>
-                        <input id="swal-momo" type="tel" class="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-xl" placeholder="e.g. 024xxxxxxx" />
-                    </div>
-                    <div class="space-y-2">
-                        <label class="text-[10px] text-slate-400 font-black uppercase tracking-widest ml-1">Account Name</label>
-                        <input id="swal-name" type="text" class="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-xl" placeholder="Registered Name" />
-                    </div>
-                </div>
-            `,
-            showCancelButton: true,
-            confirmButtonText: 'Submit Request',
-            confirmButtonColor: '#0f172a',
-            preConfirm: () => {
-                const amount = (document.getElementById('swal-amount') as HTMLInputElement).value;
-                const momoNumber = (document.getElementById('swal-momo') as HTMLInputElement).value;
-                const accountName = (document.getElementById('swal-name') as HTMLInputElement).value;
-                
-                if (!amount || !momoNumber || !accountName) {
-                    Swal.showValidationMessage('All fields are required');
-                    return false;
-                }
-                if (Number(amount) < 50 || Number(amount) > dashboardData.walletBalance) {
-                    Swal.showValidationMessage('Invalid amount');
-                    return false;
-                }
-                return { amount: Number(amount), momoNumber, accountName, paymentMethod: 'momo' };
-            }
-        });
-
-        if (!formValues) return;
-
-        try {
-            Swal.fire({ title: 'Processing...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/payments/withdrawals/request`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                body: JSON.stringify(formValues)
-            });
-
-            if (!res.ok) {
-                const err = await res.json();
-                throw new Error(err.message || 'Failed to request withdrawal');
-            }
-
-            Swal.fire('Success', 'Withdrawal request submitted successfully.', 'success');
-            fetchDashboardData();
-        } catch (error: any) {
-            Swal.fire('Error', error.message, 'error');
-        }
-    };
-
     if (loading) {
         return (
             <div className="min-h-screen bg-[#EEF1F5] flex items-center justify-center">
                 <div className="w-10 h-10 border-2 border-brand-lemon border-t-transparent animate-spin rounded-full"></div>
+            </div>
+        );
+    }
+
+    if (user?.status && user.status !== 'active') {
+        const isRejected = user.status === 'rejected';
+        const isBanned = user.status === 'banned';
+        return (
+            <div className="min-h-screen bg-[#EEF1F5] flex flex-col items-center justify-center gap-4 px-6 text-center">
+                <div className="w-14 h-14 rounded-full bg-white shadow-sm flex items-center justify-center">
+                    <CheckCircle2 className={`w-7 h-7 ${isRejected || isBanned ? 'text-red-400' : 'text-amber-400'}`} />
+                </div>
+                <h1 className="text-xl font-bold text-slate-900">
+                    {isBanned ? 'Account suspended' : isRejected ? 'Application declined' : 'Application under review'}
+                </h1>
+                <p className="text-sm text-slate-500 max-w-sm">
+                    {isBanned
+                        ? 'Your referee account has been suspended. Contact support if you believe this is an error.'
+                        : isRejected
+                            ? 'Your referee application was declined. Please ensure your KYC documents are clear and valid, then contact support to reapply.'
+                            : "We're reviewing your Ghana Card, selfie, and payout details. You'll get an SMS once you're approved to start earning."}
+                </p>
+                <button onClick={logout} className="inline-flex items-center gap-2 h-10 px-5 bg-white border border-slate-200 text-slate-700 font-medium text-sm rounded-xl shadow-sm hover:bg-slate-50 transition-all">
+                    <LogOut className="w-4 h-4" /> Sign Out
+                </button>
             </div>
         );
     }
@@ -246,16 +319,20 @@ export default function RefereeDashboard() {
                             <div className="bg-white rounded-2xl border border-slate-200 p-6 flex flex-col justify-between">
                                 <div className="flex items-start justify-between">
                                     <div>
-                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Wallet Balance</p>
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                                            {dashboardData.walletBalance > 0 ? 'Pending Payout' : 'Payouts'}
+                                        </p>
                                         <h3 className="text-2xl font-black text-slate-900 tracking-tighter">GHS {dashboardData.walletBalance.toFixed(2)}</h3>
                                     </div>
                                     <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center shrink-0">
                                         <Wallet className="w-5 h-5" />
                                     </div>
                                 </div>
-                                <button onClick={handleWithdrawalRequest} className="mt-4 w-full py-2 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-colors">
-                                    Withdraw
-                                </button>
+                                <p className="mt-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                    {dashboardData.walletBalance > 0
+                                        ? "We'll settle this to your account automatically."
+                                        : 'Paid automatically to your MoMo/bank via Paystack.'}
+                                </p>
                             </div>
                             <StatCard title="Lifetime Earnings" amount={dashboardData.lifetimeEarnings} icon={CheckCircle2} color="text-amber-600" bg="bg-amber-100" />
                         </div>
@@ -293,42 +370,180 @@ export default function RefereeDashboard() {
 
                 {activeTab === 'store' && (
                     <div className="space-y-6">
-                        <header>
-                            <h2 className="text-2xl font-bold text-slate-900 tracking-tight">My Store Products</h2>
-                            <p className="text-sm text-slate-500 mt-1">Share individual products to earn 2% on every sale.</p>
+                        <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+                            <div>
+                                <h2 className="text-2xl font-bold text-slate-900 tracking-tight">My Store Products</h2>
+                                <p className="text-sm text-slate-500 mt-1">
+                                    {storeProducts.length}/{storeCap} selected · {autoFillCount} auto-assigned slots from your region
+                                </p>
+                            </div>
+                            <div className="flex p-1 bg-slate-100 rounded-full w-fit">
+                                <button onClick={() => setStoreSubTab('mine')} className={`px-4 py-1.5 text-xs font-semibold rounded-full transition-all ${storeSubTab === 'mine' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}>
+                                    In My Store
+                                </button>
+                                <button onClick={() => setStoreSubTab('browse')} className={`px-4 py-1.5 text-xs font-semibold rounded-full transition-all ${storeSubTab === 'browse' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}>
+                                    Browse & Add
+                                </button>
+                            </div>
                         </header>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-                            {storeProducts.map((product) => {
-                                const isHidden = hiddenProducts.includes(product._id);
-                                const productUrl = `${process.env.NEXT_PUBLIC_FRONTEND_URL || 'https://flamingo-store1.com'}/product/${product._id}?ref=${dashboardData.refereeCode}`;
-                                
-                                return (
-                                    <div key={product._id} className={`bg-white rounded-2xl border border-slate-200 overflow-hidden flex flex-col transition-all ${isHidden ? 'opacity-50 grayscale' : 'hover:shadow-md'}`}>
-                                        <div className="aspect-[4/5] relative bg-slate-100">
-                                            <Image src={product.images[0] || '/placeholder.png'} alt={product.name} fill className="object-cover" />
-                                            {isHidden && <div className="absolute inset-0 bg-slate-900/10 flex items-center justify-center"><span className="bg-slate-900 text-white text-xs font-bold px-3 py-1 rounded-full">Hidden</span></div>}
-                                        </div>
-                                        <div className="p-4 flex-1 flex flex-col">
-                                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">{product.vendorName}</p>
-                                            <h3 className="font-semibold text-slate-900 text-sm leading-tight line-clamp-2 mb-2 flex-1">{product.name}</h3>
-                                            <div className="flex items-center justify-between mb-4">
-                                                <span className="font-bold text-slate-900">GHS {product.price.toFixed(2)}</span>
-                                                <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md">Earn GHS {(product.price * 0.02).toFixed(2)}</span>
+                        {storeSubTab === 'mine' && (
+                            storeProducts.length > 0 ? (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+                                    {storeProducts.map((product) => {
+                                        const isHidden = hiddenProducts.includes(product._id);
+                                        const productUrl = `${process.env.NEXT_PUBLIC_FRONTEND_URL || 'https://flamingo-store1.com'}/product/${product._id}?ref=${dashboardData.refereeCode}`;
+
+                                        return (
+                                            <div key={product._id} className={`bg-white rounded-2xl border border-slate-200 overflow-hidden flex flex-col transition-all ${isHidden ? 'opacity-50 grayscale' : 'hover:shadow-md'}`}>
+                                                <div className="aspect-[4/5] relative bg-slate-100">
+                                                    <Image src={product.images[0] || '/placeholder.png'} alt={product.name} fill className="object-cover" />
+                                                    {product.selectionSource === 'auto' && (
+                                                        <span className="absolute top-2 left-2 bg-slate-900/80 text-white text-[10px] font-bold px-2 py-1 rounded-full">Auto</span>
+                                                    )}
+                                                    {isHidden && <div className="absolute inset-0 bg-slate-900/10 flex items-center justify-center"><span className="bg-slate-900 text-white text-xs font-bold px-3 py-1 rounded-full">Hidden</span></div>}
+                                                </div>
+                                                <div className="p-4 flex-1 flex flex-col">
+                                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">{product.vendorName}</p>
+                                                    <h3 className="font-semibold text-slate-900 text-sm leading-tight line-clamp-2 mb-2 flex-1">{product.name}</h3>
+                                                    <div className="flex items-center justify-between mb-4">
+                                                        <span className="font-bold text-slate-900">GHS {product.price.toFixed(2)}</span>
+                                                        <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md">Earn GHS {(product.price * 0.02).toFixed(2)}</span>
+                                                    </div>
+                                                    <div className="flex gap-2">
+                                                        <button onClick={() => copyToClipboard(productUrl, 'Product Link')} disabled={isHidden} className="flex-1 h-9 bg-brand-lemon text-slate-900 text-xs font-semibold rounded-lg hover:bg-brand-lemon-hover transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed">
+                                                            <Copy className="w-3.5 h-3.5" /> Copy Link
+                                                        </button>
+                                                        <button onClick={() => toggleHideProduct(product._id)} className="w-9 h-9 border border-slate-200 text-slate-500 hover:text-slate-900 hover:bg-slate-50 rounded-lg flex items-center justify-center transition-colors">
+                                                            {isHidden ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                                                        </button>
+                                                        <button onClick={() => handleUnselectProduct(product._id)} className="w-9 h-9 border border-slate-200 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg flex items-center justify-center transition-colors">
+                                                            <XIcon className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <div className="flex gap-2">
-                                                <button onClick={() => copyToClipboard(productUrl, 'Product Link')} disabled={isHidden} className="flex-1 h-9 bg-brand-lemon text-slate-900 text-xs font-semibold rounded-lg hover:bg-brand-lemon-hover transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed">
-                                                    <Copy className="w-3.5 h-3.5" /> Copy Link
-                                                </button>
-                                                <button onClick={() => toggleHideProduct(product._id)} className="w-9 h-9 border border-slate-200 text-slate-500 hover:text-slate-900 hover:bg-slate-50 rounded-lg flex items-center justify-center transition-colors">
-                                                    {isHidden ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                                                </button>
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                <div className="text-center py-16 bg-white rounded-2xl border border-slate-200">
+                                    <Package className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+                                    <p className="text-sm font-medium text-slate-600">Your store is empty.</p>
+                                    <p className="text-xs text-slate-400 mt-1">Switch to "Browse & Add" to pick products.</p>
+                                </div>
+                            )
+                        )}
+
+                        {storeSubTab === 'browse' && (
+                            <div className="space-y-5">
+                                <div className="flex flex-col sm:flex-row gap-3">
+                                    <div className="relative flex-1">
+                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                        <input
+                                            type="text"
+                                            placeholder="Search products…"
+                                            value={pickerSearch}
+                                            onChange={(e) => setPickerSearch(e.target.value)}
+                                            onFocus={() => pickerSuggestions.length > 0 && setShowSuggestions(true)}
+                                            onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                                            onKeyDown={(e) => e.key === 'Enter' && (setShowSuggestions(false), fetchBrowseProducts())}
+                                            className="w-full h-10 pl-9 pr-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-brand-lemon/30"
+                                        />
+                                        {showSuggestions && pickerSuggestions.length > 0 && (
+                                            <div className="absolute z-20 top-full mt-1.5 w-full bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden">
+                                                {pickerSuggestions.map((product) => {
+                                                    const isSelected = pickerSelectedIds.includes(product._id);
+                                                    return (
+                                                        <button
+                                                            key={product._id}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                if (!isSelected) handleSelectProduct(product._id);
+                                                                setShowSuggestions(false);
+                                                            }}
+                                                            className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50 transition-colors text-left border-b border-slate-50 last:border-0"
+                                                        >
+                                                            <div className="w-9 h-9 rounded-lg bg-slate-100 relative overflow-hidden shrink-0">
+                                                                <Image src={product.images?.[0] || '/placeholder.png'} alt={product.name} fill className="object-cover" />
+                                                            </div>
+                                                            <div className="min-w-0 flex-1">
+                                                                <p className="text-sm font-medium text-slate-900 truncate">{product.name}</p>
+                                                                <p className="text-xs text-slate-400 truncate">{product.vendorName} · GHS {product.price?.toFixed(2)}</p>
+                                                            </div>
+                                                            {isSelected ? (
+                                                                <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                                                            ) : (
+                                                                <Plus className="w-4 h-4 text-slate-400 shrink-0" />
+                                                            )}
+                                                        </button>
+                                                    );
+                                                })}
                                             </div>
-                                        </div>
+                                        )}
                                     </div>
-                                );
-                            })}
-                        </div>
+                                    <div className="relative sm:w-56">
+                                        <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-brand-lemon pointer-events-none" />
+                                        <select
+                                            value={pickerRegion}
+                                            onChange={(e) => setPickerRegion(e.target.value)}
+                                            className="w-full h-10 pl-9 pr-3 bg-white border border-slate-200 rounded-xl text-sm appearance-none outline-none focus:ring-2 focus:ring-brand-lemon/30"
+                                        >
+                                            <option value="">All regions</option>
+                                            {GHANA_REGIONS.map((r) => (
+                                                <option key={r} value={r}>{r}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <button onClick={fetchBrowseProducts} className="h-10 px-4 bg-slate-900 text-white text-sm font-semibold rounded-xl hover:bg-slate-800 transition-colors">
+                                        Search
+                                    </button>
+                                </div>
+
+                                {pickerLoading ? (
+                                    <div className="flex justify-center py-16">
+                                        <div className="w-8 h-8 border-2 border-brand-lemon border-t-transparent animate-spin rounded-full"></div>
+                                    </div>
+                                ) : pickerProducts.length > 0 ? (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+                                        {pickerProducts.map((product) => {
+                                            const isSelected = pickerSelectedIds.includes(product._id);
+                                            return (
+                                                <div key={product._id} className="bg-white rounded-2xl border border-slate-200 overflow-hidden flex flex-col hover:shadow-md transition-all">
+                                                    <div className="aspect-[4/5] relative bg-slate-100">
+                                                        <Image src={product.images?.[0] || '/placeholder.png'} alt={product.name} fill className="object-cover" />
+                                                    </div>
+                                                    <div className="p-4 flex-1 flex flex-col">
+                                                        <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">{product.vendorName}</p>
+                                                        <h3 className="font-semibold text-slate-900 text-sm leading-tight line-clamp-2 mb-2 flex-1">{product.name}</h3>
+                                                        <div className="flex items-center justify-between mb-4">
+                                                            <span className="font-bold text-slate-900">GHS {product.price?.toFixed(2)}</span>
+                                                            <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md">Earn GHS {(product.price * 0.02).toFixed(2)}</span>
+                                                        </div>
+                                                        <button
+                                                            onClick={() => (isSelected ? handleUnselectProduct(product._id) : handleSelectProduct(product._id))}
+                                                            className={`h-9 text-xs font-semibold rounded-lg transition-colors flex items-center justify-center gap-1.5 ${
+                                                                isSelected
+                                                                    ? 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                                                    : 'bg-brand-lemon text-slate-900 hover:bg-brand-lemon-hover'
+                                                            }`}
+                                                        >
+                                                            {isSelected ? (<><CheckCircle2 className="w-3.5 h-3.5" /> Added</>) : (<><Plus className="w-3.5 h-3.5" /> Add to Store</>)}
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-16 bg-white rounded-2xl border border-slate-200">
+                                        <Package className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+                                        <p className="text-sm font-medium text-slate-600">No products found.</p>
+                                        <p className="text-xs text-slate-400 mt-1">Try a different region or search term.</p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                 )}
 

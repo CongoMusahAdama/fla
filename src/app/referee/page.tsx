@@ -5,10 +5,39 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Mail, Lock, ArrowRight, User, Phone } from 'lucide-react';
+import { Mail, Lock, ArrowRight, User, Phone, MapPin, Instagram, Upload, CreditCard } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { Suspense } from 'react';
 import { Turnstile } from '@marsidev/react-turnstile';
+import { GHANA_REGIONS } from '@/lib/ghana-regions';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+
+async function uploadFile(file: File | null): Promise<string | undefined> {
+    if (!file) return undefined;
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await fetch(`${API_URL}/upload/public`, { method: 'POST', body: formData });
+    if (!res.ok) throw new Error('Document upload failed. Please try again.');
+    const result = await res.json();
+    return result.url;
+}
+
+const DocUpload = ({ label, file, onChange }: { label: string; file: File | null; onChange: (f: File | null) => void }) => (
+    <div className="space-y-1.5">
+        <label className="block text-[13px] font-medium text-slate-600">{label}</label>
+        <label className="flex items-center gap-3 h-12 px-3.5 bg-white border border-slate-200 rounded-xl cursor-pointer hover:border-brand-lemon transition-all">
+            <Upload className="w-4 h-4 text-slate-400 shrink-0" />
+            <span className="text-sm text-slate-500 truncate">{file ? file.name : `Upload ${label.toLowerCase()}`}</span>
+            <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => onChange(e.target.files?.[0] || null)}
+            />
+        </label>
+    </div>
+);
 
 const AuthInput = React.memo(({ label, type, placeholder, value, onChange, required, icon: Icon }: any) => {
     const [showPassword, setShowPassword] = useState(false);
@@ -62,6 +91,33 @@ function RefereeAuthContent() {
     const [email, setEmail] = useState('');
     const [phone, setPhone] = useState('');
     const [password, setPassword] = useState('');
+    const [region, setRegion] = useState('');
+    const [socialLink, setSocialLink] = useState('');
+    const [momoNetwork, setMomoNetwork] = useState('MTN');
+    const [momoNumber, setMomoNumber] = useState('');
+    const [momoAccountName, setMomoAccountName] = useState('');
+    const [isLookingUpMomo, setIsLookingUpMomo] = useState(false);
+    const [ghanaCardFront, setGhanaCardFront] = useState<File | null>(null);
+    const [ghanaCardBack, setGhanaCardBack] = useState<File | null>(null);
+    const [selfie, setSelfie] = useState<File | null>(null);
+
+    const handleMomoNumberChange = async (value: string) => {
+        setMomoNumber(value);
+        if (value.length < 10) {
+            setMomoAccountName('');
+            return;
+        }
+        setIsLookingUpMomo(true);
+        try {
+            const response = await fetch(`${API_URL}/payments/lookup-name/${momoNetwork}/${value}`);
+            const data = await response.json();
+            setMomoAccountName(data.success && data.name ? data.name : 'Name not found');
+        } catch {
+            setMomoAccountName('Verification service unavailable');
+        } finally {
+            setIsLookingUpMomo(false);
+        }
+    };
 
     useEffect(() => {
         if (!isLoading && isAuthenticated && user?.role === 'referee') {
@@ -88,22 +144,51 @@ function RefereeAuthContent() {
 
     const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!region) {
+            Swal.fire({ icon: 'warning', title: 'Region required', text: 'Please select your region.' });
+            return;
+        }
+        if (!momoNumber || !momoAccountName || momoAccountName === 'Name not found') {
+            Swal.fire({ icon: 'warning', title: 'Payout details required', text: 'Please enter a valid MoMo/bank number for us to pay your commissions.' });
+            return;
+        }
+        if (!ghanaCardFront || !selfie) {
+            Swal.fire({ icon: 'warning', title: 'ID verification required', text: 'Please upload your Ghana Card (front) and a selfie for identity verification.' });
+            return;
+        }
         setLoading(true);
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/referral/register`, {
+            const [ghanaCardFrontUrl, ghanaCardBackUrl, selfieUrl] = await Promise.all([
+                uploadFile(ghanaCardFront),
+                uploadFile(ghanaCardBack),
+                uploadFile(selfie),
+            ]);
+
+            const res = await fetch(`${API_URL}/referral/register`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, email, phone, password }),
+                body: JSON.stringify({
+                    name,
+                    email,
+                    phone,
+                    password,
+                    region,
+                    socialMediaLinks: socialLink ? [socialLink] : [],
+                    paymentMethod: { network: momoNetwork, accountNumber: momoNumber, accountName: momoAccountName },
+                    ghanaCardFront: ghanaCardFrontUrl,
+                    ghanaCardBack: ghanaCardBackUrl,
+                    selfie: selfieUrl,
+                }),
             });
             const data = await res.json();
             if (res.ok) {
-                Swal.fire({ icon: 'success', title: 'Success!', text: 'Account created. Check your SMS for your code.' });
+                Swal.fire({ icon: 'success', title: 'Application submitted!', text: data.message || 'Your account is under review — we will notify you once approved.' });
                 setIsLogin(true);
             } else {
                 Swal.fire({ icon: 'error', title: 'Registration Failed', text: data.message || 'Could not register' });
             }
         } catch (error: any) {
-            Swal.fire({ icon: 'error', title: 'Error', text: 'Something went wrong.' });
+            Swal.fire({ icon: 'error', title: 'Error', text: error.message || 'Something went wrong.' });
         } finally {
             setLoading(false);
         }
@@ -176,8 +261,54 @@ function RefereeAuthContent() {
                                 <AuthInput label="Email" type="email" placeholder="you@email.com" required value={email} onChange={setEmail} icon={Mail} />
                                 <AuthInput label="Phone Number" type="tel" placeholder="055XXXXXXX" required value={phone} onChange={setPhone} icon={Phone} />
                                 <AuthInput label="Password" type="password" placeholder="••••••••" required value={password} onChange={setPassword} icon={Lock} />
+
+                                <div className="space-y-1.5">
+                                    <label className="block text-[13px] font-medium text-slate-600">Region</label>
+                                    <div className="relative">
+                                        <MapPin className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                                        <select
+                                            required
+                                            value={region}
+                                            onChange={(e) => setRegion(e.target.value)}
+                                            className="w-full h-12 pl-10 pr-3.5 bg-white border border-slate-200 rounded-xl text-[15px] text-slate-900 appearance-none focus:border-brand-lemon focus:ring-2 focus:ring-brand-lemon/30 outline-none"
+                                        >
+                                            <option value="">Select your region</option>
+                                            {GHANA_REGIONS.map((r) => (
+                                                <option key={r} value={r}>{r}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <AuthInput label="Social Media Link (Instagram/TikTok/etc.)" type="text" placeholder="https://instagram.com/yourhandle" required value={socialLink} onChange={setSocialLink} icon={Instagram} />
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-1.5">
+                                        <label className="block text-[13px] font-medium text-slate-600">Network</label>
+                                        <select
+                                            value={momoNetwork}
+                                            onChange={(e) => setMomoNetwork(e.target.value)}
+                                            className="w-full h-12 px-3.5 bg-white border border-slate-200 rounded-xl text-[15px] text-slate-900 appearance-none focus:border-brand-lemon focus:ring-2 focus:ring-brand-lemon/30 outline-none"
+                                        >
+                                            <option value="MTN">MTN Mobile Money</option>
+                                            <option value="Vodafone">Vodafone Cash</option>
+                                            <option value="AirtelTigo">AirtelTigo Money</option>
+                                        </select>
+                                    </div>
+                                    <AuthInput label="MoMo Number" type="tel" placeholder="024XXXXXXX" required value={momoNumber} onChange={handleMomoNumberChange} icon={CreditCard} />
+                                </div>
+                                {momoNumber.length >= 10 && (
+                                    <p className={`text-xs -mt-3 ${isLookingUpMomo ? 'text-slate-400' : momoAccountName === 'Name not found' ? 'text-red-500' : 'text-emerald-600'}`}>
+                                        {isLookingUpMomo ? 'Verifying account…' : momoAccountName}
+                                    </p>
+                                )}
+
+                                <DocUpload label="Ghana Card (Front)" file={ghanaCardFront} onChange={setGhanaCardFront} />
+                                <DocUpload label="Ghana Card (Back)" file={ghanaCardBack} onChange={setGhanaCardBack} />
+                                <DocUpload label="Selfie" file={selfie} onChange={setSelfie} />
+
                                 <button type="submit" disabled={loading} className="w-full h-12 mt-2 bg-brand-lemon text-slate-900 rounded-full font-semibold shadow-lg hover:bg-brand-lemon-hover flex items-center justify-center gap-2 disabled:opacity-50">
-                                    {loading ? 'Creating account...' : 'Create Account'}
+                                    {loading ? 'Submitting...' : 'Submit Application'}
                                     <ArrowRight className="w-4 h-4" />
                                 </button>
                                 <p className="text-center text-sm text-slate-500 mt-4">

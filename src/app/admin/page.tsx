@@ -13,7 +13,7 @@ import {
     Wallet, Package, Truck, MessageSquare, BarChart3, ShieldCheck, ShieldAlert,
     CheckCircle2, XCircle, Eye, EyeOff, Search,
     ArrowUpRight, Download, Menu, X, Trash2, Shield, Clock, TrendingUp, Phone, Plus, User, Store,
-    CreditCard, Camera, FileText, ExternalLink, Link2, Tag, Megaphone
+    CreditCard, Camera, FileText, ExternalLink, Link2, Tag, Megaphone, Instagram
 } from 'lucide-react';
 import Image from 'next/image';
 import Swal from 'sweetalert2';
@@ -40,7 +40,7 @@ function isProbablyImageUrl(url: string): boolean {
     return true;
 }
 
-type AdminSection = 'dashboard' | 'vendors' | 'customers' | 'orders' | 'products' | 'disputes' | 'delivery' | 'settings' | 'reports' | 'kyc' | 'billboards';
+type AdminSection = 'dashboard' | 'vendors' | 'customers' | 'orders' | 'products' | 'disputes' | 'delivery' | 'settings' | 'reports' | 'kyc' | 'referees' | 'billboards';
 
 /** Products API may return vendorId as ObjectId string or populated user object. */
 function resolveProductVendorId(product: { vendorId?: string | { _id?: string } | null }): string {
@@ -133,6 +133,9 @@ export default function AdminDashboard() {
     const [allDisputes, setAllDisputes] = useState<any[]>([]);
     const [kycVendors, setKycVendors] = useState<any[]>([]);
     const [kycFilter, setKycFilter] = useState<'pending' | 'active' | 'rejected' | 'all'>('all');
+    const [selectedKycReferee, setSelectedKycReferee] = useState<any>(null);
+    const [kycReferees, setKycReferees] = useState<any[]>([]);
+    const [kycRefereeFilter, setKycRefereeFilter] = useState<'pending' | 'active' | 'rejected' | 'all'>('all');
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [showAddVendorModal, setShowAddVendorModal] = useState(false);
@@ -277,6 +280,9 @@ export default function AdminDashboard() {
 
             const kycRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/users/admin/kyc`, { headers, credentials: 'include' });
             if (kycRes.ok) setKycVendors(await kycRes.json());
+
+            const kycRefereesRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/users/admin/referees/kyc`, { headers, credentials: 'include' });
+            if (kycRefereesRes.ok) setKycReferees(await kycRefereesRes.json());
         } catch (error) {
             console.error('Error fetching admin data:', error);
         } finally {
@@ -390,7 +396,8 @@ export default function AdminDashboard() {
     };
 
     const handleKYCAction = async (userId: string, status: 'active' | 'rejected') => {
-        const actionText = status === 'active' ? 'APPROVE this vendor?' : 'REJECT this application?';
+        const isReferee = kycReferees.some((r) => r._id === userId);
+        const actionText = status === 'active' ? `APPROVE this ${isReferee ? 'referee' : 'vendor'}?` : 'REJECT this application?';
         const confirmButtonText = status === 'active' ? 'YES, APPROVE' : 'YES, REJECT';
         const confirmButtonColor = status === 'active' ? '#0F172A' : '#E11D48';
 
@@ -425,7 +432,16 @@ export default function AdminDashboard() {
 
             if (!response.ok) throw new Error('Failed to update KYC status');
 
-            if (status === 'active') {
+            if (status === 'active' && isReferee) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'REFEREE APPROVED',
+                    text: 'Their Paystack payout account is being linked and they have been notified by SMS.',
+                    timer: 2500,
+                    showConfirmButton: false,
+                    customClass: { popup: 'rounded-[32px]' },
+                });
+            } else if (status === 'active') {
                 const agreementUrl = `/admin/vendors/${userId}/agreement`;
                 const next = await Swal.fire({
                     icon: 'success',
@@ -457,7 +473,7 @@ export default function AdminDashboard() {
             }
 
             await refreshData();
-            setSelectedKycVendor((prev: any) =>
+            const optimisticUpdate = (prev: any) =>
                 prev && prev._id === userId
                     ? {
                         ...prev,
@@ -466,8 +482,9 @@ export default function AdminDashboard() {
                             ? { kycApprovedAt: prev.kycApprovedAt || new Date().toISOString() }
                             : {}),
                     }
-                    : prev,
-            );
+                    : prev;
+            setSelectedKycVendor(optimisticUpdate);
+            setSelectedKycReferee(optimisticUpdate);
         } catch (error: any) {
             Swal.fire({ icon: 'error', title: 'Action Failed', text: error.message });
         }
@@ -715,6 +732,7 @@ export default function AdminDashboard() {
     const sidebarItems = [
         { id: 'dashboard', label: 'Overview', icon: LayoutDashboard },
         { id: 'kyc', label: 'KYC Approvals', icon: ShieldCheck },
+        { id: 'referees', label: 'Referee Approvals', icon: Link2 },
         { id: 'vendors', label: 'Vendors', icon: Store },
         { id: 'customers', label: 'Customers', icon: Users },
         { id: 'orders', label: 'Orders', icon: ShoppingBag },
@@ -1012,6 +1030,189 @@ export default function AdminDashboard() {
                                                                     e.preventDefault();
                                                                     e.stopPropagation();
                                                                     setSelectedKycVendor(v);
+                                                                }}
+                                                                className="inline-flex items-center gap-1.5 h-9 px-3 border border-slate-300 bg-white text-sm font-medium text-slate-800 hover:border-brand-blue hover:text-brand-blue transition-colors"
+                                                            >
+                                                                <Eye className="w-3.5 h-3.5" />
+                                                                View
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+            case 'referees': {
+                const refereeStatusStyles: Record<string, string> = {
+                    pending: 'bg-orange-50 text-orange-700 border-orange-100',
+                    active: 'bg-emerald-50 text-emerald-700 border-emerald-100',
+                    rejected: 'bg-rose-50 text-rose-700 border-rose-100',
+                    banned: 'bg-slate-900 text-white border-slate-900',
+                };
+                const getRefereeBucket = (v: any): 'pending' | 'active' | 'rejected' | 'all' => {
+                    if (v.status === 'rejected' || v.status === 'banned') return 'rejected';
+                    if (v.kycApprovedAt) return 'active';
+                    if (v.status === 'pending' || (Boolean(v.kycSubmittedAt) && !v.kycApprovedAt)) return 'pending';
+                    return 'all';
+                };
+                const getRefereeDisplayStatus = (v: any): { label: string; className: string } => {
+                    if (v.status === 'rejected') return { label: 'Rejected', className: refereeStatusStyles.rejected };
+                    if (v.status === 'banned') return { label: 'Suspended', className: refereeStatusStyles.banned };
+                    if (v.kycApprovedAt) return { label: 'Approved', className: refereeStatusStyles.active };
+                    if (v.kycSubmittedAt) return { label: 'Docs under review', className: refereeStatusStyles.pending };
+                    return { label: 'Pending', className: refereeStatusStyles.pending };
+                };
+
+                const filteredKycReferees = (kycRefereeFilter === 'all'
+                    ? kycReferees
+                    : kycReferees.filter((v) => getRefereeBucket(v) === kycRefereeFilter)
+                ).filter((v) => {
+                    if (!searchQuery.trim()) return true;
+                    const q = searchQuery.toLowerCase();
+                    return [v.name, v.email, v.phone, v.region, v.refereeCode].some((f) => f?.toLowerCase?.().includes(q));
+                });
+                const pendingRefereeCount = kycReferees.filter((v) => getRefereeBucket(v) === 'pending').length;
+                const approvedRefereeCount = kycReferees.filter((v) => getRefereeBucket(v) === 'active').length;
+                const rejectedRefereeCount = kycReferees.filter((v) => getRefereeBucket(v) === 'rejected').length;
+
+                return (
+                    <div className="space-y-6 animate-in fade-in duration-500">
+                        <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-4">
+                            <div>
+                                <h1 className="text-2xl md:text-3xl font-semibold text-slate-900 tracking-tight">Referee Approvals</h1>
+                                <p className="text-slate-500 text-sm mt-1">
+                                    {filteredKycReferees.length} record{filteredKycReferees.length === 1 ? '' : 's'}
+                                    {searchQuery.trim() ? ' matching search' : ''}
+                                </p>
+                            </div>
+                            <div className="flex gap-3">
+                                <div className="bg-white px-4 py-3 border border-slate-200 flex items-center gap-3">
+                                    <div className="text-right">
+                                        <p className="text-[11px] font-medium text-slate-500">Pending</p>
+                                        <p className="text-lg font-semibold text-slate-900 leading-none mt-0.5">{pendingRefereeCount}</p>
+                                    </div>
+                                    <div className="w-9 h-9 bg-orange-50 text-orange-600 flex items-center justify-center">
+                                        <Clock className="w-4 h-4" />
+                                    </div>
+                                </div>
+                                <div className="bg-white px-4 py-3 border border-slate-200 flex items-center gap-3">
+                                    <div className="text-right">
+                                        <p className="text-[11px] font-medium text-slate-500">Approved</p>
+                                        <p className="text-lg font-semibold text-slate-900 leading-none mt-0.5">{approvedRefereeCount}</p>
+                                    </div>
+                                    <div className="w-9 h-9 bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                                        <CheckCircle2 className="w-4 h-4" />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                            <div className="flex flex-wrap gap-2">
+                                {([
+                                    { id: 'all', label: 'All' },
+                                    { id: 'pending', label: 'Pending' },
+                                    { id: 'active', label: 'Approved' },
+                                    { id: 'rejected', label: 'Rejected' },
+                                ] as const).map((tab) => (
+                                    <button
+                                        key={tab.id}
+                                        type="button"
+                                        onClick={() => setKycRefereeFilter(tab.id)}
+                                        className={`h-9 px-3.5 text-sm font-medium border transition-colors ${
+                                            kycRefereeFilter === tab.id
+                                                ? 'bg-brand-blue text-white border-brand-blue'
+                                                : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'
+                                        }`}
+                                    >
+                                        {tab.label}
+                                        <span className="ml-1.5 opacity-70">
+                                            {tab.id === 'all'
+                                                ? kycReferees.length
+                                                : tab.id === 'pending'
+                                                    ? pendingRefereeCount
+                                                    : tab.id === 'active'
+                                                        ? approvedRefereeCount
+                                                        : rejectedRefereeCount}
+                                        </span>
+                                    </button>
+                                ))}
+                            </div>
+                            <div className="relative w-full sm:max-w-xs sm:ml-auto">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                <input
+                                    type="search"
+                                    placeholder="Search referees…"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="w-full h-9 pl-9 pr-3 bg-white border border-slate-300 text-sm focus:outline-none focus:border-brand-blue focus:ring-1 focus:ring-brand-blue"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="bg-white border border-slate-200 overflow-hidden">
+                            <div className="admin-table-scroll">
+                                <table className="w-full text-left border-collapse min-w-[780px]">
+                                    <thead>
+                                        <tr className="bg-brand-blue">
+                                            <th className="px-5 py-3.5 text-[11px] font-medium text-white/75 tracking-wide">S/N</th>
+                                            <th className="px-5 py-3.5 text-[11px] font-medium text-white/75 tracking-wide">Referee</th>
+                                            <th className="px-5 py-3.5 text-[11px] font-medium text-white/75 tracking-wide">Contact</th>
+                                            <th className="px-5 py-3.5 text-[11px] font-medium text-white/75 tracking-wide">Region</th>
+                                            <th className="px-5 py-3.5 text-[11px] font-medium text-white/75 tracking-wide">Docs</th>
+                                            <th className="px-5 py-3.5 text-[11px] font-medium text-white/75 tracking-wide">Status</th>
+                                            <th className="px-5 py-3.5 text-[11px] font-medium text-white/75 tracking-wide text-right">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100">
+                                        {filteredKycReferees.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={7} className="px-5 py-16 text-center text-sm text-slate-400">
+                                                    {kycRefereeFilter === 'pending' ? 'No pending referee applications.' : 'No referee records match this filter.'}
+                                                </td>
+                                            </tr>
+                                        ) : (
+                                            filteredKycReferees.map((v, i) => {
+                                                const display = getRefereeDisplayStatus(v);
+                                                const docCount = [v.ghanaCardFront, v.ghanaCardBack, v.selfie].filter(Boolean).length;
+                                                return (
+                                                    <tr key={v._id} className="hover:bg-slate-50/80 transition-colors">
+                                                        <td className="px-5 py-4 text-xs font-medium text-slate-400 tabular-nums">{i + 1}</td>
+                                                        <td className="px-5 py-4">
+                                                            <div className="flex items-center gap-3 min-w-0">
+                                                                <div className="w-10 h-10 rounded-full bg-brand-lemon text-slate-900 flex items-center justify-center font-black shrink-0">
+                                                                    {(v.name || '?').charAt(0).toUpperCase()}
+                                                                </div>
+                                                                <div className="min-w-0">
+                                                                    <p className="text-sm font-semibold text-slate-900 truncate max-w-[200px]">{v.name}</p>
+                                                                    <p className="text-[11px] text-slate-400 font-mono mt-0.5">{v.refereeCode || `#${String(v._id).slice(-6)}`}</p>
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-5 py-4">
+                                                            <p className="text-xs text-slate-500 truncate max-w-[180px]">{v.email}</p>
+                                                            <p className="text-xs text-slate-400">{v.phone || '—'}</p>
+                                                        </td>
+                                                        <td className="px-5 py-4 text-sm text-slate-600">{v.region || '—'}</td>
+                                                        <td className="px-5 py-4 text-sm font-medium text-slate-800">{docCount}/3</td>
+                                                        <td className="px-5 py-4">
+                                                            <span className={`inline-flex px-2.5 py-1 text-[11px] font-medium border ${display.className}`}>
+                                                                {display.label}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-5 py-4 text-right">
+                                                            <button
+                                                                type="button"
+                                                                onClick={(e) => {
+                                                                    e.preventDefault();
+                                                                    e.stopPropagation();
+                                                                    setSelectedKycReferee(v);
                                                                 }}
                                                                 className="inline-flex items-center gap-1.5 h-9 px-3 border border-slate-300 bg-white text-sm font-medium text-slate-800 hover:border-brand-blue hover:text-brand-blue transition-colors"
                                                             >
@@ -3123,6 +3324,199 @@ export default function AdminDashboard() {
                                 <button
                                     type="button"
                                     onClick={() => setSelectedKycVendor(null)}
+                                    className="inline-flex items-center justify-center gap-2 h-11 px-4 bg-brand-blue text-white text-sm font-medium hover:bg-slate-800 sm:ml-auto"
+                                >
+                                    Close
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })(), document.body)}
+
+            {selectedKycReferee && typeof document !== 'undefined' && createPortal((() => {
+                const v = selectedKycReferee;
+                const momo = v.paymentMethods?.[0];
+                const detail = (label: string, value?: unknown) => (
+                    <div className="flex justify-between gap-3 py-2 border-b border-slate-100 last:border-0">
+                        <span className="text-[11px] font-medium text-slate-500 shrink-0">{label}</span>
+                        <span className="text-sm font-medium text-slate-900 text-right break-all">{formatKycDetailValue(value)}</span>
+                    </div>
+                );
+                const docs = [
+                    { label: 'Ghana Card (F)', value: v.ghanaCardFront, icon: CreditCard },
+                    { label: 'Ghana Card (B)', value: v.ghanaCardBack, icon: CreditCard },
+                    { label: 'Selfie', value: v.selfie, icon: Camera },
+                ];
+                return (
+                    <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-6" role="dialog" aria-modal="true" aria-label="Referee details">
+                        <button
+                            type="button"
+                            aria-label="Close referee details"
+                            className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+                            onClick={() => setSelectedKycReferee(null)}
+                        />
+                        <div className="relative z-10 bg-white w-full sm:max-w-3xl min-h-[50vh] border border-slate-200 shadow-2xl max-h-[92dvh] overflow-hidden flex flex-col">
+                            <div className="shrink-0 px-5 py-4 sm:px-6 bg-brand-blue text-white flex items-start justify-between gap-4">
+                                <div className="min-w-0">
+                                    <p className="text-xs text-white/60 mb-1">Referee details</p>
+                                    <h2 className="text-lg sm:text-xl font-semibold tracking-tight truncate">{v.name || 'Referee'}</h2>
+                                    <p className="text-sm text-white/70 mt-0.5 truncate">{v.email || '—'}</p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setSelectedKycReferee(null)}
+                                    className="w-9 h-9 shrink-0 bg-white/10 hover:bg-white/20 flex items-center justify-center"
+                                >
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
+
+                            <div className="flex-1 min-h-0 overflow-y-auto p-5 sm:p-6 space-y-5">
+                                <div className="flex flex-wrap gap-2">
+                                    <span className={`inline-flex px-2.5 py-1 text-[11px] font-medium border ${
+                                        v.status === 'pending' ? 'bg-orange-50 text-orange-700 border-orange-100'
+                                            : v.status === 'active' && v.kycApprovedAt ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                                                : v.status === 'rejected' ? 'bg-rose-50 text-rose-700 border-rose-100'
+                                                    : 'bg-slate-100 text-slate-600 border-slate-200'
+                                    }`}>
+                                        {v.status === 'pending'
+                                            ? 'Pending'
+                                            : v.status === 'active' && v.kycApprovedAt
+                                                ? 'Approved'
+                                                : v.status === 'rejected'
+                                                    ? 'Rejected'
+                                                    : (v.status || 'Unknown')}
+                                    </span>
+                                </div>
+
+                                <div className="grid sm:grid-cols-2 gap-4">
+                                    <div className="border border-slate-200 p-4">
+                                        <p className="text-[11px] font-semibold text-slate-500 mb-2">Contact & location</p>
+                                        {detail('Full name', v.name)}
+                                        {detail('Phone', v.phone)}
+                                        {detail('Region', v.region)}
+                                        {detail('Referral code', v.refereeCode)}
+                                        {detail('Store link', v.refereeStoreSlug ? `/ref/${v.refereeStoreSlug}` : null)}
+                                    </div>
+                                    <div className="border border-slate-200 p-4">
+                                        <p className="text-[11px] font-semibold text-slate-500 mb-2">Payout details</p>
+                                        {detail('Network', momo?.network)}
+                                        {detail('Number', momo?.accountNumber)}
+                                        {detail('Account name', momo?.accountName)}
+                                        {detail('Paystack subaccount', v.paystackSubaccountCode)}
+                                    </div>
+                                    <div className="border border-slate-200 p-4">
+                                        <p className="text-[11px] font-semibold text-slate-500 mb-2">Identity</p>
+                                        {detail('Registered', v.createdAt ? new Date(v.createdAt).toLocaleString() : null)}
+                                        {detail('Approved', v.kycApprovedAt ? new Date(v.kycApprovedAt).toLocaleString() : null)}
+                                    </div>
+                                    <div className="border border-slate-200 p-4">
+                                        <p className="text-[11px] font-semibold text-slate-500 mb-2">Social</p>
+                                        {(v.socialMediaLinks || []).length > 0 ? (
+                                            (v.socialMediaLinks as string[]).map((link, i) => (
+                                                <a
+                                                    key={i}
+                                                    href={link}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="flex items-center gap-1.5 py-1 text-sm text-brand-blue hover:underline truncate"
+                                                >
+                                                    <Instagram className="w-3.5 h-3.5 shrink-0" /> {link}
+                                                </a>
+                                            ))
+                                        ) : (
+                                            <p className="text-sm text-slate-400">No links provided</p>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <p className="text-[11px] font-semibold text-slate-500 mb-3">Submitted documents</p>
+                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                        {docs.map((doc, i) => {
+                                            const DocIcon = doc.icon;
+                                            const rawUrl = typeof doc.value === 'string' ? doc.value : '';
+                                            const href = rawUrl ? getImageUrl(rawUrl) : '';
+                                            const showPreview = Boolean(href && isProbablyImageUrl(href));
+                                            return (
+                                                <div key={i} className="space-y-1.5">
+                                                    <p className="text-[10px] font-medium text-slate-500">{doc.label}</p>
+                                                    {href ? (
+                                                        <button
+                                                            type="button"
+                                                            className="relative aspect-[4/3] w-full bg-slate-50 border border-slate-200 overflow-hidden group"
+                                                            onClick={() => window.open(href, '_blank', 'noopener,noreferrer')}
+                                                        >
+                                                            {showPreview ? (
+                                                                // eslint-disable-next-line @next/next/no-img-element
+                                                                <img
+                                                                    src={href}
+                                                                    alt={doc.label}
+                                                                    className="absolute inset-0 h-full w-full object-cover group-hover:scale-105 transition-transform"
+                                                                />
+                                                            ) : (
+                                                                <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-slate-500">
+                                                                    <FileText className="w-6 h-6" />
+                                                                    <span className="text-[10px] font-medium">Open file</span>
+                                                                </div>
+                                                            )}
+                                                            <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                                                <Eye className="w-5 h-5 text-white" />
+                                                            </div>
+                                                        </button>
+                                                    ) : (
+                                                        <div className="aspect-[4/3] bg-slate-50 border border-dashed border-slate-200 flex items-center justify-center">
+                                                            <DocIcon className="w-5 h-5 text-slate-300" />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="shrink-0 border-t border-slate-200 bg-slate-50 px-5 py-4 sm:px-6 flex flex-col sm:flex-row flex-wrap gap-2">
+                                {(v.status === 'pending' || (v.status === 'active' && !v.kycApprovedAt)) && (
+                                    <>
+                                        <button
+                                            type="button"
+                                            onClick={() => handleKYCAction(v._id, 'active')}
+                                            className="inline-flex items-center justify-center gap-2 h-11 px-4 bg-brand-blue text-brand-lemon text-sm font-medium hover:bg-slate-800"
+                                        >
+                                            <CheckCircle2 className="w-4 h-4" /> Approve referee
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => handleKYCAction(v._id, 'rejected')}
+                                            className="inline-flex items-center justify-center gap-2 h-11 px-4 bg-rose-600 text-white text-sm font-medium hover:bg-rose-700"
+                                        >
+                                            <XCircle className="w-4 h-4" /> Reject application
+                                        </button>
+                                    </>
+                                )}
+                                {v.status === 'active' && v.kycApprovedAt && (
+                                    <button
+                                        type="button"
+                                        onClick={() => handleUpdateUserStatus(v._id, 'banned')}
+                                        className="inline-flex items-center justify-center gap-2 h-11 px-4 bg-slate-900 text-white text-sm font-medium hover:bg-slate-800"
+                                    >
+                                        <ShieldAlert className="w-4 h-4" /> Suspend referee
+                                    </button>
+                                )}
+                                {(v.status === 'rejected' || v.status === 'banned') && (
+                                    <button
+                                        type="button"
+                                        onClick={() => handleKYCAction(v._id, 'active')}
+                                        className="inline-flex items-center justify-center gap-2 h-11 px-4 bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700"
+                                    >
+                                        <CheckCircle2 className="w-4 h-4" /> Re-approve
+                                    </button>
+                                )}
+                                <button
+                                    type="button"
+                                    onClick={() => setSelectedKycReferee(null)}
                                     className="inline-flex items-center justify-center gap-2 h-11 px-4 bg-brand-blue text-white text-sm font-medium hover:bg-slate-800 sm:ml-auto"
                                 >
                                     Close

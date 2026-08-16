@@ -2,10 +2,104 @@
 "use client";
 import React from 'react';
 import Image from 'next/image';
-import { Package, Plus, Search, Edit2, Eye, EyeOff, Trash2, ShoppingBag, Clock, MapPin } from 'lucide-react';
+import { Package, Plus, Search, Edit2, Eye, EyeOff, Trash2, ShoppingBag, Clock, MapPin, Link2, X, Instagram } from 'lucide-react';
 import { getImageUrl } from '@/lib/utils';
 import { TableSearch } from '@/components/ui/TableSearch';
 import { matchesTableSearch } from '@/lib/table-search';
+import { WhatsAppButton } from '@/components/WhatsAppButton';
+import { useAuth } from '@/context/AuthContext';
+
+interface ReferralSelector {
+  _id: string;
+  name: string;
+  refereeCode: string;
+  phone?: string;
+  socialMediaLinks: string[];
+  selectedAt: string;
+}
+
+function ReferralSelectorsModal({ productId, productName, onClose }: { productId: string; productName: string; onClose: () => void }) {
+  const { token } = useAuth();
+  const [selectors, setSelectors] = React.useState<ReferralSelector[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/referral/vendor/product-selectors/${productId}`, {
+          credentials: 'include',
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (res.ok) setSelectors(await res.json());
+      } catch (err) {
+        console.error('Error loading referral selectors:', err);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [productId, token]);
+
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-6">
+      <button type="button" aria-label="Close" className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative z-10 bg-white w-full sm:max-w-lg max-h-[85dvh] rounded-t-3xl sm:rounded-3xl overflow-hidden flex flex-col shadow-2xl">
+        <div className="shrink-0 px-6 py-5 bg-slate-900 text-white flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-xs text-white/60 mb-1">Referral partners</p>
+            <h2 className="text-lg font-semibold truncate">{productName}</h2>
+          </div>
+          <button type="button" onClick={onClose} className="w-9 h-9 shrink-0 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-5 space-y-3">
+          {loading ? (
+            <div className="flex justify-center py-10">
+              <div className="w-7 h-7 border-2 border-slate-900 border-t-transparent animate-spin rounded-full" />
+            </div>
+          ) : selectors.length === 0 ? (
+            <div className="text-center py-10">
+              <Link2 className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+              <p className="text-sm font-medium text-slate-600">No referees have picked this product yet.</p>
+            </div>
+          ) : (
+            selectors.map((s) => (
+              <div key={s._id} className="border border-slate-200 rounded-2xl p-4 space-y-2">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-slate-900 text-sm truncate">{s.name}</p>
+                    <p className="text-[11px] text-slate-400 font-mono">{s.refereeCode}</p>
+                  </div>
+                  <WhatsAppButton
+                    phone={s.phone}
+                    message={`Hi ${s.name}, thanks for featuring "${productName}" on your FLA store! Would love to send you a giveaway to create content with.`}
+                    size="sm"
+                    missingContactRole="referee"
+                  />
+                </div>
+                {s.socialMediaLinks?.length > 0 && (
+                  <div className="flex flex-wrap gap-2 pt-1 border-t border-slate-100">
+                    {s.socialMediaLinks.map((link, i) => (
+                      <a
+                        key={i}
+                        href={link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-[11px] text-brand-blue hover:underline truncate max-w-full"
+                      >
+                        <Instagram className="w-3 h-3 shrink-0" /> {link}
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export interface Product {
   id: any;
@@ -44,6 +138,7 @@ export const VendorProducts: React.FC<VendorProductsProps> = ({
   onAddNew
 }) => {
   const [searchQuery, setSearchQuery] = React.useState('');
+  const [selectorsFor, setSelectorsFor] = React.useState<Product | null>(null);
 
   const filteredProducts = React.useMemo(() => {
     if (!searchQuery.trim()) return products;
@@ -163,6 +258,13 @@ export const VendorProducts: React.FC<VendorProductsProps> = ({
                     Delete
                   </button>
               </div>
+              <button
+                onClick={() => setSelectorsFor(product)}
+                className="w-full py-2.5 bg-white border border-slate-100 text-slate-500 rounded-2xl text-[9px] font-black uppercase tracking-widest hover:border-brand-blue hover:text-brand-blue transition-all active:scale-95 flex items-center justify-center gap-2"
+              >
+                <Link2 className="w-3 h-3" />
+                Referral Partners
+              </button>
             </div>
 
             {/* Quick Stock Indicator */}
@@ -190,6 +292,14 @@ export const VendorProducts: React.FC<VendorProductsProps> = ({
           </div>
         )}
       </div>
+
+      {selectorsFor && (
+        <ReferralSelectorsModal
+          productId={selectorsFor.id}
+          productName={selectorsFor.name}
+          onClose={() => setSelectorsFor(null)}
+        />
+      )}
     </div>
   );
 };

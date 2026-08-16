@@ -3,6 +3,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { ReferralController } from './referral.controller';
 import { ReferralService } from './referral.service';
 import { ReferralEarning, ReferralEarningSchema } from './referral-earning.schema';
+import { RefereeProductSelection, RefereeProductSelectionSchema } from './referee-product-selection.schema';
 import { User, UserSchema } from '../users/schemas/user.schema';
 import { Order, OrderSchema } from '../orders/schemas/order.schema';
 import { Product, ProductSchema } from '../products/schemas/product.schema';
@@ -12,6 +13,7 @@ import { CommonModule } from '../common/common.module';
   imports: [
     MongooseModule.forFeature([
       { name: ReferralEarning.name, schema: ReferralEarningSchema },
+      { name: RefereeProductSelection.name, schema: RefereeProductSelectionSchema },
       { name: User.name, schema: UserSchema },
       { name: Order.name, schema: OrderSchema },
       { name: Product.name, schema: ProductSchema },

@@ -494,6 +494,156 @@ export class UsersService implements OnModuleInit {
     }
   }
 
+  /** Creates a referee's Paystack payout subaccount once approved (mirrors syncVendorSubaccount). */
+  async syncRefereeSubaccount(userId: string) {
+    const user = await this.userModel.findById(userId).exec();
+    if (!user || user.role !== 'referee') return;
+
+    if (user.paystackSubaccountCode) {
+      this.logger.log(
+        `Referee ${userId} already has Paystack subaccount ${user.paystackSubaccountCode}; skipping sync`,
+      );
+      return;
+    }
+
+    const primaryMethod = user.paymentMethods?.[0];
+    if (!primaryMethod || !primaryMethod.accountNumber) {
+      this.logger.warn(`No payout method found for referee ${userId}. Cannot sync subaccount.`);
+      return;
+    }
+
+    try {
+      const bankMapping: Record<string, string> = {
+        MTN: 'MTN',
+        Vodafone: 'VOD',
+        AirtelTigo: 'ATL',
+        GCB: '040100',
+        ECO: '030100',
+        ZEN: '060101',
+        ABS: '020100',
+        FID: '070101',
+        STA: '010100',
+        CAL: '050100',
+        ACC: '090101',
+        GTB: '080100',
+        UBA: '100100',
+      };
+      const bankCode = bankMapping[primaryMethod.network] || primaryMethod.network;
+
+      this.logger.log(`Creating Paystack subaccount for referee: ${user.name}...`);
+
+      // percentage_charge is irrelevant here — the referee's share is set per-transaction
+      // by the dynamic Transaction Split created at order time, not by this subaccount's own rate.
+      const subaccount = await this.paystackService.createSubaccount({
+        business_name: user.name,
+        settlement_bank: bankCode,
+        account_number: primaryMethod.accountNumber,
+        percentage_charge: 0,
+      });
+
+      if (subaccount && subaccount.subaccount_code) {
+        await this.userModel.findByIdAndUpdate(userId, {
+          paystackSubaccountCode: subaccount.subaccount_code,
+          paystackBankCode: bankCode,
+        });
+        this.logger.log(`Successfully synced Paystack subaccount ${subaccount.subaccount_code} for referee ${userId}`);
+      }
+    } catch (error) {
+      this.logger.error(`Paystack Subaccount Sync Error for referee ${userId}: ${error.response?.data?.message || error.message}`);
+    }
+  }
+
+  async approveRefereeForPayouts(id: string): Promise<User | null> {
+    const existing = await this.userModel.findById(id).exec();
+    if (!existing || existing.role !== 'referee') {
+      throw new NotFoundException('Referee not found');
+    }
+
+    if (!existing.ghanaCardFront?.trim() || !existing.selfie?.trim()) {
+      throw new BadRequestException(
+        'Referee has not uploaded a Ghana Card and selfie. They cannot be approved without identity documents.',
+      );
+    }
+
+    const user = (await this.userModel
+      .findByIdAndUpdate(
+        id,
+        {
+          $set: {
+            status: 'active',
+            kycApprovedAt: new Date(),
+            verificationStatus: 'verified',
+            isIdentityVerified: true,
+            isVerified: true,
+          },
+        },
+        { new: true },
+      )
+      .lean()
+      .exec()) as unknown as User;
+
+    // Only admin approval creates/links the referee's Paystack payout subaccount
+    this.syncRefereeSubaccount(id).catch((err) =>
+      this.logger.error(`Paystack sync on referee approve: ${err.message}`),
+    );
+
+    if ((user as any)?.phone) {
+      const loginUrl = process.env.FRONTEND_URL?.replace(/\/$/, '') || 'https://flamingo-store1.com';
+      const slug = (user as any).refereeStoreSlug;
+      const storeBit = slug ? ` Your store: ${loginUrl}/ref/${slug}` : '';
+      this.sendRegistrationSms(
+        (user as any).phone,
+        `Great news ${(user as any).name}! Your FLA referee application is approved.${storeBit} Start picking products to earn commission.`,
+        'referee-kyc-approved',
+      );
+    }
+
+    return this.userModel.findById(id).lean().exec() as unknown as User;
+  }
+
+  async findPendingReferees(): Promise<User[]> {
+    const referees = await this.userModel
+      .find({
+        role: 'referee',
+        $or: [
+          { status: 'pending' },
+          {
+            kycSubmittedAt: { $exists: true, $ne: null },
+            $or: [{ kycApprovedAt: { $exists: false } }, { kycApprovedAt: null }],
+          },
+        ],
+      })
+      .select('-password -resetPasswordToken -resetPasswordExpires')
+      .lean()
+      .exec();
+    return referees.map((v) => this.mapVendorKycRecord(v));
+  }
+
+  async findKycReferees(status?: 'pending' | 'active' | 'rejected' | 'banned' | 'all'): Promise<User[]> {
+    const filter: Record<string, unknown> = { role: 'referee' };
+    if (status === 'pending') {
+      filter.$or = [
+        { status: 'pending' },
+        {
+          kycSubmittedAt: { $exists: true, $ne: null },
+          $or: [{ kycApprovedAt: { $exists: false } }, { kycApprovedAt: null }],
+        },
+      ];
+    } else if (status === 'active') {
+      filter.kycApprovedAt = { $exists: true, $ne: null };
+      filter.status = 'active';
+    } else if (status && status !== 'all') {
+      filter.status = status;
+    }
+    const referees = await this.userModel
+      .find(filter)
+      .select('-password -resetPasswordToken -resetPasswordExpires')
+      .sort({ createdAt: -1 })
+      .lean()
+      .exec();
+    return referees.map((v) => this.mapVendorKycRecord(v));
+  }
+
   /** Fix existing Paystack subaccounts that were created with 0% platform / 100% vendor split. */
   async resyncAllVendorPaystackSplits(): Promise<{
     total: number;
@@ -580,7 +730,7 @@ export class UsersService implements OnModuleInit {
       subscriptionPriceText?: string;
       subscriptionPriceGhs?: number;
       subscriptionStartsAt?: Date;
-      subscriptionEndsAt?: Date;
+      subscriptionEndsAt?: Date | null;
       subscriptionPaymentRequired?: boolean;
       verificationStatus?: string;
       isIdentityVerified?: boolean;
@@ -1014,6 +1164,10 @@ export class UsersService implements OnModuleInit {
 
   async updateStatus(id: string, status: 'active' | 'rejected' | 'pending' | 'banned'): Promise<User | null> {
     if (status === 'active') {
+      const target = await this.userModel.findById(id).select('role').lean().exec();
+      if ((target as any)?.role === 'referee') {
+        return this.approveRefereeForPayouts(id);
+      }
       // Approving shop = unlock selling + start-selling SMS
       return this.approveVendorKycForSelling(id);
     }
@@ -1024,15 +1178,15 @@ export class UsersService implements OnModuleInit {
       update.vendorTier = 'high';
     }
     const user = await this.userModel.findByIdAndUpdate(id, { $set: update }, { new: true }).lean().exec() as unknown as User;
-    
+
     if (user) {
         try {
-            if (status === 'rejected' && user.role === 'vendor') {
+            if (status === 'rejected' && (user.role === 'vendor' || user.role === 'referee')) {
                 if (user.email) {
                     this.emailService.sendGenericNotification(
-                        user.email, 
-                        user.name, 
-                        'Studio Verification Update', 
+                        user.email,
+                        user.name,
+                        'Studio Verification Update',
                         'We regret to inform you that your studio application has been declined. Please ensure your KYC documents are clear and valid before trying again.'
                     ).catch(err => this.logger.error(err.message));
                 }

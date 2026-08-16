@@ -131,14 +131,44 @@ export class OrdersService implements OnModuleInit {
     session?: ClientSession,
   ) {
     for (const item of items) {
-      await this.productModel
-        .findByIdAndUpdate(item.productId, { $inc: { stock: -item.quantity } }, { session })
-        .exec();
-      const q = this.productModel.findById(item.productId);
+      // Atomic + conditional: never drives stock negative even under concurrent purchases.
+      const q = this.productModel.findOneAndUpdate(
+        { _id: item.productId, stock: { $gte: item.quantity } },
+        { $inc: { stock: -item.quantity } },
+        { new: true, session },
+      );
       const prod = session ? await q.session(session).exec() : await q.exec();
-      if (prod && prod.stock <= 0 && !prod.soldOutAt) {
+      if (!prod) {
+        this.logger.warn(
+          `Stock decrement skipped for product ${item.productId} — insufficient stock at settlement time (race).`,
+        );
+        continue;
+      }
+      if (prod.stock <= 0 && !prod.soldOutAt) {
         prod.soldOutAt = new Date();
         await prod.save({ session });
+      }
+    }
+  }
+
+  /** Rejects checkout up front if any cart item is sold out or no longer listed. */
+  private async assertItemsInStock(items: Array<{ productId: string; quantity: number; name?: string }>) {
+    const productIds = items.map((i) => i.productId).filter((id) => Types.ObjectId.isValid(id));
+    const products = await this.productModel
+      .find({ _id: { $in: productIds } })
+      .select('name stock isActive')
+      .lean()
+      .exec();
+    const byId = new Map(products.map((p: any) => [p._id.toString(), p]));
+
+    for (const item of items) {
+      const product = byId.get(item.productId);
+      const label = item.name || product?.name || 'This item';
+      if (!product || product.isActive === false) {
+        throw new BadRequestException(`${label} is no longer available.`);
+      }
+      if ((product.stock ?? 0) < item.quantity) {
+        throw new BadRequestException(`${label} is sold out or doesn't have enough stock left.`);
       }
     }
   }
@@ -277,6 +307,10 @@ export class OrdersService implements OnModuleInit {
 
       const { customerId, vendorId, items, callbackPath, refereeCode, ...remainingDto } = createOrderDto;
 
+      if (items?.length) {
+        await this.assertItemsInStock(items);
+      }
+
       const hasCustomer =
         !!customerId && Types.ObjectId.isValid(customerId) && String(customerId).length === 24;
 
@@ -284,12 +318,41 @@ export class OrdersService implements OnModuleInit {
       let refereeId: Types.ObjectId | undefined;
       let refereeCommission = 0;
       let adjustedVendorShare = vendorShare;
+      let refereePaystackSubaccountCode: string | undefined;
       if (refereeCode) {
         const referee = await this.referralService.resolveRefereeByCode(refereeCode);
         if (referee) {
           refereeId = (referee as any)._id;
           refereeCommission = Math.round(totalProductAmount * (FLA_CONSTANTS.REFEREE_COMMISSION_RATE / 100) * 100) / 100;
           adjustedVendorShare = Math.max(0, vendorShare - refereeCommission);
+          refereePaystackSubaccountCode = (referee as any).paystackSubaccountCode;
+        }
+      }
+
+      // Auto-pay the referee directly via a dynamic Paystack split, if both parties are payout-linked.
+      // Falls back silently to wallet crediting (on payment success) if this fails for any reason.
+      let refereePaidViaSplit = false;
+      let paystackSplitCode: string | undefined;
+      if (refereeId && refereeCommission > 0 && vendor?.paystackSubaccountCode && refereePaystackSubaccountCode) {
+        try {
+          const vendorSharePercent = totalProductAmount > 0 ? (adjustedVendorShare / totalProductAmount) * 100 : 0;
+          const refereeSharePercent = totalProductAmount > 0 ? (refereeCommission / totalProductAmount) * 100 : 0;
+          const split = await this.paystackService.createSplit({
+            name: `order-${orderId.toString()}`,
+            subaccounts: [
+              { subaccount: vendor.paystackSubaccountCode, share: vendorSharePercent },
+              { subaccount: refereePaystackSubaccountCode, share: refereeSharePercent },
+            ],
+            bearer_subaccount: vendor.paystackSubaccountCode,
+          });
+          if (split?.split_code) {
+            paystackSplitCode = split.split_code;
+            refereePaidViaSplit = true;
+          }
+        } catch (splitError: any) {
+          this.logger.error(
+            `Referee payout split failed for order ${orderId} — falling back to wallet crediting: ${splitError.message}`,
+          );
         }
       }
 
@@ -305,7 +368,13 @@ export class OrdersService implements OnModuleInit {
         commissionRate,
         paystackFee,
         paymentRef: orderId.toString(),
-        ...(refereeId && { refereeId, refereeCode, refereeCommission, refereeCommissionPaid: false }),
+        ...(refereeId && {
+          refereeId,
+          refereeCode,
+          refereeCommission,
+          refereeCommissionPaid: false,
+          refereePaidViaSplit,
+        }),
       };
 
       if (hasCustomer) {
@@ -365,7 +434,10 @@ export class OrdersService implements OnModuleInit {
         },
       };
 
-      if (vendor?.paystackSubaccountCode) {
+      if (paystackSplitCode) {
+        // Referee is payout-linked: split settles vendor + referee shares automatically.
+        paystackPayload.split_code = paystackSplitCode;
+      } else if (vendor?.paystackSubaccountCode) {
         paystackPayload.subaccount = vendor.paystackSubaccountCode;
       }
 
@@ -411,8 +483,43 @@ export class OrdersService implements OnModuleInit {
       }
     };
 
-    if (vendor?.paystackSubaccountCode) {
+    // Re-attempt the referee payout split on retry, using the order's already-stored shares.
+    let splitCode: string | undefined;
+    let refereePaidViaSplit = false;
+    if (order.refereeId && order.refereeCommission > 0 && vendor?.paystackSubaccountCode) {
+      const referee = await this.userModel.findById(order.refereeId).select('paystackSubaccountCode').exec();
+      if (referee?.paystackSubaccountCode) {
+        try {
+          const vendorSharePercent = totalProductAmount > 0 ? (order.vendorShare / totalProductAmount) * 100 : 0;
+          const refereeSharePercent = totalProductAmount > 0 ? (order.refereeCommission / totalProductAmount) * 100 : 0;
+          const split = await this.paystackService.createSplit({
+            name: `order-${orderId.toString()}-retry-${Date.now()}`,
+            subaccounts: [
+              { subaccount: vendor.paystackSubaccountCode, share: vendorSharePercent },
+              { subaccount: referee.paystackSubaccountCode, share: refereeSharePercent },
+            ],
+            bearer_subaccount: vendor.paystackSubaccountCode,
+          });
+          if (split?.split_code) {
+            splitCode = split.split_code;
+            refereePaidViaSplit = true;
+          }
+        } catch (splitError: any) {
+          this.logger.error(`Referee payout split retry failed for order ${orderId}: ${splitError.message}`);
+        }
+      }
+    }
+
+    if (splitCode) {
+      paystackPayload.split_code = splitCode;
+    } else if (vendor?.paystackSubaccountCode) {
       paystackPayload.subaccount = vendor.paystackSubaccountCode;
+    }
+
+    // Keep the stored flag in sync with what THIS attempt will actually do, so
+    // creditRefereeCommission credits the wallet correctly if the split didn't happen.
+    if (order.refereeId && order.refereePaidViaSplit !== refereePaidViaSplit) {
+      await this.orderModel.findByIdAndUpdate(orderId, { refereePaidViaSplit }).exec();
     }
 
     const paymentLinkData: any = await this.paystackService.initializePayment(paystackPayload);

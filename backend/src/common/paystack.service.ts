@@ -69,12 +69,43 @@ export class PaystackService {
         }
     }
 
+    /**
+     * Creates a Transaction Split covering multiple subaccounts on one payment
+     * (the basic `subaccount` param on initialize only supports one subaccount).
+     * Used to auto-pay a referee's commission alongside the vendor's share.
+     */
+    async createSplit(data: {
+        name: string;
+        subaccounts: Array<{ subaccount: string; share: number }>;
+        bearer_subaccount: string;
+    }) {
+        try {
+            const response = await axios.post(
+                `${this.baseUrl}/split`,
+                {
+                    name: data.name,
+                    type: 'percentage',
+                    currency: 'GHS',
+                    subaccounts: data.subaccounts,
+                    bearer_type: 'subaccount',
+                    bearer_subaccount: data.bearer_subaccount,
+                },
+                { headers: this.headers, timeout: 10000 },
+            );
+            return response.data.data;
+        } catch (error) {
+            this.logger.error(`Failed to create Paystack split: ${error.response?.data?.message || error.message}`);
+            throw error;
+        }
+    }
+
     async initializePayment(data: {
         email: string;
         amount: number;
         reference: string;
         currency?: string;
         subaccount?: string;
+        split_code?: string;
         transaction_charge?: number;
         bearer?: 'account' | 'subaccount';
         callback_url?: string;
