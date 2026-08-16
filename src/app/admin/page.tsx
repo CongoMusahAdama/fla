@@ -13,7 +13,7 @@ import {
     Wallet, Package, Truck, MessageSquare, BarChart3, ShieldCheck, ShieldAlert,
     CheckCircle2, XCircle, Eye, EyeOff, Search,
     ArrowUpRight, Download, Menu, X, Trash2, Shield, Clock, TrendingUp, Phone, Plus, User, Store,
-    CreditCard, Camera, FileText, ExternalLink, Link2, Tag, Megaphone, Instagram
+    CreditCard, Camera, FileText, ExternalLink, Link2, Tag, Megaphone
 } from 'lucide-react';
 import Image from 'next/image';
 import Swal from 'sweetalert2';
@@ -3410,24 +3410,6 @@ export default function AdminDashboard() {
                                         <p className="text-[11px] font-semibold text-slate-500 mb-2">Identity</p>
                                         {detail('Registered', v.createdAt ? new Date(v.createdAt).toLocaleString() : null)}
                                         {detail('Approved', v.kycApprovedAt ? new Date(v.kycApprovedAt).toLocaleString() : null)}
-                                    </div>
-                                    <div className="border border-slate-200 p-4">
-                                        <p className="text-[11px] font-semibold text-slate-500 mb-2">Social</p>
-                                        {(v.socialMediaLinks || []).length > 0 ? (
-                                            (v.socialMediaLinks as string[]).map((link, i) => (
-                                                <a
-                                                    key={i}
-                                                    href={link}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="flex items-center gap-1.5 py-1 text-sm text-brand-blue hover:underline truncate"
-                                                >
-                                                    <Instagram className="w-3.5 h-3.5 shrink-0" /> {link}
-                                                </a>
-                                            ))
-                                        ) : (
-                                            <p className="text-sm text-slate-400">No links provided</p>
-                                        )}
                                     </div>
                                 </div>
 

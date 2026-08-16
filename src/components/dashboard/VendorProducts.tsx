@@ -2,7 +2,7 @@
 "use client";
 import React from 'react';
 import Image from 'next/image';
-import { Package, Plus, Search, Edit2, Eye, EyeOff, Trash2, ShoppingBag, Clock, MapPin, Link2, X, Instagram } from 'lucide-react';
+import { Package, Plus, Search, Edit2, Eye, EyeOff, Trash2, ShoppingBag, Clock, MapPin, Link2, X } from 'lucide-react';
 import { getImageUrl } from '@/lib/utils';
 import { TableSearch } from '@/components/ui/TableSearch';
 import { matchesTableSearch } from '@/lib/table-search';
@@ -14,7 +14,6 @@ interface ReferralSelector {
   name: string;
   refereeCode: string;
   phone?: string;
-  socialMediaLinks: string[];
   selectedAt: string;
 }
 
@@ -64,34 +63,17 @@ function ReferralSelectorsModal({ productId, productName, onClose }: { productId
             </div>
           ) : (
             selectors.map((s) => (
-              <div key={s._id} className="border border-slate-200 rounded-2xl p-4 space-y-2">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="font-semibold text-slate-900 text-sm truncate">{s.name}</p>
-                    <p className="text-[11px] text-slate-400 font-mono">{s.refereeCode}</p>
-                  </div>
-                  <WhatsAppButton
-                    phone={s.phone}
-                    message={`Hi ${s.name}, thanks for featuring "${productName}" on your FLA store! Would love to send you a giveaway to create content with.`}
-                    size="sm"
-                    missingContactRole="referee"
-                  />
+              <div key={s._id} className="border border-slate-200 rounded-2xl p-4 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-semibold text-slate-900 text-sm truncate">{s.name}</p>
+                  <p className="text-[11px] text-slate-400 font-mono">{s.refereeCode}</p>
                 </div>
-                {s.socialMediaLinks?.length > 0 && (
-                  <div className="flex flex-wrap gap-2 pt-1 border-t border-slate-100">
-                    {s.socialMediaLinks.map((link, i) => (
-                      <a
-                        key={i}
-                        href={link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-[11px] text-brand-blue hover:underline truncate max-w-full"
-                      >
-                        <Instagram className="w-3 h-3 shrink-0" /> {link}
-                      </a>
-                    ))}
-                  </div>
-                )}
+                <WhatsAppButton
+                  phone={s.phone}
+                  message={`Hi ${s.name}, thanks for featuring "${productName}" on your FLA store! Would love to send you a giveaway to create content with.`}
+                  size="sm"
+                  missingContactRole="referee"
+                />
               </div>
             ))
           )}

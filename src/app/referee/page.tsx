@@ -5,7 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Mail, Lock, ArrowRight, User, Phone, MapPin, Instagram, Upload, CreditCard } from 'lucide-react';
+import { Mail, Lock, ArrowRight, User, Phone, MapPin, Upload, CreditCard } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { Suspense } from 'react';
 import { Turnstile } from '@marsidev/react-turnstile';
@@ -92,7 +92,6 @@ function RefereeAuthContent() {
     const [phone, setPhone] = useState('');
     const [password, setPassword] = useState('');
     const [region, setRegion] = useState('');
-    const [socialLink, setSocialLink] = useState('');
     const [momoNetwork, setMomoNetwork] = useState('MTN');
     const [momoNumber, setMomoNumber] = useState('');
     const [momoAccountName, setMomoAccountName] = useState('');
@@ -173,7 +172,6 @@ function RefereeAuthContent() {
                     phone,
                     password,
                     region,
-                    socialMediaLinks: socialLink ? [socialLink] : [],
                     paymentMethod: { network: momoNetwork, accountNumber: momoNumber, accountName: momoAccountName },
                     ghanaCardFront: ghanaCardFrontUrl,
                     ghanaCardBack: ghanaCardBackUrl,
@@ -279,8 +277,6 @@ function RefereeAuthContent() {
                                         </select>
                                     </div>
                                 </div>
-
-                                <AuthInput label="Social Media Link (Instagram/TikTok/etc.)" type="text" placeholder="https://instagram.com/yourhandle" required value={socialLink} onChange={setSocialLink} icon={Instagram} />
 
                                 <div className="grid grid-cols-2 gap-3">
                                     <div className="space-y-1.5">

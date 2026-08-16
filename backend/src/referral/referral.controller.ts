@@ -30,7 +30,6 @@ export class ReferralController {
       phone: string;
       password: string;
       region?: string;
-      socialMediaLinks?: string[];
       paymentMethod?: { network: string; accountNumber: string; accountName: string };
       ghanaCardFront?: string;
       ghanaCardBack?: string;

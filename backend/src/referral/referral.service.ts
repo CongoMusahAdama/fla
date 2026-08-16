@@ -48,7 +48,6 @@ export class ReferralService {
     phone: string;
     password: string;
     region?: string;
-    socialMediaLinks?: string[];
     paymentMethod?: { network: string; accountNumber: string; accountName: string };
     ghanaCardFront?: string;
     ghanaCardBack?: string;
@@ -77,7 +76,6 @@ export class ReferralService {
       refereeHiddenProducts: [],
       status: 'pending',
       region: dto.region,
-      socialMediaLinks: dto.socialMediaLinks || [],
       paymentMethods: dto.paymentMethod ? [dto.paymentMethod] : [],
       ghanaCardFront: dto.ghanaCardFront,
       ghanaCardBack: dto.ghanaCardBack,
@@ -329,7 +327,7 @@ export class ReferralService {
 
     const selections = await this.refereeProductSelectionModel
       .find({ productId: new Types.ObjectId(productId) })
-      .populate('refereeId', 'name refereeCode phone socialMediaLinks')
+      .populate('refereeId', 'name refereeCode phone')
       .sort({ selectedAt: -1 })
       .lean()
       .exec();
@@ -341,7 +339,6 @@ export class ReferralService {
         name: s.refereeId.name,
         refereeCode: s.refereeId.refereeCode,
         phone: s.refereeId.phone,
-        socialMediaLinks: s.refereeId.socialMediaLinks || [],
         selectedAt: s.selectedAt,
       }));
   }
