@@ -4,10 +4,7 @@ import { JwtService } from '@nestjs/jwt';
 import { EmailService } from '../email/email.service';
 import { OtpService } from '../otp/otp.service';
 import { SmsService } from '../common/sms.service';
-import {
-  introSubscriptionFields,
-  monthlySubscriptionFields,
-} from '../users/vendor-subscription.util';
+import { introSubscriptionFields } from '../users/vendor-subscription.util';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 
@@ -269,22 +266,17 @@ export class AuthService {
       userData.password ||
       `Fla${crypto.randomBytes(3).toString('hex')}${Math.floor(100 + Math.random() * 900)}`;
 
-    const plan: 'intro' | 'monthly' =
-      userData.subscriptionPlan === 'monthly' ? 'monthly' : 'intro';
     const intro = introSubscriptionFields();
     const startsAt = userData.subscriptionStartsAt
       ? new Date(userData.subscriptionStartsAt)
       : intro.subscriptionStartsAt;
-    const endsAt = userData.subscriptionEndsAt
-      ? new Date(userData.subscriptionEndsAt)
-      : plan === 'monthly'
-        ? monthlySubscriptionFields(startsAt).subscriptionEndsAt
-        : intro.subscriptionEndsAt;
+    // Admin can still set a custom expiry explicitly (e.g. a timed trial); otherwise lifetime (no expiry).
+    const endsAt = userData.subscriptionEndsAt ? new Date(userData.subscriptionEndsAt) : null;
 
     const subscriptionLabel =
-      userData.subscriptionLabel || 'Monthly sales plan';
+      userData.subscriptionLabel || 'Lifetime sales access';
     const subscriptionPriceText =
-      userData.subscriptionPriceText || 'GHS 100 / month';
+      userData.subscriptionPriceText || `GHS ${100} one-time`;
     const subscriptionPriceGhs =
       typeof userData.subscriptionPriceGhs === 'number'
         ? userData.subscriptionPriceGhs
@@ -311,7 +303,7 @@ export class AuthService {
     await this.usersService.applyVendorSubscription(user._id.toString(), {
       status: 'active',
       isEmailVerified: true,
-      subscriptionPlan: plan,
+      subscriptionPlan: 'lifetime',
       subscriptionLabel,
       subscriptionPriceText,
       subscriptionPriceGhs,

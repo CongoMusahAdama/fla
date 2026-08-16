@@ -924,18 +924,18 @@ function VendorDashboardInner() {
                                     <p className="text-sm text-slate-700 leading-relaxed">
                                         {!canSell
                                             ? awaitingKycApproval
-                                                ? `After your documents are approved, pay GHS ${subscriptionAmountDue} here via Paystack to unlock uploads for 30 days.`
-                                                : `Upload your Business Registration, Ghana Card, and selfie in Studio Identity first. After approval, pay GHS ${subscriptionAmountDue} here via Paystack to unlock uploads.`
+                                                ? `After your documents are approved, pay GHS ${subscriptionAmountDue} here via Paystack — one time, yours forever.`
+                                                : `Upload your Business Registration, Ghana Card, and selfie in Studio Identity first. After approval, pay GHS ${subscriptionAmountDue} here via Paystack to unlock uploads for good.`
                                             : paymentRequired
-                                              ? `Your documents are approved. Tap below to pay GHS ${subscriptionAmountDue} on Paystack — uploads unlock automatically after payment.`
+                                              ? `Your documents are approved. Tap below to pay GHS ${subscriptionAmountDue} on Paystack — a one-time payment, uploads unlock automatically and never expire.`
                                               : subscriptionExpired
-                                                ? `Pay GHS ${subscriptionAmountDue} via Paystack to renew. Existing listings stay live.`
-                                                : `Renew via Paystack — GHS ${subscriptionAmountDue}. When due, existing products stay live but new uploads lock until you pay.`}
+                                                ? `Pay GHS ${subscriptionAmountDue} via Paystack to unlock. Existing listings stay live.`
+                                                : `Pay via Paystack — GHS ${subscriptionAmountDue}. One time only, then uploads stay unlocked for good.`}
                                     </p>
                                     <p className="text-2xl font-black text-slate-900 tracking-tighter">
                                         GHS {subscriptionAmountDue}
                                         <span className="ml-2 text-xs font-bold text-slate-400 uppercase tracking-widest">
-                                            / month
+                                            one-time
                                         </span>
                                     </p>
                                 </div>
@@ -1045,8 +1045,8 @@ function VendorDashboardInner() {
                                 onAddNew={() => {
                                     Swal.fire({
                                         icon: 'warning',
-                                        title: 'Subscription due',
-                                        text: 'Renew your FLA subscription (MoMo) before uploading new products. Existing listings can still sell.',
+                                        title: 'One-time payment due',
+                                        text: 'Pay your GHS 100 one-time FLA subscription (MoMo) to unlock uploads for good. Existing listings can still sell.',
                                     });
                                 }}
                             />
@@ -1427,6 +1427,11 @@ function VendorDashboardInner() {
                             {subscriptionEndsAt && !subscriptionExpired && !subscriptionExpiringSoon && (
                                 <p className="text-[10px] font-bold uppercase tracking-widest text-white/40">
                                     Plan until {subscriptionEndsAt.toLocaleDateString()}
+                                </p>
+                            )}
+                            {!subscriptionEndsAt && !user?.subscriptionPaymentRequired && (
+                                <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-300">
+                                    Lifetime access — no renewal needed
                                 </p>
                             )}
                         </div>
