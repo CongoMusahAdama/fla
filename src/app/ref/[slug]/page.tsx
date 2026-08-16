@@ -75,13 +75,13 @@ export default function RefereeStorefront() {
             <div className="bg-brand-blue text-white py-12 md:py-16">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
                     <div className="w-20 h-20 bg-brand-lemon text-slate-900 rounded-full mx-auto flex items-center justify-center text-3xl font-black mb-4 shadow-xl shadow-brand-lemon/20">
-                        {storeData.refereeName.charAt(0).toUpperCase()}
+                        {storeData.referee.name.charAt(0).toUpperCase()}
                     </div>
                     <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-2">
-                        {storeData.refereeName}'s Picks
+                        {storeData.referee.name}'s Picks
                     </h1>
                     <p className="text-white/70 max-w-lg mx-auto">
-                        Curated products recommended by {storeData.refereeName}. Shop quality items from verified FLA vendors.
+                        Curated products recommended by {storeData.referee.name}. Shop quality items from verified FLA vendors.
                     </p>
                 </div>
             </div>
@@ -95,7 +95,7 @@ export default function RefereeStorefront() {
                 {filteredProducts.length > 0 ? (
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6">
                         {filteredProducts.map((product: any) => {
-                            const productUrl = `/product/${product._id}?ref=${storeData.refereeCode}`;
+                            const productUrl = `/product/${product._id}?ref=${storeData.referee.refereeCode}`;
                             return (
                                 <Link href={productUrl} key={product._id} className="group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border border-slate-200/50 flex flex-col">
                                     <div className="aspect-[4/5] relative bg-slate-100 overflow-hidden">
