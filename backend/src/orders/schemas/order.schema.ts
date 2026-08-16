@@ -144,6 +144,10 @@ export class Order {
     @Prop({ default: 0 })
     commissionRate: number;
 
+    /** Paystack transaction fee (1.95% of totalProductAmount), borne by the vendor */
+    @Prop({ default: 0 })
+    paystackFee: number;
+
     @Prop()
     paymentId?: string;
 

@@ -11,6 +11,8 @@ export const FLA_CONSTANTS = {
   SUBSCRIPTION_REMINDER_DAYS: 5,
   /** Referee affiliate commission taken from vendor's payout (%) */
   REFEREE_COMMISSION_RATE: 2,
+  /** Paystack transaction fee, borne by the vendor and deducted from their payout (%) */
+  PAYSTACK_FEE_RATE: 1.95,
 };
 
 /** Must match src/lib/fla-terms.ts FLA_TERMS_VERSION */

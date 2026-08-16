@@ -269,7 +269,9 @@ export class OrdersService implements OnModuleInit {
       const fetchedRate = await this.settingsService.getSetting('platform_commission');
       const commissionRate = resolveCommissionRate(fetchedRate);
       const adminCommission = totalProductAmount * (commissionRate / 100);
-      const vendorShare = totalProductAmount - adminCommission;
+      // Paystack's transaction fee is borne by the vendor, deducted from their payout.
+      const paystackFee = Math.round(totalProductAmount * (FLA_CONSTANTS.PAYSTACK_FEE_RATE / 100) * 100) / 100;
+      const vendorShare = Math.max(0, totalProductAmount - adminCommission - paystackFee);
 
       const vendor = await this.userModel.findById(createOrderDto.vendorId).exec();
 
@@ -301,6 +303,7 @@ export class OrdersService implements OnModuleInit {
         adminCommission,
         vendorShare: adjustedVendorShare,
         commissionRate,
+        paystackFee,
         paymentRef: orderId.toString(),
         ...(refereeId && { refereeId, refereeCode, refereeCommission, refereeCommissionPaid: false }),
       };
