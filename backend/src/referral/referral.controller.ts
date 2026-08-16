@@ -131,17 +131,6 @@ export class ReferralController {
     return this.referralService.getReferralLinkForProduct(req.user.userId, productId);
   }
 
-  // ─── Authenticated: Vendor Referral Toggle ────────────────────────────────
-
-  @UseGuards(AuthGuard('jwt'))
-  @Patch('vendor/toggle')
-  async toggleVendorReferrals(@Request() req, @Body() body: { accept: boolean }) {
-    if (req.user?.role !== 'vendor') {
-      throw new ForbiddenException('Only vendor accounts can toggle referral acceptance.');
-    }
-    return this.referralService.setVendorReferralAcceptance(req.user.userId, !!body.accept);
-  }
-
   // ─── Private Helpers ──────────────────────────────────────────────────────
 
   private assertReferee(req: { user?: { role?: string } }) {

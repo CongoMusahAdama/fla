@@ -62,7 +62,6 @@ export type User = {
     termsVersion?: string;
     
     // Referral fields
-    acceptReferrals?: boolean;
     refereeCode?: string;
     refereeStoreSlug?: string;
     refereeWalletBalance?: number;
@@ -106,7 +105,6 @@ function mapApiUser(raw: Record<string, unknown>): User {
         status: raw.status as string | undefined,
         uniqueVendorId: raw.uniqueVendorId as string | undefined,
         storeSlug: raw.storeSlug as string | undefined,
-        acceptReferrals: raw.acceptReferrals as boolean | undefined,
         refereeCode: raw.refereeCode as string | undefined,
         refereeStoreSlug: raw.refereeStoreSlug as string | undefined,
         refereeWalletBalance: raw.refereeWalletBalance as number | undefined,

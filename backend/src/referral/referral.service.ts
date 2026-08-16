@@ -101,12 +101,18 @@ export class ReferralService {
 
   // ─── Referee Store (curated selections, capped at 50, 10 auto-filled) ────
 
-  private async optedInVendorIds(): Promise<Types.ObjectId[]> {
-    const optedInVendors = await this.userModel
-      .find({ role: 'vendor', acceptReferrals: true, status: 'active' })
+  /**
+   * Every active vendor's products are eligible for referral — no per-vendor opt-in.
+   * Returns string IDs (not ObjectId instances): Product.vendorId is stored as a plain
+   * string in this database, and Mongo's $in does not match ObjectId query values against
+   * string-typed stored fields — only same-type comparisons match.
+   */
+  private async optedInVendorIds(): Promise<string[]> {
+    const activeVendors = await this.userModel
+      .find({ role: 'vendor', status: 'active' })
       .select('_id')
       .exec();
-    return optedInVendors.map((v) => (v as any)._id);
+    return activeVendors.map((v) => String((v as any)._id));
   }
 
   /** Tops up a referee's auto-assigned slots (up to REFEREE_AUTO_FILL_COUNT) from their region. */
@@ -528,17 +534,6 @@ export class ReferralService {
     };
   }
 
-  // ─── Vendor Referral Toggle ───────────────────────────────────────────────
-
-  async setVendorReferralAcceptance(vendorId: string, accept: boolean): Promise<{ acceptReferrals: boolean }> {
-    const vendor = await this.userModel.findById(vendorId).exec();
-    if (!vendor || vendor.role !== 'vendor') {
-      throw new ForbiddenException('Only vendor accounts can toggle referral acceptance.');
-    }
-    await this.userModel.findByIdAndUpdate(vendorId, { acceptReferrals: accept });
-    this.logger.log(`Vendor ${vendorId} set acceptReferrals=${accept}`);
-    return { acceptReferrals: accept };
-  }
 
   // ─── Private Helpers ──────────────────────────────────────────────────────
 

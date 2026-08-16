@@ -238,11 +238,6 @@ export class User {
     @Prop()
     resetPasswordExpires?: Date;
 
-    // ─── Vendor Referral Toggle ───────────────────────────────────────────────
-    /** When true, this vendor's products appear in all referee stores */
-    @Prop({ default: false })
-    acceptReferrals: boolean;
-
     // ─── Referee (Affiliate) Fields ───────────────────────────────────────────
     /** Unique short code used in referral links e.g. REF-A1B2C3 */
     @Prop({ unique: true, sparse: true, index: true })
