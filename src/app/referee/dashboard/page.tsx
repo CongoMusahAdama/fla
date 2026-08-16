@@ -79,19 +79,24 @@ export default function RefereeDashboard() {
 
     const authHeaders = (): HeadersInit => (token ? { Authorization: `Bearer ${token}` } : {});
 
-    const fetchBrowseProducts = async () => {
+    const fetchBrowseProducts = async (opts?: { region?: string; search?: string }) => {
         setPickerLoading(true);
         try {
             const params = new URLSearchParams();
-            if (pickerRegion) params.set('region', pickerRegion);
-            if (pickerSearch) params.set('search', pickerSearch);
+            const region = opts?.region ?? pickerRegion;
+            const search = opts?.search ?? pickerSearch;
+            if (region) params.set('region', region);
+            if (search) params.set('search', search);
             const res = await fetch(`${API_URL}/referral/browse-products?${params.toString()}`, {
                 credentials: 'include',
                 headers: authHeaders(),
             });
             if (res.ok) {
                 const data = await res.json();
-                setPickerProducts(data.products || []);
+                const products = data.products || [];
+                setPickerProducts(products);
+                setPickerSuggestions(products.slice(0, 6));
+                if (search) setShowSuggestions(true);
             }
         } catch (error) {
             console.error('Error browsing products:', error);
@@ -100,39 +105,13 @@ export default function RefereeDashboard() {
         }
     };
 
+    // Live results as you type/select a region — mirrors the marketplace's instant filtering.
     useEffect(() => {
-        if (storeSubTab === 'browse' && isAuthenticated && user?.role === 'referee' && user.status === 'active') {
-            fetchBrowseProducts();
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [storeSubTab, pickerRegion]);
-
-    // Live suggestions dropdown as the referee types a product name.
-    useEffect(() => {
-        if (storeSubTab !== 'browse' || !pickerSearch.trim()) {
-            setPickerSuggestions([]);
-            return;
-        }
-        const handle = setTimeout(async () => {
-            try {
-                const params = new URLSearchParams({ search: pickerSearch, limit: '6' });
-                if (pickerRegion) params.set('region', pickerRegion);
-                const res = await fetch(`${API_URL}/referral/browse-products?${params.toString()}`, {
-                    credentials: 'include',
-                    headers: authHeaders(),
-                });
-                if (res.ok) {
-                    const data = await res.json();
-                    setPickerSuggestions(data.products || []);
-                    setShowSuggestions(true);
-                }
-            } catch (error) {
-                console.error('Error fetching suggestions:', error);
-            }
-        }, 300);
+        if (storeSubTab !== 'browse' || !isAuthenticated || user?.role !== 'referee' || user.status !== 'active') return;
+        const handle = setTimeout(() => fetchBrowseProducts(), pickerSearch ? 300 : 0);
         return () => clearTimeout(handle);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [pickerSearch, storeSubTab, pickerRegion]);
+    }, [storeSubTab, pickerRegion, pickerSearch]);
 
     const handleSelectProduct = async (productId: string) => {
         if (pickerSelectedIds.length >= storeCap) {
@@ -495,7 +474,7 @@ export default function RefereeDashboard() {
                                             ))}
                                         </select>
                                     </div>
-                                    <button onClick={fetchBrowseProducts} className="h-10 px-4 bg-slate-900 text-white text-sm font-semibold rounded-xl hover:bg-slate-800 transition-colors">
+                                    <button onClick={() => fetchBrowseProducts()} className="h-10 px-4 bg-slate-900 text-white text-sm font-semibold rounded-xl hover:bg-slate-800 transition-colors">
                                         Search
                                     </button>
                                 </div>

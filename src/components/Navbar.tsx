@@ -237,7 +237,8 @@ export default function Navbar() {
     pathname?.startsWith('/admin') ||
     pathname?.startsWith('/vendor') ||
     pathname?.startsWith('/dashboard') ||
-    pathname?.startsWith('/auth')
+    pathname?.startsWith('/auth') ||
+    pathname?.startsWith('/referee')
   ) {
     return null;
   }
