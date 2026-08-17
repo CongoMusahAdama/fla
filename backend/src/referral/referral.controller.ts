@@ -30,6 +30,7 @@ export class ReferralController {
       phone: string;
       password: string;
       region?: string;
+      tiktokLink?: string;
       paymentMethod?: { network: string; accountNumber: string; accountName: string };
       ghanaCardFront?: string;
       ghanaCardBack?: string;
@@ -38,6 +39,9 @@ export class ReferralController {
   ) {
     if (!body.name || !body.email || !body.phone || !body.password) {
       throw new BadRequestException('Name, email, phone, and password are required.');
+    }
+    if (!body.tiktokLink) {
+      throw new BadRequestException('A TikTok link is required so vendors can see your content.');
     }
     return this.referralService.registerReferee(body);
   }
@@ -117,6 +121,15 @@ export class ReferralController {
   }
 
   // ─── Authenticated: Vendor Visibility into Referee Selections ─────────────
+
+  @UseGuards(AuthGuard('jwt'))
+  @Get('vendor/product-selector-counts')
+  async getProductSelectorCounts(@Request() req) {
+    if (req.user?.role !== 'vendor') {
+      throw new ForbiddenException('Only vendor accounts can view this.');
+    }
+    return this.referralService.getProductSelectorCounts(req.user.userId);
+  }
 
   @UseGuards(AuthGuard('jwt'))
   @Get('vendor/product-selectors/:productId')

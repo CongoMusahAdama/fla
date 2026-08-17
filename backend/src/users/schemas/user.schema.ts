@@ -258,6 +258,10 @@ export class User {
     /** Product IDs the referee has hidden from their store */
     @Prop({ type: [String], default: [] })
     refereeHiddenProducts: string[];
+
+    /** TikTok profile link — lets vendors check the referee's content before collabing */
+    @Prop()
+    tiktokLink?: string;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

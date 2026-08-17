@@ -2,7 +2,7 @@
 "use client";
 import React from 'react';
 import Image from 'next/image';
-import { Package, Plus, Search, Edit2, Eye, EyeOff, Trash2, ShoppingBag, Clock, MapPin, Link2, X } from 'lucide-react';
+import { Package, Plus, Search, Edit2, Eye, EyeOff, Trash2, ShoppingBag, Clock, MapPin, Link2, X, Music2 } from 'lucide-react';
 import { getImageUrl } from '@/lib/utils';
 import { TableSearch } from '@/components/ui/TableSearch';
 import { matchesTableSearch } from '@/lib/table-search';
@@ -14,6 +14,7 @@ interface ReferralSelector {
   name: string;
   refereeCode: string;
   phone?: string;
+  tiktokLink?: string;
   selectedAt: string;
 }
 
@@ -63,17 +64,29 @@ function ReferralSelectorsModal({ productId, productName, onClose }: { productId
             </div>
           ) : (
             selectors.map((s) => (
-              <div key={s._id} className="border border-slate-200 rounded-2xl p-4 flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="font-semibold text-slate-900 text-sm truncate">{s.name}</p>
-                  <p className="text-[11px] text-slate-400 font-mono">{s.refereeCode}</p>
+              <div key={s._id} className="border border-slate-200 rounded-2xl p-4 space-y-2">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-slate-900 text-sm truncate">{s.name}</p>
+                    <p className="text-[11px] text-slate-400 font-mono">{s.refereeCode}</p>
+                  </div>
+                  <WhatsAppButton
+                    phone={s.phone}
+                    message={`Hi ${s.name}, thanks for featuring "${productName}" on your FLA store! Would love to send you a giveaway to create content with.`}
+                    size="sm"
+                    missingContactRole="referee"
+                  />
                 </div>
-                <WhatsAppButton
-                  phone={s.phone}
-                  message={`Hi ${s.name}, thanks for featuring "${productName}" on your FLA store! Would love to send you a giveaway to create content with.`}
-                  size="sm"
-                  missingContactRole="referee"
-                />
+                {s.tiktokLink && (
+                  <a
+                    href={s.tiktokLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-[11px] font-medium text-slate-500 hover:text-slate-900 border-t border-slate-100 pt-2 w-full"
+                  >
+                    <Music2 className="w-3.5 h-3.5 shrink-0" /> View TikTok
+                  </a>
+                )}
               </div>
             ))
           )}
@@ -119,8 +132,26 @@ export const VendorProducts: React.FC<VendorProductsProps> = ({
   onToggleStatus,
   onAddNew
 }) => {
+  const { token } = useAuth();
   const [searchQuery, setSearchQuery] = React.useState('');
   const [selectorsFor, setSelectorsFor] = React.useState<Product | null>(null);
+  const [selectorCounts, setSelectorCounts] = React.useState<Record<string, number>>({});
+
+  const fetchSelectorCounts = React.useCallback(async () => {
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/referral/vendor/product-selector-counts`, {
+        credentials: 'include',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (res.ok) setSelectorCounts(await res.json());
+    } catch (err) {
+      console.error('Error loading referral partner counts:', err);
+    }
+  }, [token]);
+
+  React.useEffect(() => {
+    fetchSelectorCounts();
+  }, [fetchSelectorCounts]);
 
   const filteredProducts = React.useMemo(() => {
     if (!searchQuery.trim()) return products;
@@ -246,6 +277,11 @@ export const VendorProducts: React.FC<VendorProductsProps> = ({
               >
                 <Link2 className="w-3 h-3" />
                 Referral Partners
+                {!!selectorCounts[product.id] && (
+                  <span className="inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-brand-blue text-white text-[9px] font-black">
+                    {selectorCounts[product.id]}
+                  </span>
+                )}
               </button>
             </div>
 

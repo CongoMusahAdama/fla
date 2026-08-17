@@ -49,6 +49,7 @@ export class ReferralService {
     phone: string;
     password: string;
     region?: string;
+    tiktokLink?: string;
     paymentMethod?: { network: string; accountNumber: string; accountName: string };
     ghanaCardFront?: string;
     ghanaCardBack?: string;
@@ -77,6 +78,7 @@ export class ReferralService {
       refereeHiddenProducts: [],
       status: 'pending',
       region: dto.region,
+      tiktokLink: dto.tiktokLink,
       paymentMethods: dto.paymentMethod ? [dto.paymentMethod] : [],
       ghanaCardFront: dto.ghanaCardFront,
       ghanaCardBack: dto.ghanaCardBack,
@@ -328,7 +330,7 @@ export class ReferralService {
 
     const selections = await this.refereeProductSelectionModel
       .find({ productId: new Types.ObjectId(productId) })
-      .populate('refereeId', 'name refereeCode phone')
+      .populate('refereeId', 'name refereeCode phone tiktokLink')
       .sort({ selectedAt: -1 })
       .lean()
       .exec();
@@ -340,8 +342,27 @@ export class ReferralService {
         name: s.refereeId.name,
         refereeCode: s.refereeId.refereeCode,
         phone: s.refereeId.phone,
+        tiktokLink: s.refereeId.tiktokLink,
         selectedAt: s.selectedAt,
       }));
+  }
+
+  /** How many referees have picked each of this vendor's products — for a badge count on the product card. */
+  async getProductSelectorCounts(vendorId: string): Promise<Record<string, number>> {
+    const products = await this.productModel.find({ vendorId }).select('_id').lean().exec();
+    const productIds = products.map((p: any) => p._id);
+    if (!productIds.length) return {};
+
+    const counts = await this.refereeProductSelectionModel.aggregate([
+      { $match: { productId: { $in: productIds } } },
+      { $group: { _id: '$productId', count: { $sum: 1 } } },
+    ]);
+
+    const result: Record<string, number> = {};
+    counts.forEach((c: any) => {
+      result[String(c._id)] = c.count;
+    });
+    return result;
   }
 
   // ─── Public Referee Storefront ────────────────────────────────────────────

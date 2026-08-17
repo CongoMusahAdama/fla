@@ -5,7 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Mail, Lock, ArrowRight, User, Phone, MapPin, Upload, CreditCard } from 'lucide-react';
+import { Mail, Lock, ArrowRight, User, Phone, MapPin, Upload, CreditCard, Music2 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { Suspense } from 'react';
 import { Turnstile } from '@marsidev/react-turnstile';
@@ -92,6 +92,7 @@ function RefereeAuthContent() {
     const [phone, setPhone] = useState('');
     const [password, setPassword] = useState('');
     const [region, setRegion] = useState('');
+    const [tiktokLink, setTiktokLink] = useState('');
     const [momoNetwork, setMomoNetwork] = useState('MTN');
     const [momoNumber, setMomoNumber] = useState('');
     const [momoAccountName, setMomoAccountName] = useState('');
@@ -146,6 +147,10 @@ function RefereeAuthContent() {
             Swal.fire({ icon: 'warning', title: 'Region required', text: 'Please select your region.' });
             return;
         }
+        if (!tiktokLink.trim()) {
+            Swal.fire({ icon: 'warning', title: 'TikTok link required', text: 'Please add a link to your TikTok so vendors can see your content.' });
+            return;
+        }
         if (!momoNumber || momoNumber.length < 10 || !momoAccountName.trim()) {
             Swal.fire({ icon: 'warning', title: 'Payout details required', text: 'Please enter your MoMo/bank number and account holder name so we can pay your commissions.' });
             return;
@@ -171,6 +176,7 @@ function RefereeAuthContent() {
                     phone,
                     password,
                     region,
+                    tiktokLink,
                     paymentMethod: { network: momoNetwork, accountNumber: momoNumber, accountName: momoAccountName },
                     ghanaCardFront: ghanaCardFrontUrl,
                     ghanaCardBack: ghanaCardBackUrl,
@@ -276,6 +282,8 @@ function RefereeAuthContent() {
                                         </select>
                                     </div>
                                 </div>
+
+                                <AuthInput label="TikTok Link" type="text" placeholder="https://tiktok.com/@yourhandle" required value={tiktokLink} onChange={setTiktokLink} icon={Music2} />
 
                                 <div className="grid grid-cols-2 gap-3">
                                     <div className="space-y-1.5">
