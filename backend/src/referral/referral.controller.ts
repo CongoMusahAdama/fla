@@ -49,6 +49,12 @@ export class ReferralController {
     return this.referralService.getPublicRefereeStore(slug);
   }
 
+  /** Resolves a referral code to its safe, public store info (name + slug only). */
+  @Get('resolve/:code')
+  async resolveCode(@Param('code') code: string) {
+    return this.referralService.resolvePublicRefereeInfo(code);
+  }
+
   // ─── Authenticated: Referee Dashboard ─────────────────────────────────────
 
   @UseGuards(AuthGuard('jwt'))

@@ -400,6 +400,17 @@ export class ReferralService {
     return this.userModel.findOne({ refereeCode: code, role: 'referee', status: 'active' }).exec();
   }
 
+  /** Safe public lookup — only name + storefront slug, used to build "back to X's store" links. */
+  async resolvePublicRefereeInfo(code: string): Promise<{ name: string; refereeStoreSlug: string } | null> {
+    const referee = await this.userModel
+      .findOne({ refereeCode: code, role: 'referee', status: 'active' })
+      .select('name refereeStoreSlug')
+      .lean()
+      .exec();
+    if (!referee) return null;
+    return { name: (referee as any).name, refereeStoreSlug: (referee as any).refereeStoreSlug };
+  }
+
   // ─── Credit Commission on Sale ────────────────────────────────────────────
 
   async creditRefereeCommission(order: OrderDocument): Promise<void> {

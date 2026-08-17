@@ -30,6 +30,7 @@ function ProductContent() {
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
+  const [refereeStore, setRefereeStore] = useState<{ name: string; refereeStoreSlug: string } | null>(null);
 
   const goBackToMarketplace = () => {
     const ret = getMarketplaceReturn();
@@ -62,6 +63,28 @@ function ProductContent() {
       cancelled = true;
     };
   }, [productId]);
+
+  useEffect(() => {
+    if (!refCode) {
+      setRefereeStore(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`${apiBase()}/referral/resolve/${encodeURIComponent(refCode)}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (!cancelled && data) setRefereeStore(data);
+        }
+      } catch {
+        // ignore — falls back to the normal marketplace/store back links
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [refCode]);
 
   const hasSizes = product?.hasSizes !== false && (product?.sizes?.length ?? 0) > 0;
   const hasColors = product?.hasColors !== false && (product?.colors?.length ?? 0) > 0;
@@ -309,13 +332,21 @@ function ProductContent() {
   return (
     <main className="min-h-screen bg-[#f6f7f9]">
       <div className="max-w-6xl mx-auto px-4 pt-24 pb-4 flex items-center justify-between gap-3">
-        <button type="button" onClick={goBackToMarketplace} className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-900">
-          <ArrowLeft className="w-3.5 h-3.5" /> Back to marketplace
-        </button>
-        {storeSlug && (
-          <Link href={storeHomePath(storeSlug)} className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:text-slate-900">
-            <Store className="w-4 h-4" /> {shopName}
+        {refereeStore ? (
+          <Link href={`/ref/${refereeStore.refereeStoreSlug}`} className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-900">
+            <ArrowLeft className="w-3.5 h-3.5" /> Back to {refereeStore.name}'s store
           </Link>
+        ) : (
+          <>
+            <button type="button" onClick={goBackToMarketplace} className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-900">
+              <ArrowLeft className="w-3.5 h-3.5" /> Back to marketplace
+            </button>
+            {storeSlug && (
+              <Link href={storeHomePath(storeSlug)} className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:text-slate-900">
+                <Store className="w-4 h-4" /> {shopName}
+              </Link>
+            )}
+          </>
         )}
       </div>
 
@@ -344,11 +375,23 @@ function ProductContent() {
             </div>
           </div>
 
-          <div className="flex gap-6 py-6 border-y border-slate-200">
+          <div className="flex flex-wrap gap-6 py-6 border-y border-slate-200">
             <div>
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Tailoring Time</p>
               <p className="text-sm font-semibold text-slate-900">{product.tailoringTime || 'Immediate'}</p>
             </div>
+            <div>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">In Stock</p>
+              <p className={`text-sm font-semibold ${soldOut ? 'text-red-600' : 'text-slate-900'}`}>
+                {soldOut ? 'Sold out' : `${product.stock} available`}
+              </p>
+            </div>
+            {(product.vendorLocation || product.region) && (
+              <div>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Location</p>
+                <p className="text-sm font-semibold text-slate-900">{product.vendorLocation || product.region}</p>
+              </div>
+            )}
           </div>
 
           <div className="py-8 space-y-8 flex-1">

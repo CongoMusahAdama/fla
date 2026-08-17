@@ -263,7 +263,8 @@ export default function Navbar() {
   const storeSlug = storeSlugMatch?.[1] ? decodeURIComponent(storeSlugMatch[1]) : null;
   const isStorePage = Boolean(storeSlug);
   const isRefereeStorePage = Boolean(pathname?.match(/^\/ref\/([^/]+)/));
-  const hideGlobalSearch = isStorePage || isRefereeStorePage;
+  const isReferredProductPage = Boolean(pathname?.startsWith('/product/') && searchParams?.get('ref'));
+  const hideGlobalSearch = isStorePage || isRefereeStorePage || isReferredProductPage;
   const storeHref = storeSlug ? storeHomePath(storeSlug) : '/';
 
   return (
