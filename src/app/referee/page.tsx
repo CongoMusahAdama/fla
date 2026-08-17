@@ -102,17 +102,16 @@ function RefereeAuthContent() {
 
     const handleMomoNumberChange = async (value: string) => {
         setMomoNumber(value);
-        if (value.length < 10) {
-            setMomoAccountName('');
-            return;
-        }
+        if (value.length < 10) return;
         setIsLookingUpMomo(true);
         try {
             const response = await fetch(`${API_URL}/payments/lookup-name/${momoNetwork}/${value}`);
             const data = await response.json();
-            setMomoAccountName(data.success && data.name ? data.name : 'Name not found');
+            // Only pre-fill on a real match — never overwrite what the user may have already typed,
+            // and don't block them if the lookup service can't verify the name.
+            if (data.success && data.name) setMomoAccountName(data.name);
         } catch {
-            setMomoAccountName('Verification service unavailable');
+            // Lookup unavailable — account name stays editable so they can enter it manually.
         } finally {
             setIsLookingUpMomo(false);
         }
@@ -147,8 +146,8 @@ function RefereeAuthContent() {
             Swal.fire({ icon: 'warning', title: 'Region required', text: 'Please select your region.' });
             return;
         }
-        if (!momoNumber || !momoAccountName || momoAccountName === 'Name not found') {
-            Swal.fire({ icon: 'warning', title: 'Payout details required', text: 'Please enter a valid MoMo/bank number for us to pay your commissions.' });
+        if (!momoNumber || momoNumber.length < 10 || !momoAccountName.trim()) {
+            Swal.fire({ icon: 'warning', title: 'Payout details required', text: 'Please enter your MoMo/bank number and account holder name so we can pay your commissions.' });
             return;
         }
         if (!ghanaCardFront || !selfie) {
@@ -293,11 +292,10 @@ function RefereeAuthContent() {
                                     </div>
                                     <AuthInput label="MoMo Number" type="tel" placeholder="024XXXXXXX" required value={momoNumber} onChange={handleMomoNumberChange} icon={CreditCard} />
                                 </div>
-                                {momoNumber.length >= 10 && (
-                                    <p className={`text-xs -mt-3 ${isLookingUpMomo ? 'text-slate-400' : momoAccountName === 'Name not found' ? 'text-red-500' : 'text-emerald-600'}`}>
-                                        {isLookingUpMomo ? 'Verifying account…' : momoAccountName}
-                                    </p>
+                                {isLookingUpMomo && (
+                                    <p className="text-xs -mt-3 text-slate-400">Verifying account…</p>
                                 )}
+                                <AuthInput label="Account Holder Name" type="text" placeholder="Name on the MoMo/bank account" required value={momoAccountName} onChange={setMomoAccountName} icon={User} />
 
                                 <DocUpload label="Ghana Card (Front)" file={ghanaCardFront} onChange={setGhanaCardFront} />
                                 <DocUpload label="Ghana Card (Back)" file={ghanaCardBack} onChange={setGhanaCardBack} />

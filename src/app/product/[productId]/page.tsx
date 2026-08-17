@@ -437,7 +437,7 @@ function ProductContent() {
 
           <div className="pt-6 mt-auto">
             <div className="flex flex-col sm:flex-row gap-3">
-              <button onClick={handleAddToCart} disabled={soldOut || isAdding} className="flex-1 h-14 bg-white border-2 border-slate-200 text-slate-900 font-black text-sm uppercase tracking-widest rounded-2xl hover:border-slate-900 transition-all disabled:opacity-50">
+              <button onClick={handleAddToCart} disabled={soldOut || isAdding} className="flex-1 h-14 bg-white border-2 border-slate-400 shadow-sm text-slate-900 font-black text-sm uppercase tracking-widest rounded-2xl hover:border-slate-900 hover:shadow-md transition-all disabled:opacity-50">
                 {isAdding ? 'Adding...' : 'Add to Cart'}
               </button>
               <button onClick={handleBuyNow} disabled={soldOut} className="flex-1 h-14 bg-brand-lemon text-slate-900 font-black text-sm uppercase tracking-widest rounded-2xl hover:bg-brand-lemon-hover shadow-xl shadow-brand-lemon/20 transition-all disabled:opacity-50">
