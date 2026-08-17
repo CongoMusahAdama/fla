@@ -5,6 +5,7 @@ import { EmailService } from '../email/email.service';
 import { OtpService } from '../otp/otp.service';
 import { SmsService } from '../common/sms.service';
 import { introSubscriptionFields } from '../users/vendor-subscription.util';
+import { getFrontendBaseUrl } from '../common/frontend-url.util';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 
@@ -323,9 +324,7 @@ export class AuthService {
 
     // Paystack subaccount is created only when admin taps KYC Approve — not at onboard.
 
-    const loginUrl =
-      process.env.FRONTEND_URL?.replace(/\/$/, '') ||
-      'https://flamingo-store1.com';
+    const loginUrl = getFrontendBaseUrl();
     const authUrl = `${loginUrl}/auth?view=login&role=vendor`;
 
     await this.emailService

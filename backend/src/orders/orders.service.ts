@@ -10,6 +10,7 @@ import { User, UserDocument } from '../users/schemas/user.schema';
 import { PaystackService } from '../common/paystack.service';
 import { FLA_CONSTANTS } from '../common/constants';
 import { resolveCommissionRate } from '../common/paystack-split.util';
+import { getFrontendBaseUrl } from '../common/frontend-url.util';
 import {
   normalizeWhatsAppPhone,
   buildWaMeLink,
@@ -403,7 +404,7 @@ export class OrdersService implements OnModuleInit {
       });
       const savedOrder = await createdOrder.save();
 
-      const frontendBase = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
+      const frontendBase = getFrontendBaseUrl('http://localhost:3000');
 
       // Guests with a storefront return path should not hit /dashboard (forces login).
       const guestCallback = !hasCustomer ? this.sanitizeCallbackPath(callbackPath) : null;
@@ -474,7 +475,7 @@ export class OrdersService implements OnModuleInit {
       reference: `${orderId.toString()}_${Date.now()}`,
       amount: totalProductAmount,
       email: order.customerEmail || 'customer@fla.com',
-      callback_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard?order_id=${orderId}`,
+      callback_url: `${getFrontendBaseUrl('http://localhost:3000')}/dashboard?order_id=${orderId}`,
       metadata: {
         orderId: orderId.toString(),
         customerName: order.customerName,

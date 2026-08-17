@@ -37,7 +37,7 @@ async function bootstrap() {
     'https://flamingo-store1.com',
     'http://www.flamingo-store1.com',
     'https://www.flamingo-store1.com',
-    process.env.FRONTEND_URL,
+    process.env.FRONTEND_URL?.trim().replace(/\/+$/, ''),
   ].filter(Boolean);
 
   // Allow any Vercel deployment URL (production alias + preview builds).

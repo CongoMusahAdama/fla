@@ -32,6 +32,7 @@ import {
   planFieldsAfterPayment,
 } from './vendor-subscription.util';
 import { FLA_CONSTANTS } from '../common/constants';
+import { getFrontendBaseUrl } from '../common/frontend-url.util';
 
 import * as crypto from 'crypto';
 
@@ -588,7 +589,7 @@ export class UsersService implements OnModuleInit {
     );
 
     if ((user as any)?.phone) {
-      const loginUrl = process.env.FRONTEND_URL?.replace(/\/$/, '') || 'https://flamingo-store1.com';
+      const loginUrl = getFrontendBaseUrl();
       const slug = (user as any).refereeStoreSlug;
       const storeBit = slug ? ` Your store: ${loginUrl}/ref/${slug}` : '';
       this.sendRegistrationSms(
@@ -928,7 +929,7 @@ export class UsersService implements OnModuleInit {
       platform: {
         name: 'FLA Purchase',
         legalName: 'FLA Logistics',
-        website: process.env.FRONTEND_URL || 'https://flamingo-store1.com',
+        website: getFrontendBaseUrl(),
       },
     };
   }
@@ -1002,8 +1003,7 @@ export class UsersService implements OnModuleInit {
     );
 
     if ((user as any)?.phone) {
-      const loginUrl =
-        process.env.FRONTEND_URL?.replace(/\/$/, '') || 'https://flamingo-store1.com';
+      const loginUrl = getFrontendBaseUrl();
       const shop = (user as any).shopName || (user as any).name;
       const slug = (user as any).storeSlug;
       const storeBit = slug ? ` Your store: ${loginUrl}/store/${slug}` : '';

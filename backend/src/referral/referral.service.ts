@@ -22,6 +22,7 @@ import { SmsService } from '../common/sms.service';
 import { ConfigService } from '@nestjs/config';
 import { slugifyShopName, slugCandidates } from '../common/slug.util';
 import { FLA_CONSTANTS } from '../common/constants';
+import { getFrontendBaseUrl } from '../common/frontend-url.util';
 
 const BCRYPT_ROUNDS = 8;
 
@@ -378,9 +379,7 @@ export class ReferralService {
   // ─── Referral Link Builder ────────────────────────────────────────────────
 
   buildReferralLink(productId: string, refereeCode: string): string {
-    const base =
-      this.configService.get<string>('FRONTEND_URL')?.replace(/\/$/, '') ||
-      'https://flamingo-store1.com';
+    const base = getFrontendBaseUrl();
     return `${base}/product/${productId}?ref=${refereeCode}`;
   }
 
@@ -526,9 +525,7 @@ export class ReferralService {
         .exec(),
     ]);
 
-    const base =
-      this.configService.get<string>('FRONTEND_URL')?.replace(/\/$/, '') ||
-      'https://flamingo-store1.com';
+    const base = getFrontendBaseUrl();
 
     return {
       todayEarnings: todayResult[0]?.total || 0,

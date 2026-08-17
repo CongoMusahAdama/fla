@@ -22,6 +22,7 @@ import { TempVerification } from '../common/schemas/temp-verification.schema';
 import { UserDocument } from '../users/schemas/user.schema';
 import { ConfigService } from '@nestjs/config';
 import { AuthGuard } from '@nestjs/passport';
+import { getFrontendBaseUrl } from '../common/frontend-url.util';
 import { WithdrawalService } from './withdrawal.service';
 import { RequestWithdrawalDto } from './dto/request-withdrawal.dto';
 import { amountDueForRenewal } from '../users/vendor-subscription.util';
@@ -199,13 +200,11 @@ export class PaymentsController {
                 amountGhs: 0,
                 vendor: activated.vendor,
                 message:
-                    'Product uploads unlocked for 30 days. Paystack billing is temporarily paused while we fix the payment gateway.',
+                    'Product uploads unlocked for good. Paystack billing is temporarily paused while we fix the payment gateway.',
             };
         }
 
-        const frontend =
-            this.configService.get<string>('FRONTEND_URL')?.replace(/\/$/, '') ||
-            'https://flamingo-store1.com';
+        const frontend = getFrontendBaseUrl();
         const vendorEmail = String((vendor as any).email || '').trim();
         const email =
             vendorEmail && vendorEmail.includes('@')

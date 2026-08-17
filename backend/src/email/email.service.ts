@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as SibApiV3Sdk from '@sendinblue/client';
+import { getFrontendBaseUrl } from '../common/frontend-url.util';
 
 @Injectable()
 export class EmailService implements OnModuleInit {
@@ -153,7 +154,7 @@ export class EmailService implements OnModuleInit {
         const content = `
             <p class="greeting">Hi ${name},</p>
             <p class="message">Your vendor account for <strong>${shopName}</strong> is verified. Your application is under admin review — we'll notify you once your studio is approved.</p>
-            <a href="${this.configService.get('FRONTEND_URL') || 'http://localhost:3000'}/vendor" class="cta-button">Go to Vendor Dashboard</a>
+            <a href="${getFrontendBaseUrl('http://localhost:3000')}/vendor" class="cta-button">Go to Vendor Dashboard</a>
         `;
 
         await this.sendEmail(email, `Welcome to FLA, ${shopName}!`, this.wrapLayout('Welcome to FLA!', content, true));
@@ -169,7 +170,7 @@ export class EmailService implements OnModuleInit {
                 <p class="otp-label" style="margin-top: 15px;">Temporary Password</p>
                 <p style="margin: 5px 0; font-weight: 700; color: #0f172a;">${password}</p>
             </div>
-            <a href="${this.configService.get('FRONTEND_URL') || 'http://localhost:3000'}/auth?type=login" class="cta-accent">Log In to Studio Hub</a>
+            <a href="${getFrontendBaseUrl('http://localhost:3000')}/auth?type=login" class="cta-accent">Log In to Studio Hub</a>
         `;
 
         await this.sendEmail(email, `Your FLA Studio Account is Ready: ${shopName}`, this.wrapLayout('Studio Account Ready', content));
@@ -208,7 +209,7 @@ export class EmailService implements OnModuleInit {
     }
 
     async sendPasswordResetEmail(email: string, name: string, token: string): Promise<void> {
-        const resetUrl = `${this.configService.get('FRONTEND_URL') || 'http://localhost:3000'}/auth/reset-password?token=${token}`;
+        const resetUrl = `${getFrontendBaseUrl('http://localhost:3000')}/auth/reset-password?token=${token}`;
         const content = `
             <p class="greeting">Hello ${name},</p>
             <p class="message">Please click the button below to reset your password. This link is valid for 1 hour.</p>
@@ -240,7 +241,7 @@ export class EmailService implements OnModuleInit {
                 <p style="margin: 0; color: #64748b;">Total Amount</p>
                 <p style="font-size: 24px; font-weight: 900; color: #0f172a; margin: 5px 0;">GH₵ ${amount.toLocaleString()}</p>
             </div>
-            <a href="${this.configService.get('FRONTEND_URL') || 'http://localhost:3000'}/dashboard" class="cta-button">Track Order</a>
+            <a href="${getFrontendBaseUrl('http://localhost:3000')}/dashboard" class="cta-button">Track Order</a>
         `;
 
         await this.sendEmail(email, `Order Confirmation: #ORD-${orderId.slice(-6).toUpperCase()}`, this.wrapLayout('Order Received!', content));
@@ -250,7 +251,7 @@ export class EmailService implements OnModuleInit {
         const content = `
             <p class="greeting">Hello ${name},</p>
             <p class="message">A delivery fee of <strong>GH₵ ${fee}</strong> has been added to your Order <strong>#ORD-${orderId.slice(-6).toUpperCase()}</strong>.</p>
-            <a href="${this.configService.get('FRONTEND_URL') || 'http://localhost:3000'}/dashboard" class="cta-button">Pay Delivery Fee</a>
+            <a href="${getFrontendBaseUrl('http://localhost:3000')}/dashboard" class="cta-button">Pay Delivery Fee</a>
         `;
 
         await this.sendEmail(email, `Delivery Fee for Order #ORD-${orderId.slice(-6).toUpperCase()}`, this.wrapLayout('Delivery Fee Update', content));
@@ -266,7 +267,7 @@ export class EmailService implements OnModuleInit {
                 <p style="margin: 15px 0 0 0; font-size: 13px; color: #64748b; text-transform: uppercase;">Customer</p>
                 <p style="font-weight: 700; margin: 5px 0;">${customerName}</p>
             </div>
-            <a href="${this.configService.get('FRONTEND_URL') || 'http://localhost:3000'}/admin" class="cta-button">Review in Admin HQ</a>
+            <a href="${getFrontendBaseUrl('http://localhost:3000')}/admin" class="cta-button">Review in Admin HQ</a>
         `;
 
         await this.sendEmail(adminEmail, `NEW ORDER: #ORD-${orderId.slice(-6).toUpperCase()}`, this.wrapLayout('NEW ORDER ALERT', content));
@@ -276,7 +277,7 @@ export class EmailService implements OnModuleInit {
         const content = `
             <p class="greeting">Hello ${shopName},</p>
             <p class="message">You have received a new order <strong>#ORD-${orderId.slice(-6).toUpperCase()}</strong>.</p>
-            <a href="${this.configService.get('FRONTEND_URL') || 'http://localhost:3000'}/vendor" class="cta-accent">Manage in Studio</a>
+            <a href="${getFrontendBaseUrl('http://localhost:3000')}/vendor" class="cta-accent">Manage in Studio</a>
         `;
 
         await this.sendEmail(vendorEmail, `New Order: #ORD-${orderId.slice(-6).toUpperCase()}`, this.wrapLayout('New Order Alert!', content));
@@ -295,7 +296,7 @@ export class EmailService implements OnModuleInit {
         const content = `
             <p>Order <strong>#ORD-${orderId.slice(-6).toUpperCase()}</strong></p>
             <p>${reason}</p>
-            <a href="${this.configService.get('FRONTEND_URL') || 'http://localhost:3000'}/admin" class="cta-button">Investigate Dispute</a>
+            <a href="${getFrontendBaseUrl('http://localhost:3000')}/admin" class="cta-button">Investigate Dispute</a>
         `;
 
         await this.sendEmail(adminEmail, `DISPUTE FILED: #ORD-${orderId.slice(-6).toUpperCase()}`, this.wrapLayout('DISPUTE FILED', content));
@@ -325,7 +326,7 @@ export class EmailService implements OnModuleInit {
         const content = `
             <p class="greeting">Hello ${name},</p>
             <p class="message">Order <strong>#ORD-${orderId.slice(-6).toUpperCase()}</strong> has been received by Skynet Express. Tracking: <strong>${trackingNumber}</strong></p>
-            <a href="${this.configService.get('FRONTEND_URL') || 'http://localhost:3000'}/dashboard" class="cta-accent">Track on FLA</a>
+            <a href="${getFrontendBaseUrl('http://localhost:3000')}/dashboard" class="cta-accent">Track on FLA</a>
         `;
 
         await this.sendEmail(email, `Skynet Handover: Order #ORD-${orderId.slice(-6).toUpperCase()}`, this.wrapLayout('Logistics Handover', content, true));
