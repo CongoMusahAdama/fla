@@ -135,8 +135,8 @@ export default function VendorAgreementPage() {
   const shop = v.shopName || v.name || 'Vendor';
   const starts = v.subscriptionStartsAt ? new Date(v.subscriptionStartsAt).toLocaleDateString() : '—';
   const ends = v.subscriptionEndsAt ? new Date(v.subscriptionEndsAt).toLocaleDateString() : '—';
-  const plan = v.subscriptionLabel || (v.subscriptionPlan === 'monthly' ? 'Monthly Partner Plan' : v.subscriptionPlan === 'annual' ? 'Annual Partner Plan' : 'Intro month');
-  const price = v.subscriptionPriceText || 'GHS 100 / month';
+  const plan = v.subscriptionLabel || 'Lifetime Partner Plan';
+  const price = v.subscriptionPriceText || 'GHS 100 one-time';
 
   return (
     <main className="min-h-screen bg-slate-100 print:bg-white">
@@ -277,7 +277,7 @@ export default function VendorAgreementPage() {
             <strong className="text-slate-900">Marketplace & storefront.</strong> Vendor may sell through the FLA marketplace and a dedicated storefront URL once identity documents are approved by FLA and the subscription fee is paid via Paystack.
           </p>
           <p>
-            <strong className="text-slate-900">Onboarding & KYC.</strong> Vendor must upload valid identification and supporting business documents after first login. Product listing unlocks after FLA admin approval and successful subscription payment (GHS 100 / month).
+            <strong className="text-slate-900">Onboarding & KYC.</strong> Vendor must upload valid identification and supporting business documents after first login. Product listing unlocks after FLA admin approval and a successful one-time subscription payment of GHS 100, valid for as long as the account remains active.
           </p>
           <p>
             <strong className="text-slate-900">Payments.</strong> Customer payments are processed via FLA&apos;s payment provider with an agreed platform split; Vendor payouts settle to the registered MoMo/bank account on file.

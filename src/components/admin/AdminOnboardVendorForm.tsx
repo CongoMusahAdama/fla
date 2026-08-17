@@ -47,9 +47,8 @@ export default function AdminOnboardVendorForm({ token, onCreated, onClose }: Pr
   const [momoNetwork, setMomoNetwork] = useState('MTN');
   const [momoNumber, setMomoNumber] = useState('');
   const [accountName, setAccountName] = useState('');
-  const [plan, setPlan] = useState<'intro' | 'monthly'>('monthly');
-  const [planLabel, setPlanLabel] = useState('Monthly sales plan');
-  const [planPrice, setPlanPrice] = useState('GHS 100 / month');
+  const [planLabel, setPlanLabel] = useState('Lifetime sales access');
+  const [planPrice, setPlanPrice] = useState('GHS 100 one-time');
   const [submitting, setSubmitting] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [result, setResult] = useState<{
@@ -65,12 +64,6 @@ export default function AdminOnboardVendorForm({ token, onCreated, onClose }: Pr
       if (logoPreview?.startsWith('blob:')) URL.revokeObjectURL(logoPreview);
     };
   }, [logoPreview]);
-
-  const applyPlanDefaults = (next: 'intro' | 'monthly') => {
-    setPlan(next);
-    setPlanLabel('Monthly sales plan');
-    setPlanPrice('GHS 100 / month');
-  };
 
   const onLogoSelected = (file: File | null) => {
     if (logoPreview?.startsWith('blob:')) URL.revokeObjectURL(logoPreview);
@@ -193,10 +186,10 @@ export default function AdminOnboardVendorForm({ token, onCreated, onClose }: Pr
               accountName: accountName || name,
             },
           ],
-          subscriptionPlan: plan,
+          subscriptionPlan: 'lifetime',
           subscriptionLabel: planLabel,
           subscriptionPriceText: planPrice,
-          subscriptionPriceGhs: plan === 'monthly' ? 50 : 10,
+          subscriptionPriceGhs: 100,
         }),
       });
 
@@ -483,11 +476,11 @@ export default function AdminOnboardVendorForm({ token, onCreated, onClose }: Pr
 
             <div className="p-4 border border-brand-blue bg-brand-blue/[0.04]">
               <div className="flex items-center justify-between mb-1">
-                <span className="text-sm font-semibold text-slate-900">Monthly Plan</span>
+                <span className="text-sm font-semibold text-slate-900">Lifetime Plan</span>
                 <Check className="w-4 h-4 text-brand-blue" />
               </div>
-              <p className="text-xs text-slate-500 leading-relaxed">Standard monthly sales plan for vendors.</p>
-              <p className="mt-3 text-sm font-semibold text-slate-900">GHS 100 / month</p>
+              <p className="text-xs text-slate-500 leading-relaxed">One-time payment for permanent sales access — no renewals.</p>
+              <p className="mt-3 text-sm font-semibold text-slate-900">GHS 100 one-time</p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

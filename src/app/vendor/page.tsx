@@ -39,7 +39,7 @@ const VENDOR_SECTIONS: VendorSection[] = [
     'dashboard', 'products', 'orders', 'wallet', 'reviews', 'notifications', 'settings', 'help',
 ];
 
-const SUBSCRIPTION_MONTHLY_GHS = 100;
+const SUBSCRIPTION_ONE_TIME_GHS = 100;
 
 function VendorDashboardInner() {
     const { categories: PRODUCT_CATEGORIES } = useProductCategories({ includeAll: true });
@@ -143,8 +143,8 @@ function VendorDashboardInner() {
     const subscriptionExpiringSoon =
         canSell && !subscriptionExpired && subscriptionDaysLeft != null && subscriptionDaysLeft <= 5;
     const canUploadProducts = canSell && !subscriptionExpired;
-    // Flat GHS 100 / month for sales access (every billing period).
-    const subscriptionAmountDue = SUBSCRIPTION_MONTHLY_GHS;
+    // Flat GHS 100 one-time payment for sales access — paid once, kept forever.
+    const subscriptionAmountDue = SUBSCRIPTION_ONE_TIME_GHS;
 
     const setActiveSection = (section: VendorSection) => {
         setActiveSectionState(section);

@@ -17,16 +17,8 @@ export function buildVendorAgreementPdfBuffer(data: AgreementLetterPayload): Pro
 
     const v = data.vendor || {};
     const shop = v.shopName || v.name || 'Vendor';
-    const plan =
-      v.subscriptionLabel ||
-      (v.subscriptionPlan === 'monthly'
-        ? 'Monthly Partner Plan'
-        : v.subscriptionPlan === 'annual'
-          ? 'Annual Partner Plan'
-          : 'Intro month');
-    const price =
-      v.subscriptionPriceText ||
-      (v.subscriptionPlan === 'monthly' ? 'GHS 50 / month' : 'GHS 10 / 30 days');
+    const plan = v.subscriptionLabel || 'Lifetime Partner Plan';
+    const price = v.subscriptionPriceText || 'GHS 100 one-time';
     const starts = v.subscriptionStartsAt
       ? new Date(v.subscriptionStartsAt).toLocaleDateString()
       : '—';
@@ -102,10 +94,10 @@ export function buildVendorAgreementPdfBuffer(data: AgreementLetterPayload): Pro
     section('2. Subscription plan');
     const rows: Array<[string, string]> = [
       ['Plan', plan],
-      ['Type', String(v.subscriptionPlan || 'trial').toUpperCase()],
+      ['Type', String(v.subscriptionPlan || 'lifetime').toUpperCase()],
       ['Commercial terms', price],
       ['Start date', starts],
-      ['End / renewal', ends],
+      ['Expiry', ends === '—' ? 'No expiry — lifetime access' : ends],
     ];
     rows.forEach(([label, value]) => {
       doc.font('Helvetica-Bold').text(`${label}: `, { continued: true });
