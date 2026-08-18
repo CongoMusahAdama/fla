@@ -300,9 +300,10 @@ export class OrdersService implements OnModuleInit {
       const fetchedRate = await this.settingsService.getSetting('platform_commission');
       const commissionRate = resolveCommissionRate(fetchedRate);
       const adminCommission = totalProductAmount * (commissionRate / 100);
-      // Paystack's transaction fee is borne by the vendor, deducted from their payout.
+      // Paystack's transaction fee is borne by the platform, deducted from its own commission —
+      // not from the vendor's payout. Tracked here for reporting (platform's true net = adminCommission - paystackFee).
       const paystackFee = Math.round(totalProductAmount * (FLA_CONSTANTS.PAYSTACK_FEE_RATE / 100) * 100) / 100;
-      const vendorShare = Math.max(0, totalProductAmount - adminCommission - paystackFee);
+      const vendorShare = Math.max(0, totalProductAmount - adminCommission);
 
       const vendor = await this.userModel.findById(createOrderDto.vendorId).exec();
 
@@ -344,7 +345,6 @@ export class OrdersService implements OnModuleInit {
               { subaccount: vendor.paystackSubaccountCode, share: vendorSharePercent },
               { subaccount: refereePaystackSubaccountCode, share: refereeSharePercent },
             ],
-            bearer_subaccount: vendor.paystackSubaccountCode,
           });
           if (split?.split_code) {
             paystackSplitCode = split.split_code;
@@ -499,7 +499,6 @@ export class OrdersService implements OnModuleInit {
               { subaccount: vendor.paystackSubaccountCode, share: vendorSharePercent },
               { subaccount: referee.paystackSubaccountCode, share: refereeSharePercent },
             ],
-            bearer_subaccount: vendor.paystackSubaccountCode,
           });
           if (split?.split_code) {
             splitCode = split.split_code;

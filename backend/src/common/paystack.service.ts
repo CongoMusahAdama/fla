@@ -73,11 +73,13 @@ export class PaystackService {
      * Creates a Transaction Split covering multiple subaccounts on one payment
      * (the basic `subaccount` param on initialize only supports one subaccount).
      * Used to auto-pay a referee's commission alongside the vendor's share.
+     * bearer_type is fixed to 'account' — the platform's main account absorbs
+     * Paystack's processing fee (out of its own commission), so subaccounts
+     * (vendor, referee) always receive their full designated share.
      */
     async createSplit(data: {
         name: string;
         subaccounts: Array<{ subaccount: string; share: number }>;
-        bearer_subaccount: string;
     }) {
         try {
             const response = await axios.post(
@@ -87,8 +89,7 @@ export class PaystackService {
                     type: 'percentage',
                     currency: 'GHS',
                     subaccounts: data.subaccounts,
-                    bearer_type: 'subaccount',
-                    bearer_subaccount: data.bearer_subaccount,
+                    bearer_type: 'account',
                 },
                 { headers: this.headers, timeout: 10000 },
             );
