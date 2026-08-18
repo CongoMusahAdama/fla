@@ -133,23 +133,47 @@ export class ReferralService {
 
     const alreadyPicked = await this.refereeProductSelectionModel.distinct('productId');
 
-    const candidates = await this.productModel
+    const pool = await this.productModel
       .find({
         vendorId: { $in: vendorIds },
         region: referee.region,
         isActive: true,
         _id: { $nin: alreadyPicked },
       })
-      .select('_id')
-      .limit(slotsToFill)
+      .select('_id vendorId')
+      .sort({ createdAt: -1 })
+      .limit(300)
       .exec();
 
-    if (!candidates.length) return;
+    if (!pool.length) return;
+
+    // Spread picks across vendors (round-robin) instead of taking whichever
+    // vendor's products happen to sort first — a vendor with many listings
+    // would otherwise fill every auto-slot on its own.
+    const byVendor = new Map<string, any[]>();
+    for (const p of pool) {
+      const key = String((p as any).vendorId);
+      if (!byVendor.has(key)) byVendor.set(key, []);
+      byVendor.get(key)!.push(p);
+    }
+    const vendorGroups = Array.from(byVendor.values());
+
+    const picked: any[] = [];
+    let round = 0;
+    while (picked.length < slotsToFill && vendorGroups.some((g) => round < g.length)) {
+      for (const group of vendorGroups) {
+        if (picked.length >= slotsToFill) break;
+        if (round < group.length) picked.push(group[round]);
+      }
+      round++;
+    }
+
+    if (!picked.length) return;
 
     await this.refereeProductSelectionModel.insertMany(
-      candidates.map((p) => ({
+      picked.map((p) => ({
         refereeId: new Types.ObjectId(refereeId),
-        productId: (p as any)._id,
+        productId: p._id,
         source: 'auto',
       })),
       { ordered: false },
