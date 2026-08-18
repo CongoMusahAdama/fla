@@ -116,7 +116,36 @@ export class ReferralService {
     return activeVendors.map((v) => String((v as any)._id));
   }
 
-  /** Tops up a referee's auto-assigned slots (up to REFEREE_AUTO_FILL_COUNT) from their region. */
+  /** Spreads a candidate pool across vendors (round-robin) instead of taking whichever
+   * vendor's products happen to sort first — a vendor with many listings would
+   * otherwise fill every auto-slot on its own. */
+  private roundRobinByVendor(pool: any[]): any[] {
+    const byVendor = new Map<string, any[]>();
+    for (const p of pool) {
+      const key = String((p as any).vendorId);
+      if (!byVendor.has(key)) byVendor.set(key, []);
+      byVendor.get(key)!.push(p);
+    }
+    const vendorGroups = Array.from(byVendor.values());
+    const ordered: any[] = [];
+    let round = 0;
+    while (vendorGroups.some((g) => round < g.length)) {
+      for (const group of vendorGroups) {
+        if (round < group.length) ordered.push(group[round]);
+      }
+      round++;
+    }
+    return ordered;
+  }
+
+  /**
+   * Tops up a referee's auto-assigned slots (up to REFEREE_AUTO_FILL_COUNT).
+   * Prefers the referee's own region, but guarantees exposure across at least
+   * REFEREE_AUTO_FILL_MIN_VENDORS distinct vendors — widening beyond the region
+   * when it doesn't have enough vendor variety — so every vendor keeps getting
+   * a shot at sales as more referees join, not just whichever ones a region
+   * happens to be dominated by.
+   */
   async autoFillRefereeStore(refereeId: string): Promise<void> {
     const referee = await this.userModel.findById(refereeId).select('region').exec();
     if (!referee?.region) return;
@@ -133,45 +162,33 @@ export class ReferralService {
 
     const alreadyPicked = await this.refereeProductSelectionModel.distinct('productId');
 
-    const pool = await this.productModel
-      .find({
-        vendorId: { $in: vendorIds },
-        region: referee.region,
-        isActive: true,
-        _id: { $nin: alreadyPicked },
-      })
+    const regionPool = await this.productModel
+      .find({ vendorId: { $in: vendorIds }, region: referee.region, isActive: true, _id: { $nin: alreadyPicked } })
       .select('_id vendorId')
       .sort({ createdAt: -1 })
       .limit(300)
       .exec();
 
-    if (!pool.length) return;
+    const regionVendorCount = new Set(regionPool.map((p: any) => String(p.vendorId))).size;
 
-    // Spread picks across vendors (round-robin) instead of taking whichever
-    // vendor's products happen to sort first — a vendor with many listings
-    // would otherwise fill every auto-slot on its own.
-    const byVendor = new Map<string, any[]>();
-    for (const p of pool) {
-      const key = String((p as any).vendorId);
-      if (!byVendor.has(key)) byVendor.set(key, []);
-      byVendor.get(key)!.push(p);
-    }
-    const vendorGroups = Array.from(byVendor.values());
-
-    const picked: any[] = [];
-    let round = 0;
-    while (picked.length < slotsToFill && vendorGroups.some((g) => round < g.length)) {
-      for (const group of vendorGroups) {
-        if (picked.length >= slotsToFill) break;
-        if (round < group.length) picked.push(group[round]);
-      }
-      round++;
+    // If the region doesn't have enough distinct vendors, use a nationwide pool
+    // instead — round-robinning a few vendors' full catalogs would otherwise
+    // fill every slot from just those vendors before ever reaching the rest.
+    let pool = regionPool;
+    if (regionVendorCount < FLA_CONSTANTS.REFEREE_AUTO_FILL_MIN_VENDORS) {
+      pool = await this.productModel
+        .find({ vendorId: { $in: vendorIds }, isActive: true, _id: { $nin: alreadyPicked } })
+        .select('_id vendorId')
+        .sort({ createdAt: -1 })
+        .limit(300)
+        .exec();
     }
 
+    const picked = this.roundRobinByVendor(pool).slice(0, slotsToFill);
     if (!picked.length) return;
 
     await this.refereeProductSelectionModel.insertMany(
-      picked.map((p) => ({
+      picked.map((p: any) => ({
         refereeId: new Types.ObjectId(refereeId),
         productId: p._id,
         source: 'auto',

@@ -12,12 +12,14 @@ export const FLA_CONSTANTS = {
   SUBSCRIPTION_REMINDER_DAYS: 5,
   /** Referee affiliate commission taken from vendor's payout (%) */
   REFEREE_COMMISSION_RATE: 2,
-  /** Paystack transaction fee, borne by the vendor and deducted from their payout (%) */
+  /** Paystack transaction fee, borne by the platform out of its own commission (%) */
   PAYSTACK_FEE_RATE: 1.95,
   /** Max products a referee can feature in their curated store */
   REFEREE_STORE_CAP: 50,
   /** Of the cap, how many the platform auto-fills for the referee */
   REFEREE_AUTO_FILL_COUNT: 10,
+  /** Auto-fill should spread across at least this many distinct vendors when possible */
+  REFEREE_AUTO_FILL_MIN_VENDORS: 5,
 };
 
 /** Must match src/lib/fla-terms.ts FLA_TERMS_VERSION */
