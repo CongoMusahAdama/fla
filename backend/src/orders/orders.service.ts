@@ -248,6 +248,9 @@ export class OrdersService implements OnModuleInit {
         customerPhone: dto.customerPhone,
         paymentMethod: 'paystack',
         notes: dto.notes || (multiVendor ? 'Multi-vendor bag checkout' : undefined),
+        // Each vendor's order gets its own referee attribution — a cart can mix
+        // items discovered via different referees' links.
+        refereeCode: group.refereeCode || dto.refereeCode,
       };
 
       const { order, paymentLink } = await this.createOrderWithPayment(createOrderDto, {

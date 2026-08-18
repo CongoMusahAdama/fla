@@ -22,6 +22,13 @@ export class CheckoutVendorGroupDto {
   @ValidateNested({ each: true })
   @Type(() => OrderItemDto)
   items: OrderItemDto[];
+
+  /** Referee code for this specific vendor's items — a cart can mix products
+   * discovered through different referees' links, so this is scoped per
+   * vendor group rather than to the whole cart. */
+  @IsString()
+  @IsOptional()
+  refereeCode?: string;
 }
 
 export class CheckoutCartDto {
@@ -59,8 +66,9 @@ export class CheckoutCartDto {
   vendorGroups: CheckoutVendorGroupDto[];
 
   /**
-   * Referee code from referral link.
-   * Passed through to each created order for commission crediting.
+   * Cart-level fallback referee code, used for any vendor group that doesn't
+   * specify its own (single-vendor carts, or older clients). Prefer each
+   * group's own refereeCode when present — see CheckoutVendorGroupDto.
    */
   @IsString()
   @IsOptional()
