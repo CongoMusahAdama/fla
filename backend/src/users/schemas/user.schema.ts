@@ -262,6 +262,10 @@ export class User {
     /** TikTok profile link — lets vendors check the referee's content before collabing */
     @Prop()
     tiktokLink?: string;
+
+    /** Snapchat profile link — lets vendors check the referee's content before collabing */
+    @Prop()
+    snapchatLink?: string;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

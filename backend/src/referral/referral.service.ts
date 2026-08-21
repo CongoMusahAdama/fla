@@ -50,6 +50,7 @@ export class ReferralService {
     password: string;
     region?: string;
     tiktokLink?: string;
+    snapchatLink?: string;
     paymentMethod?: { network: string; accountNumber: string; accountName: string };
     ghanaCardFront?: string;
     ghanaCardBack?: string;
@@ -63,7 +64,8 @@ export class ReferralService {
     const hashedPassword = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
     const refereeCode = await this.generateUniqueRefereeCode();
     const refereeStoreSlug = await this.generateUniqueRefereeSlug(dto.name);
-    const hasKycDocs = !!(dto.ghanaCardFront && dto.selfie);
+    // Ghana Card is no longer collected at signup — a selfie alone marks KYC as submitted.
+    const hasKycDocs = !!dto.selfie;
 
     const referee = await this.userModel.create({
       name: dto.name.trim(),
@@ -79,6 +81,7 @@ export class ReferralService {
       status: 'pending',
       region: dto.region,
       tiktokLink: dto.tiktokLink,
+      snapchatLink: dto.snapchatLink,
       paymentMethods: dto.paymentMethod ? [dto.paymentMethod] : [],
       ghanaCardFront: dto.ghanaCardFront,
       ghanaCardBack: dto.ghanaCardBack,
@@ -371,7 +374,7 @@ export class ReferralService {
 
     const selections = await this.refereeProductSelectionModel
       .find({ productId: new Types.ObjectId(productId) })
-      .populate('refereeId', 'name refereeCode phone tiktokLink')
+      .populate('refereeId', 'name refereeCode phone tiktokLink snapchatLink')
       .sort({ selectedAt: -1 })
       .lean()
       .exec();
@@ -384,6 +387,7 @@ export class ReferralService {
         refereeCode: s.refereeId.refereeCode,
         phone: s.refereeId.phone,
         tiktokLink: s.refereeId.tiktokLink,
+        snapchatLink: s.refereeId.snapchatLink,
         selectedAt: s.selectedAt,
       }));
   }

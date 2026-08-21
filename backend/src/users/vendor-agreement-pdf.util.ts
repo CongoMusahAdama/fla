@@ -18,7 +18,7 @@ export function buildVendorAgreementPdfBuffer(data: AgreementLetterPayload): Pro
     const v = data.vendor || {};
     const shop = v.shopName || v.name || 'Vendor';
     const plan = v.subscriptionLabel || 'Lifetime Partner Plan';
-    const price = v.subscriptionPriceText || 'GHS 100 one-time';
+    const price = v.subscriptionPriceText || 'Free';
     const starts = v.subscriptionStartsAt
       ? new Date(v.subscriptionStartsAt).toLocaleDateString()
       : '—';

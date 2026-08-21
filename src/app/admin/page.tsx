@@ -446,7 +446,7 @@ export default function AdminDashboard() {
                 const next = await Swal.fire({
                     icon: 'success',
                     title: 'VENDOR APPROVED',
-                    html: 'Documents approved.<br/><br/>Vendor must pay <strong>GHS 100</strong> via Paystack on Overview to unlock uploads.<br/><br/>Next: <strong>preview and download</strong> the partnership agreement.',
+                    html: 'Documents approved — uploads are unlocked immediately, free of charge.<br/><br/>Next: <strong>preview and download</strong> the partnership agreement.',
                     showCancelButton: true,
                     confirmButtonText: 'Review & download letter',
                     cancelButtonText: 'Later',
@@ -1165,7 +1165,7 @@ export default function AdminDashboard() {
                                             <th className="px-5 py-3.5 text-[11px] font-medium text-white/75 tracking-wide">Referee</th>
                                             <th className="px-5 py-3.5 text-[11px] font-medium text-white/75 tracking-wide">Contact</th>
                                             <th className="px-5 py-3.5 text-[11px] font-medium text-white/75 tracking-wide">Region</th>
-                                            <th className="px-5 py-3.5 text-[11px] font-medium text-white/75 tracking-wide">Docs</th>
+                                            <th className="px-5 py-3.5 text-[11px] font-medium text-white/75 tracking-wide">Selfie</th>
                                             <th className="px-5 py-3.5 text-[11px] font-medium text-white/75 tracking-wide">Status</th>
                                             <th className="px-5 py-3.5 text-[11px] font-medium text-white/75 tracking-wide text-right">Actions</th>
                                         </tr>
@@ -1180,7 +1180,6 @@ export default function AdminDashboard() {
                                         ) : (
                                             filteredKycReferees.map((v, i) => {
                                                 const display = getRefereeDisplayStatus(v);
-                                                const docCount = [v.ghanaCardFront, v.ghanaCardBack, v.selfie].filter(Boolean).length;
                                                 return (
                                                     <tr key={v._id} className="hover:bg-slate-50/80 transition-colors">
                                                         <td className="px-5 py-4 text-xs font-medium text-slate-400 tabular-nums">{i + 1}</td>
@@ -1200,25 +1199,39 @@ export default function AdminDashboard() {
                                                             <p className="text-xs text-slate-400">{v.phone || '—'}</p>
                                                         </td>
                                                         <td className="px-5 py-4 text-sm text-slate-600">{v.region || '—'}</td>
-                                                        <td className="px-5 py-4 text-sm font-medium text-slate-800">{docCount}/3</td>
+                                                        <td className="px-5 py-4 text-sm font-medium text-slate-800">{v.selfie ? 'Submitted' : '—'}</td>
                                                         <td className="px-5 py-4">
                                                             <span className={`inline-flex px-2.5 py-1 text-[11px] font-medium border ${display.className}`}>
                                                                 {display.label}
                                                             </span>
                                                         </td>
                                                         <td className="px-5 py-4 text-right">
-                                                            <button
-                                                                type="button"
-                                                                onClick={(e) => {
-                                                                    e.preventDefault();
-                                                                    e.stopPropagation();
-                                                                    setSelectedKycReferee(v);
-                                                                }}
-                                                                className="inline-flex items-center gap-1.5 h-9 px-3 border border-slate-300 bg-white text-sm font-medium text-slate-800 hover:border-brand-blue hover:text-brand-blue transition-colors"
-                                                            >
-                                                                <Eye className="w-3.5 h-3.5" />
-                                                                View
-                                                            </button>
+                                                            <div className="inline-flex items-center gap-2">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(e) => {
+                                                                        e.preventDefault();
+                                                                        e.stopPropagation();
+                                                                        setSelectedKycReferee(v);
+                                                                    }}
+                                                                    className="inline-flex items-center gap-1.5 h-9 px-3 border border-slate-300 bg-white text-sm font-medium text-slate-800 hover:border-brand-blue hover:text-brand-blue transition-colors"
+                                                                >
+                                                                    <Eye className="w-3.5 h-3.5" />
+                                                                    View
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(e) => {
+                                                                        e.preventDefault();
+                                                                        e.stopPropagation();
+                                                                        handleDeleteUser(v._id);
+                                                                    }}
+                                                                    className="inline-flex items-center justify-center h-9 w-9 border border-slate-300 bg-white text-slate-400 hover:border-rose-300 hover:bg-rose-50 hover:text-rose-600 transition-colors"
+                                                                    aria-label="Delete referee"
+                                                                >
+                                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                                </button>
+                                                            </div>
                                                         </td>
                                                     </tr>
                                                 );
@@ -3406,6 +3419,14 @@ export default function AdminDashboard() {
                                                 </a>
                                             </div>
                                         ) : detail('TikTok', null)}
+                                        {v.snapchatLink ? (
+                                            <div className="flex justify-between gap-3 py-2 border-b border-slate-100 last:border-0">
+                                                <span className="text-[11px] font-medium text-slate-500 shrink-0">Snapchat</span>
+                                                <a href={v.snapchatLink} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-brand-blue hover:underline text-right break-all">
+                                                    {v.snapchatLink}
+                                                </a>
+                                            </div>
+                                        ) : detail('Snapchat', null)}
                                     </div>
                                     <div className="border border-slate-200 p-4">
                                         <p className="text-[11px] font-semibold text-slate-500 mb-2">Payout details</p>
@@ -3504,6 +3525,16 @@ export default function AdminDashboard() {
                                         <CheckCircle2 className="w-4 h-4" /> Re-approve
                                     </button>
                                 )}
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        handleDeleteUser(v._id);
+                                        setSelectedKycReferee(null);
+                                    }}
+                                    className="inline-flex items-center justify-center gap-2 h-11 px-4 border border-rose-200 bg-white text-rose-600 text-sm font-medium hover:bg-rose-50"
+                                >
+                                    <Trash2 className="w-4 h-4" /> Delete referee
+                                </button>
                                 <button
                                     type="button"
                                     onClick={() => setSelectedKycReferee(null)}

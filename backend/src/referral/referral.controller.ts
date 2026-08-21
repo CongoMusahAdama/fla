@@ -31,6 +31,7 @@ export class ReferralController {
       password: string;
       region?: string;
       tiktokLink?: string;
+      snapchatLink?: string;
       paymentMethod?: { network: string; accountNumber: string; accountName: string };
       ghanaCardFront?: string;
       ghanaCardBack?: string;
@@ -39,9 +40,6 @@ export class ReferralController {
   ) {
     if (!body.name || !body.email || !body.phone || !body.password) {
       throw new BadRequestException('Name, email, phone, and password are required.');
-    }
-    if (!body.tiktokLink) {
-      throw new BadRequestException('A TikTok link is required so vendors can see your content.');
     }
     return this.referralService.registerReferee(body);
   }

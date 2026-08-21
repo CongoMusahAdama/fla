@@ -8,6 +8,7 @@ import Link from 'next/link';
 import Swal from 'sweetalert2';
 import { LayoutDashboard, Wallet, Calendar, Copy, LogOut, CheckCircle2, History, Package, Eye, EyeOff, RefreshCcw, Search, MapPin, Plus, X as XIcon } from 'lucide-react';
 import { GHANA_REGIONS } from '@/lib/ghana-regions';
+import { fetchProductCategories, withAllProductCategory } from '@/lib/product-categories';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
@@ -26,6 +27,8 @@ export default function RefereeDashboard() {
 
     // Product picker (browse & add) state
     const [pickerRegion, setPickerRegion] = useState('');
+    const [pickerCategory, setPickerCategory] = useState('');
+    const [categoryOptions, setCategoryOptions] = useState<string[]>([]);
     const [pickerSearch, setPickerSearch] = useState('');
     const [pickerProducts, setPickerProducts] = useState<any[]>([]);
     const [pickerLoading, setPickerLoading] = useState(false);
@@ -46,8 +49,8 @@ export default function RefereeDashboard() {
         }
     }, [isAuthenticated, isLoading, user, router]);
 
-    const fetchDashboardData = async () => {
-        setLoading(true);
+    const fetchDashboardData = async (silent = false) => {
+        if (!silent) setLoading(true);
         setLoadError(false);
         try {
             const authHeaders: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
@@ -73,20 +76,22 @@ export default function RefereeDashboard() {
             console.error('Error fetching dashboard data:', error);
             setLoadError(true);
         } finally {
-            setLoading(false);
+            if (!silent) setLoading(false);
         }
     };
 
     const authHeaders = (): HeadersInit => (token ? { Authorization: `Bearer ${token}` } : {});
 
-    const fetchBrowseProducts = async (opts?: { region?: string; search?: string }) => {
+    const fetchBrowseProducts = async (opts?: { region?: string; search?: string; category?: string }) => {
         setPickerLoading(true);
         try {
             const params = new URLSearchParams();
             const region = opts?.region ?? pickerRegion;
             const search = opts?.search ?? pickerSearch;
+            const category = opts?.category ?? pickerCategory;
             if (region) params.set('region', region);
             if (search) params.set('search', search);
+            if (category) params.set('category', category);
             const res = await fetch(`${API_URL}/referral/browse-products?${params.toString()}`, {
                 credentials: 'include',
                 headers: authHeaders(),
@@ -105,13 +110,17 @@ export default function RefereeDashboard() {
         }
     };
 
-    // Live results as you type/select a region — mirrors the marketplace's instant filtering.
+    // Live results as you type/select a region or category — mirrors the marketplace's instant filtering.
     useEffect(() => {
         if (storeSubTab !== 'browse' || !isAuthenticated || user?.role !== 'referee' || user.status !== 'active') return;
         const handle = setTimeout(() => fetchBrowseProducts(), pickerSearch ? 300 : 0);
         return () => clearTimeout(handle);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [storeSubTab, pickerRegion, pickerSearch]);
+    }, [storeSubTab, pickerRegion, pickerCategory, pickerSearch]);
+
+    useEffect(() => {
+        fetchProductCategories().then((cats) => setCategoryOptions(withAllProductCategory(cats)));
+    }, []);
 
     const handleSelectProduct = async (productId: string) => {
         if (pickerSelectedIds.length >= storeCap) {
@@ -126,7 +135,7 @@ export default function RefereeDashboard() {
             });
             if (res.ok) {
                 setPickerSelectedIds((prev) => [...prev, productId]);
-                fetchDashboardData();
+                fetchDashboardData(true);
             } else {
                 const err = await res.json().catch(() => ({}));
                 Swal.fire({ icon: 'error', title: 'Could not add product', text: err.message || 'Please try again.' });
@@ -213,7 +222,7 @@ export default function RefereeDashboard() {
                         ? 'Your referee account has been suspended. Contact support if you believe this is an error.'
                         : isRejected
                             ? 'Your referee application was declined. Please ensure your KYC documents are clear and valid, then contact support to reapply.'
-                            : "We're reviewing your Ghana Card, selfie, and payout details. You'll get an SMS once you're approved to start earning."}
+                            : "We're reviewing your selfie and payout details. You'll get an SMS once you're approved to start earning."}
                 </p>
                 <button onClick={logout} className="inline-flex items-center gap-2 h-10 px-5 bg-white border border-slate-200 text-slate-700 font-medium text-sm rounded-xl shadow-sm hover:bg-slate-50 transition-all">
                     <LogOut className="w-4 h-4" /> Sign Out
@@ -229,7 +238,7 @@ export default function RefereeDashboard() {
                     {loadError ? "We couldn't load your dashboard. Please try again." : 'No dashboard data available.'}
                 </p>
                 <button
-                    onClick={fetchDashboardData}
+                    onClick={() => fetchDashboardData()}
                     className="inline-flex items-center gap-2 h-10 px-5 bg-brand-lemon text-slate-900 font-semibold text-sm rounded-xl shadow-sm hover:bg-brand-lemon-hover transition-all"
                 >
                     <RefreshCcw className="w-4 h-4" /> Retry
@@ -468,6 +477,18 @@ export default function RefereeDashboard() {
                                             <option value="">All regions</option>
                                             {GHANA_REGIONS.map((r) => (
                                                 <option key={r} value={r}>{r}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="relative sm:w-56">
+                                        <Package className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-brand-lemon pointer-events-none" />
+                                        <select
+                                            value={pickerCategory}
+                                            onChange={(e) => setPickerCategory(e.target.value)}
+                                            className="w-full h-10 pl-9 pr-3 bg-white border border-slate-200 rounded-xl text-sm appearance-none outline-none focus:ring-2 focus:ring-brand-lemon/30"
+                                        >
+                                            {categoryOptions.map((c) => (
+                                                <option key={c} value={c === 'All Product' ? '' : c}>{c}</option>
                                             ))}
                                         </select>
                                     </div>

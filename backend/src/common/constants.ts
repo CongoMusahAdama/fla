@@ -4,8 +4,6 @@ export const FLA_CONSTANTS = {
   DELIVERY_AUTO_RELEASE_DAYS: 2,
   /** Unpaid Paystack checkouts older than this are deleted (no stock was taken) */
   ABANDONED_CHECKOUT_HOURS: 2,
-  /** Vendor subscription: GHS 100 one-time — pay once, keep sales access forever */
-  SUBSCRIPTION_INTRO_GHS: 100,
   /** Used only by the admin's manual "grant a custom time-limited window" tool */
   SUBSCRIPTION_MONTHLY_GHS: 100,
   SUBSCRIPTION_PERIOD_DAYS: 30,

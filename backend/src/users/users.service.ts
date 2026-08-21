@@ -23,7 +23,7 @@ import {
 } from './vendor-agreement-pdf.util';
 import {
   introSubscriptionFields,
-  unpaidIntroSubscriptionFields,
+  pendingApprovalSubscriptionFields,
   isSubscriptionActive,
   amountDueForRenewal,
   daysUntilSubscriptionEnd,
@@ -257,10 +257,10 @@ export class UsersService implements OnModuleInit {
         verificationDeclineReason,
         isIdentityVerified: isVerified,
         isEmailVerified: true,
-        // Vendors get dashboard access immediately; selling stays locked until KYC + Paystack subscription.
+        // Vendors get dashboard access immediately; selling stays locked until KYC is approved (free, no payment).
         status: 'active',
         kycSubmittedAt,
-        ...(role === 'vendor' ? unpaidIntroSubscriptionFields() : {}),
+        ...(role === 'vendor' ? pendingApprovalSubscriptionFields() : {}),
       });
       const savedUser = await createdUser.save();
 
@@ -979,8 +979,8 @@ export class UsersService implements OnModuleInit {
     if (existing.businessRegistration?.trim()) {
       update.vendorTier = 'high';
     }
-    // After KYC: uploads stay locked until they pay intro (GHS 10) via Paystack
-    Object.assign(update, unpaidIntroSubscriptionFields());
+    // Free entry — approval grants full, permanent selling access immediately.
+    Object.assign(update, introSubscriptionFields());
 
     const user = (await this.userModel
       .findByIdAndUpdate(
@@ -1009,7 +1009,7 @@ export class UsersService implements OnModuleInit {
       const storeBit = slug ? ` Your store: ${loginUrl}/store/${slug}` : '';
       this.sendRegistrationSms(
         (user as any).phone,
-        `Great news ${shop}! Your FLA documents are approved. Pay GHS ${FLA_CONSTANTS.SUBSCRIPTION_INTRO_GHS} in your vendor dashboard to unlock product uploads.${storeBit}`,
+        `Great news ${shop}! Your FLA documents are approved — you can upload products and start selling now, free of charge.${storeBit}`,
         'vendor-kyc-approved-sell',
       );
     }

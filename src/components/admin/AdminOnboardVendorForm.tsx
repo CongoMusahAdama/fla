@@ -47,8 +47,8 @@ export default function AdminOnboardVendorForm({ token, onCreated, onClose }: Pr
   const [momoNetwork, setMomoNetwork] = useState('MTN');
   const [momoNumber, setMomoNumber] = useState('');
   const [accountName, setAccountName] = useState('');
-  const [planLabel, setPlanLabel] = useState('Lifetime sales access');
-  const [planPrice, setPlanPrice] = useState('GHS 100 one-time');
+  const [planLabel, setPlanLabel] = useState('Sales access');
+  const [planPrice, setPlanPrice] = useState('Free');
   const [submitting, setSubmitting] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [result, setResult] = useState<{
@@ -479,8 +479,8 @@ export default function AdminOnboardVendorForm({ token, onCreated, onClose }: Pr
                 <span className="text-sm font-semibold text-slate-900">Lifetime Plan</span>
                 <Check className="w-4 h-4 text-brand-blue" />
               </div>
-              <p className="text-xs text-slate-500 leading-relaxed">One-time payment for permanent sales access — no renewals.</p>
-              <p className="mt-3 text-sm font-semibold text-slate-900">GHS 100 one-time</p>
+              <p className="text-xs text-slate-500 leading-relaxed">Free, permanent sales access — no payment, no renewals.</p>
+              <p className="mt-3 text-sm font-semibold text-slate-900">Free</p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

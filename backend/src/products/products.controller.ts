@@ -60,12 +60,8 @@ export class ProductsController {
         );
       }
       if (!isSubscriptionActive(vendor as any)) {
-        const intro = !(vendor as any)?.subscriptionLastPaidAt;
-        const amount = intro
-          ? FLA_CONSTANTS.SUBSCRIPTION_INTRO_GHS
-          : FLA_CONSTANTS.SUBSCRIPTION_MONTHLY_GHS;
         throw new ForbiddenException(
-          `Product uploads are locked until you pay GHS ${amount} via Paystack in your vendor dashboard. Existing listings stay live.`,
+          `Product uploads are locked until you renew via Paystack in your vendor dashboard (GHS ${FLA_CONSTANTS.SUBSCRIPTION_MONTHLY_GHS}). Existing listings stay live.`,
         );
       }
     }

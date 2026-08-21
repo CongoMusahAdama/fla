@@ -134,7 +134,9 @@ function VendorDashboardInner() {
     const subscriptionDaysLeft = subscriptionEndsAt && !Number.isNaN(subscriptionEndsAt.getTime())
         ? Math.ceil((subscriptionEndsAt.getTime() - Date.now()) / (24 * 60 * 60 * 1000))
         : null;
-    const paymentRequired = Boolean(user?.subscriptionPaymentRequired);
+    // Entry is free forever now — nothing is ever owed to unlock uploads, so this never gates
+    // anything, even for vendors approved before the flow went free.
+    const paymentRequired = false;
     // Legacy: approved + no endsAt + no paywall flag = grandfathered (still can upload)
     const subscriptionExpired =
         canSell &&
@@ -143,7 +145,8 @@ function VendorDashboardInner() {
     const subscriptionExpiringSoon =
         canSell && !subscriptionExpired && subscriptionDaysLeft != null && subscriptionDaysLeft <= 5;
     const canUploadProducts = canSell && !subscriptionExpired;
-    // Flat GHS 100 one-time payment for sales access — paid once, kept forever.
+    // Entry itself is free forever now. This amount only ever applies to the admin's manual
+    // monthly-renewal tool for vendors placed on a paid plan — never to first-time approval.
     const subscriptionAmountDue = SUBSCRIPTION_ONE_TIME_GHS;
 
     const setActiveSection = (section: VendorSection) => {
@@ -913,29 +916,17 @@ function VendorDashboardInner() {
                                         }`}
                                     >
                                         {!canSell
-                                            ? 'Subscription payment'
+                                            ? 'Awaiting approval'
                                             : paymentRequired || subscriptionExpired
-                                              ? paymentRequired
-                                                  ? 'Pay to unlock product uploads'
-                                                  : 'Subscription due — new uploads locked'
+                                              ? 'Uploads locked'
                                               : `Subscription ends in ${subscriptionDaysLeft} day${subscriptionDaysLeft === 1 ? '' : 's'}`}
                                     </p>
                                     <p className="text-sm text-slate-700 leading-relaxed">
                                         {!canSell
                                             ? awaitingKycApproval
-                                                ? `After your documents are approved, pay GHS ${subscriptionAmountDue} here via Paystack — one time, yours forever.`
-                                                : `Upload your Business Registration, Ghana Card, and selfie in Studio Identity first. After approval, pay GHS ${subscriptionAmountDue} here via Paystack to unlock uploads for good.`
-                                            : paymentRequired
-                                              ? `Your documents are approved. Tap below to pay GHS ${subscriptionAmountDue} on Paystack — a one-time payment, uploads unlock automatically and never expire.`
-                                              : subscriptionExpired
-                                                ? `Pay GHS ${subscriptionAmountDue} via Paystack to unlock. Existing listings stay live.`
-                                                : `Pay via Paystack — GHS ${subscriptionAmountDue}. One time only, then uploads stay unlocked for good.`}
-                                    </p>
-                                    <p className="text-2xl font-black text-slate-900 tracking-tighter">
-                                        GHS {subscriptionAmountDue}
-                                        <span className="ml-2 text-xs font-bold text-slate-400 uppercase tracking-widest">
-                                            one-time
-                                        </span>
+                                                ? 'Your documents are under review. Uploads unlock automatically, free of charge, as soon as an admin approves you.'
+                                                : 'Upload your Business Registration, Ghana Card, and selfie in Studio Identity first. Uploads unlock free of charge once an admin approves you.'
+                                            : 'Contact FLA support if your uploads are locked.'}
                                     </p>
                                 </div>
                                 {canSell && (paymentRequired || subscriptionExpired || subscriptionExpiringSoon) ? (
@@ -973,8 +964,8 @@ function VendorDashboardInner() {
                             </h2>
                             <p className="text-sm text-slate-500 leading-relaxed">
                                 {awaitingKycApproval
-                                    ? 'Your documents are under review. Approval usually takes 4–5 hours. After approval, open Overview and pay via Paystack to unlock uploads.'
-                                    : 'Upload your Business Registration, Ghana Card, and selfie in Studio Identity first. After admin approval, open Overview and pay via Paystack to list products.'}
+                                    ? 'Your documents are under review. Approval usually takes 4–5 hours — uploads unlock automatically, free of charge, once approved.'
+                                    : 'Upload your Business Registration, Ghana Card, and selfie in Studio Identity first. Uploads unlock free of charge once an admin approves you.'}
                             </p>
                             <div className="flex flex-col sm:flex-row gap-3 justify-center">
                                 <button
@@ -1044,8 +1035,8 @@ function VendorDashboardInner() {
                                 onAddNew={() => {
                                     Swal.fire({
                                         icon: 'warning',
-                                        title: 'One-time payment due',
-                                        text: 'Pay your GHS 100 one-time FLA subscription (MoMo) to unlock uploads for good. Existing listings can still sell.',
+                                        title: 'Subscription renewal due',
+                                        text: `Pay GHS ${subscriptionAmountDue} via Paystack to renew and unlock uploads. Existing listings can still sell.`,
                                     });
                                 }}
                             />

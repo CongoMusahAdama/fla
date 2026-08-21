@@ -136,7 +136,7 @@ export default function VendorAgreementPage() {
   const starts = v.subscriptionStartsAt ? new Date(v.subscriptionStartsAt).toLocaleDateString() : '—';
   const ends = v.subscriptionEndsAt ? new Date(v.subscriptionEndsAt).toLocaleDateString() : '—';
   const plan = v.subscriptionLabel || 'Lifetime Partner Plan';
-  const price = v.subscriptionPriceText || 'GHS 100 one-time';
+  const price = v.subscriptionPriceText || 'Free';
 
   return (
     <main className="min-h-screen bg-slate-100 print:bg-white">
@@ -274,10 +274,10 @@ export default function VendorAgreementPage() {
             3. Key terms
           </h2>
           <p>
-            <strong className="text-slate-900">Marketplace & storefront.</strong> Vendor may sell through the FLA marketplace and a dedicated storefront URL once identity documents are approved by FLA and the subscription fee is paid via Paystack.
+            <strong className="text-slate-900">Marketplace & storefront.</strong> Vendor may sell through the FLA marketplace and a dedicated storefront URL once identity documents are approved by FLA. Sales access is free of charge.
           </p>
           <p>
-            <strong className="text-slate-900">Onboarding & KYC.</strong> Vendor must upload valid identification and supporting business documents after first login. Product listing unlocks after FLA admin approval and a successful one-time subscription payment of GHS 100, valid for as long as the account remains active.
+            <strong className="text-slate-900">Onboarding & KYC.</strong> Vendor must upload valid identification and supporting business documents after first login. Product listing unlocks free of charge immediately upon FLA admin approval, valid for as long as the account remains active.
           </p>
           <p>
             <strong className="text-slate-900">Payments.</strong> Customer payments are processed via FLA&apos;s payment provider with an agreed platform split; Vendor payouts settle to the registered MoMo/bank account on file.

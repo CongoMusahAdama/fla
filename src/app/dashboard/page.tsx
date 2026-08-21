@@ -369,6 +369,10 @@ export default function CustomerDashboard() {
                 router.push('/admin');
                 return;
             }
+            if (user?.role === 'referee') {
+                router.push('/referee/dashboard');
+                return;
+            }
         }
 
         if (!isLoading && !isAuthenticated && isHydrated) {

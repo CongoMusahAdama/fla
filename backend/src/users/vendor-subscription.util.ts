@@ -22,7 +22,10 @@ export function startOfDayIsoDate(d = new Date()): string {
 
 /** True when vendor may upload new products. */
 export function isSubscriptionActive(vendor: VendorSubscriptionFields, now = new Date()): boolean {
-  if (vendor.subscriptionPaymentRequired === true) return false;
+  // The payment-required flag only blocks uploads when something is actually owed — entry is
+  // free now (amountDueForRenewal always returns 0), so it can never lock anyone out on its own,
+  // including vendors approved before this flow went free.
+  if (vendor.subscriptionPaymentRequired === true && amountDueForRenewal(vendor) > 0) return false;
   if (!vendor.subscriptionEndsAt) return true; // legacy grandfather (no paywall flag)
   const ends = new Date(vendor.subscriptionEndsAt);
   if (Number.isNaN(ends.getTime())) return true;
@@ -37,33 +40,33 @@ export function daysUntilSubscriptionEnd(vendor: VendorSubscriptionFields, now =
   return Math.ceil(ms / (24 * 60 * 60 * 1000));
 }
 
-/** Pending unlock after KYC — must pay a one-time fee via Paystack before uploads. */
-export function unpaidIntroSubscriptionFields() {
+/** Set at signup — selling stays locked until an admin approves KYC (no payment involved). */
+export function pendingApprovalSubscriptionFields() {
   return {
     subscriptionPlan: 'lifetime' as const,
-    subscriptionLabel: 'Lifetime sales access',
-    subscriptionPriceText: `GHS ${FLA_CONSTANTS.SUBSCRIPTION_INTRO_GHS} one-time`,
-    subscriptionPriceGhs: FLA_CONSTANTS.SUBSCRIPTION_INTRO_GHS,
+    subscriptionLabel: 'Sales access',
+    subscriptionPriceText: 'Free',
+    subscriptionPriceGhs: 0,
     subscriptionPaymentRequired: true,
   };
 }
 
-/** One payment, no expiry — subscriptionEndsAt stays unset, which isSubscriptionActive treats as permanent. */
+/** Free, permanent access granted on KYC approval — subscriptionEndsAt stays unset, which isSubscriptionActive treats as permanent. */
 export function introSubscriptionFields(now = new Date()) {
   return {
     subscriptionPlan: 'lifetime' as const,
-    subscriptionLabel: 'Lifetime sales access',
-    subscriptionPriceText: `GHS ${FLA_CONSTANTS.SUBSCRIPTION_INTRO_GHS} one-time`,
-    subscriptionPriceGhs: FLA_CONSTANTS.SUBSCRIPTION_INTRO_GHS,
+    subscriptionLabel: 'Sales access',
+    subscriptionPriceText: 'Free',
+    subscriptionPriceGhs: 0,
     subscriptionStartsAt: now,
     subscriptionEndsAt: null,
     subscriptionPaymentRequired: false,
   };
 }
 
-/** Amount to unlock — flat one-time GHS 100, paid once ever. */
+/** Legacy renewal helper — kept for the admin's manual custom-window tool. Entry is free now. */
 export function amountDueForRenewal(_vendor: VendorSubscriptionFields): number {
-  return FLA_CONSTANTS.SUBSCRIPTION_INTRO_GHS;
+  return 0;
 }
 
 /** Any successful payment grants permanent access — there is no recurring renewal anymore. */
