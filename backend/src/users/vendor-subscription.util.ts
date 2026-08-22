@@ -1,5 +1,3 @@
-import { FLA_CONSTANTS } from '../common/constants';
-
 export type VendorSubscriptionFields = {
   subscriptionEndsAt?: Date | string | null;
   subscriptionStartsAt?: Date | string | null;
@@ -65,7 +63,8 @@ export function introSubscriptionFields(now = new Date()) {
 }
 
 /** Legacy renewal helper — kept for the admin's manual custom-window tool. Entry is free now. */
-export function amountDueForRenewal(_vendor: VendorSubscriptionFields): number {
+export function amountDueForRenewal(vendor: VendorSubscriptionFields): number {
+  void vendor;
   return 0;
 }
 

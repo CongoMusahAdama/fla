@@ -137,6 +137,7 @@ export default function AdminDashboard() {
     const [kycReferees, setKycReferees] = useState<any[]>([]);
     const [kycRefereeFilter, setKycRefereeFilter] = useState<'pending' | 'active' | 'rejected' | 'all'>('all');
     const [loading, setLoading] = useState(true);
+    const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [showAddVendorModal, setShowAddVendorModal] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -287,6 +288,7 @@ export default function AdminDashboard() {
             console.error('Error fetching admin data:', error);
         } finally {
             setLoading(false);
+            setHasLoadedOnce(true);
         }
     };
 
@@ -721,7 +723,7 @@ export default function AdminDashboard() {
         return null;
     }
 
-    if (loading) {
+    if (loading && !hasLoadedOnce) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-slate-50">
                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Loading dashboard data...</p>
