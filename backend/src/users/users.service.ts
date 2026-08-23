@@ -560,9 +560,9 @@ export class UsersService implements OnModuleInit {
       throw new NotFoundException('Referee not found');
     }
 
-    if (!existing.ghanaCardFront?.trim() || !existing.selfie?.trim()) {
+    if (!existing.selfie?.trim()) {
       throw new BadRequestException(
-        'Referee has not uploaded a Ghana Card and selfie. They cannot be approved without identity documents.',
+        'Referee has not uploaded a selfie. They cannot be approved without an identity photo.',
       );
     }
 
@@ -1108,11 +1108,12 @@ export class UsersService implements OnModuleInit {
   }
 
   private mapVendorKycRecord(v: any): User {
+    // Referees only ever submit a selfie — Ghana Card was dropped from that signup flow.
+    const hasIdDocs = v.role === 'referee' ? v.selfie : v.ghanaCardFront && v.selfie;
     return {
       ...v,
       isIdentityVerified: Boolean(
-        v.ghanaCardFront &&
-          v.selfie &&
+        hasIdDocs &&
           v.verificationStatus === 'verified' &&
           (v.isVerified || v.isIdentityVerified),
       ),
