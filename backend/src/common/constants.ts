@@ -22,3 +22,20 @@ export const FLA_CONSTANTS = {
 
 /** Must match src/lib/fla-terms.ts FLA_TERMS_VERSION */
 export const FLA_TERMS_VERSION = '2026-06-01';
+
+/** Maps the network/bank short codes used in our forms to the codes Paystack's API expects. */
+export const PAYSTACK_BANK_CODE_MAP: Record<string, string> = {
+  MTN: 'MTN',
+  Vodafone: 'VOD',
+  AirtelTigo: 'ATL',
+  GCB: '040100',
+  ECO: '030100',
+  ZEN: '060101',
+  ABS: '020100',
+  FID: '070101',
+  STA: '010100',
+  CAL: '050100',
+  ACC: '090101',
+  GTB: '080100',
+  UBA: '100100',
+};

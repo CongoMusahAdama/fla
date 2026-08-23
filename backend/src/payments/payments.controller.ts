@@ -23,6 +23,7 @@ import { UserDocument } from '../users/schemas/user.schema';
 import { ConfigService } from '@nestjs/config';
 import { AuthGuard } from '@nestjs/passport';
 import { getFrontendBaseUrl } from '../common/frontend-url.util';
+import { PAYSTACK_BANK_CODE_MAP } from '../common/constants';
 import { WithdrawalService } from './withdrawal.service';
 import { RequestWithdrawalDto } from './dto/request-withdrawal.dto';
 import { amountDueForRenewal } from '../users/vendor-subscription.util';
@@ -318,10 +319,13 @@ export class PaymentsController {
 
     @Get('lookup-name/:bankCode/:accountNumber')
     async lookupAccountName(@Param('bankCode') bankCode: string, @Param('accountNumber') accountNumber: string) {
-        this.logger.log(`Paystack: Resolving account name for ${accountNumber} at ${bankCode}`);
-        
+        // The form sends our network/bank short codes (e.g. "Vodafone", "GCB") — translate to
+        // what Paystack's API actually expects (e.g. "VOD", "040100") before calling it.
+        const paystackBankCode = PAYSTACK_BANK_CODE_MAP[bankCode] || bankCode;
+        this.logger.log(`Paystack: Resolving account name for ${accountNumber} at ${bankCode} (${paystackBankCode})`);
+
         try {
-            const result = await this.paystackService.resolveAccountNumber(accountNumber, bankCode);
+            const result = await this.paystackService.resolveAccountNumber(accountNumber, paystackBankCode);
             
             if (result.status && result.data) {
                 return { 

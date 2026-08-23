@@ -31,7 +31,7 @@ import {
   addDays,
   planFieldsAfterPayment,
 } from './vendor-subscription.util';
-import { FLA_CONSTANTS } from '../common/constants';
+import { FLA_CONSTANTS, PAYSTACK_BANK_CODE_MAP } from '../common/constants';
 import { getFrontendBaseUrl } from '../common/frontend-url.util';
 
 import * as crypto from 'crypto';
@@ -456,23 +456,7 @@ export class UsersService implements OnModuleInit {
 
     try {
       const commissionRate = await this.getPlatformCommissionRate();
-      const bankMapping: Record<string, string> = {
-        'MTN': 'MTN',
-        'Vodafone': 'VOD',
-        'AirtelTigo': 'ATL',
-        'GCB': '040100',
-        'ECO': '030100',
-        'ZEN': '060101',
-        'ABS': '020100',
-        'FID': '070101',
-        'STA': '010100',
-        'CAL': '050100',
-        'ACC': '090101',
-        'GTB': '080100',
-        'UBA': '100100'
-      };
-
-      const bankCode = bankMapping[primaryMethod.network] || primaryMethod.network;
+      const bankCode = PAYSTACK_BANK_CODE_MAP[primaryMethod.network] || primaryMethod.network;
 
       this.logger.log(`Creating Paystack subaccount for vendor: ${user.shopName || user.name}...`);
       
@@ -514,22 +498,7 @@ export class UsersService implements OnModuleInit {
     }
 
     try {
-      const bankMapping: Record<string, string> = {
-        MTN: 'MTN',
-        Vodafone: 'VOD',
-        AirtelTigo: 'ATL',
-        GCB: '040100',
-        ECO: '030100',
-        ZEN: '060101',
-        ABS: '020100',
-        FID: '070101',
-        STA: '010100',
-        CAL: '050100',
-        ACC: '090101',
-        GTB: '080100',
-        UBA: '100100',
-      };
-      const bankCode = bankMapping[primaryMethod.network] || primaryMethod.network;
+      const bankCode = PAYSTACK_BANK_CODE_MAP[primaryMethod.network] || primaryMethod.network;
 
       this.logger.log(`Creating Paystack subaccount for referee: ${user.name}...`);
 
