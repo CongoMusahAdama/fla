@@ -8,7 +8,7 @@ import Image from 'next/image';
 import {
     User, Mail, Lock, ChevronRight, ArrowLeft, Phone, MapPin,
     Store, Package, CreditCard, Upload, ArrowRight, MessageSquare, Check,
-    Camera, Calendar, Users, Briefcase, FileText, ShieldCheck, Hash, Shield, ImagePlus
+    Camera, Calendar, Users, Briefcase, FileText, ShieldCheck, Hash, Shield, ImagePlus, Loader2
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { Suspense } from 'react';
@@ -266,6 +266,19 @@ const ForgotPasswordForm = ({ onBack, onSubmit, onResetWithOTP }: { onBack: () =
 
 
 
+async function uploadPublicFile(file: File | null): Promise<string | null> {
+    if (!file) return null;
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/upload/public`, {
+        method: 'POST',
+        body: formData,
+    });
+    if (!res.ok) throw new Error('Upload failed. Please try again.');
+    const result = await res.json();
+    return result.url;
+}
+
 export const RegisterForm = ({
     role,
     onSignup,
@@ -321,6 +334,8 @@ export const RegisterForm = ({
     const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
     const [logoFile, setLogoFile] = useState<File | null>(null);
     const [logoPreview, setLogoPreview] = useState<string | null>(null);
+    const [logoUrl, setLogoUrl] = useState<string | null>(null);
+    const [logoUploading, setLogoUploading] = useState(false);
     const logoInputRef = useRef<HTMLInputElement>(null);
     const [paymentMethods, setPaymentMethods] = useState<any[]>([{
         type: 'momo',
@@ -341,6 +356,7 @@ export const RegisterForm = ({
         if (!file) {
             setLogoFile(null);
             setLogoPreview(null);
+            setLogoUrl(null);
             return;
         }
         if (!file.type.startsWith('image/')) {
@@ -353,6 +369,21 @@ export const RegisterForm = ({
         }
         setLogoFile(file);
         setLogoPreview(URL.createObjectURL(file));
+        setLogoUrl(null);
+
+        // Upload immediately on selection — not at final submit — so the logo is already
+        // hosted by the time the security checkbox is completed later in the wizard. Doing
+        // the upload after that checkbox (as before) could push submission past the
+        // checkbox's validity window on a slow connection, failing the whole signup.
+        setLogoUploading(true);
+        uploadPublicFile(file)
+            .then((url) => setLogoUrl(url))
+            .catch(() => {
+                setLogoFile(null);
+                setLogoPreview(null);
+                Swal.fire('Upload failed', 'Could not upload your logo. Please try again.', 'error');
+            })
+            .finally(() => setLogoUploading(false));
     };
 
     const handleAccountNumberChange = async (index: number, value: string, network: string) => {
@@ -421,7 +452,17 @@ export const RegisterForm = ({
             return;
         }
 
-        if (role === 'vendor' && !logoFile) {
+        if (role === 'vendor' && logoUploading) {
+            Swal.fire({
+                icon: 'info',
+                title: 'Logo still uploading',
+                text: 'Please wait a moment for your shop logo to finish uploading.',
+                confirmButtonColor: '#F9CF5A',
+            });
+            return;
+        }
+
+        if (role === 'vendor' && !logoUrl) {
             Swal.fire({
                 icon: 'warning',
                 title: 'Vendor logo required',
@@ -432,10 +473,10 @@ export const RegisterForm = ({
             return;
         }
 
-        onSignup({ 
-            name, email, phone, location, region, password, confirmPassword, 
+        onSignup({
+            name, email, phone, location, region, password, confirmPassword,
             shopName, productTypes, paymentMethods, turnstileToken,
-            logoFile,
+            logoUrl,
             kyc: {
                 ghanaCardFront, ghanaCardBack, ghanaCardNumber, selfie, digitalAddress, 
                 dob, utilityBill, utilityType: utilityType === 'Other' ? customUtilityName : utilityType,
@@ -446,7 +487,16 @@ export const RegisterForm = ({
     };
 
     const nextStep = () => {
-        if (role === 'vendor' && step === 3 && !logoFile) {
+        if (role === 'vendor' && step === 3 && logoUploading) {
+            Swal.fire({
+                icon: 'info',
+                title: 'Logo still uploading',
+                text: 'Please wait a moment for your shop logo to finish uploading.',
+                confirmButtonColor: '#F9CF5A',
+            });
+            return;
+        }
+        if (role === 'vendor' && step === 3 && !logoUrl) {
             Swal.fire({
                 icon: 'warning',
                 title: 'Vendor logo required',
@@ -589,17 +639,23 @@ export const RegisterForm = ({
                                                     <ImagePlus className="w-8 h-8" />
                                                 </div>
                                             )}
+                                            {logoUploading && (
+                                                <div className="absolute inset-0 bg-white/70 flex items-center justify-center">
+                                                    <Loader2 className="w-5 h-5 text-slate-900 animate-spin" />
+                                                </div>
+                                            )}
                                         </div>
                                         <div className="flex-1 space-y-2 w-full">
                                             <div className="flex flex-wrap items-center gap-2">
                                                 <button
                                                     type="button"
                                                     onClick={() => logoInputRef.current?.click()}
-                                                    className="h-10 px-4 rounded-full bg-brand-lemon text-slate-900 text-sm font-semibold hover:bg-brand-lemon-hover transition-colors"
+                                                    disabled={logoUploading}
+                                                    className="h-10 px-4 rounded-full bg-brand-lemon text-slate-900 text-sm font-semibold hover:bg-brand-lemon-hover transition-colors disabled:opacity-50"
                                                 >
-                                                    {logoFile ? 'Change logo' : 'Upload logo'}
+                                                    {logoUploading ? 'Uploading…' : logoFile ? 'Change logo' : 'Upload logo'}
                                                 </button>
-                                                {logoFile && (
+                                                {logoFile && !logoUploading && (
                                                     <button
                                                         type="button"
                                                         onClick={() => {
@@ -1151,39 +1207,25 @@ function AuthContent() {
                 customClass: { popup: 'rounded-[32px] border-none shadow-2xl p-10 bg-white' }
             });
 
-            const uploadFile = async (file: File | null) => {
-                if (!file) return null;
-                const formData = new FormData();
-                formData.append('file', file);
-                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/upload/public`, {
-                    method: 'POST',
-                    body: formData
-                });
-                if (!res.ok) throw new Error('Document upload failed. Please try again.');
-                const result = await res.json();
-                return result.url;
-            };
-
             let kycUrls: any = {};
             let profileImage: string | undefined;
             if (role === 'vendor') {
-                if (!data.logoFile) {
+                // Logo is uploaded eagerly at selection time (see onLogoSelected in RegisterForm) —
+                // uploading it here instead would delay this request past the Turnstile token's
+                // validity window, especially on a slow connection, failing signup entirely.
+                if (!data.logoUrl) {
                     throw new Error('Vendor logo is required. Please upload your shop logo.');
                 }
-                const uploadedLogo = await uploadFile(data.logoFile);
-                if (!uploadedLogo) {
-                    throw new Error('Logo upload failed. Please try again.');
-                }
-                profileImage = uploadedLogo;
+                profileImage = data.logoUrl;
                 // KYC docs are optional at signup — vendors upload them later in the dashboard
-                if (data.kyc?.ghanaCardFront) kycUrls.ghanaCardFront = await uploadFile(data.kyc.ghanaCardFront);
-                if (data.kyc?.ghanaCardBack) kycUrls.ghanaCardBack = await uploadFile(data.kyc.ghanaCardBack);
-                if (data.kyc?.selfie) kycUrls.selfie = await uploadFile(data.kyc.selfie);
-                if (data.kyc?.utilityBill) kycUrls.utilityBill = await uploadFile(data.kyc.utilityBill);
-                if (data.kyc?.businessRegistration) kycUrls.businessRegistration = await uploadFile(data.kyc.businessRegistration);
+                if (data.kyc?.ghanaCardFront) kycUrls.ghanaCardFront = await uploadPublicFile(data.kyc.ghanaCardFront);
+                if (data.kyc?.ghanaCardBack) kycUrls.ghanaCardBack = await uploadPublicFile(data.kyc.ghanaCardBack);
+                if (data.kyc?.selfie) kycUrls.selfie = await uploadPublicFile(data.kyc.selfie);
+                if (data.kyc?.utilityBill) kycUrls.utilityBill = await uploadPublicFile(data.kyc.utilityBill);
+                if (data.kyc?.businessRegistration) kycUrls.businessRegistration = await uploadPublicFile(data.kyc.businessRegistration);
             } else if (data.kyc && role === 'customer') {
-                if (data.kyc.ghanaCardFront) kycUrls.ghanaCardFront = await uploadFile(data.kyc.ghanaCardFront);
-                if (data.kyc.ghanaCardBack) kycUrls.ghanaCardBack = await uploadFile(data.kyc.ghanaCardBack);
+                if (data.kyc.ghanaCardFront) kycUrls.ghanaCardFront = await uploadPublicFile(data.kyc.ghanaCardFront);
+                if (data.kyc.ghanaCardBack) kycUrls.ghanaCardBack = await uploadPublicFile(data.kyc.ghanaCardBack);
             }
 
             const kycData = {
