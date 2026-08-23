@@ -305,6 +305,16 @@ export const RegisterForm = ({
         turnstileRef.current?.reset?.();
     }, [turnstileResetKey]);
 
+    // The Turnstile widget lives on one step and unmounts when the wizard moves away
+    // from it (React destroys it on every step change, even navigating back and forth
+    // between the same two steps). Its solved token must not outlive that widget instance —
+    // otherwise navigating back to fix a field and returning could silently resubmit a
+    // stale, already-consumed token instead of the fresh one the remounted widget solves.
+    useEffect(() => {
+        setTurnstileToken(null);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [step]);
+
     // KYC Fields
     const [ghanaCardFront, setGhanaCardFront] = useState<File | null>(null);
     const [ghanaCardBack, setGhanaCardBack] = useState<File | null>(null);
