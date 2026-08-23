@@ -932,9 +932,9 @@ export class UsersService implements OnModuleInit {
       throw new NotFoundException('Vendor not found');
     }
 
-    if (!existing.businessRegistration?.trim()) {
+    if (!existing.ghanaCardFront?.trim() || !existing.selfie?.trim()) {
       throw new BadRequestException(
-        'Vendor has not uploaded a Business Registration Certificate. They cannot be cleared to sell without business registration documents.',
+        'Vendor has not uploaded a Ghana Card and selfie. They cannot be cleared to sell without identity documents.',
       );
     }
 

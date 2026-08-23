@@ -380,7 +380,10 @@ export default function AdminDashboard() {
                 body: JSON.stringify({ status })
             });
 
-            if (!response.ok) throw new Error('Failed to update user status');
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                throw new Error(err.message || 'Failed to update user status');
+            }
 
             await refreshData();
 
@@ -432,7 +435,10 @@ export default function AdminDashboard() {
                 body: JSON.stringify({ status })
             });
 
-            if (!response.ok) throw new Error('Failed to update KYC status');
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                throw new Error(err.message || 'Failed to update KYC status');
+            }
 
             if (status === 'active' && isReferee) {
                 Swal.fire({
