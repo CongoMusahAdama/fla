@@ -193,8 +193,8 @@ export class User {
     @Prop({ default: false })
     mustChangePassword: boolean;
 
-    /** Subscription: intro (GHS 10) | monthly (GHS 50) | legacy trial | annual */
-    @Prop({ enum: ['intro', 'monthly', 'trial', 'annual'] })
+    /** Subscription: lifetime (free, permanent) | legacy intro/monthly/trial/annual from the old paid model */
+    @Prop({ enum: ['lifetime', 'intro', 'monthly', 'trial', 'annual'] })
     subscriptionPlan?: string;
 
     @Prop()
