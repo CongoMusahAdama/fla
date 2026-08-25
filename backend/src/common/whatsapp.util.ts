@@ -102,11 +102,14 @@ export function buildShortCustomerToVendorWaText(
   const location = (details?.location || 'as discussed').slice(0, 70);
   const price = formatPrice(details?.price);
   const pricePart = price ? ` Price: ${price}.` : '';
+  // Location leads, right after the order number — some WhatsApp clients have been seen
+  // to cut a long pre-filled message short, so whatever survives should include the one
+  // detail that's actually needed to act on the order.
   return (
     `Hello ${shop}, I placed FLA order #ORD-${orderShortId}. ` +
-    `Product: ${product}.${pricePart} ` +
     `Location: ${location}. ` +
-    `Paystack payment confirmed. Let's coordinate delivery. - ${who}`
+    `Product: ${product}.${pricePart} ` +
+    `Paystack payment confirmed. - ${who}`
   );
 }
 
@@ -126,11 +129,14 @@ export function buildShortVendorToCustomerWaText(
   const location = (details?.location || 'your delivery location').slice(0, 70);
   const price = formatPrice(details?.price);
   const pricePart = price ? ` Price: ${price}.` : '';
+  // Location leads, right after the order number — some WhatsApp clients have been seen
+  // to cut a long pre-filled message short, so whatever survives should include the one
+  // detail that's actually needed to act on the order.
   return (
     `Hello ${who}, your FLA order #ORD-${orderShortId} is paid. ` +
-    `Product: ${product}.${pricePart} ` +
     `Location: ${location}. ` +
-    `${shop} here — reply for delivery.`
+    `Product: ${product}.${pricePart} ` +
+    `${shop} here.`
   );
 }
 
