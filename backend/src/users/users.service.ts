@@ -951,15 +951,11 @@ export class UsersService implements OnModuleInit {
     // Free entry — approval grants full, permanent selling access immediately.
     Object.assign(update, introSubscriptionFields());
 
+    // introSubscriptionFields() already sets subscriptionStartsAt/subscriptionEndsAt via
+    // $set above — $unset-ing the same paths in the same command is what MongoDB was
+    // rejecting outright ("would create a conflict"), failing every vendor approval.
     const user = (await this.userModel
-      .findByIdAndUpdate(
-        id,
-        {
-          $set: update,
-          $unset: { subscriptionEndsAt: 1, subscriptionStartsAt: 1 },
-        },
-        { new: true },
-      )
+      .findByIdAndUpdate(id, { $set: update }, { new: true })
       .lean()
       .exec()) as unknown as User;
 
