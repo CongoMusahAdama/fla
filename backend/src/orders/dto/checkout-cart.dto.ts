@@ -73,4 +73,10 @@ export class CheckoutCartDto {
   @IsString()
   @IsOptional()
   refereeCode?: string;
+
+  /** Page the buyer checked out from (e.g. a referral or vendor storefront) —
+   * they're returned here after payment instead of the generic dashboard. */
+  @IsString()
+  @IsOptional()
+  callbackPath?: string;
 }

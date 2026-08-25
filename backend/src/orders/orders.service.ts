@@ -251,6 +251,7 @@ export class OrdersService implements OnModuleInit {
         // Each vendor's order gets its own referee attribution — a cart can mix
         // items discovered via different referees' links.
         refereeCode: group.refereeCode || dto.refereeCode,
+        callbackPath: dto.callbackPath,
       };
 
       const { order, paymentLink } = await this.createOrderWithPayment(createOrderDto, {
@@ -410,10 +411,14 @@ export class OrdersService implements OnModuleInit {
       const frontendBase = getFrontendBaseUrl('http://localhost:3000');
 
       // Guests with a storefront return path should not hit /dashboard (forces login).
-      const guestCallback = !hasCustomer ? this.sanitizeCallbackPath(callbackPath) : null;
+      // A caller-provided return path (e.g. the referral storefront the buyer checked out from)
+      // takes priority for guest AND logged-in buyers alike — otherwise a signed-in shopper
+      // buying through a referee's store still gets bounced to their generic dashboard instead
+      // of back to that store.
+      const sanitizedCallback = this.sanitizeCallbackPath(callbackPath);
       let callbackUrl: string;
-      if (guestCallback) {
-        callbackUrl = `${frontendBase}${guestCallback}?order_id=${orderId}&paid=1`;
+      if (sanitizedCallback) {
+        callbackUrl = `${frontendBase}${sanitizedCallback}?order_id=${orderId}&paid=1`;
       } else if (!hasCustomer) {
         // Guest without store path → marketplace, not auth/login.
         callbackUrl = `${frontendBase}/shop?order_id=${orderId}&paid=1`;

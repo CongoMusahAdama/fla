@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Package, Search, ShoppingBag } from 'lucide-react';
+import Swal from 'sweetalert2';
 
 export default function RefereeStorefront() {
     const { slug } = useParams();
@@ -16,6 +17,43 @@ export default function RefereeStorefront() {
     useEffect(() => {
         if (slug) fetchStore();
     }, [slug]);
+
+    // Checkout return — buyer is sent back here (not to /dashboard) after paying via this referral link.
+    useEffect(() => {
+        if (typeof window === 'undefined' || !slug) return;
+        const params = new URLSearchParams(window.location.search);
+        const orderId = params.get('order_id');
+        const paid = params.get('paid');
+        if (!orderId || paid !== '1') return;
+
+        const seenKey = `fla_ref_paid_${orderId}`;
+        if (sessionStorage.getItem(seenKey)) {
+            window.history.replaceState({}, '', window.location.pathname);
+            return;
+        }
+        sessionStorage.setItem(seenKey, '1');
+        window.history.replaceState({}, '', window.location.pathname);
+
+        Swal.fire({
+            icon: 'success',
+            iconColor: '#059669',
+            title: 'Payment received',
+            html: `
+                <p class="text-slate-600 text-sm leading-relaxed">
+                    Thank you for shopping through <strong>${storeData?.referee?.name || 'this'}</strong>'s picks.
+                    A receipt will be sent to your email. The vendor may contact you on WhatsApp about delivery.
+                </p>
+            `,
+            confirmButtonText: 'Keep browsing',
+            buttonsStyling: false,
+            customClass: {
+                popup: 'rounded-[32px] border-none shadow-2xl p-8 bg-white',
+                title: 'text-xl font-black text-slate-900 tracking-tighter uppercase',
+                confirmButton:
+                    'bg-slate-900 text-white rounded-full px-10 py-4 text-[11px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all',
+            },
+        });
+    }, [slug, storeData?.referee?.name]);
 
     const fetchStore = async () => {
         try {

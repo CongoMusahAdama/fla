@@ -375,6 +375,9 @@ export default function CartDrawer() {
                     // Cart-level fallback only; each vendor group below carries its own
                     // referee code so mixed-referee carts credit the right person per vendor.
                     refereeCode: cartItems.find(item => item.refereeCode)?.refereeCode,
+                    // Send the buyer back to the storefront/referral page they checked out
+                    // from instead of the generic customer dashboard.
+                    callbackPath: typeof window !== 'undefined' ? window.location.pathname : undefined,
                     vendorGroups: vendorGroups.map(group => ({
                         vendorId: group.vendorId,
                         vendorName: group.vendorName,
