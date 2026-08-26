@@ -127,7 +127,7 @@ export class CreateOrderDto {
 
     /**
      * Referee code from referral link (e.g. REF-A1B2C3).
-     * When present, 2% commission is credited to the referee on payment.
+     * When present, 10% commission is credited to the referee on payment.
      */
     @IsString()
     @IsOptional()

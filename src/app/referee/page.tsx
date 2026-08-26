@@ -198,7 +198,7 @@ function RefereeAuthContent() {
                             FLA Referrals
                         </h2>
                         <p className="text-sm text-slate-800/75 leading-relaxed">
-                            Become an affiliate and earn 2% commission on every product you sell through your unique link.
+                            Become an affiliate and earn 10% commission on every product you sell through your unique link.
                         </p>
                         <ul className="space-y-3.5 text-sm text-slate-800/85 leading-relaxed pt-2">
                             <li className="flex gap-3">

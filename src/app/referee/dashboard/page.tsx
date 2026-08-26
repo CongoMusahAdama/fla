@@ -393,7 +393,7 @@ export default function RefereeDashboard() {
                                                     <h3 className="font-semibold text-slate-900 text-sm leading-tight line-clamp-2 mb-2 flex-1">{product.name}</h3>
                                                     <div className="flex items-center justify-between mb-4">
                                                         <span className="font-bold text-slate-900">GHS {product.price.toFixed(2)}</span>
-                                                        <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md">Earn GHS {(product.price * 0.02).toFixed(2)}</span>
+                                                        <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md">Earn GHS {(product.price * 0.10).toFixed(2)}</span>
                                                     </div>
                                                     <div className="flex gap-2">
                                                         <button onClick={() => copyToClipboard(productUrl, 'Product Link')} disabled={isHidden} className="flex-1 h-9 bg-brand-lemon text-slate-900 text-xs font-semibold rounded-lg hover:bg-brand-lemon-hover transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed">
@@ -515,7 +515,7 @@ export default function RefereeDashboard() {
                                                         <h3 className="font-semibold text-slate-900 text-sm leading-tight line-clamp-2 mb-2 flex-1">{product.name}</h3>
                                                         <div className="flex items-center justify-between mb-4">
                                                             <span className="font-bold text-slate-900">GHS {product.price?.toFixed(2)}</span>
-                                                            <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md">Earn GHS {(product.price * 0.02).toFixed(2)}</span>
+                                                            <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md">Earn GHS {(product.price * 0.10).toFixed(2)}</span>
                                                         </div>
                                                         <button
                                                             onClick={() => (isSelected ? handleUnselectProduct(product._id) : handleSelectProduct(product._id))}

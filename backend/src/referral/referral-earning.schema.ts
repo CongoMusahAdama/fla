@@ -28,7 +28,7 @@ export class ReferralEarning {
     @Prop({ required: true })
     saleAmount: number;
 
-    /** Referee's 2% commission (GHS) */
+    /** Referee's 10% commission (GHS) */
     @Prop({ required: true })
     commission: number;
 

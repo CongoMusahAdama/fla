@@ -1,5 +1,5 @@
 export const FLA_CONSTANTS = {
-  DEFAULT_COMMISSION_RATE: 3,
+  DEFAULT_COMMISSION_RATE: 5,
   AUTO_RELEASE_DAYS: 7,
   DELIVERY_AUTO_RELEASE_DAYS: 2,
   /** Unpaid Paystack checkouts older than this are deleted (no stock was taken) */
@@ -9,7 +9,7 @@ export const FLA_CONSTANTS = {
   SUBSCRIPTION_PERIOD_DAYS: 30,
   SUBSCRIPTION_REMINDER_DAYS: 5,
   /** Referee affiliate commission taken from vendor's payout (%) */
-  REFEREE_COMMISSION_RATE: 2,
+  REFEREE_COMMISSION_RATE: 10,
   /** Paystack transaction fee, borne by the platform out of its own commission (%) */
   PAYSTACK_FEE_RATE: 1.95,
   /** Max products a referee can feature in their curated store */
