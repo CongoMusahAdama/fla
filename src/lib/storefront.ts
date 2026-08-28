@@ -23,3 +23,10 @@ export function storefrontUrl(slug: string, origin?: string): string {
     (typeof window !== 'undefined' ? window.location.origin : '');
   return `${base}${storeHomePath(slug)}`;
 }
+
+export function storeProductUrl(slug: string, productId: string, origin?: string): string {
+  const base =
+    origin ||
+    (typeof window !== 'undefined' ? window.location.origin : '');
+  return `${base}${storeProductPath(slug, productId)}`;
+}

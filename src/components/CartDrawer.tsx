@@ -74,7 +74,7 @@ export default function CartDrawer() {
     const handleCheckout = async () => {
         if (cartItems.length === 0 || isProcessingCheckout) return;
 
-        let guestInfo: { phone: string, email: string } | null = null;
+        let guestInfo: { phone: string, email?: string } | null = null;
 
         if (!isAuthenticated) {
             setIsCartOpen(false);
@@ -98,7 +98,7 @@ export default function CartDrawer() {
                             <h4 class="font-black text-slate-500 mb-2">Guest Checkout</h4>
                             <ul class="text-xs text-slate-500 space-y-1 list-disc pl-4">
                                 <li>Pay securely via Paystack</li>
-                                <li>Receipt sent to your email</li>
+                                <li>No email needed</li>
                                 <li>Receive SMS notification with vendor's WhatsApp</li>
                             </ul>
                         </div>
@@ -146,10 +146,6 @@ export default function CartDrawer() {
                                 <label class="text-[10px] text-slate-400 font-black uppercase tracking-widest ml-1">WhatsApp Number</label>
                                 <input id="guest-whatsapp" type="tel" placeholder="e.g. 024xxxxxxx" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20" />
                             </div>
-                            <div class="space-y-2">
-                                <label class="text-[10px] text-slate-400 font-black uppercase tracking-widest ml-1">Email Address</label>
-                                <input id="guest-email" type="email" placeholder="e.g. you@example.com" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20" />
-                            </div>
                         </div>
                     `,
                     showCancelButton: true,
@@ -157,13 +153,12 @@ export default function CartDrawer() {
                     cancelButtonText: 'Cancel',
                     preConfirm: () => {
                         const phone = (document.getElementById('guest-whatsapp') as HTMLInputElement).value;
-                        const email = (document.getElementById('guest-email') as HTMLInputElement).value;
-                        
-                        if (!phone || !email) {
-                            Swal.showValidationMessage('Please provide both WhatsApp number and Email');
+
+                        if (!phone) {
+                            Swal.showValidationMessage('Please provide your WhatsApp number');
                             return false;
                         }
-                        return { phone, email };
+                        return { phone };
                     },
                     customClass: {
                         popup: 'rounded-3xl border border-slate-100 shadow-2xl p-10 bg-white',
@@ -349,7 +344,8 @@ export default function CartDrawer() {
             try {
                 // Guest checkout goes through Paystack just like a logged-in user.
                 // The WhatsApp number is for SMS notification only (handled by backend).
-                // The email is used by Paystack to send the payment receipt.
+                // No email is collected — Paystack still requires one, so the backend
+                // falls back to the vendor's own email for the receipt.
 
                 Swal.fire({
                     title: 'PREPARING PAYMENT...',

@@ -4,10 +4,10 @@ import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Clock, MapPin, Store } from 'lucide-react';
+import { ArrowLeft, Check, Clock, Copy, MapPin, Store } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { getImageUrl, getVendorDisplayLocation } from '@/lib/utils';
-import { storeHomePath } from '@/lib/storefront';
+import { storeHomePath, storeProductUrl } from '@/lib/storefront';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
 import Footer from '@/components/Footer';
@@ -63,6 +63,17 @@ export default function StoreProductPage() {
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [navOrigin, setNavOrigin] = useState<ProductNavOrigin>('store');
+  const [linkCopied, setLinkCopied] = useState(false);
+
+  const handleCopyProductLink = async () => {
+    try {
+      await navigator.clipboard.writeText(storeProductUrl(slug, productId));
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    } catch {
+      Swal.fire({ icon: 'error', title: 'Could not copy link', text: 'Please try again.' });
+    }
+  };
 
   useEffect(() => {
     setNavOrigin(getProductNavOrigin());
@@ -281,10 +292,6 @@ export default function StoreProductPage() {
                           <label class="text-[10px] text-slate-400 font-black uppercase tracking-widest ml-1">WhatsApp Number</label>
                           <input id="guest-whatsapp" type="tel" placeholder="e.g. 024xxxxxxx" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20" />
                       </div>
-                      <div class="space-y-2">
-                          <label class="text-[10px] text-slate-400 font-black uppercase tracking-widest ml-1">Email Address</label>
-                          <input id="guest-email" type="email" placeholder="e.g. you@example.com" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20" />
-                      </div>
                   </div>
               `,
               showCancelButton: true,
@@ -292,13 +299,12 @@ export default function StoreProductPage() {
               cancelButtonText: 'Cancel',
               preConfirm: () => {
                   const phone = (document.getElementById('guest-whatsapp') as HTMLInputElement).value;
-                  const email = (document.getElementById('guest-email') as HTMLInputElement).value;
-                  
-                  if (!phone || !email) {
-                      Swal.showValidationMessage('Please provide both WhatsApp number and Email');
+
+                  if (!phone) {
+                      Swal.showValidationMessage('Please provide your WhatsApp number');
                       return false;
                   }
-                  return { phone, email };
+                  return { phone };
               },
               customClass: {
                   popup: 'rounded-3xl border border-slate-100 shadow-2xl p-10 bg-white',
@@ -319,7 +325,7 @@ export default function StoreProductPage() {
     }
   };
 
-  const processCheckout = async (guestInfo: { phone: string, email: string } | null) => {
+  const processCheckout = async (guestInfo: { phone: string, email?: string } | null) => {
     if (!product) return;
 
     if (hasSizes && !selectedSize) {
@@ -487,6 +493,14 @@ export default function StoreProductPage() {
             {shopName}
           </button>
         )}
+        <button
+          type="button"
+          onClick={handleCopyProductLink}
+          className="inline-flex items-center gap-1.5 shrink-0 px-4 py-2 rounded-full bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest hover:bg-black transition-colors"
+        >
+          {linkCopied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+          {linkCopied ? 'Copied' : 'Copy link'}
+        </button>
       </div>
 
       <section className="max-w-6xl mx-auto px-4 py-6 md:py-10 grid md:grid-cols-2 gap-8 md:gap-12">

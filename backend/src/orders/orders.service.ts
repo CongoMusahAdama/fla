@@ -431,7 +431,9 @@ export class OrdersService implements OnModuleInit {
       const paystackPayload: any = {
         reference: orderId.toString(),
         amount: totalProductAmount,
-        email: createOrderDto.customerEmail || 'customer@fla.com',
+        // Most buyers don't have/use email — Paystack still requires one to initialize a
+        // transaction, so fall back to the vendor's own email rather than a fake address.
+        email: createOrderDto.customerEmail || vendor?.email || 'customer@fla.com',
         callback_url: callbackUrl,
         metadata: {
           orderId: orderId.toString(),
@@ -482,7 +484,7 @@ export class OrdersService implements OnModuleInit {
     const paystackPayload: any = {
       reference: `${orderId.toString()}_${Date.now()}`,
       amount: totalProductAmount,
-      email: order.customerEmail || 'customer@fla.com',
+      email: order.customerEmail || vendor?.email || 'customer@fla.com',
       callback_url: `${getFrontendBaseUrl('http://localhost:3000')}/dashboard?order_id=${orderId}`,
       metadata: {
         orderId: orderId.toString(),

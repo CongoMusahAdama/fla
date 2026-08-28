@@ -136,7 +136,7 @@ function ProductContent() {
     Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Added to cart', showConfirmButton: false, timer: 2500 });
   };
 
-  const processCheckout = async (guestInfo: { phone: string, email: string } | null) => {
+  const processCheckout = async (guestInfo: { phone: string, email?: string } | null) => {
     if (!product) return;
     if (hasSizes && !selectedSize) {
       Swal.fire({ icon: 'warning', title: 'Size Required', confirmButtonColor: '#0f172a' });
@@ -291,17 +291,12 @@ function ProductContent() {
                           <label class="text-[10px] text-slate-400 font-black uppercase tracking-widest ml-1">WhatsApp Number</label>
                           <input id="guest-whatsapp" type="tel" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-xl" />
                       </div>
-                      <div class="space-y-2">
-                          <label class="text-[10px] text-slate-400 font-black uppercase tracking-widest ml-1">Email Address</label>
-                          <input id="guest-email" type="email" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-xl" />
-                      </div>
                   </div>
               `,
               preConfirm: () => {
                   const phone = (document.getElementById('guest-whatsapp') as HTMLInputElement).value;
-                  const email = (document.getElementById('guest-email') as HTMLInputElement).value;
-                  if (!phone || !email) { Swal.showValidationMessage('Required'); return false; }
-                  return { phone, email };
+                  if (!phone) { Swal.showValidationMessage('Please provide your WhatsApp number'); return false; }
+                  return { phone };
               }
           });
           if (!guestDetails) return;

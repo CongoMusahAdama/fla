@@ -411,10 +411,6 @@ export default React.memo(function ProductCard({ id, name, price, images, sizes 
                                 <label class="text-[10px] text-slate-400 font-black uppercase tracking-widest ml-1">WhatsApp Number</label>
                                 <input id="guest-whatsapp" type="tel" placeholder="e.g. 024xxxxxxx" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20" />
                             </div>
-                            <div class="space-y-2">
-                                <label class="text-[10px] text-slate-400 font-black uppercase tracking-widest ml-1">Email Address</label>
-                                <input id="guest-email" type="email" placeholder="e.g. you@example.com" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20" />
-                            </div>
                         </div>
                     `,
                     showCancelButton: true,
@@ -422,13 +418,12 @@ export default React.memo(function ProductCard({ id, name, price, images, sizes 
                     cancelButtonText: 'Cancel',
                     preConfirm: () => {
                         const phone = (document.getElementById('guest-whatsapp') as HTMLInputElement).value;
-                        const email = (document.getElementById('guest-email') as HTMLInputElement).value;
-                        
-                        if (!phone || !email) {
-                            Swal.showValidationMessage('Please provide both WhatsApp number and Email');
+
+                        if (!phone) {
+                            Swal.showValidationMessage('Please provide your WhatsApp number');
                             return false;
                         }
-                        return { phone, email };
+                        return { phone };
                     },
                     customClass: {
                         popup: 'rounded-3xl border border-slate-100 shadow-2xl p-10 bg-white',
@@ -450,7 +445,7 @@ export default React.memo(function ProductCard({ id, name, price, images, sizes 
             processOrder(null);
         }
 
-        function processOrder(guestInfo: { phone: string, email: string } | null) {
+        function processOrder(guestInfo: { phone: string, email?: string } | null) {
             // Made-to-order items may take longer to produce
             // We assume simple check: if stock > 0 but needs time, or just based on duration text
             const isMadeToOrder = duration && !duration.toLowerCase().includes('ready') && !duration.toLowerCase().includes('stock');
@@ -487,7 +482,7 @@ export default React.memo(function ProductCard({ id, name, price, images, sizes 
     };
 
 
-    const handleDeliveryDetails = async (guestInfo: { phone: string, email: string } | null = null) => {
+    const handleDeliveryDetails = async (guestInfo: { phone: string, email?: string } | null = null) => {
         const { value: formValues, isConfirmed } = await Swal.fire({
             title: 'DELIVERY DETAILS',
             html: `
@@ -609,11 +604,12 @@ export default React.memo(function ProductCard({ id, name, price, images, sizes 
         }
     };
 
-    const handleCheckoutFlow = async (deliveryDetails: { deliveryAddress: string, deliveryCity: string, deliveryRegion: string, totalProductAmount: number }, guestInfo: { phone: string, email: string } | null = null) => {
+    const handleCheckoutFlow = async (deliveryDetails: { deliveryAddress: string, deliveryCity: string, deliveryRegion: string, totalProductAmount: number }, guestInfo: { phone: string, email?: string } | null = null) => {
         try {
             // Guest checkout goes through Paystack just like a logged-in user.
             // The WhatsApp number is for SMS notification only (handled by backend).
-            // The email is used by Paystack to send the payment receipt.
+            // No email is collected — Paystack still requires one, so the backend
+            // falls back to the vendor's own email for the receipt.
 
             Swal.fire({
                 title: 'PREPARING PAYMENT...',
