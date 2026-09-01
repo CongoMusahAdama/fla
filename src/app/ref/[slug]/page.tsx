@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Package, Search, ShoppingBag } from 'lucide-react';
+import { Package, Search, ShoppingBag, Copy, Check } from 'lucide-react';
 import Swal from 'sweetalert2';
 
 export default function RefereeStorefront() {
@@ -13,6 +13,20 @@ export default function RefereeStorefront() {
     const [storeData, setStoreData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [copiedId, setCopiedId] = useState<string | null>(null);
+
+    const handleCopyProductLink = async (e: React.MouseEvent, productId: string, refereeCode: string) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const url = `${window.location.origin}/product/${productId}?ref=${refereeCode}`;
+        try {
+            await navigator.clipboard.writeText(url);
+            setCopiedId(productId);
+            setTimeout(() => setCopiedId((id) => (id === productId ? null : id)), 2000);
+        } catch {
+            // clipboard unavailable — silently ignore
+        }
+    };
 
     useEffect(() => {
         if (slug) fetchStore();
@@ -139,6 +153,14 @@ export default function RefereeStorefront() {
                                     <div className="aspect-[4/5] relative bg-slate-100 overflow-hidden">
                                         <Image src={product.images[0] || '/placeholder.png'} alt={product.name} fill className="object-cover group-hover:scale-105 transition-transform duration-500" />
                                         <div className="absolute inset-0 bg-slate-900/0 group-hover:bg-slate-900/10 transition-colors" />
+                                        <button
+                                            type="button"
+                                            onClick={(e) => handleCopyProductLink(e, product._id, storeData.referee.refereeCode)}
+                                            aria-label="Copy product link"
+                                            className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white/90 backdrop-blur shadow-sm flex items-center justify-center text-slate-600 hover:text-slate-900 hover:bg-white transition-colors"
+                                        >
+                                            {copiedId === product._id ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                                        </button>
                                     </div>
                                     <div className="p-4 flex flex-col flex-1">
                                         <p className="text-[10px] font-bold text-brand-blue uppercase tracking-wider mb-1 line-clamp-1">{product.vendorName}</p>

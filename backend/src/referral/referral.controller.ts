@@ -57,6 +57,12 @@ export class ReferralController {
     return this.referralService.resolvePublicRefereeInfo(code);
   }
 
+  /** Vendor price + this referee's markup for one product — powers the shared single-product link. */
+  @Get('product-price/:code/:productId')
+  async getReferralProductPrice(@Param('code') code: string, @Param('productId') productId: string) {
+    return this.referralService.getReferralProductPrice(code, productId);
+  }
+
   // ─── Authenticated: Referee Dashboard ─────────────────────────────────────
 
   @UseGuards(AuthGuard('jwt'))
@@ -106,9 +112,24 @@ export class ReferralController {
 
   @UseGuards(AuthGuard('jwt'))
   @Post('my-store/select/:productId')
-  async selectProduct(@Request() req, @Param('productId') productId: string) {
+  async selectProduct(
+    @Request() req,
+    @Param('productId') productId: string,
+    @Body() body: { markupGhs: number },
+  ) {
     this.assertReferee(req);
-    return this.referralService.selectProduct(req.user.userId, productId);
+    return this.referralService.selectProduct(req.user.userId, productId, Number(body?.markupGhs));
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Patch('my-store/markup/:productId')
+  async updateMarkup(
+    @Request() req,
+    @Param('productId') productId: string,
+    @Body() body: { markupGhs: number },
+  ) {
+    this.assertReferee(req);
+    return this.referralService.updateProductMarkup(req.user.userId, productId, Number(body?.markupGhs));
   }
 
   @UseGuards(AuthGuard('jwt'))

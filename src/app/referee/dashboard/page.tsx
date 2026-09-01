@@ -6,11 +6,19 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import Swal from 'sweetalert2';
-import { LayoutDashboard, Wallet, Calendar, Copy, LogOut, CheckCircle2, History, Package, Eye, EyeOff, RefreshCcw, Search, MapPin, Plus, X as XIcon } from 'lucide-react';
+import { LayoutDashboard, Wallet, Calendar, Copy, LogOut, CheckCircle2, History, Package, Eye, EyeOff, RefreshCcw, Search, MapPin, Plus, X as XIcon, Download } from 'lucide-react';
 import { GHANA_REGIONS } from '@/lib/ghana-regions';
 import { fetchProductCategories, withAllProductCategory } from '@/lib/product-categories';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+
+/** Rough estimate matching the backend's actual split: platform takes 10% of the markup,
+ * and Paystack's real fee (1.95% of the full sale) also comes out of the markup. */
+function estimateRefereeNet(markupGhs: number, sellPrice: number): number {
+    const platformCut = markupGhs * 0.10;
+    const paystackFee = sellPrice * 0.0195;
+    return Math.max(0, markupGhs - platformCut - paystackFee);
+}
 
 export default function RefereeDashboard() {
     const { user, token, logout, isAuthenticated, isLoading } = useAuth();
@@ -35,6 +43,7 @@ export default function RefereeDashboard() {
     const [pickerSelectedIds, setPickerSelectedIds] = useState<string[]>([]);
     const [pickerSuggestions, setPickerSuggestions] = useState<any[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
+    const [pickerMarkups, setPickerMarkups] = useState<Record<string, number>>({});
 
     useEffect(() => {
         if (!isLoading && (!isAuthenticated || user?.role !== 'referee')) {
@@ -102,6 +111,15 @@ export default function RefereeDashboard() {
                 setPickerProducts(products);
                 setPickerSuggestions(products.slice(0, 6));
                 if (search) setShowSuggestions(true);
+                setPickerMarkups((prev) => {
+                    const next = { ...prev };
+                    products.forEach((p: any) => {
+                        if (next[p._id] === undefined) {
+                            next[p._id] = p.currentMarkupGhs ?? p.defaultMarkupGhs ?? 10;
+                        }
+                    });
+                    return next;
+                });
             }
         } catch (error) {
             console.error('Error browsing products:', error);
@@ -122,7 +140,7 @@ export default function RefereeDashboard() {
         fetchProductCategories().then((cats) => setCategoryOptions(withAllProductCategory(cats)));
     }, []);
 
-    const handleSelectProduct = async (productId: string) => {
+    const handleSelectProduct = async (productId: string, markupGhs: number) => {
         if (pickerSelectedIds.length >= storeCap) {
             Swal.fire({ icon: 'warning', title: 'Store is full', text: `You can feature up to ${storeCap} products. Remove one first.` });
             return;
@@ -131,7 +149,8 @@ export default function RefereeDashboard() {
             const res = await fetch(`${API_URL}/referral/my-store/select/${productId}`, {
                 method: 'POST',
                 credentials: 'include',
-                headers: authHeaders(),
+                headers: { 'Content-Type': 'application/json', ...authHeaders() },
+                body: JSON.stringify({ markupGhs }),
             });
             if (res.ok) {
                 setPickerSelectedIds((prev) => [...prev, productId]);
@@ -142,6 +161,25 @@ export default function RefereeDashboard() {
             }
         } catch (error) {
             console.error('Error selecting product:', error);
+        }
+    };
+
+    const handleUpdateMarkup = async (productId: string, markupGhs: number) => {
+        try {
+            const res = await fetch(`${API_URL}/referral/my-store/markup/${productId}`, {
+                method: 'PATCH',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json', ...authHeaders() },
+                body: JSON.stringify({ markupGhs }),
+            });
+            if (res.ok) {
+                fetchDashboardData(true);
+            } else {
+                const err = await res.json().catch(() => ({}));
+                Swal.fire({ icon: 'error', title: 'Could not update markup', text: err.message || 'Please try again.' });
+            }
+        } catch (error) {
+            console.error('Error updating markup:', error);
         }
     };
 
@@ -179,6 +217,29 @@ export default function RefereeDashboard() {
             }
         } catch (error) {
             console.error('Error toggling product visibility:', error);
+        }
+    };
+
+    const downloadProductImage = async (imageUrl?: string, productName?: string) => {
+        if (!imageUrl) {
+            Swal.fire({ icon: 'warning', title: 'No image available' });
+            return;
+        }
+        try {
+            const res = await fetch(imageUrl);
+            const blob = await res.blob();
+            const blobUrl = URL.createObjectURL(blob);
+            const ext = blob.type.split('/')[1] || 'jpg';
+            const a = document.createElement('a');
+            a.href = blobUrl;
+            a.download = `${(productName || 'product').replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.${ext}`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(blobUrl);
+        } catch (err) {
+            console.error('Failed to download image', err);
+            Swal.fire({ icon: 'error', title: 'Could not save image', text: 'Please try again.' });
         }
     };
 
@@ -391,13 +452,36 @@ export default function RefereeDashboard() {
                                                 <div className="p-4 flex-1 flex flex-col">
                                                     <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">{product.vendorName}</p>
                                                     <h3 className="font-semibold text-slate-900 text-sm leading-tight line-clamp-2 mb-2 flex-1">{product.name}</h3>
+                                                    <p className="text-[11px] text-slate-400 mb-1">Vendor price: GHS {(product.vendorPrice ?? product.price).toFixed(2)}</p>
+                                                    <div className="flex items-center gap-2 mb-2">
+                                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0">Your markup</label>
+                                                        <div className="relative flex-1">
+                                                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400">GHS</span>
+                                                            <input
+                                                                type="number"
+                                                                defaultValue={product.markupGhs}
+                                                                min={product.markupBounds?.min}
+                                                                max={product.markupBounds?.max}
+                                                                onBlur={(e) => {
+                                                                    const val = Number(e.target.value);
+                                                                    if (val !== product.markupGhs && !Number.isNaN(val)) {
+                                                                        handleUpdateMarkup(product._id, val);
+                                                                    }
+                                                                }}
+                                                                className="w-full h-8 pl-9 pr-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold outline-none focus:ring-2 focus:ring-brand-lemon/30"
+                                                            />
+                                                        </div>
+                                                    </div>
                                                     <div className="flex items-center justify-between mb-4">
-                                                        <span className="font-bold text-slate-900">GHS {product.price.toFixed(2)}</span>
-                                                        <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md">Earn GHS {(product.price * 0.10).toFixed(2)}</span>
+                                                        <span className="font-bold text-slate-900">GHS {(product.sellPrice ?? product.price).toFixed(2)}</span>
+                                                        <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md">Earn ~GHS {estimateRefereeNet(product.markupGhs, product.sellPrice ?? product.price).toFixed(2)}</span>
                                                     </div>
                                                     <div className="flex gap-2">
                                                         <button onClick={() => copyToClipboard(productUrl, 'Product Link')} disabled={isHidden} className="flex-1 h-9 bg-brand-lemon text-slate-900 text-xs font-semibold rounded-lg hover:bg-brand-lemon-hover transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed">
                                                             <Copy className="w-3.5 h-3.5" /> Copy Link
+                                                        </button>
+                                                        <button onClick={() => downloadProductImage(product.images?.[0], product.name)} title="Save picture" className="w-9 h-9 border border-slate-200 text-slate-500 hover:text-slate-900 hover:bg-slate-50 rounded-lg flex items-center justify-center transition-colors">
+                                                            <Download className="w-4 h-4" />
                                                         </button>
                                                         <button onClick={() => toggleHideProduct(product._id)} className="w-9 h-9 border border-slate-200 text-slate-500 hover:text-slate-900 hover:bg-slate-50 rounded-lg flex items-center justify-center transition-colors">
                                                             {isHidden ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
@@ -444,7 +528,7 @@ export default function RefereeDashboard() {
                                                             key={product._id}
                                                             type="button"
                                                             onClick={() => {
-                                                                if (!isSelected) handleSelectProduct(product._id);
+                                                                if (!isSelected) handleSelectProduct(product._id, product.defaultMarkupGhs ?? 10);
                                                                 setShowSuggestions(false);
                                                             }}
                                                             className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50 transition-colors text-left border-b border-slate-50 last:border-0"
@@ -513,12 +597,31 @@ export default function RefereeDashboard() {
                                                     <div className="p-4 flex-1 flex flex-col">
                                                         <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">{product.vendorName}</p>
                                                         <h3 className="font-semibold text-slate-900 text-sm leading-tight line-clamp-2 mb-2 flex-1">{product.name}</h3>
+                                                        <p className="text-[11px] text-slate-400 mb-1">Vendor price: GHS {product.price?.toFixed(2)}</p>
+                                                        {!isSelected && (
+                                                            <div className="flex items-center gap-2 mb-2">
+                                                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0">Your markup</label>
+                                                                <div className="relative flex-1">
+                                                                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400">GHS</span>
+                                                                    <input
+                                                                        type="number"
+                                                                        value={pickerMarkups[product._id] ?? product.defaultMarkupGhs ?? 10}
+                                                                        min={product.markupBounds?.min}
+                                                                        max={product.markupBounds?.max}
+                                                                        onChange={(e) => setPickerMarkups((prev) => ({ ...prev, [product._id]: Number(e.target.value) }))}
+                                                                        className="w-full h-8 pl-9 pr-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold outline-none focus:ring-2 focus:ring-brand-lemon/30"
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                        )}
                                                         <div className="flex items-center justify-between mb-4">
-                                                            <span className="font-bold text-slate-900">GHS {product.price?.toFixed(2)}</span>
-                                                            <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md">Earn GHS {(product.price * 0.10).toFixed(2)}</span>
+                                                            <span className="font-bold text-slate-900">GHS {((product.price || 0) + (pickerMarkups[product._id] ?? product.defaultMarkupGhs ?? 10)).toFixed(2)}</span>
+                                                            <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md">
+                                                                Earn ~GHS {estimateRefereeNet(pickerMarkups[product._id] ?? product.defaultMarkupGhs ?? 10, (product.price || 0) + (pickerMarkups[product._id] ?? product.defaultMarkupGhs ?? 10)).toFixed(2)}
+                                                            </span>
                                                         </div>
                                                         <button
-                                                            onClick={() => (isSelected ? handleUnselectProduct(product._id) : handleSelectProduct(product._id))}
+                                                            onClick={() => (isSelected ? handleUnselectProduct(product._id) : handleSelectProduct(product._id, pickerMarkups[product._id] ?? product.defaultMarkupGhs ?? 10))}
                                                             className={`h-9 text-xs font-semibold rounded-lg transition-colors flex items-center justify-center gap-1.5 ${
                                                                 isSelected
                                                                     ? 'bg-slate-100 text-slate-600 hover:bg-slate-200'

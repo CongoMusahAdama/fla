@@ -296,18 +296,7 @@ export class OrdersService implements OnModuleInit {
   ): Promise<{ order: Order; paymentLink: string }> {
     try {
       const orderId = new Types.ObjectId();
-
       const deliveryFee = 0;
-      const totalProductAmount = createOrderDto.totalProductAmount || createOrderDto.totalAmount;
-      const totalAmount = totalProductAmount;
-
-      const fetchedRate = await this.settingsService.getSetting('platform_commission');
-      const commissionRate = resolveCommissionRate(fetchedRate);
-      const adminCommission = totalProductAmount * (commissionRate / 100);
-      // Paystack's transaction fee is borne by the platform, deducted from its own commission —
-      // not from the vendor's payout. Tracked here for reporting (platform's true net = adminCommission - paystackFee).
-      const paystackFee = Math.round(totalProductAmount * (FLA_CONSTANTS.PAYSTACK_FEE_RATE / 100) * 100) / 100;
-      const vendorShare = Math.max(0, totalProductAmount - adminCommission);
 
       const vendor = await this.userModel.findById(createOrderDto.vendorId).exec();
 
@@ -320,34 +309,91 @@ export class OrdersService implements OnModuleInit {
       const hasCustomer =
         !!customerId && Types.ObjectId.isValid(customerId) && String(customerId).length === 24;
 
-      // Resolve referee from code (if provided) to attach commission to order
+      // Resolve referee from code (if provided). Markup pricing only applies to the specific
+      // items this referee actually added to their store — anything else in the same order
+      // (or the whole order, if none of it matches) is priced and split as a plain sale.
       let refereeId: Types.ObjectId | undefined;
-      let refereeCommission = 0;
-      let adjustedVendorShare = vendorShare;
       let refereePaystackSubaccountCode: string | undefined;
       if (refereeCode) {
         const referee = await this.referralService.resolveRefereeByCode(refereeCode);
         if (referee) {
           refereeId = (referee as any)._id;
-          refereeCommission = Math.round(totalProductAmount * (FLA_CONSTANTS.REFEREE_COMMISSION_RATE / 100) * 100) / 100;
-          adjustedVendorShare = Math.max(0, vendorShare - refereeCommission);
           refereePaystackSubaccountCode = (referee as any).paystackSubaccountCode;
         }
       }
 
+      // totalVendorBase/totalMarkup: authoritative (DB-sourced) amounts for items this referee
+      // priced. nonReferredSubtotal: client-supplied total for everything else, matching the
+      // existing trust model for plain (non-referral) orders.
+      let totalVendorBase = 0;
+      let totalMarkup = 0;
+      let nonReferredSubtotal = 0;
+
+      if (refereeId && items?.length) {
+        for (const item of items) {
+          const qty = item.quantity || 1;
+          const selection = await this.referralService.getSelectionMarkup(refereeId.toString(), item.productId);
+          if (selection) {
+            totalVendorBase += selection.vendorPrice * qty;
+            totalMarkup += selection.markupGhs * qty;
+            // Never trust a client-supplied price for a referred item — always the
+            // authoritative vendor price + this referee's stored markup.
+            (item as any).price = selection.vendorPrice + selection.markupGhs;
+          } else {
+            nonReferredSubtotal += (item.price || 0) * qty;
+          }
+        }
+      } else if (items?.length) {
+        nonReferredSubtotal = items.reduce((sum, item) => sum + (item.price || 0) * (item.quantity || 1), 0);
+      }
+
+      const hasReferralMarkup = !!refereeId && totalMarkup > 0;
+      const totalProductAmount = hasReferralMarkup
+        ? totalVendorBase + totalMarkup + nonReferredSubtotal
+        : createOrderDto.totalProductAmount || createOrderDto.totalAmount;
+      const totalAmount = totalProductAmount;
+
+      const fetchedRate = await this.settingsService.getSetting('platform_commission');
+      const commissionRate = resolveCommissionRate(fetchedRate);
+      // Paystack's transaction fee is borne by the platform, deducted from its own commission —
+      // not from the vendor's payout. Tracked here for reporting (platform's true net = adminCommission - paystackFee).
+      const paystackFee = Math.round(totalProductAmount * (FLA_CONSTANTS.PAYSTACK_FEE_RATE / 100) * 100) / 100;
+
+      let adminCommission: number;
+      let adjustedVendorShare: number;
+      let refereeCommission = 0;
+
+      if (hasReferralMarkup) {
+        // Vendor's price is never touched on a referred sale — every fee comes out of the
+        // referee's markup alone, and only the referee's markup.
+        const nonReferredCommission = nonReferredSubtotal * (commissionRate / 100);
+        const platformCutFromMarkup = totalMarkup * (FLA_CONSTANTS.REFERRAL_PLATFORM_MARKUP_CUT_RATE / 100);
+        const paystackFeeOnReferredPortion =
+          Math.round((totalVendorBase + totalMarkup) * (FLA_CONSTANTS.PAYSTACK_FEE_RATE / 100) * 100) / 100;
+
+        adminCommission = nonReferredCommission + platformCutFromMarkup;
+        adjustedVendorShare = totalVendorBase + (nonReferredSubtotal - nonReferredCommission);
+        refereeCommission =
+          Math.round(Math.max(0, totalMarkup - platformCutFromMarkup - paystackFeeOnReferredPortion) * 100) / 100;
+      } else {
+        adminCommission = totalProductAmount * (commissionRate / 100);
+        adjustedVendorShare = Math.max(0, totalProductAmount - adminCommission);
+      }
+
       // Auto-pay the referee directly via a dynamic Paystack split, if both parties are payout-linked.
       // Falls back silently to wallet crediting (on payment success) if this fails for any reason.
+      // Flat amounts (not percentages): the vendor must receive their exact price regardless of
+      // the referee's markup, which a percentage split can't express on its own.
       let refereePaidViaSplit = false;
       let paystackSplitCode: string | undefined;
       if (refereeId && refereeCommission > 0 && vendor?.paystackSubaccountCode && refereePaystackSubaccountCode) {
         try {
-          const vendorSharePercent = totalProductAmount > 0 ? (adjustedVendorShare / totalProductAmount) * 100 : 0;
-          const refereeSharePercent = totalProductAmount > 0 ? (refereeCommission / totalProductAmount) * 100 : 0;
           const split = await this.paystackService.createSplit({
             name: `order-${orderId.toString()}`,
+            type: 'flat',
             subaccounts: [
-              { subaccount: vendor.paystackSubaccountCode, share: vendorSharePercent },
-              { subaccount: refereePaystackSubaccountCode, share: refereeSharePercent },
+              { subaccount: vendor.paystackSubaccountCode, share: Math.round(adjustedVendorShare * 100) },
+              { subaccount: refereePaystackSubaccountCode, share: Math.round(refereeCommission * 100) },
             ],
           });
           if (split?.split_code) {

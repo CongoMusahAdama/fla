@@ -76,17 +76,23 @@ export class PaystackService {
      * bearer_type is fixed to 'account' — the platform's main account absorbs
      * Paystack's processing fee (out of its own commission), so subaccounts
      * (vendor, referee) always receive their full designated share.
+     *
+     * type 'flat': each subaccount's `share` is an exact pesewas amount, used for
+     * referral markup pricing where the vendor must receive their exact listed
+     * price regardless of the referee's markup. type 'percentage' (default) is
+     * for the plain vendor-only case.
      */
     async createSplit(data: {
         name: string;
         subaccounts: Array<{ subaccount: string; share: number }>;
+        type?: 'percentage' | 'flat';
     }) {
         try {
             const response = await axios.post(
                 `${this.baseUrl}/split`,
                 {
                     name: data.name,
-                    type: 'percentage',
+                    type: data.type || 'percentage',
                     currency: 'GHS',
                     subaccounts: data.subaccounts,
                     bearer_type: 'account',

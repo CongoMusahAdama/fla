@@ -15,6 +15,10 @@ export class RefereeProductSelection {
     @Prop({ default: 'manual', enum: ['manual', 'auto'] })
     source: string;
 
+    /** Flat GHS the referee adds on top of the vendor's price — buyer pays vendor price + this. */
+    @Prop({ required: true })
+    markupGhs: number;
+
     @Prop({ default: Date.now })
     selectedAt: Date;
 }

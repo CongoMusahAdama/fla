@@ -103,6 +103,27 @@ export class ReferralService {
     };
   }
 
+  // ─── Referral Markup Pricing ───────────────────────────────────────────────
+
+  /** Min/max flat GHS markup a referee may add on top of a product's vendor price. */
+  private markupBounds(vendorPrice: number): { min: number; max: number } {
+    const min = FLA_CONSTANTS.MIN_REFERRAL_MARKUP_GHS;
+    const max = Math.max(min, Math.round(vendorPrice * (FLA_CONSTANTS.MAX_REFERRAL_MARKUP_PERCENT / 100)));
+    return { min, max };
+  }
+
+  private assertMarkupInBounds(vendorPrice: number, markupGhs: number): void {
+    const { min, max } = this.markupBounds(vendorPrice);
+    if (typeof markupGhs !== 'number' || Number.isNaN(markupGhs)) {
+      throw new BadRequestException('Please enter a markup amount.');
+    }
+    if (markupGhs < min || markupGhs > max) {
+      throw new BadRequestException(
+        `Markup must be between GHS ${min} and GHS ${max} for this product.`,
+      );
+    }
+  }
+
   // ─── Referee Store (curated selections, capped at 50, 10 auto-filled) ────
 
   /**
@@ -167,7 +188,7 @@ export class ReferralService {
 
     const regionPool = await this.productModel
       .find({ vendorId: { $in: vendorIds }, region: referee.region, isActive: true, _id: { $nin: alreadyPicked } })
-      .select('_id vendorId')
+      .select('_id vendorId price')
       .sort({ createdAt: -1 })
       .limit(300)
       .exec();
@@ -181,7 +202,7 @@ export class ReferralService {
     if (regionVendorCount < FLA_CONSTANTS.REFEREE_AUTO_FILL_MIN_VENDORS) {
       pool = await this.productModel
         .find({ vendorId: { $in: vendorIds }, isActive: true, _id: { $nin: alreadyPicked } })
-        .select('_id vendorId')
+        .select('_id vendorId price')
         .sort({ createdAt: -1 })
         .limit(300)
         .exec();
@@ -195,6 +216,8 @@ export class ReferralService {
         refereeId: new Types.ObjectId(refereeId),
         productId: p._id,
         source: 'auto',
+        // Auto-filled at the minimum markup — the referee can raise it anytime from their store.
+        markupGhs: this.markupBounds(p.price || 0).min,
       })),
       { ordered: false },
     ).catch(() => {
@@ -223,7 +246,19 @@ export class ReferralService {
 
     const products = selections
       .filter((s: any) => s.productId)
-      .map((s: any) => ({ ...s.productId, selectionSource: s.source, selectedAt: s.selectedAt }));
+      .map((s: any) => {
+        const vendorPrice = s.productId.price || 0;
+        const markupGhs = s.markupGhs ?? this.markupBounds(vendorPrice).min;
+        return {
+          ...s.productId,
+          vendorPrice,
+          markupGhs,
+          sellPrice: vendorPrice + markupGhs,
+          markupBounds: this.markupBounds(vendorPrice),
+          selectionSource: s.source,
+          selectedAt: s.selectedAt,
+        };
+      });
 
     return { products, hiddenIds, cap: FLA_CONSTANTS.REFEREE_STORE_CAP, autoFillCount: FLA_CONSTANTS.REFEREE_AUTO_FILL_COUNT };
   }
@@ -294,13 +329,26 @@ export class ReferralService {
       this.productModel.countDocuments(filter),
       this.refereeProductSelectionModel
         .find({ refereeId: new Types.ObjectId(refereeId) })
-        .select('productId')
+        .select('productId markupGhs')
         .lean()
         .exec(),
     ]);
 
+    const markupByProductId = new Map<string, number>(
+      mySelections.map((s: any) => [String(s.productId), s.markupGhs]),
+    );
+    const productsWithMarkup = products.map((p: any) => {
+      const bounds = this.markupBounds(p.price || 0);
+      return {
+        ...p,
+        markupBounds: bounds,
+        defaultMarkupGhs: bounds.min,
+        currentMarkupGhs: markupByProductId.get(String(p._id)) ?? null,
+      };
+    });
+
     return {
-      products,
+      products: productsWithMarkup,
       total,
       page,
       totalPages: Math.max(1, Math.ceil(total / limit)),
@@ -308,7 +356,11 @@ export class ReferralService {
     };
   }
 
-  async selectProduct(refereeId: string, productId: string): Promise<{ selected: boolean; count: number }> {
+  async selectProduct(
+    refereeId: string,
+    productId: string,
+    markupGhs: number,
+  ): Promise<{ selected: boolean; count: number; markupGhs: number }> {
     const referee = await this.userModel.findById(refereeId).exec();
     if (!referee || referee.role !== 'referee') {
       throw new ForbiddenException('Only referee accounts can select products.');
@@ -318,6 +370,8 @@ export class ReferralService {
     if (!product) {
       throw new NotFoundException('Product not found.');
     }
+
+    this.assertMarkupInBounds(product.price || 0, markupGhs);
 
     const count = await this.refereeProductSelectionModel.countDocuments({
       refereeId: new Types.ObjectId(refereeId),
@@ -333,6 +387,7 @@ export class ReferralService {
         refereeId: new Types.ObjectId(refereeId),
         productId: new Types.ObjectId(productId),
         source: 'manual',
+        markupGhs,
       });
     } catch (err: any) {
       if (err.code !== 11000) throw err; // ignore duplicate-select races
@@ -341,7 +396,36 @@ export class ReferralService {
     const newCount = await this.refereeProductSelectionModel.countDocuments({
       refereeId: new Types.ObjectId(refereeId),
     });
-    return { selected: true, count: newCount };
+    return { selected: true, count: newCount, markupGhs };
+  }
+
+  /** Referee adjusts their markup on a product already in their store. */
+  async updateProductMarkup(
+    refereeId: string,
+    productId: string,
+    markupGhs: number,
+  ): Promise<{ markupGhs: number; sellPrice: number }> {
+    const referee = await this.userModel.findById(refereeId).exec();
+    if (!referee || referee.role !== 'referee') {
+      throw new ForbiddenException('Only referee accounts can manage their store.');
+    }
+
+    const product = await this.productModel.findById(productId).select('price').exec();
+    if (!product) {
+      throw new NotFoundException('Product not found.');
+    }
+    this.assertMarkupInBounds(product.price || 0, markupGhs);
+
+    const selection = await this.refereeProductSelectionModel.findOneAndUpdate(
+      { refereeId: new Types.ObjectId(refereeId), productId: new Types.ObjectId(productId) },
+      { $set: { markupGhs } },
+      { new: true },
+    );
+    if (!selection) {
+      throw new NotFoundException('This product is not in your store.');
+    }
+
+    return { markupGhs, sellPrice: (product.price || 0) + markupGhs };
   }
 
   async unselectProduct(refereeId: string, productId: string): Promise<{ selected: boolean; count: number }> {
@@ -388,6 +472,7 @@ export class ReferralService {
         phone: s.refereeId.phone,
         tiktokLink: s.refereeId.tiktokLink,
         snapchatLink: s.refereeId.snapchatLink,
+        markupGhs: s.markupGhs,
         selectedAt: s.selectedAt,
       }));
   }
@@ -437,9 +522,67 @@ export class ReferralService {
 
     const products = selections
       .filter((s: any) => s.productId && s.productId.isActive && !hiddenIds.includes(String(s.productId._id)))
-      .map((s: any) => s.productId);
+      .map((s: any) => {
+        const vendorPrice = s.productId.price || 0;
+        const markupGhs = s.markupGhs ?? this.markupBounds(vendorPrice).min;
+        // Buyers on a referral storefront see (and pay) the vendor price plus this
+        // referee's markup — `price` is overwritten so every existing price display
+        // works unchanged; `vendorPrice` is kept alongside for reference.
+        return { ...s.productId, vendorPrice, markupGhs, price: vendorPrice + markupGhs };
+      });
 
     return { referee, products };
+  }
+
+  /**
+   * Resolves the price a buyer actually pays for one product via a specific referee's
+   * link — vendor price + that referee's markup. Returns null if this referee hasn't
+   * added the product to their store (no markup applies; the product page falls back
+   * to the vendor's plain price with no referral attribution for that item).
+   */
+  async getReferralProductPrice(
+    refereeCode: string,
+    productId: string,
+  ): Promise<{ vendorPrice: number; markupGhs: number; sellPrice: number } | null> {
+    const referee = await this.resolveRefereeByCode(refereeCode);
+    if (!referee) return null;
+
+    const [selection, product] = await Promise.all([
+      this.refereeProductSelectionModel
+        .findOne({ refereeId: (referee as any)._id, productId: new Types.ObjectId(productId) })
+        .lean()
+        .exec(),
+      this.productModel.findById(productId).select('price').lean().exec(),
+    ]);
+    if (!selection || !product) return null;
+
+    const vendorPrice = (product as any).price || 0;
+    const markupGhs = (selection as any).markupGhs ?? this.markupBounds(vendorPrice).min;
+    return { vendorPrice, markupGhs, sellPrice: vendorPrice + markupGhs };
+  }
+
+  /**
+   * Same lookup as getReferralProductPrice, but by referee ID (already resolved) instead of
+   * code — used at checkout to authoritatively price each referred cart item server-side.
+   * Returns null when this referee hasn't added the product to their store, meaning no
+   * markup or commission applies to that specific item.
+   */
+  async getSelectionMarkup(
+    refereeId: string,
+    productId: string,
+  ): Promise<{ vendorPrice: number; markupGhs: number } | null> {
+    const [selection, product] = await Promise.all([
+      this.refereeProductSelectionModel
+        .findOne({ refereeId: new Types.ObjectId(refereeId), productId: new Types.ObjectId(productId) })
+        .lean()
+        .exec(),
+      this.productModel.findById(productId).select('price').lean().exec(),
+    ]);
+    if (!selection || !product) return null;
+
+    const vendorPrice = (product as any).price || 0;
+    const markupGhs = (selection as any).markupGhs ?? this.markupBounds(vendorPrice).min;
+    return { vendorPrice, markupGhs };
   }
 
   // ─── Referral Link Builder ────────────────────────────────────────────────

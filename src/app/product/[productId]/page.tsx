@@ -86,6 +86,31 @@ function ProductContent() {
     };
   }, [refCode]);
 
+  // Referral markup: this referee's price for this exact product (vendor price + their
+  // markup) — only applies if they actually added it to their store. Overrides the plain
+  // vendor price so the buyer sees and pays the same amount everywhere in the flow.
+  useEffect(() => {
+    if (!refCode || !productId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(
+          `${apiBase()}/referral/product-price/${encodeURIComponent(refCode)}/${encodeURIComponent(productId)}`,
+        );
+        if (!res.ok) return;
+        const pricing = await res.json();
+        if (!cancelled && pricing?.sellPrice) {
+          setProduct((prev: any) => (prev ? { ...prev, price: pricing.sellPrice } : prev));
+        }
+      } catch {
+        // ignore — buyer just sees the vendor's plain price, no referral markup applied
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [refCode, productId]);
+
   const hasSizes = product?.hasSizes !== false && (product?.sizes?.length ?? 0) > 0;
   const hasColors = product?.hasColors !== false && (product?.colors?.length ?? 0) > 0;
   const soldOut = (product?.stock ?? 0) <= 0;

@@ -8,8 +8,17 @@ export const FLA_CONSTANTS = {
   SUBSCRIPTION_MONTHLY_GHS: 100,
   SUBSCRIPTION_PERIOD_DAYS: 30,
   SUBSCRIPTION_REMINDER_DAYS: 5,
-  /** Referee affiliate commission taken from vendor's payout (%) */
-  REFEREE_COMMISSION_RATE: 10,
+  /**
+   * Referral pricing: the referee sets their own flat GHS markup per product — the vendor's
+   * price is never touched, and all platform/Paystack fees on a referred sale come out of
+   * that markup alone.
+   */
+  /** Minimum markup a referee must add — guarantees they net something after fees. */
+  MIN_REFERRAL_MARKUP_GHS: 10,
+  /** A referee's markup can't exceed this % of the vendor's own price. */
+  MAX_REFERRAL_MARKUP_PERCENT: 50,
+  /** Platform's cut of the referee's markup (not of the vendor's price). */
+  REFERRAL_PLATFORM_MARKUP_CUT_RATE: 10,
   /** Paystack transaction fee, borne by the platform out of its own commission (%) */
   PAYSTACK_FEE_RATE: 1.95,
   /** Max products a referee can feature in their curated store */
