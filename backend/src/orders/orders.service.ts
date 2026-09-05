@@ -456,15 +456,18 @@ export class OrdersService implements OnModuleInit {
 
       const frontendBase = getFrontendBaseUrl('http://localhost:3000');
 
-      // Guests with a storefront return path should not hit /dashboard (forces login).
-      // A caller-provided return path (e.g. the referral storefront the buyer checked out from)
-      // takes priority for guest AND logged-in buyers alike — otherwise a signed-in shopper
-      // buying through a referee's store still gets bounced to their generic dashboard instead
-      // of back to that store.
+      // A caller-provided return path (e.g. the referral storefront the buyer checked out
+      // from) takes priority for guest AND logged-in buyers alike — otherwise a signed-in
+      // shopper buying through a referee's store still gets bounced to their generic
+      // dashboard instead of back to that store.
       const sanitizedCallback = this.sanitizeCallbackPath(callbackPath);
+      // sanitizeCallbackPath strips any query string for safety, which would otherwise drop
+      // ?ref=code on the way back — re-attach it explicitly so a referral product page still
+      // knows which referee's markup to show after the buyer returns from paying.
+      const refParam = refereeId ? `&ref=${encodeURIComponent(refereeCode!)}` : '';
       let callbackUrl: string;
       if (sanitizedCallback) {
-        callbackUrl = `${frontendBase}${sanitizedCallback}?order_id=${orderId}&paid=1`;
+        callbackUrl = `${frontendBase}${sanitizedCallback}?order_id=${orderId}&paid=1${refParam}`;
       } else if (!hasCustomer) {
         // Guest without store path → marketplace, not auth/login.
         callbackUrl = `${frontendBase}/shop?order_id=${orderId}&paid=1`;

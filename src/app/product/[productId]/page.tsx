@@ -38,6 +38,10 @@ function ProductContent() {
     router.push(ret.path, { scroll: false });
   };
 
+  // Fetches the plain product, then (if arriving via a referral link) the referee's markup
+  // for it — sequentially, in one state update. These used to be two independent effects
+  // each calling setProduct; whichever fetch happened to resolve last silently won,
+  // sometimes clobbering the marked-up price back to the vendor's plain price.
   useEffect(() => {
     if (!productId) return;
     let cancelled = false;
@@ -48,8 +52,24 @@ function ProductContent() {
       try {
         const productRes = await fetch(`${apiBase()}/products/${encodeURIComponent(productId)}`);
         if (!productRes.ok) throw new Error('Product not found');
-        const p = await productRes.json();
-        
+        let p = await productRes.json();
+
+        if (refCode) {
+          try {
+            const priceRes = await fetch(
+              `${apiBase()}/referral/product-price/${encodeURIComponent(refCode)}/${encodeURIComponent(productId)}`,
+            );
+            if (priceRes.ok) {
+              const pricing = await priceRes.json();
+              if (pricing?.sellPrice) {
+                p = { ...p, price: pricing.sellPrice };
+              }
+            }
+          } catch {
+            // ignore — buyer just sees the vendor's plain price, no referral markup applied
+          }
+        }
+
         if (cancelled) return;
         setProduct(p);
       } catch (e: any) {
@@ -62,7 +82,7 @@ function ProductContent() {
     return () => {
       cancelled = true;
     };
-  }, [productId]);
+  }, [productId, refCode]);
 
   useEffect(() => {
     if (!refCode) {
@@ -85,31 +105,6 @@ function ProductContent() {
       cancelled = true;
     };
   }, [refCode]);
-
-  // Referral markup: this referee's price for this exact product (vendor price + their
-  // markup) — only applies if they actually added it to their store. Overrides the plain
-  // vendor price so the buyer sees and pays the same amount everywhere in the flow.
-  useEffect(() => {
-    if (!refCode || !productId) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch(
-          `${apiBase()}/referral/product-price/${encodeURIComponent(refCode)}/${encodeURIComponent(productId)}`,
-        );
-        if (!res.ok) return;
-        const pricing = await res.json();
-        if (!cancelled && pricing?.sellPrice) {
-          setProduct((prev: any) => (prev ? { ...prev, price: pricing.sellPrice } : prev));
-        }
-      } catch {
-        // ignore — buyer just sees the vendor's plain price, no referral markup applied
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [refCode, productId]);
 
   const hasSizes = product?.hasSizes !== false && (product?.sizes?.length ?? 0) > 0;
   const hasColors = product?.hasColors !== false && (product?.colors?.length ?? 0) > 0;
@@ -227,7 +222,17 @@ function ProductContent() {
         paymentMethod: 'paystack',
         notes: 'Direct Product Checkout',
         refereeCode: refCode || undefined,
-        ...(guestInfo ? { callbackPath: storeSlug ? storeHomePath(storeSlug) : '/shop' } : {}),
+        // Return to the referral context (the referee's storefront, or this same product
+        // page if that's not loaded yet) for referral purchases, regardless of guest vs
+        // signed-in — otherwise the buyer lands back on the vendor's plain store, or the
+        // generic dashboard, losing the referral price/context entirely.
+        callbackPath: refCode
+          ? refereeStore?.refereeStoreSlug
+            ? `/ref/${refereeStore.refereeStoreSlug}`
+            : `/product/${product._id}?ref=${refCode}`
+          : storeSlug
+            ? storeHomePath(storeSlug)
+            : '/shop',
       };
 
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
