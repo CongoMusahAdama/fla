@@ -308,6 +308,44 @@ export default function Navbar() {
                   </span>
                 </div>
               </Link>
+            ) : isReferredProductPage ? (
+              <div className="flex items-center gap-2.5 shrink-0 min-w-0 cursor-default">
+                <Image
+                  src="/logo.jpeg"
+                  alt="FLA"
+                  width={48}
+                  height={48}
+                  className="h-10 w-10 md:h-12 md:w-12 object-contain rounded-xl"
+                  priority
+                />
+                <div className="hidden sm:block leading-tight">
+                  <span className="font-heading text-xl md:text-2xl font-extrabold text-slate-900 tracking-tight block">
+                    FLA
+                  </span>
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                    Purchase
+                  </span>
+                </div>
+              </div>
+            ) : isRefereeStorePage ? (
+              <div className="flex items-center gap-2.5 shrink-0 min-w-0 cursor-default">
+                <Image
+                  src="/logo.jpeg"
+                  alt="FLA"
+                  width={48}
+                  height={48}
+                  className="h-10 w-10 md:h-12 md:w-12 object-contain rounded-xl"
+                  priority
+                />
+                <div className="hidden sm:block leading-tight">
+                  <span className="font-heading text-xl md:text-2xl font-extrabold text-slate-900 tracking-tight block">
+                    FLA
+                  </span>
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                    Purchase
+                  </span>
+                </div>
+              </div>
             ) : (
               <Link href="/" className="flex items-center gap-2.5 shrink-0 min-w-0">
                 <Image

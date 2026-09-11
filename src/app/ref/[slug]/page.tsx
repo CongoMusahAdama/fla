@@ -104,10 +104,10 @@ export default function RefereeStorefront() {
             {/* Header */}
             <header className="bg-white sticky top-0 z-40 border-b border-slate-200">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-                    <Link href="/" className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 cursor-default">
                         <Image src="/logo.jpeg" alt="FLA" width={32} height={32} className="rounded-lg shadow-sm" />
                         <span className="font-bold text-slate-900 tracking-tight hidden sm:block">FLA Purchase</span>
-                    </Link>
+                    </div>
                     <div className="flex-1 max-w-md mx-4">
                         <div className="relative">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />

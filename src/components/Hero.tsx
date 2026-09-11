@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowRight, ShoppingBag } from 'lucide-react';
-import { getImageUrl } from '@/lib/utils';
+import { getOptimizedImage } from '@/lib/utils';
 import { storeProductPath, storeHomePath, resolveStoreSlug } from '@/lib/storefront';
 import { useProductCategories } from '@/hooks/useProductCategories';
 import { DEFAULT_PRODUCT_CATEGORY_LABELS } from '@/lib/product-categories';
@@ -169,7 +169,9 @@ export default function Hero() {
                 name: p.name,
                 price: p.price,
                 category: p.category,
-                image: getImageUrl(p.images?.[0]),
+                // Sized once here for the hero card use — category tiles ask for their
+                // own much smaller size below rather than downloading this full copy.
+                image: getOptimizedImage(p.images?.[0] || '', 1200, 1200),
                 storeSlug: p.storeSlug,
                 vendorId: p.vendorId,
               }),
@@ -187,7 +189,7 @@ export default function Hero() {
         setMainCard({
           title: mainAd.title,
           subtitle: mainAd.subtitle,
-          image: getImageUrl(mainAd.imageUrl),
+          image: getOptimizedImage(mainAd.imageUrl, 1200, 1200),
           href: billboardHref(mainAd),
           ctaLabel: mainAd.ctaLabel || 'Shop now',
           eyebrow: 'Sponsored',
@@ -211,7 +213,7 @@ export default function Hero() {
         setSideCard({
           title: sideAd.title,
           subtitle: sideAd.subtitle,
-          image: getImageUrl(sideAd.imageUrl),
+          image: getOptimizedImage(sideAd.imageUrl, 700, 700),
           href: billboardHref(sideAd),
           eyebrow: 'Sponsored',
         });
@@ -353,7 +355,7 @@ export default function Hero() {
               >
                 <span className="relative h-16 w-16 sm:h-[4.75rem] sm:w-[4.75rem] rounded-2xl overflow-hidden bg-slate-200 shadow-sm ring-1 ring-slate-100 group-hover:ring-brand-lemon group-hover:shadow-md group-hover:-translate-y-0.5 transition-all duration-300">
                   <Image
-                    src={image}
+                    src={getOptimizedImage(image, 160, 160)}
                     alt={label}
                     fill
                     className="object-cover transition-transform duration-500 group-hover:scale-110"

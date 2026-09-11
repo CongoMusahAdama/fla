@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
@@ -40,6 +40,10 @@ export default function RefereeDashboard() {
     const [pickerSearch, setPickerSearch] = useState('');
     const [pickerProducts, setPickerProducts] = useState<any[]>([]);
     const [pickerLoading, setPickerLoading] = useState(false);
+    const [pickerPage, setPickerPage] = useState(1);
+    const [pickerTotalPages, setPickerTotalPages] = useState(1);
+    const [pickerLoadingMore, setPickerLoadingMore] = useState(false);
+    const pickerSentinelRef = useRef<HTMLDivElement | null>(null);
     const [pickerSelectedIds, setPickerSelectedIds] = useState<string[]>([]);
     const [pickerSuggestions, setPickerSuggestions] = useState<any[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
@@ -91,8 +95,10 @@ export default function RefereeDashboard() {
 
     const authHeaders = (): HeadersInit => (token ? { Authorization: `Bearer ${token}` } : {});
 
-    const fetchBrowseProducts = async (opts?: { region?: string; search?: string; category?: string }) => {
-        setPickerLoading(true);
+    const fetchBrowseProducts = async (opts?: { region?: string; search?: string; category?: string; page?: number; append?: boolean }) => {
+        const page = opts?.page ?? 1;
+        const append = opts?.append ?? false;
+        if (append) setPickerLoadingMore(true); else setPickerLoading(true);
         try {
             const params = new URLSearchParams();
             const region = opts?.region ?? pickerRegion;
@@ -101,6 +107,7 @@ export default function RefereeDashboard() {
             if (region) params.set('region', region);
             if (search) params.set('search', search);
             if (category) params.set('category', category);
+            params.set('page', String(page));
             const res = await fetch(`${API_URL}/referral/browse-products?${params.toString()}`, {
                 credentials: 'include',
                 headers: authHeaders(),
@@ -108,9 +115,13 @@ export default function RefereeDashboard() {
             if (res.ok) {
                 const data = await res.json();
                 const products = data.products || [];
-                setPickerProducts(products);
-                setPickerSuggestions(products.slice(0, 6));
-                if (search) setShowSuggestions(true);
+                setPickerPage(data.page || page);
+                setPickerTotalPages(data.totalPages || 1);
+                setPickerProducts((prev) => (append ? [...prev, ...products] : products));
+                if (!append) {
+                    setPickerSuggestions(products.slice(0, 6));
+                    if (search) setShowSuggestions(true);
+                }
                 setPickerMarkups((prev) => {
                     const next = { ...prev };
                     products.forEach((p: any) => {
@@ -124,9 +135,31 @@ export default function RefereeDashboard() {
         } catch (error) {
             console.error('Error browsing products:', error);
         } finally {
-            setPickerLoading(false);
+            if (append) setPickerLoadingMore(false); else setPickerLoading(false);
         }
     };
+
+    const loadMoreBrowseProducts = useCallback(() => {
+        if (pickerLoading || pickerLoadingMore || pickerPage >= pickerTotalPages) return;
+        fetchBrowseProducts({ page: pickerPage + 1, append: true });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [pickerLoading, pickerLoadingMore, pickerPage, pickerTotalPages, pickerRegion, pickerCategory, pickerSearch]);
+
+    // Infinite scroll — load the next page once the sentinel at the bottom of the grid
+    // comes into view, instead of silently capping the picker at whatever page 1 returned.
+    useEffect(() => {
+        if (storeSubTab !== 'browse') return;
+        const el = pickerSentinelRef.current;
+        if (!el) return;
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0]?.isIntersecting) loadMoreBrowseProducts();
+            },
+            { rootMargin: '400px' },
+        );
+        observer.observe(el);
+        return () => observer.disconnect();
+    }, [storeSubTab, loadMoreBrowseProducts]);
 
     // Live results as you type/select a region or category — mirrors the marketplace's instant filtering.
     useEffect(() => {
@@ -640,6 +673,15 @@ export default function RefereeDashboard() {
                                         <Package className="w-10 h-10 text-slate-300 mx-auto mb-3" />
                                         <p className="text-sm font-medium text-slate-600">No products found.</p>
                                         <p className="text-xs text-slate-400 mt-1">Try a different region or search term.</p>
+                                    </div>
+                                )}
+
+                                {/* Infinite scroll trigger — loads the next page automatically as it comes into view */}
+                                {!pickerLoading && pickerProducts.length > 0 && pickerPage < pickerTotalPages && (
+                                    <div ref={pickerSentinelRef} className="flex justify-center py-8">
+                                        {pickerLoadingMore && (
+                                            <div className="w-6 h-6 border-2 border-brand-lemon border-t-transparent animate-spin rounded-full"></div>
+                                        )}
                                     </div>
                                 )}
                             </div>

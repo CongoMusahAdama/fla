@@ -1452,7 +1452,7 @@ function VendorDashboardInner() {
                             </div>
                             <button onClick={() => setShowAddProduct(false)} className="w-11 h-11 sm:w-12 sm:h-12 shrink-0 rounded-2xl bg-slate-50 flex items-center justify-center hover:bg-slate-900 hover:text-white transition-all"><X className="w-6 h-6" /></button>
                         </div>
-                        <div className="flex-1 overflow-y-auto p-5 sm:p-8 md:p-12 space-y-8 md:space-y-12">
+                        <div className="flex-1 overflow-y-auto p-5 sm:p-8 md:p-12 pb-24 md:pb-32 space-y-8 md:space-y-12">
                             {/* Visual Assets (Images) */}
                             <div className="space-y-6">
                                 <label className="text-[12px] font-black text-slate-900 uppercase tracking-widest ml-1">Visualization (Images)</label>

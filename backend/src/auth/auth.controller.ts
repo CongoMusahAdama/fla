@@ -183,7 +183,7 @@ export class AuthController {
       return { message: 'If an account exists with that email, a reset link has been sent.', success: true };
     } catch (error) {
       console.error('Forgot password error:', error);
-      return { message: 'Failed to process request', success: false };
+      return { message: error.message || 'Failed to process request', success: false };
     }
   }
 
@@ -204,7 +204,8 @@ export class AuthController {
       await this.authService.forgotPasswordOTP(String(body?.email || '').trim());
       return { message: 'If an account exists with that email, a reset code has been sent.', success: true };
     } catch (error) {
-      return { message: 'Failed to process request', success: false };
+      console.error('Forgot password OTP error:', error);
+      return { message: error.message || 'Failed to process request', success: false };
     }
   }
 

@@ -14,7 +14,7 @@ export const FLA_CONSTANTS = {
    * that markup alone.
    */
   /** Minimum markup a referee must add — guarantees they net something after fees. */
-  MIN_REFERRAL_MARKUP_GHS: 10,
+  MIN_REFERRAL_MARKUP_GHS: 5,
   /** A referee's markup can't exceed this % of the vendor's own price. */
   MAX_REFERRAL_MARKUP_PERCENT: 50,
   /** Platform's cut of the referee's markup (not of the vendor's price). */

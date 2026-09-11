@@ -424,8 +424,7 @@ export class AuthService {
     const user = await this.usersService.findOne(normalizedEmail);
     if (!user) {
       this.logger.warn(`ForgotPassword: No user found with email: ${this.maskEmail(normalizedEmail)}`);
-      // Security best practice: don't leak user existence
-      return;
+      throw new Error('Account not found');
     }
 
     this.logger.log(`ForgotPassword: User found: ${user.name}. Generating OTP...`);
