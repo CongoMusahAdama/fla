@@ -7,36 +7,10 @@ import { getOptimizedImage } from '@/lib/utils';
 import { storeProductPath, storeHomePath, resolveStoreSlug } from '@/lib/storefront';
 import { useProductCategories } from '@/hooks/useProductCategories';
 import { DEFAULT_PRODUCT_CATEGORY_LABELS } from '@/lib/product-categories';
-
-const CATEGORY_FALLBACKS: Record<string, string> = {
-  Electronics:
-    'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400&h=400&fit=crop&q=80',
-  Accessories:
-    'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&h=400&fit=crop&q=80',
-  'Beauty/cosmetics':
-    'https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=400&h=400&fit=crop&q=80',
-  'Home goods':
-    'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=400&h=400&fit=crop&q=80',
-  'Food/beverages':
-    'https://images.unsplash.com/photo-1542838132-92c53300491e?w=400&h=400&fit=crop&q=80',
-  Furniture:
-    'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=400&h=400&fit=crop&q=80',
-  'Children/Toys':
-    'https://images.unsplash.com/photo-1558060370-d644479cb6f7?w=400&h=400&fit=crop&q=80',
-  Clothing:
-    'https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?w=400&h=400&fit=crop&q=80',
-  Shoes:
-    'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&h=400&fit=crop&q=80',
-  Bags:
-    'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=400&h=400&fit=crop&q=80',
-  'Hardware items':
-    'https://images.unsplash.com/photo-1504148455328-c376907d081c?w=400&h=400&fit=crop&q=80',
-  Kitchen:
-    'https://images.unsplash.com/photo-1556910103-1c02745aae4d?w=400&h=400&fit=crop&q=80',
-};
-
-const DEFAULT_CATEGORY_FALLBACK =
-  'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=400&h=400&fit=crop&q=80';
+import {
+  DEFAULT_CATEGORY_TILE_IMAGE,
+  getCategoryTileImage,
+} from '@/lib/category-images';
 
 type DayProduct = {
   id: string;
@@ -96,21 +70,34 @@ function billboardHref(ad: any): string {
   return '/shop';
 }
 
-function buildCategoryTiles(labels: string[], products: DayProduct[]): CategoryTile[] {
-  const byCategory = new Map<string, string>();
-  for (const p of products) {
-    const cat = (p.category || '').trim();
-    if (!cat || !p.image || byCategory.has(cat)) continue;
-    byCategory.set(cat, p.image);
-  }
-
+function buildCategoryTiles(labels: string[]): CategoryTile[] {
   return labels.map((label) => ({
     label,
-    image:
-      byCategory.get(label) ||
-      CATEGORY_FALLBACKS[label] ||
-      DEFAULT_CATEGORY_FALLBACK,
+    image: getCategoryTileImage(label),
   }));
+}
+
+function CategoryTileImage({ label, src }: { label: string; src: string }) {
+  const [imgSrc, setImgSrc] = React.useState(src);
+  React.useEffect(() => {
+    setImgSrc(src);
+  }, [src]);
+
+  return (
+    <Image
+      src={imgSrc}
+      alt={label}
+      fill
+      className="object-cover transition-transform duration-500 group-hover:scale-110"
+      sizes="80px"
+      unoptimized
+      onError={() => {
+        if (imgSrc !== DEFAULT_CATEGORY_TILE_IMAGE) {
+          setImgSrc(DEFAULT_CATEGORY_TILE_IMAGE);
+        }
+      }}
+    />
+  );
 }
 
 export default function Hero() {
@@ -118,7 +105,7 @@ export default function Hero() {
   const [mainCard, setMainCard] = useState<HeroCard | null>(null);
   const [sideCard, setSideCard] = useState<HeroCard | null>(null);
   const [categoryTiles, setCategoryTiles] = useState<CategoryTile[]>(() =>
-    buildCategoryTiles(DEFAULT_PRODUCT_CATEGORY_LABELS.slice(0, 12), []),
+    buildCategoryTiles(DEFAULT_PRODUCT_CATEGORY_LABELS.slice(0, 12)),
   );
 
   useEffect(() => {
@@ -228,7 +215,7 @@ export default function Hero() {
         setSideCard(null);
       }
 
-      setCategoryTiles(buildCategoryTiles(categories.slice(0, 12), pool));
+      setCategoryTiles(buildCategoryTiles(categories.slice(0, 12)));
     };
 
     load();
@@ -354,14 +341,7 @@ export default function Hero() {
                 className="group flex flex-col items-center gap-3 text-center"
               >
                 <span className="relative h-16 w-16 sm:h-[4.75rem] sm:w-[4.75rem] rounded-2xl overflow-hidden bg-slate-200 shadow-sm ring-1 ring-slate-100 group-hover:ring-brand-lemon group-hover:shadow-md group-hover:-translate-y-0.5 transition-all duration-300">
-                  <Image
-                    src={getOptimizedImage(image, 160, 160)}
-                    alt={label}
-                    fill
-                    className="object-cover transition-transform duration-500 group-hover:scale-110"
-                    sizes="80px"
-                    unoptimized
-                  />
+                  <CategoryTileImage label={label} src={image} />
                 </span>
                 <span className="text-[11px] sm:text-xs font-semibold text-slate-600 group-hover:text-slate-900 leading-snug line-clamp-2 px-0.5 max-w-[5.75rem]">
                   {label.split('/')[0]}
