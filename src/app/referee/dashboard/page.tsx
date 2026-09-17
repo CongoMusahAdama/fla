@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import Swal from 'sweetalert2';
-import { LayoutDashboard, Wallet, Calendar, Copy, LogOut, CheckCircle2, History, Package, Eye, EyeOff, RefreshCcw, Search, MapPin, Plus, X as XIcon, Download } from 'lucide-react';
+import { LayoutDashboard, Wallet, Calendar, Copy, LogOut, CheckCircle2, History, Package, Eye, EyeOff, RefreshCcw, Search, MapPin, Plus, X as XIcon, Download, Store } from 'lucide-react';
 import { GHANA_REGIONS } from '@/lib/ghana-regions';
 import { fetchProductCategories, withAllProductCategory } from '@/lib/product-categories';
 
@@ -35,6 +35,8 @@ export default function RefereeDashboard() {
 
     // Product picker (browse & add) state
     const [pickerRegion, setPickerRegion] = useState('');
+    const [pickerVendorId, setPickerVendorId] = useState('');
+    const [pickerVendors, setPickerVendors] = useState<Array<{ _id: string; shopName: string; region?: string }>>([]);
     const [pickerCategory, setPickerCategory] = useState('');
     const [categoryOptions, setCategoryOptions] = useState<string[]>([]);
     const [pickerSearch, setPickerSearch] = useState('');
@@ -95,7 +97,7 @@ export default function RefereeDashboard() {
 
     const authHeaders = (): HeadersInit => (token ? { Authorization: `Bearer ${token}` } : {});
 
-    const fetchBrowseProducts = async (opts?: { region?: string; search?: string; category?: string; page?: number; append?: boolean }) => {
+    const fetchBrowseProducts = async (opts?: { region?: string; search?: string; category?: string; vendorId?: string; page?: number; append?: boolean }) => {
         const page = opts?.page ?? 1;
         const append = opts?.append ?? false;
         if (append) setPickerLoadingMore(true); else setPickerLoading(true);
@@ -104,9 +106,11 @@ export default function RefereeDashboard() {
             const region = opts?.region ?? pickerRegion;
             const search = opts?.search ?? pickerSearch;
             const category = opts?.category ?? pickerCategory;
+            const vendorId = opts?.vendorId ?? pickerVendorId;
             if (region) params.set('region', region);
             if (search) params.set('search', search);
             if (category) params.set('category', category);
+            if (vendorId) params.set('vendorId', vendorId);
             params.set('page', String(page));
             const res = await fetch(`${API_URL}/referral/browse-products?${params.toString()}`, {
                 credentials: 'include',
@@ -143,7 +147,7 @@ export default function RefereeDashboard() {
         if (pickerLoading || pickerLoadingMore || pickerPage >= pickerTotalPages) return;
         fetchBrowseProducts({ page: pickerPage + 1, append: true });
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [pickerLoading, pickerLoadingMore, pickerPage, pickerTotalPages, pickerRegion, pickerCategory, pickerSearch]);
+    }, [pickerLoading, pickerLoadingMore, pickerPage, pickerTotalPages, pickerRegion, pickerCategory, pickerSearch, pickerVendorId]);
 
     // Infinite scroll — load the next page once the sentinel at the bottom of the grid
     // comes into view, instead of silently capping the picker at whatever page 1 returned.
@@ -167,11 +171,30 @@ export default function RefereeDashboard() {
         const handle = setTimeout(() => fetchBrowseProducts(), pickerSearch ? 300 : 0);
         return () => clearTimeout(handle);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [storeSubTab, pickerRegion, pickerCategory, pickerSearch]);
+    }, [storeSubTab, pickerRegion, pickerCategory, pickerSearch, pickerVendorId]);
 
     useEffect(() => {
         fetchProductCategories().then((cats) => setCategoryOptions(withAllProductCategory(cats)));
     }, []);
+
+    useEffect(() => {
+        if (!isAuthenticated || user?.role !== 'referee') return;
+        (async () => {
+            try {
+                const res = await fetch(`${API_URL}/referral/browse-vendors`, {
+                    credentials: 'include',
+                    headers: authHeaders(),
+                });
+                if (res.ok) {
+                    const list = await res.json();
+                    setPickerVendors(Array.isArray(list) ? list : []);
+                }
+            } catch {
+                /* non-blocking */
+            }
+        })();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isAuthenticated, user?.role, token]);
 
     const handleSelectProduct = async (productId: string, markupGhs: number) => {
         if (pickerSelectedIds.length >= storeCap) {
@@ -364,7 +387,7 @@ export default function RefereeDashboard() {
 
                 <div className="mt-auto pt-4 border-t border-slate-100">
                     <div className="bg-slate-50 rounded-xl p-3 mb-3">
-                        <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Your Referral Code</p>
+                        <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Your Referral ID</p>
                         <span className="font-bold text-slate-900">{dashboardData.refereeCode}</span>
                     </div>
                     <button onClick={logout} className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-red-600 hover:bg-red-50 transition-colors font-medium text-sm w-full">
@@ -598,11 +621,26 @@ export default function RefereeDashboard() {
                                         </select>
                                     </div>
                                     <div className="relative sm:w-56">
+                                        <Store className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-brand-lemon pointer-events-none" />
+                                        <select
+                                            value={pickerVendorId}
+                                            onChange={(e) => setPickerVendorId(e.target.value)}
+                                            className="w-full h-10 pl-9 pr-3 bg-white border border-slate-200 rounded-xl text-base sm:text-sm appearance-none outline-none focus:ring-2 focus:ring-brand-lemon/30"
+                                        >
+                                            <option value="">All vendors</option>
+                                            {pickerVendors.map((v) => (
+                                                <option key={v._id} value={v._id}>
+                                                    {v.shopName}{v.region ? ` · ${v.region}` : ''}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="relative sm:w-56">
                                         <Package className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-brand-lemon pointer-events-none" />
                                         <select
                                             value={pickerCategory}
                                             onChange={(e) => setPickerCategory(e.target.value)}
-                                            className="w-full h-10 pl-9 pr-3 bg-white border border-slate-200 rounded-xl text-sm appearance-none outline-none focus:ring-2 focus:ring-brand-lemon/30"
+                                            className="w-full h-10 pl-9 pr-3 bg-white border border-slate-200 rounded-xl text-base sm:text-sm appearance-none outline-none focus:ring-2 focus:ring-brand-lemon/30"
                                         >
                                             {categoryOptions.map((c) => (
                                                 <option key={c} value={c === 'All Product' ? '' : c}>{c}</option>
@@ -613,6 +651,15 @@ export default function RefereeDashboard() {
                                         Search
                                     </button>
                                 </div>
+                                {pickerVendorId && (
+                                    <p className="text-xs text-slate-500">
+                                        Showing products from{' '}
+                                        <span className="font-semibold text-slate-800">
+                                            {pickerVendors.find((v) => v._id === pickerVendorId)?.shopName || 'this vendor'}
+                                        </span>{' '}
+                                        only — other vendors are hidden.
+                                    </p>
+                                )}
 
                                 {pickerLoading ? (
                                     <div className="flex justify-center py-16">

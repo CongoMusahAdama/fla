@@ -289,9 +289,42 @@ export class ReferralService {
 
   // ─── Product Picker ────────────────────────────────────────────────────────
 
+  /** Vendors with at least one active product — for affiliate “pick one wholesaler” filter. */
+  async listBrowseVendors(): Promise<Array<{ _id: string; shopName: string; region?: string }>> {
+    const vendorIds = await this.optedInVendorIds();
+    if (!vendorIds.length) return [];
+
+    const vendorIdsWithProducts = await this.productModel
+      .distinct('vendorId', { vendorId: { $in: vendorIds }, isActive: true })
+      .exec();
+    const withProducts = new Set(vendorIdsWithProducts.map((id) => String(id)));
+
+    const vendors = await this.userModel
+      .find({ role: 'vendor', status: 'active', _id: { $in: vendorIds } })
+      .select('shopName name region')
+      .lean()
+      .exec();
+
+    return vendors
+      .filter((v: any) => withProducts.has(String(v._id)))
+      .map((v: any) => ({
+        _id: String(v._id),
+        shopName: (v.shopName || v.name || 'Vendor').trim(),
+        region: v.region || undefined,
+      }))
+      .sort((a, b) => a.shopName.localeCompare(b.shopName));
+  }
+
   async browseProducts(
     refereeId: string,
-    opts: { region?: string; search?: string; category?: string; page?: number; limit?: number },
+    opts: {
+      region?: string;
+      search?: string;
+      category?: string;
+      vendorId?: string;
+      page?: number;
+      limit?: number;
+    },
   ): Promise<{ products: any[]; total: number; page: number; totalPages: number; selectedIds: string[] }> {
     const referee = await this.userModel.findById(refereeId).exec();
     if (!referee || referee.role !== 'referee') {
@@ -307,6 +340,9 @@ export class ReferralService {
     }
     if (opts.region) filter.region = opts.region;
     if (opts.category && opts.category !== 'All Product') filter.category = opts.category;
+    if (opts.vendorId?.trim()) {
+      filter.vendorId = opts.vendorId.trim();
+    }
     if (opts.search) {
       const q = opts.search.trim();
       (filter as any).$or = [

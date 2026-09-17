@@ -91,12 +91,20 @@ export class ReferralController {
   // ─── Authenticated: Product Picker ────────────────────────────────────────
 
   @UseGuards(AuthGuard('jwt'))
+  @Get('browse-vendors')
+  async browseVendors(@Request() req) {
+    this.assertReferee(req);
+    return this.referralService.listBrowseVendors();
+  }
+
+  @UseGuards(AuthGuard('jwt'))
   @Get('browse-products')
   async browseProducts(
     @Request() req,
     @Query('region') region?: string,
     @Query('search') search?: string,
     @Query('category') category?: string,
+    @Query('vendorId') vendorId?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
@@ -105,6 +113,7 @@ export class ReferralController {
       region,
       search,
       category,
+      vendorId,
       page: page ? parseInt(page, 10) : undefined,
       limit: limit ? parseInt(limit, 10) : undefined,
     });

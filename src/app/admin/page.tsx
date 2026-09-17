@@ -3417,7 +3417,7 @@ export default function AdminDashboard() {
                                         {detail('Full name', v.name)}
                                         {detail('Phone', v.phone)}
                                         {detail('Region', v.region)}
-                                        {detail('Referral code', v.refereeCode)}
+                                        {detail('Referral ID', v.refereeCode)}
                                         {detail('Store link', v.refereeStoreSlug ? `/ref/${v.refereeStoreSlug}` : null)}
                                         {v.tiktokLink ? (
                                             <div className="flex justify-between gap-3 py-2 border-b border-slate-100 last:border-0">

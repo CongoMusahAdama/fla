@@ -155,7 +155,7 @@ export class SmsService {
    * No WhatsApp link included (as per platform policy for referees).
    */
   async sendRefereeWelcomeSms(phone: string, refCode: string, name: string): Promise<boolean> {
-    const message = `Welcome to FLA Referrals, ${name}! Your referral code is ${refCode}. Log in to your dashboard, browse products from our vendors, and start earning by sharing links. Good luck!`;
+    const message = `Welcome to FLA Referrals, ${name}! Your referral ID is ${refCode}. Log in to your dashboard, browse products from our vendors, and start earning by sharing links. Good luck!`;
     return this.sendSms(phone, message);
   }
 

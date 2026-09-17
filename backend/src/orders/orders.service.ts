@@ -14,6 +14,7 @@ import { getFrontendBaseUrl } from '../common/frontend-url.util';
 import {
   normalizeWhatsAppPhone,
   buildWaMeLink,
+  buildWaMeLinkForSms,
   buildShortCustomerToVendorWaText,
   buildShortVendorToCustomerWaText,
   appendWhatsAppLinkToSms,
@@ -677,7 +678,7 @@ export class OrdersService implements OnModuleInit {
           : '';
         let customerMsg = `FLA: Payment confirmed for #ORD-${orderShortId}.${productSnippet} Your vendor will prepare your order.`;
         if (vendorWaPhone) {
-          const waLink = buildWaMeLink(
+          const waLink = buildWaMeLinkForSms(
             vendorWaPhone,
             buildShortCustomerToVendorWaText(orderShortId, shopName, customerName, waDetails),
           );
@@ -716,7 +717,7 @@ export class OrdersService implements OnModuleInit {
             : '';
           let vendorMsg = `FLA: New paid order #ORD-${orderShortId}.${productSnippet} Amount GHS ${order.totalAmount}. Begin fulfillment in your dashboard.`;
           if (customerWaPhone) {
-            const waLink = buildWaMeLink(
+            const waLink = buildWaMeLinkForSms(
               customerWaPhone,
               buildShortVendorToCustomerWaText(orderShortId, vendor.shopName || shopName, customerName, waDetails),
             );

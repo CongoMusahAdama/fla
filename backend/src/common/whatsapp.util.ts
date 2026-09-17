@@ -16,6 +16,37 @@ export function buildWaMeLink(phoneDigits: string, prefilledText?: string): stri
   return `https://wa.me/${phoneDigits}`;
 }
 
+/** Names like "Guest (0505112925)" break SMS autolink on the closing parenthesis. */
+export function sanitizePersonNameForWa(name?: string | null): string {
+  if (!name?.trim()) return 'Customer';
+  let n = name.trim();
+  n = n.replace(/\s*\(\s*0?\d{9,12}\s*\)\s*/gi, '').trim();
+  n = n.replace(/\s*\([^)]*\)\s*/g, ' ').trim();
+  if (!n) return 'Customer';
+  return n.slice(0, 30);
+}
+
+/**
+ * SMS apps often stop highlighting wa.me links at ")" even inside encodeURIComponent output.
+ * Strip parentheses from the prefilled message so the whole URL stays one tappable link.
+ */
+export function sanitizeWaPrefillForSms(text: string): string {
+  return text
+    .replace(/\(([^)]*)\)/g, ' $1 ')
+    .replace(/[()]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** wa.me link safe for SMS autolink (full blue underline on iOS/Android). */
+export function buildWaMeLinkForSms(phoneDigits: string, prefilledText?: string): string {
+  if (!prefilledText?.trim()) {
+    return `https://wa.me/${phoneDigits}`;
+  }
+  const safe = sanitizeWaPrefillForSms(prefilledText.trim());
+  return `https://wa.me/${phoneDigits}?text=${encodeURIComponent(safe)}`;
+}
+
 export type OrderWaDetails = {
   productName?: string;
   location?: string;
@@ -97,8 +128,8 @@ export function buildShortCustomerToVendorWaText(
   details?: OrderWaDetails,
 ): string {
   const shop = (shopName || 'vendor').slice(0, 40);
-  const who = (customerName || 'Customer').slice(0, 30);
-  const product = (details?.productName || 'item').slice(0, 80);
+  const who = sanitizePersonNameForWa(customerName);
+  const product = sanitizeWaPrefillForSms((details?.productName || 'item').slice(0, 80));
   const location = (details?.location || 'as discussed').slice(0, 70);
   const price = formatPrice(details?.price);
   const pricePart = price ? ` Price: ${price}.` : '';
@@ -124,8 +155,8 @@ export function buildShortVendorToCustomerWaText(
   details?: OrderWaDetails,
 ): string {
   const shop = (shopName || 'FLA vendor').slice(0, 40);
-  const who = (customerName || 'there').slice(0, 30);
-  const product = (details?.productName || 'your order').slice(0, 80);
+  const who = sanitizePersonNameForWa(customerName || 'there');
+  const product = sanitizeWaPrefillForSms((details?.productName || 'your order').slice(0, 80));
   const location = (details?.location || 'your delivery location').slice(0, 70);
   const price = formatPrice(details?.price);
   const pricePart = price ? ` Price: ${price}.` : '';
