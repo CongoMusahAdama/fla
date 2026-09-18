@@ -20,4 +20,5 @@ export interface Product {
   vendorBio?: string;
   vendorDocumented?: boolean;
   vendorTier?: 'low' | 'high';
+  createdAt?: string;
 }

@@ -464,24 +464,14 @@ export default function StoreProductPage() {
     <main className="min-h-screen bg-[#f6f7f9]">
       <div className="max-w-6xl mx-auto px-4 pt-24 pb-4 flex items-center justify-between gap-3">
         {navOrigin === 'marketplace' ? (
-          <>
-            <button
-              type="button"
-              onClick={goBackToMarketplace}
-              className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-900"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              Back to marketplace
-            </button>
-            <button
-              type="button"
-              onClick={goBackToStore}
-              className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:text-slate-900"
-            >
-              <Store className="w-4 h-4" />
-              {shopName}
-            </button>
-          </>
+          <button
+            type="button"
+            onClick={goBackToMarketplace}
+            className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-900"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            Back to marketplace
+          </button>
         ) : (
           <button
             type="button"

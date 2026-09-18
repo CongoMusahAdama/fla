@@ -14,6 +14,21 @@ import { restoreMarketplaceScrollIfNeeded, peekPendingMarketplaceScroll } from '
 
 const HOME_PAGE_SIZE = 12;
 
+/** User chose "latest uploads" without the 30-day new-arrival window. */
+const HOME_LATEST_ALL = '__latest__';
+
+function resolveHomeShelfFilter(filt: string, cat: string, region: string): string {
+  if (filt === HOME_LATEST_ALL) return '';
+  if (filt) return filt;
+  if (cat === 'All Product' && !region) return 'New Arrival';
+  return '';
+}
+
+function homeShelfFilterForUi(filt: string, cat: string, region: string): string {
+  if (filt === HOME_LATEST_ALL) return '';
+  return resolveHomeShelfFilter(filt, cat, region);
+}
+
 export default function Home() {
   const { categories: PRODUCT_CATEGORIES } = useProductCategories({ includeAll: true });
   const [products, setProducts] = useState<Product[]>([]);
@@ -31,8 +46,7 @@ export default function Home() {
     const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
     let url = `${api}/products?page=${pageNum}&limit=${HOME_PAGE_SIZE}`;
     if (cat !== 'All Product') url += `&category=${encodeURIComponent(cat)}`;
-    // Default home shelf = Best Seller ("Top picks today"); otherwise respect sort filter
-    const effectiveFilter = filt || (cat === 'All Product' && !region ? 'Best Seller' : '');
+    const effectiveFilter = resolveHomeShelfFilter(filt, cat, region);
     if (effectiveFilter) url += `&filter=${encodeURIComponent(effectiveFilter)}`;
     if (region) url += `&region=${encodeURIComponent(region)}`;
     if (!effectiveFilter) url += '&sort=latest';
@@ -47,12 +61,10 @@ export default function Home() {
       let data = res.ok ? await res.json() : null;
       let list: Product[] = Array.isArray(data) ? data : (data?.products || []);
 
-      // If Best Seller shelf is empty, fall back to latest with images
+      // If the default new-arrival shelf is empty, fall back to all listings by upload date
       if (
         list.length === 0 &&
-        !filt &&
-        cat === 'All Product' &&
-        !region
+        resolveHomeShelfFilter(filt, cat, region) === 'New Arrival'
       ) {
         const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
         res = await fetch(`${api}/products?page=1&limit=${HOME_PAGE_SIZE}&sort=latest`);
@@ -67,7 +79,7 @@ export default function Home() {
         setProducts(list);
         setHasMore(1 < totalPages);
 
-        if (cat === 'All Product' && !filt && !region) {
+        if (cat === 'All Product' && !region && resolveHomeShelfFilter(filt, cat, region) === 'New Arrival') {
           const total = Array.isArray(data) ? list.length : (data?.total ?? list.length);
           setTotalCount(total);
         }
@@ -142,11 +154,12 @@ export default function Home() {
           <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-6 md:mb-8">
             <div>
               <h2 className="font-heading text-2xl md:text-[1.75rem] font-bold text-slate-900 tracking-tight">
-                {activeFilter || (activeCategory === 'All Product' ? 'Top picks today' : activeCategory)}
+                {homeShelfFilterForUi(activeFilter, activeCategory, activeRegion) ||
+                  (activeCategory === 'All Product' ? 'New arrivals' : activeCategory)}
               </h2>
               <p className="mt-1.5 text-sm text-slate-500">
-                {activeCategory === 'All Product' && !activeFilter
-                  ? 'Fresh listings from shops across Ghana'
+                {activeCategory === 'All Product' && !homeShelfFilterForUi(activeFilter, activeCategory, activeRegion)
+                  ? 'Recently added listings from shops across Ghana'
                   : totalCount > 0
                     ? `${totalCount} products from verified vendors`
                     : 'Fresh listings from shops across Ghana'}
@@ -201,20 +214,30 @@ export default function Home() {
                 <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-slate-400 px-1">
                   Sort
                 </span>
-                {PRODUCT_FILTERS.map((filt) => (
+                {PRODUCT_FILTERS.map((filt) => {
+                  const shelfFilter = homeShelfFilterForUi(activeFilter, activeCategory, activeRegion);
+                  const isActive = shelfFilter === filt;
+                  return (
                   <button
                     key={filt}
                     type="button"
-                    onClick={() => setActiveFilter(activeFilter === filt ? '' : filt)}
+                    onClick={() => {
+                      if (filt === 'New Arrival' && isActive) {
+                        setActiveFilter(HOME_LATEST_ALL);
+                        return;
+                      }
+                      setActiveFilter(activeFilter === filt ? '' : filt);
+                    }}
                     className={`shrink-0 px-3 py-1.5 rounded-md text-[11px] font-semibold transition-all ${
-                      activeFilter === filt
+                      isActive
                         ? 'bg-slate-900 text-brand-lemon'
                         : 'text-slate-500 hover:text-slate-900 hover:bg-white'
                     }`}
                   >
                     {filt}
                   </button>
-                ))}
+                  );
+                })}
               </div>
 
               <div className="relative shrink-0 sm:w-52">
@@ -282,6 +305,7 @@ export default function Home() {
                   vendorDocumented={product.vendorDocumented}
                   vendorTier={product.vendorTier}
                   storeSlug={product.storeSlug}
+                  createdAt={product.createdAt}
                   index={index % HOME_PAGE_SIZE}
                 />
               ))

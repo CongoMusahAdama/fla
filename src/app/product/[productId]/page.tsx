@@ -9,7 +9,7 @@ import Swal from 'sweetalert2';
 import { getImageUrl } from '@/lib/utils';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
-import { getMarketplaceReturn, markMarketplaceScrollRestore } from '@/lib/marketplace-return';
+import { getMarketplaceReturn, getProductNavOrigin, markMarketplaceScrollRestore } from '@/lib/marketplace-return';
 import { storeHomePath } from '@/lib/storefront';
 
 const apiBase = () => process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
@@ -361,17 +361,19 @@ function ProductContent() {
           <Link href={`/ref/${refereeStore.refereeStoreSlug}`} className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-900">
             <ArrowLeft className="w-3.5 h-3.5" /> Back to {refereeStore.name}'s store
           </Link>
+        ) : getProductNavOrigin() === 'marketplace' ? (
+          <button type="button" onClick={goBackToMarketplace} className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-900">
+            <ArrowLeft className="w-3.5 h-3.5" /> Back to marketplace
+          </button>
+        ) : storeSlug ? (
+          <Link href={storeHomePath(storeSlug)} className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:text-slate-900">
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <Store className="w-4 h-4" /> {shopName}
+          </Link>
         ) : (
-          <>
-            <button type="button" onClick={goBackToMarketplace} className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-900">
-              <ArrowLeft className="w-3.5 h-3.5" /> Back to marketplace
-            </button>
-            {storeSlug && (
-              <Link href={storeHomePath(storeSlug)} className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:text-slate-900">
-                <Store className="w-4 h-4" /> {shopName}
-              </Link>
-            )}
-          </>
+          <button type="button" onClick={goBackToMarketplace} className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-900">
+            <ArrowLeft className="w-3.5 h-3.5" /> Back to marketplace
+          </button>
         )}
       </div>
 

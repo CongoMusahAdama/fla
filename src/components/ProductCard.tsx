@@ -10,6 +10,7 @@ import { isVendorDocumented } from '@/lib/kyc';
 import { VendorTrustBadge } from '@/components/VendorTrustBadge';
 import { resolveStoreSlug, storeHomePath, storeProductPath } from '@/lib/storefront';
 import { saveMarketplaceReturn } from '@/lib/marketplace-return';
+import { isNewArrivalProduct } from '@/lib/product-freshness';
 
 import Swal from 'sweetalert2';
 
@@ -38,9 +39,10 @@ interface ProductCardProps {
     vendorBio?: string;
     vendorDocumented?: boolean;
     vendorTier?: 'low' | 'high';
+    createdAt?: string;
 }
 
-export default React.memo(function ProductCard({ id, name, price, images, sizes = [], imageLabels, duration = '6-7 working days', stock, index, vendorId, initialWishlistState = false, description, vendorName, uniqueVendorId, storeSlug, hasSizes = true, hasColors = true, colors = [], vendorRegion, vendorCity, vendorBio, vendorDocumented, vendorTier }: ProductCardProps) {
+export default React.memo(function ProductCard({ id, name, price, images, sizes = [], imageLabels, duration = '6-7 working days', stock, index, vendorId, initialWishlistState = false, description, vendorName, uniqueVendorId, storeSlug, hasSizes = true, hasColors = true, colors = [], vendorRegion, vendorCity, vendorBio, vendorDocumented, vendorTier, createdAt }: ProductCardProps) {
     const isBatch = false;
     const currentPrice = price;
 
@@ -697,6 +699,8 @@ export default React.memo(function ProductCard({ id, name, price, images, sizes 
         ? '/product-1.jpg'
         : getOptimizedImage(images[0] || '/product-1.jpg', 480, 360);
 
+    const showNewArrivalBadge = !isSoldOut && isNewArrivalProduct(createdAt);
+
     return (
         <>
             <div
@@ -709,7 +713,7 @@ export default React.memo(function ProductCard({ id, name, price, images, sizes 
                 <div className="relative w-full aspect-[4/3] bg-[#f7f8fa] overflow-hidden mb-2.5">
                     {/* New Arrival Badge & Sold Out Overlay */}
                     <div className="absolute top-2.5 left-2.5 z-20 flex flex-col gap-1.5">
-                        {!isSoldOut && (
+                        {showNewArrivalBadge && (
                             <div className="bg-brand-lemon text-slate-900 text-[9px] font-black px-2.5 py-1 rounded-full uppercase tracking-tighter shadow-sm w-fit">
                                 New Arrival
                             </div>

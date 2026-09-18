@@ -48,8 +48,9 @@ function ShopContent() {
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const [products, setProducts] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const [currentPage, setCurrentPage] = useState(1);
-    const [totalPages, setTotalPages] = useState(1);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(false);
     const [totalProducts, setTotalProducts] = useState(0);
     const [activeCategory, setActiveCategory] = useState('All Product');
     const [catalogFilter, setCatalogFilter] = useState('');
@@ -72,12 +73,6 @@ function ShopContent() {
         setActiveCategory(urlCategory || 'All Product');
         setCatalogFilter(urlFilter);
         setCatalogSort(urlSort);
-        const pending = peekPendingMarketplaceScroll();
-        if (pending?.shopPage && pending.shopPage > 1) {
-            setCurrentPage(pending.shopPage);
-        } else {
-            setCurrentPage(1);
-        }
     }, [urlSearch, urlCategory, urlFilter, urlSort]);
 
     // Compact sticky search once the hero scrolls away
@@ -143,12 +138,39 @@ function ShopContent() {
         return () => clearTimeout(timer);
     }, [localSearch]);
 
-    useEffect(() => {
-        const pending = peekPendingMarketplaceScroll();
-        // Don't wipe a pending restore page on the initial hydrate from URL/filters.
-        if (pending?.shopPage && pending.shopPage > 1) return;
-        setCurrentPage(1);
-    }, [activeCategory, localSearch, activeFilters.Region, activeFilters.Price, catalogFilter, catalogSort]);
+    const buildProductsQuery = (pageNum: number) => {
+        const params = new URLSearchParams();
+        params.set('page', String(pageNum));
+        params.set('limit', String(PRODUCTS_PER_PAGE));
+        if (activeCategory !== 'All Product') params.set('category', activeCategory);
+        if (localSearch.trim()) params.set('search', localSearch.trim());
+        if (catalogFilter) params.set('filter', catalogFilter);
+        if (catalogSort) params.set('sort', catalogSort);
+        if (activeFilters.Region) params.set('region', activeFilters.Region);
+        const priceParams = getPriceQueryParams(activeFilters.Price);
+        Object.entries(priceParams).forEach(([key, value]) => params.set(key, value));
+        return params.toString();
+    };
+
+    const applyProductsResponse = (data: unknown, append: boolean) => {
+        if (Array.isArray(data)) {
+            const list = data;
+            setProducts((prev) => (append ? [...prev, ...list] : list));
+            setHasMore(false);
+            setTotalProducts(list.length);
+            return 1;
+        }
+        const payload = data as { products?: unknown[]; totalPages?: number; total?: number };
+        const list = payload.products || [];
+        const totalPages = payload.totalPages || 1;
+        setProducts((prev) => {
+            if (!append) return list;
+            const seen = new Set(prev.map((p) => p._id));
+            return [...prev, ...list.filter((p: { _id?: string }) => p._id && !seen.has(p._id))];
+        });
+        setTotalProducts(payload.total ?? list.length);
+        return totalPages;
+    };
 
     useEffect(() => {
         const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
@@ -156,35 +178,18 @@ function ShopContent() {
 
         const fetchProducts = async () => {
             setLoading(true);
+            setPage(1);
             try {
-                const params = new URLSearchParams();
-                params.set('page', String(currentPage));
-                params.set('limit', String(PRODUCTS_PER_PAGE));
-                if (activeCategory !== 'All Product') params.set('category', activeCategory);
-                if (localSearch.trim()) params.set('search', localSearch.trim());
-                if (catalogFilter) params.set('filter', catalogFilter);
-                if (catalogSort) params.set('sort', catalogSort);
-                if (activeFilters.Region) params.set('region', activeFilters.Region);
-                const priceParams = getPriceQueryParams(activeFilters.Price);
-                Object.entries(priceParams).forEach(([key, value]) => params.set(key, value));
-
-                const response = await fetch(`${api}/products?${params.toString()}`, {
+                const response = await fetch(`${api}/products?${buildProductsQuery(1)}`, {
                     signal: controller.signal,
                 });
                 if (response.ok) {
                     const data = await response.json();
-                    if (Array.isArray(data)) {
-                        setProducts(data);
-                        setTotalPages(1);
-                        setTotalProducts(data.length);
-                    } else {
-                        setProducts(data.products || []);
-                        setTotalPages(data.totalPages || 1);
-                        setTotalProducts(data.total ?? data.products?.length ?? 0);
-                    }
+                    const totalPages = applyProductsResponse(data, false);
+                    setHasMore(1 < totalPages);
                 }
-            } catch (error: any) {
-                if (error.name !== 'AbortError') {
+            } catch (error: unknown) {
+                if (error instanceof Error && error.name !== 'AbortError') {
                     console.error('Error fetching shop products:', error);
                 }
             } finally {
@@ -199,21 +204,51 @@ function ShopContent() {
             clearTimeout(timer);
             controller.abort();
         };
-    }, [activeCategory, localSearch, activeFilters.Region, activeFilters.Price, currentPage, catalogFilter, catalogSort]);
+    }, [activeCategory, localSearch, activeFilters.Region, activeFilters.Price, catalogFilter, catalogSort]);
+
+    const handleShowMore = async () => {
+        if (loadingMore || !hasMore || loading) return;
+        const nextPage = page + 1;
+        setLoadingMore(true);
+        try {
+            const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+            const response = await fetch(`${api}/products?${buildProductsQuery(nextPage)}`);
+            if (response.ok) {
+                const data = await response.json();
+                const totalPages = applyProductsResponse(data, true);
+                setPage(nextPage);
+                setHasMore(nextPage < totalPages);
+            }
+        } catch (error) {
+            console.error('Error loading more shop products:', error);
+        } finally {
+            setLoadingMore(false);
+        }
+    };
 
     useEffect(() => {
         try {
-            sessionStorage.setItem('fla_shop_page', String(currentPage));
+            sessionStorage.setItem('fla_shop_loaded_count', String(products.length));
+            sessionStorage.setItem('fla_shop_page', String(page));
         } catch {
             // ignore
         }
-    }, [currentPage]);
+    }, [products.length, page]);
 
     useEffect(() => {
-        if (!loading && products.length > 0) {
-            restoreMarketplaceScrollIfNeeded();
+        if (loading || loadingMore) return;
+        const pending = peekPendingMarketplaceScroll();
+        const legacyTarget =
+            pending?.shopPage && pending.shopPage > 1
+                ? pending.shopPage * PRODUCTS_PER_PAGE
+                : 0;
+        const target = pending?.shopLoadedCount || legacyTarget;
+        if (target && products.length < target && hasMore) {
+            handleShowMore();
+            return;
         }
-    }, [loading, products.length, currentPage]);
+        if (products.length > 0) restoreMarketplaceScrollIfNeeded();
+    }, [loading, loadingMore, products.length, hasMore]);
 
     useEffect(() => {
         if (!openDropdown) return;
@@ -573,7 +608,7 @@ function ShopContent() {
                             </h2>
                             <p className="mt-1 text-sm text-slate-500">
                                 {!loading && totalProducts > 0
-                                    ? `Showing ${(currentPage - 1) * PRODUCTS_PER_PAGE + 1}–${Math.min(currentPage * PRODUCTS_PER_PAGE, totalProducts)} of ${totalProducts}`
+                                    ? `Showing ${products.length} of ${totalProducts}`
                                     : 'Browse verified vendors across Ghana'}
                             </p>
                         </div>
@@ -630,6 +665,7 @@ function ShopContent() {
                                     vendorDocumented={product.vendorDocumented}
                                     vendorTier={product.vendorTier}
                                     storeSlug={product.storeSlug}
+                                    createdAt={product.createdAt}
                                 />
                             ))}
                         </div>
@@ -649,57 +685,23 @@ function ShopContent() {
                         </div>
                     )}
 
-                    {!loading && totalPages > 1 && (
-                        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-12 pt-8 border-t border-slate-200">
-                            <button
-                                type="button"
-                                disabled={currentPage <= 1}
-                                onClick={() => {
-                                    setCurrentPage((p) => Math.max(1, p - 1));
-                                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                                }}
-                                className="h-10 px-5 rounded-full text-xs font-semibold border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                            >
-                                Previous
-                            </button>
-                            <div className="flex items-center gap-1.5 flex-wrap justify-center">
-                                {Array.from({ length: totalPages }, (_, i) => i + 1)
-                                    .filter((p) => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
-                                    .map((pageNum, idx, arr) => {
-                                        const prev = arr[idx - 1];
-                                        const showEllipsis = prev !== undefined && pageNum - prev > 1;
-                                        return (
-                                            <React.Fragment key={pageNum}>
-                                                {showEllipsis && <span className="text-slate-300 px-1">…</span>}
-                                                <button
-                                                    type="button"
-                                                    onClick={() => {
-                                                        setCurrentPage(pageNum);
-                                                        window.scrollTo({ top: 0, behavior: 'smooth' });
-                                                    }}
-                                                    className={`w-9 h-9 rounded-full text-xs font-semibold transition-all ${
-                                                        currentPage === pageNum
-                                                            ? 'bg-brand-blue text-white'
-                                                            : 'bg-white border border-slate-200 text-slate-500 hover:bg-slate-50'
-                                                    }`}
-                                                >
-                                                    {pageNum}
-                                                </button>
-                                            </React.Fragment>
-                                        );
-                                    })}
-                            </div>
-                            <button
-                                type="button"
-                                disabled={currentPage >= totalPages}
-                                onClick={() => {
-                                    setCurrentPage((p) => Math.min(totalPages, p + 1));
-                                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                                }}
-                                className="h-10 px-5 rounded-full text-xs font-semibold border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                            >
-                                Next
-                            </button>
+                    {!loading && products.length > 0 && (
+                        <div className="flex flex-col items-center gap-3 mt-12 pt-8 border-t border-slate-200">
+                            {hasMore ? (
+                                <button
+                                    type="button"
+                                    onClick={handleShowMore}
+                                    disabled={loadingMore}
+                                    className="group flex items-center gap-3 px-12 py-3.5 bg-brand-lemon rounded-full text-sm font-semibold text-slate-900 hover:bg-slate-900 hover:text-white transition-all duration-300 shadow-sm cursor-pointer disabled:opacity-70 disabled:cursor-wait"
+                                >
+                                    {loadingMore ? 'Loading…' : 'Show more'}
+                                    <ChevronDown className={`w-4 h-4 transition-transform ${loadingMore ? 'animate-bounce' : 'group-hover:translate-y-0.5'}`} />
+                                </button>
+                            ) : totalProducts > PRODUCTS_PER_PAGE ? (
+                                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                                    You&rsquo;ve reached the end
+                                </p>
+                            ) : null}
                         </div>
                     )}
                 </div>

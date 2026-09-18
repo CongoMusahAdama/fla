@@ -10,6 +10,9 @@ import { isVendorDocumented } from '../common/vendor-trust.util';
 const VENDOR_POPULATE_FIELDS =
   'uniqueVendorId region location bio shopName vendorTier businessRegistration storeSlug';
 
+/** Match frontend `NEW_ARRIVAL_MAX_AGE_DAYS` in src/lib/product-freshness.ts */
+const NEW_ARRIVAL_MAX_AGE_DAYS = 30;
+
 @Injectable()
 export class ProductsService implements OnModuleInit {
   private readonly logger = new Logger(ProductsService.name);
@@ -96,6 +99,11 @@ export class ProductsService implements OnModuleInit {
 
     if (query.filter === 'On Discount') {
       filters.originalPrice = { $exists: true, $gt: 0 };
+    }
+
+    if (query.filter === 'New Arrival') {
+      const since = new Date(Date.now() - NEW_ARRIVAL_MAX_AGE_DAYS * 24 * 60 * 60 * 1000);
+      filters.createdAt = { $gte: since };
     }
 
     if (query.isFeatured) {

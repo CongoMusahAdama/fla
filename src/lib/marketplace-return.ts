@@ -31,6 +31,8 @@ export type MarketplaceReturn = {
   scrollY: number;
   productId?: string;
   shopPage?: number;
+  /** Products visible on /shop when user left (show-more shelf). */
+  shopLoadedCount?: number;
   homeLoadedCount?: number;
 };
 
@@ -52,8 +54,10 @@ export function saveMarketplaceReturn(productId?: string): void {
 
   try {
     if (path.startsWith('/shop')) {
+      const shopLoadedCount = Number(sessionStorage.getItem('fla_shop_loaded_count'));
+      if (shopLoadedCount > 0) payload.shopLoadedCount = shopLoadedCount;
       const shopPage = Number(sessionStorage.getItem('fla_shop_page'));
-      if (shopPage > 0) payload.shopPage = shopPage;
+      if (shopPage > 1) payload.shopPage = shopPage;
     }
     if ((path.split('?')[0] || '/') === '/') {
       const homeLoadedCount = Number(sessionStorage.getItem('fla_home_loaded_count'));
@@ -81,6 +85,7 @@ export function getMarketplaceReturn(): MarketplaceReturn {
           scrollY: Number(parsed.scrollY) || 0,
           productId: parsed.productId,
           shopPage: parsed.shopPage ? Number(parsed.shopPage) : undefined,
+          shopLoadedCount: parsed.shopLoadedCount ? Number(parsed.shopLoadedCount) : undefined,
           homeLoadedCount: parsed.homeLoadedCount ? Number(parsed.homeLoadedCount) : undefined,
         };
       }
@@ -100,6 +105,7 @@ export function markMarketplaceScrollRestore(ret: MarketplaceReturn): void {
       scrollY: ret.scrollY,
       productId: ret.productId,
       shopPage: ret.shopPage,
+      shopLoadedCount: ret.shopLoadedCount,
       homeLoadedCount: ret.homeLoadedCount,
     }),
   );
@@ -109,6 +115,7 @@ export function peekPendingMarketplaceScroll(): {
   scrollY: number;
   productId?: string;
   shopPage?: number;
+  shopLoadedCount?: number;
   homeLoadedCount?: number;
 } | null {
   if (typeof window === 'undefined') return null;
