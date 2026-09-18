@@ -166,7 +166,13 @@ function ShopContent() {
         setProducts((prev) => {
             if (!append) return list;
             const seen = new Set(prev.map((p) => p._id));
-            return [...prev, ...list.filter((p: { _id?: string }) => p._id && !seen.has(p._id))];
+            return [
+                ...prev,
+                ...list.filter((item) => {
+                    const id = (item as { _id?: string })._id;
+                    return typeof id === 'string' && !seen.has(id);
+                }),
+            ];
         });
         setTotalProducts(payload.total ?? list.length);
         return totalPages;
