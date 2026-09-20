@@ -16,7 +16,6 @@ import {
   buildWaMeLink,
   buildWaMeLinkForSms,
   buildShortCustomerToVendorWaText,
-  buildShortVendorToCustomerWaText,
   appendWhatsAppLinkToSms,
   extractOrderWaDetails,
 } from '../common/whatsapp.util';
@@ -678,10 +677,8 @@ export class OrdersService implements OnModuleInit {
           : '';
         let customerMsg = `FLA: Payment confirmed for #ORD-${orderShortId}.${productSnippet} Your vendor will prepare your order.`;
         if (vendorWaPhone) {
-          const waLink = buildWaMeLinkForSms(
-            vendorWaPhone,
-            buildShortCustomerToVendorWaText(orderShortId, shopName, customerName, waDetails),
-          );
+          // Chat-only link — prefilled ?text= URLs are too long for one tappable SMS link
+          const waLink = buildWaMeLinkForSms(vendorWaPhone);
           customerMsg = appendWhatsAppLinkToSms(customerMsg, waLink);
         }
         this.smsService.sendSms(customerSmsPhone, customerMsg).then((ok) => {
@@ -717,10 +714,7 @@ export class OrdersService implements OnModuleInit {
             : '';
           let vendorMsg = `FLA: New paid order #ORD-${orderShortId}.${productSnippet} Amount GHS ${order.totalAmount}. Begin fulfillment in your dashboard.`;
           if (customerWaPhone) {
-            const waLink = buildWaMeLinkForSms(
-              customerWaPhone,
-              buildShortVendorToCustomerWaText(orderShortId, vendor.shopName || shopName, customerName, waDetails),
-            );
+            const waLink = buildWaMeLinkForSms(customerWaPhone);
             vendorMsg = appendWhatsAppLinkToSms(vendorMsg, waLink);
           }
           this.smsService.sendSms(vendorSmsPhone, vendorMsg).then((ok) => {

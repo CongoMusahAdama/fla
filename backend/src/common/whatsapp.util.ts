@@ -32,10 +32,19 @@ export function sanitizePersonNameForWa(name?: string | null): string {
  */
 export function sanitizeWaPrefillForSms(text: string): string {
   return text
+    .replace(/[\u2018\u2019\u201B]/g, "'")
+    .replace(/[\u201C\u201D]/g, '"')
     .replace(/\(([^)]*)\)/g, ' $1 ')
     .replace(/[()]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+/** Drop ?text= — long encoded prefills break SMS autolink when the message spans segments. */
+export function smsSafeWaMeUrl(link: string): string {
+  const trimmed = link.trim();
+  const q = trimmed.indexOf('?');
+  return q === -1 ? trimmed : trimmed.slice(0, q);
 }
 
 /** wa.me link safe for SMS autolink (full blue underline on iOS/Android). */
@@ -171,6 +180,11 @@ export function buildShortVendorToCustomerWaText(
   );
 }
 
+/**
+ * Payment / order SMS: put a short wa.me link on the first line (no prefilled chat text).
+ * Order details stay in the SMS body; the link only opens WhatsApp to the right number.
+ */
 export function appendWhatsAppLinkToSms(baseMessage: string, link: string): string {
-  return `${baseMessage.trim()} WhatsApp: ${link}`;
+  const safeLink = smsSafeWaMeUrl(link);
+  return `${safeLink}\n${baseMessage.trim()}`;
 }
