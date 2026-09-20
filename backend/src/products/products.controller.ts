@@ -73,7 +73,7 @@ export class ProductsController {
   @Get()
   async findAll(@Query() query: any, @Res({ passthrough: true }) res: Response) {
     // Cache public product listings for 30s (huge improvement for repeat visitors)
-    res.setHeader('Cache-Control', 'public, max-age=30, stale-while-revalidate=60');
+    res.setHeader('Cache-Control', 'public, max-age=10, stale-while-revalidate=30');
     return this.productsService.findAll(query);
   }
 

@@ -6,6 +6,7 @@ import { UpdateProductDto } from './dto/update-product.dto';
 import { Product, ProductDocument } from './schemas/product.schema';
 import { User, UserDocument } from '../users/schemas/user.schema';
 import { isVendorDocumented } from '../common/vendor-trust.util';
+import { normalizeProductStockPayload } from './product-stock.util';
 
 const VENDOR_POPULATE_FIELDS =
   'uniqueVendorId region location bio shopName vendorTier businessRegistration storeSlug';
@@ -48,7 +49,8 @@ export class ProductsService implements OnModuleInit {
   }
 
   async create(createProductDto: CreateProductDto): Promise<Product> {
-    const createdProduct = new this.productModel(createProductDto);
+    const payload = normalizeProductStockPayload(createProductDto as any);
+    const createdProduct = new this.productModel(payload);
     return createdProduct.save();
   }
 
@@ -91,6 +93,7 @@ export class ProductsService implements OnModuleInit {
 
     if (query.showAll !== 'true') {
       filters.isActive = true;
+      filters.stock = { $gt: 0 };
     }
 
     if (query.category && query.category !== 'All Product' && query.category !== 'All') {
@@ -175,7 +178,7 @@ export class ProductsService implements OnModuleInit {
 
     let q = this.productModel.find(filters)
       .select(
-        'name price images imageLabels sizes stock vendorId vendorName uniqueVendorId description hasSizes hasColors colors tailoringTime region vendorLocation vendorBio vendorTier storeSlug category rating reviewCount originalPrice isFeatured createdAt isActive',
+        'name price images imageLabels sizes stock colorStock sizeStock variantStock vendorId vendorName uniqueVendorId description hasSizes hasColors colors tailoringTime region vendorLocation vendorBio vendorTier storeSlug category rating reviewCount originalPrice isFeatured createdAt isActive',
       )
       .populate('vendorId', VENDOR_POPULATE_FIELDS)
       .lean();
@@ -258,8 +261,13 @@ export class ProductsService implements OnModuleInit {
       throw new ForbiddenException('You do not have permission to update this product');
     }
 
+    const payload = normalizeProductStockPayload({
+      ...product.toObject(),
+      ...updateProductDto,
+    } as any);
+
     const updatedProduct = await this.productModel
-      .findByIdAndUpdate(id, updateProductDto, { new: true })
+      .findByIdAndUpdate(id, payload, { new: true })
       .exec();
 
     return updatedProduct as Product;

@@ -21,4 +21,7 @@ export interface Product {
   vendorDocumented?: boolean;
   vendorTier?: 'low' | 'high';
   createdAt?: string;
+  colorStock?: Record<string, number>;
+  sizeStock?: Record<string, number>;
+  variantStock?: Record<string, number>;
 }

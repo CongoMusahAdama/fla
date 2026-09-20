@@ -114,6 +114,9 @@ export interface Product {
   hasSizes?: boolean;
   colors?: string[];
   hasColors?: boolean;
+  colorStock?: Record<string, number>;
+  sizeStock?: Record<string, number>;
+  variantStock?: Record<string, number>;
   isActive?: boolean;
 }
 

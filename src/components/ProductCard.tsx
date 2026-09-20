@@ -11,6 +11,12 @@ import { VendorTrustBadge } from '@/components/VendorTrustBadge';
 import { resolveStoreSlug, storeHomePath, storeProductPath } from '@/lib/storefront';
 import { saveMarketplaceReturn } from '@/lib/marketplace-return';
 import { isNewArrivalProduct } from '@/lib/product-freshness';
+import {
+    availableStockForSelection,
+    listAvailableColors,
+    listAvailableSizes,
+    type ProductStockView,
+} from '@/lib/product-stock';
 
 import Swal from 'sweetalert2';
 
@@ -40,9 +46,12 @@ interface ProductCardProps {
     vendorDocumented?: boolean;
     vendorTier?: 'low' | 'high';
     createdAt?: string;
+    colorStock?: Record<string, number>;
+    sizeStock?: Record<string, number>;
+    variantStock?: Record<string, number>;
 }
 
-export default React.memo(function ProductCard({ id, name, price, images, sizes = [], imageLabels, duration = '6-7 working days', stock, index, vendorId, initialWishlistState = false, description, vendorName, uniqueVendorId, storeSlug, hasSizes = true, hasColors = true, colors = [], vendorRegion, vendorCity, vendorBio, vendorDocumented, vendorTier, createdAt }: ProductCardProps) {
+export default React.memo(function ProductCard({ id, name, price, images, sizes = [], imageLabels, duration = '6-7 working days', stock, index, vendorId, initialWishlistState = false, description, vendorName, uniqueVendorId, storeSlug, hasSizes = true, hasColors = true, colors = [], vendorRegion, vendorCity, vendorBio, vendorDocumented, vendorTier, createdAt, colorStock, sizeStock, variantStock }: ProductCardProps) {
     const isBatch = false;
     const currentPrice = price;
 
@@ -182,7 +191,63 @@ export default React.memo(function ProductCard({ id, name, price, images, sizes 
     }, [isDetailModalOpen, vendorModal, vendorModalLoading]);
 
 
-    const isSoldOut = stock === 0;
+    const stockView: ProductStockView = {
+        stock,
+        hasColors,
+        hasSizes,
+        colors,
+        sizes,
+        colorStock,
+        sizeStock,
+        variantStock,
+    };
+
+    const selectableColors = listAvailableColors(stockView);
+    const selectableSizes = listAvailableSizes(stockView);
+    const displayColors = hasColors ? (selectableColors.length ? selectableColors : colors) : [];
+    const displaySizes = hasSizes ? (selectableSizes.length ? selectableSizes : sizes) : [];
+
+    const selectionStock = availableStockForSelection(stockView, selectedColor, selectedSize);
+    const isSoldOut = (stock ?? 0) <= 0 || selectionStock <= 0;
+
+    const [checkoutChecking, setCheckoutChecking] = useState(false);
+
+    const fetchLiveProduct = async (): Promise<(ProductStockView & { isActive?: boolean }) | null> => {
+        const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+        const res = await fetch(`${api}/products/${id}?t=${Date.now()}`, { cache: 'no-store' });
+        if (!res.ok) return null;
+        return (await res.json()) as ProductStockView & { isActive?: boolean };
+    };
+
+    const ensureCanPurchase = async (): Promise<boolean> => {
+        try {
+            const live = await fetchLiveProduct();
+            if (!live) {
+                Swal.fire({ icon: 'error', title: 'Unavailable', text: 'This item is no longer available.', confirmButtonColor: '#0f172a' });
+                return false;
+            }
+            if (live.isActive === false || (live.stock ?? 0) <= 0) {
+                Swal.fire({ icon: 'error', title: 'Sold Out', text: 'This item just sold out. Refresh the page to update listings.', confirmButtonColor: '#0f172a' });
+                return false;
+            }
+            const available = availableStockForSelection(live, selectedColor, selectedSize);
+            if (available < 1) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Sold Out',
+                    text: selectedColor || selectedSize
+                        ? 'That color or size just sold out. Pick another option or refresh the page.'
+                        : 'This item just sold out.',
+                    confirmButtonColor: '#0f172a',
+                });
+                return false;
+            }
+            return true;
+        } catch {
+            Swal.fire({ icon: 'error', title: 'Could not verify stock', text: 'Please try again.', confirmButtonColor: '#0f172a' });
+            return false;
+        }
+    };
 
     const handleAddToCart = () => {
         if (!isAuthenticated) {
@@ -316,7 +381,17 @@ export default React.memo(function ProductCard({ id, name, price, images, sizes 
         }
     };
 
-    const handleBuyNow = async () => {
+    const handleBuyNow = async (e?: React.MouseEvent) => {
+        e?.stopPropagation?.();
+        e?.preventDefault?.();
+
+        if (checkoutChecking) return;
+
+        if ((stock ?? 0) <= 0 || selectionStock <= 0) {
+            Swal.fire({ icon: 'info', title: 'Sold Out', text: 'This item is no longer available.', confirmButtonColor: '#0f172a' });
+            return;
+        }
+
         // Batch Logic
         const actionLabel = isBatch ? 'Join Batch Group' : 'Delivery Details';
 
@@ -338,6 +413,23 @@ export default React.memo(function ProductCard({ id, name, price, images, sizes 
                 confirmButtonColor: '#0f172a',
             });
             return;
+        }
+
+        if (selectionStock < 1) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Sold Out',
+                text: 'That color or size is out of stock. Choose another option.',
+                confirmButtonColor: '#0f172a',
+            });
+            return;
+        }
+
+        setCheckoutChecking(true);
+        try {
+            if (!(await ensureCanPurchase())) return;
+        } finally {
+            setCheckoutChecking(false);
         }
 
         // Close product sheet so delivery popup is not trapped behind it on mobile
@@ -576,7 +668,10 @@ export default React.memo(function ProductCard({ id, name, price, images, sizes 
                     }
                 });
             },
-            preConfirm: () => {
+            preConfirm: async () => {
+                if (!(await ensureCanPurchase())) {
+                    return false;
+                }
                 const deliveryAddress = (document.getElementById('quick-delivery-address') as HTMLInputElement).value;
                 const deliveryCity = (document.getElementById('quick-delivery-city') as HTMLInputElement).value;
                 const deliveryRegion = (document.getElementById('quick-delivery-region') as HTMLInputElement).value;
@@ -608,6 +703,8 @@ export default React.memo(function ProductCard({ id, name, price, images, sizes 
 
     const handleCheckoutFlow = async (deliveryDetails: { deliveryAddress: string, deliveryCity: string, deliveryRegion: string, totalProductAmount: number }, guestInfo: { phone: string, email?: string } | null = null) => {
         try {
+            if (!(await ensureCanPurchase())) return;
+
             // Guest checkout goes through Paystack just like a logged-in user.
             // The WhatsApp number is for SMS notification only (handled by backend).
             // No email is collected — Paystack still requires one, so the backend
@@ -803,13 +900,13 @@ export default React.memo(function ProductCard({ id, name, price, images, sizes 
                             <span className="font-sans font-black text-slate-900 text-base tracking-tight">GH₵{price}</span>
                         </div>
                         <div className="flex flex-col items-end">
-                            <span className={`text-[9px] font-black uppercase tracking-wide ${stock > 5 ? 'text-emerald-500' : 'text-orange-500'}`}>
-                                {stock > 0 ? `${stock} Left` : 'Sold Out'}
+                            <span className={`text-[9px] font-black uppercase tracking-wide ${selectionStock > 5 ? 'text-emerald-500' : 'text-orange-500'}`}>
+                                {selectionStock > 0 ? `${selectionStock} Left` : 'Sold Out'}
                             </span>
                             <div className={`w-10 h-1 bg-slate-100 rounded-full mt-1 overflow-hidden`}>
                                 <div 
-                                    className={`h-full rounded-full ${stock > 5 ? 'bg-emerald-500' : 'bg-orange-500'}`} 
-                                    style={{ width: `${Math.min((stock / 20) * 100, 100)}%` }}
+                                    className={`h-full rounded-full ${selectionStock > 5 ? 'bg-emerald-500' : 'bg-orange-500'}`} 
+                                    style={{ width: `${Math.min((selectionStock / 20) * 100, 100)}%` }}
                                 />
                             </div>
                         </div>
@@ -818,11 +915,11 @@ export default React.memo(function ProductCard({ id, name, price, images, sizes 
                     {/* Size Selection (Quick Access) */}
                     {hasSizes && (
                         <div className="flex gap-1 mb-1 overflow-x-auto no-scrollbar" onClick={(e) => e.stopPropagation()}>
-                            {(sizes && sizes.length > 0 ? sizes : ['S', 'M', 'L', 'XL']).map(size => (
+                            {(displaySizes.length > 0 ? displaySizes : ['S', 'M', 'L', 'XL']).map(size => (
                                 <button
                                     key={size}
                                     onClick={() => !isSoldOut && setSelectedSize(size)}
-                                    disabled={isSoldOut}
+                                    disabled={isSoldOut || availableStockForSelection(stockView, selectedColor, size) <= 0}
                                     className={`flex-none w-7 h-7 rounded-lg text-[9px] font-black border transition-all active:scale-90
                                         ${selectedSize === size
                                             ? 'bg-brand-lemon text-slate-900 border-brand-lemon shadow-sm'
@@ -846,9 +943,10 @@ export default React.memo(function ProductCard({ id, name, price, images, sizes 
                         </button>
                         <button
                             onClick={handleBuyNow}
-                            className="flex items-center justify-center py-2.5 px-3 rounded-full bg-brand-lemon text-slate-900 text-[10px] font-bold transition-all active:scale-[0.98] whitespace-nowrap touch-manipulation relative z-50 !cursor-pointer !pointer-events-auto"
+                            disabled={checkoutChecking || selectionStock <= 0 || (stock ?? 0) <= 0}
+                            className="flex items-center justify-center py-2.5 px-3 rounded-full bg-brand-lemon text-slate-900 text-[10px] font-bold transition-all active:scale-[0.98] whitespace-nowrap touch-manipulation relative z-50 !cursor-pointer !pointer-events-auto disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
                         >
-                            Quick Checkout
+                            {checkoutChecking ? 'Checking…' : (selectionStock <= 0 || (stock ?? 0) <= 0) ? 'Sold Out' : 'Quick Checkout'}
                         </button>
                     </div>
                 </div>
@@ -1088,12 +1186,13 @@ export default React.memo(function ProductCard({ id, name, price, images, sizes 
                                             Color{!selectedColor && <span className="text-red-500 ml-1">*</span>}
                                         </p>
                                         <div className="flex flex-wrap gap-2">
-                                            {(colors?.length ? colors : ['Black', 'White', 'Cream', 'Gold']).map((color) => (
+                                            {(displayColors.length ? displayColors : ['Black', 'White', 'Cream', 'Gold']).map((color) => (
                                                 <button
                                                     key={color}
                                                     type="button"
-                                                    onClick={() => setSelectedColor(color)}
-                                                    className={`h-10 px-3 rounded-lg text-sm font-medium border flex items-center gap-2 transition-colors ${
+                                                    onClick={() => availableStockForSelection(stockView, color, selectedSize) > 0 && setSelectedColor(color)}
+                                                    disabled={availableStockForSelection(stockView, color, selectedSize) <= 0}
+                                                    className={`h-10 px-3 rounded-lg text-sm font-medium border flex items-center gap-2 transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
                                                         selectedColor === color
                                                             ? 'border-slate-900 bg-slate-900 text-white'
                                                             : 'border-slate-200 text-slate-600 hover:border-slate-400'

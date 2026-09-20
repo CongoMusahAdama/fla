@@ -44,6 +44,18 @@ export class Product {
     @Prop({ type: [String], default: [] })
     colors: string[];
 
+    /** Units available per color label (when hasColors). */
+    @Prop({ type: Object, default: undefined })
+    colorStock?: Record<string, number>;
+
+    /** Units available per size label (when hasSizes). */
+    @Prop({ type: Object, default: undefined })
+    sizeStock?: Record<string, number>;
+
+    /** Units per color|size when both options are enabled. */
+    @Prop({ type: Object, default: undefined })
+    variantStock?: Record<string, number>;
+
     @Prop({ default: 0 })
     rating: number;
 

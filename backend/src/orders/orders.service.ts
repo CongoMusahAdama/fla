@@ -12,6 +12,13 @@ import { FLA_CONSTANTS } from '../common/constants';
 import { resolveCommissionRate } from '../common/paystack-split.util';
 import { getFrontendBaseUrl } from '../common/frontend-url.util';
 import {
+  assertLineItemStock,
+  availableStockForSelection,
+  pruneZeroStockOptions,
+  stockDecrementUpdate,
+  stockIncrementUpdate,
+} from '../products/product-stock.util';
+import {
   normalizeWhatsAppPhone,
   buildWaMeLink,
   buildWaMeLinkForSms,
@@ -128,16 +135,32 @@ export class OrdersService implements OnModuleInit {
   }
 
   private async decrementOrderStock(
-    items: Array<{ productId: Types.ObjectId; quantity: number }>,
+    items: Array<{ productId: Types.ObjectId; quantity: number; color?: string; size?: string }>,
     session?: ClientSession,
   ) {
     for (const item of items) {
-      // Atomic + conditional: never drives stock negative even under concurrent purchases.
-      const q = this.productModel.findOneAndUpdate(
-        { _id: item.productId, stock: { $gte: item.quantity } },
-        { $inc: { stock: -item.quantity } },
-        { new: true, session },
-      );
+      let existingQuery = this.productModel
+        .findById(item.productId)
+        .select('stock hasColors hasSizes colorStock sizeStock variantStock colors sizes');
+      const existing = session
+        ? await existingQuery.session(session).exec()
+        : await existingQuery.exec();
+      if (!existing) continue;
+
+      const available = availableStockForSelection(existing, item.color, item.size);
+      if (available < item.quantity || (existing.stock ?? 0) < item.quantity) {
+        this.logger.warn(
+          `Stock decrement skipped for product ${item.productId} — insufficient stock at settlement time (race).`,
+        );
+        continue;
+      }
+
+      const updateFilter: Record<string, unknown> = {
+        _id: item.productId,
+        stock: { $gte: item.quantity },
+      };
+      const $inc = stockDecrementUpdate(existing, item.quantity, item.color, item.size).$inc;
+      const q = this.productModel.findOneAndUpdate(updateFilter, { $inc }, { new: true, session });
       const prod = session ? await q.session(session).exec() : await q.exec();
       if (!prod) {
         this.logger.warn(
@@ -145,19 +168,29 @@ export class OrdersService implements OnModuleInit {
         );
         continue;
       }
-      if (prod.stock <= 0 && !prod.soldOutAt) {
-        prod.soldOutAt = new Date();
-        await prod.save({ session });
+
+      const pruned = pruneZeroStockOptions(prod.toObject()) as Record<string, unknown>;
+      const nextStock = Number(pruned.stock ?? prod.stock ?? 0);
+      if (nextStock <= 0) {
+        pruned.isActive = false;
+        pruned.soldOutAt = new Date();
       }
+      await this.productModel
+        .findByIdAndUpdate(item.productId, { $set: pruned }, { session })
+        .exec();
     }
   }
 
   /** Rejects checkout up front if any cart item is sold out or no longer listed. */
-  private async assertItemsInStock(items: Array<{ productId: string; quantity: number; name?: string }>) {
+  private async assertItemsInStock(
+    items: Array<{ productId: string; quantity: number; name?: string; color?: string; size?: string }>,
+  ) {
     const productIds = items.map((i) => i.productId).filter((id) => Types.ObjectId.isValid(id));
     const products = await this.productModel
       .find({ _id: { $in: productIds } })
-      .select('name stock isActive')
+      .select(
+        'name stock isActive hasColors hasSizes colors sizes colorStock sizeStock variantStock',
+      )
       .lean()
       .exec();
     const byId = new Map(products.map((p: any) => [p._id.toString(), p]));
@@ -165,11 +198,13 @@ export class OrdersService implements OnModuleInit {
     for (const item of items) {
       const product = byId.get(item.productId);
       const label = item.name || product?.name || 'This item';
-      if (!product || product.isActive === false) {
+      if (!product) {
         throw new BadRequestException(`${label} is no longer available.`);
       }
-      if ((product.stock ?? 0) < item.quantity) {
-        throw new BadRequestException(`${label} is sold out or doesn't have enough stock left.`);
+      try {
+        assertLineItemStock(product, item.quantity, item.color, item.size);
+      } catch (err: any) {
+        throw new BadRequestException(err?.message || `${label} is not available.`);
       }
     }
   }
@@ -834,14 +869,31 @@ export class OrdersService implements OnModuleInit {
         // Restore stock only when payment had completed (stock was decremented on pay)
         if (order.isPaid && order.items && order.items.length > 0) {
           for (const item of order.items) {
-            await this.productModel.findByIdAndUpdate(
-              item.productId,
-              {
-                $inc: { stock: item.quantity },
-                $unset: { soldOutAt: '' }
-              },
-              { new: true }
-            ).session(session).exec();
+            const existing = await this.productModel
+              .findById(item.productId)
+              .select('stock hasColors hasSizes colorStock sizeStock variantStock colors sizes')
+              .session(session)
+              .exec();
+            if (!existing) continue;
+            const $inc = stockIncrementUpdate(
+              existing,
+              item.quantity,
+              item.color,
+              item.size,
+            ).$inc;
+            const updated = await this.productModel
+              .findByIdAndUpdate(
+                item.productId,
+                { $inc, $unset: { soldOutAt: '' } },
+                { new: true, session },
+              )
+              .exec();
+            if (updated) {
+              const pruned = pruneZeroStockOptions(updated.toObject());
+              await this.productModel
+                .findByIdAndUpdate(item.productId, { $set: pruned }, { session })
+                .exec();
+            }
           }
           this.logger.log(`Stock restored for cancelled order ${id}`);
         }

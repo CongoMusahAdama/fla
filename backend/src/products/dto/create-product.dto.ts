@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsNumber, IsOptional, IsArray, IsBoolean } from 'class-validator';
+import { IsString, IsNotEmpty, IsNumber, IsOptional, IsArray, IsBoolean, IsObject } from 'class-validator';
 
 export class CreateProductDto {
     @IsString()
@@ -76,6 +76,18 @@ export class CreateProductDto {
     @IsBoolean()
     @IsOptional()
     hasColors?: boolean;
+
+    @IsObject()
+    @IsOptional()
+    colorStock?: Record<string, number>;
+
+    @IsObject()
+    @IsOptional()
+    sizeStock?: Record<string, number>;
+
+    @IsObject()
+    @IsOptional()
+    variantStock?: Record<string, number>;
 
     @IsBoolean()
     @IsOptional()

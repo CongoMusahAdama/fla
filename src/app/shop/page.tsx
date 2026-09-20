@@ -664,6 +664,9 @@ function ShopContent() {
                                     hasSizes={product.hasSizes}
                                     hasColors={product.hasColors}
                                     colors={product.colors}
+                                    colorStock={product.colorStock}
+                                    sizeStock={product.sizeStock}
+                                    variantStock={product.variantStock}
                                     duration={product.tailoringTime}
                                     vendorRegion={product.region}
                                     vendorCity={product.vendorLocation}

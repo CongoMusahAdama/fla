@@ -32,6 +32,7 @@ import { WaybillModal } from '@/components/dashboard/WaybillModal';
 import { GHANA_REGIONS } from '@/lib/ghana-regions';
 import { useProductCategories } from '@/hooks/useProductCategories';
 import { storeHomePath, storefrontUrl } from '@/lib/storefront';
+import { VARIANT_STOCK_SEP } from '@/lib/product-stock';
 
 type VendorSection = 'dashboard' | 'products' | 'orders' | 'wallet' | 'reviews' | 'notifications' | 'settings' | 'help';
 
@@ -84,12 +85,69 @@ function VendorDashboardInner() {
     const [formHasSizes, setFormHasSizes] = useState(true);
     const [formHasColors, setFormHasColors] = useState(true);
     const [formColors, setFormColors] = useState<string[]>([]);
+    const [formColorStock, setFormColorStock] = useState<Record<string, string>>({});
+    const [formSizeStock, setFormSizeStock] = useState<Record<string, string>>({});
+    const [formVariantStock, setFormVariantStock] = useState<Record<string, string>>({});
     const [formImageLabels, setFormImageLabels] = useState<string[]>(['Front', 'Back', 'Side', 'Details']);
     const [customColorInput, setCustomColorInput] = useState('');
     const [customSizeInput, setCustomSizeInput] = useState('');
     const [payingSubscription, setPayingSubscription] = useState(false);
 
     const PRESET_SIZES = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL'];
+
+    const usesPerOptionStock = formHasColors || formHasSizes;
+
+    const computeFormTotalStock = () => {
+        if (formHasColors && formHasSizes && formColors.length > 0 && formSizes.length > 0) {
+            return formColors.reduce((sum, c) => (
+                sum + formSizes.reduce(
+                    (inner, s) => inner + (parseInt(formVariantStock[`${c}${VARIANT_STOCK_SEP}${s}`] || '0', 10) || 0),
+                    0,
+                )
+            ), 0);
+        }
+        if (formHasColors && formColors.length > 0) {
+            return formColors.reduce((sum, c) => sum + (parseInt(formColorStock[c] || '0', 10) || 0), 0);
+        }
+        if (formHasSizes && formSizes.length > 0) {
+            return formSizes.reduce((sum, s) => sum + (parseInt(formSizeStock[s] || '0', 10) || 0), 0);
+        }
+        return parseInt(formQuantity, 10) || 0;
+    };
+
+    const stockMapsForSave = () => {
+        const total = computeFormTotalStock();
+        if (formHasColors && formHasSizes && formColors.length && formSizes.length) {
+            const variantStock: Record<string, number> = {};
+            for (const c of formColors) {
+                for (const s of formSizes) {
+                    const key = `${c}${VARIANT_STOCK_SEP}${s}`;
+                    variantStock[key] = Math.max(0, parseInt(formVariantStock[key] || '0', 10) || 0);
+                }
+            }
+            return { stock: total, variantStock, colorStock: undefined, sizeStock: undefined };
+        }
+        if (formHasColors && formColors.length) {
+            const colorStock: Record<string, number> = {};
+            for (const c of formColors) {
+                colorStock[c] = Math.max(0, parseInt(formColorStock[c] || '0', 10) || 0);
+            }
+            return { stock: total, colorStock, sizeStock: undefined, variantStock: undefined };
+        }
+        if (formHasSizes && formSizes.length) {
+            const sizeStock: Record<string, number> = {};
+            for (const s of formSizes) {
+                sizeStock[s] = Math.max(0, parseInt(formSizeStock[s] || '0', 10) || 0);
+            }
+            return { stock: total, sizeStock, colorStock: undefined, variantStock: undefined };
+        }
+        return { stock: total };
+    };
+
+    useEffect(() => {
+        if (!usesPerOptionStock) return;
+        setFormQuantity(String(computeFormTotalStock()));
+    }, [formHasColors, formHasSizes, formColors, formSizes, formColorStock, formSizeStock, formVariantStock, usesPerOptionStock]);
 
     const PRESET_COLORS = [
         { label: 'Black', hex: '#000000' },
@@ -359,6 +417,9 @@ function VendorDashboardInner() {
                         hasSizes: prod.hasSizes !== undefined ? prod.hasSizes : true,
                         colors: prod.colors || [],
                         hasColors: prod.hasColors !== undefined ? prod.hasColors : true,
+                        colorStock: prod.colorStock,
+                        sizeStock: prod.sizeStock,
+                        variantStock: prod.variantStock,
                         isActive: prod.isActive
                     })));
                 }
@@ -414,18 +475,32 @@ function VendorDashboardInner() {
             return;
         }
 
-        if (formQuantity === '' || Number.isNaN(parseInt(formQuantity, 10))) {
+        const totalStock = computeFormTotalStock();
+        if (usesPerOptionStock) {
+            if (formHasColors && formColors.length === 0) {
+                Swal.fire({ icon: 'warning', title: 'Colors', text: 'Add at least one color with a quantity.', confirmButtonColor: '#0f172a' });
+                return;
+            }
+            if (formHasSizes && formSizes.length === 0) {
+                Swal.fire({ icon: 'warning', title: 'Sizes', text: 'Add at least one size with a quantity.', confirmButtonColor: '#0f172a' });
+                return;
+            }
+            if (totalStock <= 0) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Stock Required',
+                    text: 'Enter how many units you have for each color and/or size.',
+                    confirmButtonColor: '#0f172a',
+                });
+                return;
+            }
+        } else if (formQuantity === '' || Number.isNaN(parseInt(formQuantity, 10)) || totalStock < 0) {
             Swal.fire({
                 icon: 'warning',
                 title: 'Stock Required',
                 text: 'Please enter your stock quantity before publishing or updating this product.',
                 confirmButtonColor: '#0f172a',
             });
-            return;
-        }
-
-        if (parseInt(formQuantity, 10) < 0) {
-            Swal.fire({ icon: 'warning', title: 'Invalid Stock', text: 'Stock quantity cannot be negative.' });
             return;
         }
 
@@ -445,7 +520,7 @@ function VendorDashboardInner() {
                     name: formName,
                     price: parseFloat(formPrice),
                     category: formCategory,
-                    stock: parseInt(formQuantity) || 0,
+                    ...stockMapsForSave(),
                     description: formNarrative,
                     images: formImages.filter(url => url !== ''),
                     sizes: formHasSizes ? formSizes : [],
@@ -493,8 +568,11 @@ function VendorDashboardInner() {
                     sizes: prod.sizes || [],
                     hasSizes: prod.hasSizes !== undefined ? prod.hasSizes : true,
                     colors: prod.colors || [],
-                    hasColors: prod.hasColors !== undefined ? prod.hasColors : true,
-                    isActive: prod.isActive,
+                        hasColors: prod.hasColors !== undefined ? prod.hasColors : true,
+                        colorStock: prod.colorStock,
+                        sizeStock: prod.sizeStock,
+                        variantStock: prod.variantStock,
+                        isActive: prod.isActive,
                 })));
             };
 
@@ -849,9 +927,28 @@ function VendorDashboardInner() {
         setFormHasSizes(true);
         setFormHasColors(true);
         setFormColors([]);
+        setFormColorStock({});
+        setFormSizeStock({});
+        setFormVariantStock({});
         setFormImageLabels(['Front', 'Back', 'Side', 'Details']);
         setCustomColorInput('');
         setCustomSizeInput('');
+    };
+
+    const applyProductStockToForm = (prod: {
+        colorStock?: Record<string, number>;
+        sizeStock?: Record<string, number>;
+        variantStock?: Record<string, number>;
+    }) => {
+        const toStr = (rec?: Record<string, number>) => {
+            if (!rec) return {};
+            const out: Record<string, string> = {};
+            for (const [k, v] of Object.entries(rec)) out[k] = String(v);
+            return out;
+        };
+        setFormColorStock(toStr(prod.colorStock));
+        setFormSizeStock(toStr(prod.sizeStock));
+        setFormVariantStock(toStr(prod.variantStock));
     };
 
     const addCustomSize = () => {
@@ -1027,6 +1124,7 @@ function VendorDashboardInner() {
                                     setFormHasSizes(p.hasSizes !== undefined ? p.hasSizes : true);
                                     setFormHasColors(p.hasColors !== undefined ? p.hasColors : true);
                                     setFormColors(p.colors || []);
+                                    applyProductStockToForm(p);
                                     setFormImageLabels(p.imageLabels || ['Front', 'Back', 'Side', 'Details']);
                                     setShowAddProduct(true);
                                 }}
@@ -1061,6 +1159,7 @@ function VendorDashboardInner() {
                             setFormHasSizes(p.hasSizes !== undefined ? p.hasSizes : true);
                             setFormHasColors(p.hasColors !== undefined ? p.hasColors : true);
                             setFormColors(p.colors || []);
+                            applyProductStockToForm(p);
                             setFormImageLabels(p.imageLabels || ['Front', 'Back', 'Side', 'Details']);
                             setShowAddProduct(true);
                         }}
@@ -1598,7 +1697,9 @@ function VendorDashboardInner() {
                                     </select>
                                 </div>
                                 <div className="space-y-4">
-                                    <label htmlFor="p-stock" className="text-[12px] font-black text-slate-900 uppercase tracking-widest ml-1 cursor-pointer">Stock Vol. <span className="text-red-500">*</span></label>
+                                    <label htmlFor="p-stock" className="text-[12px] font-black text-slate-900 uppercase tracking-widest ml-1 cursor-pointer">
+                                        {usesPerOptionStock ? 'Total units' : 'Stock Vol.'} <span className="text-red-500">*</span>
+                                    </label>
                                     <input
                                         id="p-stock"
                                         name="stock"
@@ -1607,12 +1708,15 @@ function VendorDashboardInner() {
                                         required
                                         placeholder="20"
                                         value={formQuantity}
-                                        onChange={(e) => setFormQuantity(e.target.value)}
-                                        className={`w-full px-6 py-4 bg-slate-50 border rounded-2xl text-sm font-bold focus:ring-2 focus:ring-slate-900/10 h-14 ${formQuantity === '' ? 'border-red-200 ring-2 ring-red-50' : 'border-slate-100'}`}
+                                        readOnly={usesPerOptionStock}
+                                        onChange={(e) => !usesPerOptionStock && setFormQuantity(e.target.value)}
+                                        className={`w-full px-6 py-4 bg-slate-50 border rounded-2xl text-sm font-bold focus:ring-2 focus:ring-slate-900/10 h-14 ${formQuantity === '' ? 'border-red-200 ring-2 ring-red-50' : 'border-slate-100'} ${usesPerOptionStock ? 'opacity-80 cursor-not-allowed' : ''}`}
                                     />
-                                    {formQuantity === '' && (
+                                    {usesPerOptionStock ? (
+                                        <p className="text-[10px] font-bold text-slate-500 ml-1">Auto-sum from color/size quantities below.</p>
+                                    ) : formQuantity === '' ? (
                                         <p className="text-[10px] font-bold text-red-500 ml-1">Stock quantity is required before you can publish.</p>
-                                    )}
+                                    ) : null}
                                 </div>
                                 <div className="space-y-4">
                                     <label htmlFor="p-tailoring" className="text-[12px] font-black text-slate-900 uppercase tracking-widest ml-1 cursor-pointer">Prep Time</label>
@@ -1772,6 +1876,88 @@ function VendorDashboardInner() {
                                     )}
                                 </div>
                             </div>
+
+                            {usesPerOptionStock && formHasColors && formHasSizes && formColors.length > 0 && formSizes.length > 0 && (
+                                <div className="space-y-3 rounded-2xl border border-slate-100 bg-slate-50/80 p-4 md:p-6">
+                                    <p className="text-[12px] font-black text-slate-900 uppercase tracking-widest">Stock per color &amp; size</p>
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-left text-[11px] font-bold">
+                                            <thead>
+                                                <tr>
+                                                    <th className="p-2 text-slate-400 uppercase tracking-widest">Color \\ Size</th>
+                                                    {formSizes.map((s) => (
+                                                        <th key={s} className="p-2 text-slate-600">{s}</th>
+                                                    ))}
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {formColors.map((c) => (
+                                                    <tr key={c} className="border-t border-slate-200/80">
+                                                        <td className="p-2 text-slate-800">{c}</td>
+                                                        {formSizes.map((s) => {
+                                                            const key = `${c}${VARIANT_STOCK_SEP}${s}`;
+                                                            return (
+                                                                <td key={key} className="p-2">
+                                                                    <input
+                                                                        type="number"
+                                                                        min="0"
+                                                                        value={formVariantStock[key] ?? ''}
+                                                                        onChange={(e) => setFormVariantStock((prev) => ({ ...prev, [key]: e.target.value }))}
+                                                                        className="w-16 px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-center"
+                                                                        placeholder="0"
+                                                                    />
+                                                                </td>
+                                                            );
+                                                        })}
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            )}
+
+                            {usesPerOptionStock && formHasColors && !formHasSizes && formColors.length > 0 && (
+                                <div className="space-y-3 rounded-2xl border border-slate-100 bg-slate-50/80 p-4 md:p-6">
+                                    <p className="text-[12px] font-black text-slate-900 uppercase tracking-widest">Stock per color</p>
+                                    <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-3">
+                                        {formColors.map((c) => (
+                                            <label key={c} className="flex items-center justify-between gap-3 px-4 py-3 bg-white rounded-xl border border-slate-100">
+                                                <span className="text-[11px] font-black text-slate-700 uppercase">{c}</span>
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    value={formColorStock[c] ?? ''}
+                                                    onChange={(e) => setFormColorStock((prev) => ({ ...prev, [c]: e.target.value }))}
+                                                    className="w-20 px-2 py-1.5 rounded-lg border border-slate-200 text-center text-sm font-bold"
+                                                    placeholder="0"
+                                                />
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {usesPerOptionStock && formHasSizes && !formHasColors && formSizes.length > 0 && (
+                                <div className="space-y-3 rounded-2xl border border-slate-100 bg-slate-50/80 p-4 md:p-6">
+                                    <p className="text-[12px] font-black text-slate-900 uppercase tracking-widest">Stock per size</p>
+                                    <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-3">
+                                        {formSizes.map((s) => (
+                                            <label key={s} className="flex items-center justify-between gap-3 px-4 py-3 bg-white rounded-xl border border-slate-100">
+                                                <span className="text-[11px] font-black text-slate-700 uppercase">{s}</span>
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    value={formSizeStock[s] ?? ''}
+                                                    onChange={(e) => setFormSizeStock((prev) => ({ ...prev, [s]: e.target.value }))}
+                                                    className="w-20 px-2 py-1.5 rounded-lg border border-slate-200 text-center text-sm font-bold"
+                                                    placeholder="0"
+                                                />
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
 
                             <div className="space-y-4">
                                 <label htmlFor="p-desc" className="text-[12px] font-black text-slate-900 uppercase tracking-widest ml-1 cursor-pointer">Product Description</label>
