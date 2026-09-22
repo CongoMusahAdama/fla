@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { Megaphone, Plus, Trash2, CheckCircle2, Clock, UploadCloud, ImageIcon, X } from 'lucide-react';
 import Swal from 'sweetalert2';
@@ -56,15 +56,15 @@ function defaultWindow() {
 export default function AdminBillboards({
   token,
   vendors,
-  products,
 }: {
   token: string | null;
   vendors: VendorOption[];
-  products: ProductOption[];
 }) {
   const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
   const [items, setItems] = useState<Billboard[]>([]);
   const [loading, setLoading] = useState(true);
+  const [vendorCatalogProducts, setVendorCatalogProducts] = useState<ProductOption[]>([]);
+  const [vendorProductsLoading, setVendorProductsLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const windowDefaults = defaultWindow();
@@ -84,13 +84,50 @@ export default function AdminBillboards({
     isActive: true,
   });
 
-  const vendorProducts = useMemo(() => {
-    if (!form.vendorId) return products;
-    return products.filter((p) => {
-      const vid = typeof p.vendorId === 'object' ? p.vendorId?._id : p.vendorId;
-      return String(vid) === String(form.vendorId);
-    });
-  }, [products, form.vendorId]);
+  useEffect(() => {
+    if (!token || !form.vendorId) {
+      setVendorCatalogProducts([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setVendorProductsLoading(true);
+      try {
+        const collected: ProductOption[] = [];
+        let page = 1;
+        let totalPages = 1;
+        do {
+          const params = new URLSearchParams({
+            vendorId: form.vendorId,
+            showAll: 'true',
+            page: String(page),
+            limit: '48',
+            sort: 'latest',
+          });
+          const res = await fetch(`${api}/products?${params}`, {
+            headers: { Authorization: `Bearer ${token}` },
+            credentials: 'include',
+          });
+          if (!res.ok) break;
+          const data = await res.json();
+          const list = Array.isArray(data) ? data : data?.products || [];
+          collected.push(...list);
+          totalPages = Math.max(1, Number(data?.totalPages) || 1);
+          page += 1;
+        } while (page <= totalPages && page <= 25);
+        if (!cancelled) setVendorCatalogProducts(collected);
+      } catch {
+        if (!cancelled) setVendorCatalogProducts([]);
+      } finally {
+        if (!cancelled) setVendorProductsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [api, token, form.vendorId]);
+
+  const vendorProducts = vendorCatalogProducts;
 
   const load = async () => {
     if (!token) return;
@@ -114,7 +151,7 @@ export default function AdminBillboards({
   }, [token]);
 
   const onProductPick = (productId: string) => {
-    const product = products.find((p) => p._id === productId);
+    const product = vendorCatalogProducts.find((p) => p._id === productId);
     const vid =
       typeof product?.vendorId === 'object' ? product?.vendorId?._id : product?.vendorId;
     setForm((prev) => ({

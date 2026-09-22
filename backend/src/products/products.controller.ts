@@ -37,6 +37,15 @@ export class ProductsController {
     return this.productsService.findGroupedByVendor();
   }
 
+  @Get('admin/vendor-counts')
+  @UseGuards(AuthGuard('jwt'))
+  vendorProductCounts(@Request() req: { user: { role: string } }) {
+    if (req.user.role !== 'admin') {
+      throw new ForbiddenException('Admin only');
+    }
+    return this.productsService.countGroupedByVendor();
+  }
+
   @UseGuards(AuthGuard('jwt'))
   @Post()
   async create(@Body() createProductDto: CreateProductDto, @Request() req) {

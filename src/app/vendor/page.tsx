@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
     LayoutDashboard, Package, ShoppingBag, Wallet, Star,
     Bell, User, HelpCircle, LogOut, Plus, Search,
@@ -33,6 +33,9 @@ import { GHANA_REGIONS } from '@/lib/ghana-regions';
 import { useProductCategories } from '@/hooks/useProductCategories';
 import { storeHomePath, storefrontUrl } from '@/lib/storefront';
 import { VARIANT_STOCK_SEP } from '@/lib/product-stock';
+import { mapApiProductToVendorProduct, parseProductsListResponse } from '@/lib/vendor-product-mapper';
+
+const VENDOR_PRODUCTS_PAGE_SIZE = 24;
 
 type VendorSection = 'dashboard' | 'products' | 'orders' | 'wallet' | 'reviews' | 'notifications' | 'settings' | 'help';
 
@@ -65,6 +68,10 @@ function VendorDashboardInner() {
 
     // Performance and Logic States
     const [vendorProducts, setVendorProducts] = useState<Product[]>([]);
+    const [vendorProductsPage, setVendorProductsPage] = useState(1);
+    const [vendorProductsTotal, setVendorProductsTotal] = useState(0);
+    const [vendorProductsTotalPages, setVendorProductsTotalPages] = useState(1);
+    const [vendorProductsLoading, setVendorProductsLoading] = useState(false);
     const [selectedOrder, setSelectedOrder] = useState<any>(null);
     const [commissionRate, setCommissionRate] = useState(3);
     const [withdrawalMin, setWithdrawalMin] = useState(50);
@@ -364,6 +371,39 @@ function VendorDashboardInner() {
         }
     }, [user]);
 
+    const fetchVendorProductsPage = useCallback(
+        async (page: number) => {
+            if (!token || !user?.id) return;
+            setVendorProductsLoading(true);
+            try {
+                const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+                const params = new URLSearchParams({
+                    vendorId: user.id,
+                    showAll: 'true',
+                    page: String(page),
+                    limit: String(VENDOR_PRODUCTS_PAGE_SIZE),
+                    sort: 'latest',
+                });
+                const res = await fetch(`${api}/products?${params}`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                    credentials: 'include',
+                });
+                if (!res.ok) return;
+                const data = await res.json();
+                const list = parseProductsListResponse(data);
+                setVendorProducts(list.map(mapApiProductToVendorProduct));
+                setVendorProductsTotal(typeof data?.total === 'number' ? data.total : list.length);
+                setVendorProductsTotalPages(Math.max(1, data?.totalPages || 1));
+                setVendorProductsPage(page);
+            } catch (err) {
+                console.error('Vendor products fetch failed:', err);
+            } finally {
+                setVendorProductsLoading(false);
+            }
+        },
+        [token, user?.id],
+    );
+
     useEffect(() => {
         if (isLoading) return;
         if (!isAuthenticated) {
@@ -381,47 +421,16 @@ function VendorDashboardInner() {
                 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
                 const results = await Promise.allSettled([
                     fetch(`${api}/dashboard/vendor/stats`, { headers: { 'Authorization': `Bearer ${token}` }, credentials: 'include' }),
-                    fetch(`${api}/products?vendorId=${user.id}&showAll=true`, { headers: { 'Authorization': `Bearer ${token}` }, credentials: 'include' }),
                     fetch(`${api}/orders/vendor-orders?page=1&limit=500`, { headers: { 'Authorization': `Bearer ${token}` }, credentials: 'include' }),
                     fetch(`${api}/notifications/my-notifications`, { headers: { 'Authorization': `Bearer ${token}` }, credentials: 'include' }),
                     fetch(`${api}/payments/withdrawals/my-history`, { headers: { 'Authorization': `Bearer ${token}` }, credentials: 'include' }),
                     fetch(`${api}/settings`, { headers: { 'Authorization': `Bearer ${token}` }, credentials: 'include' })
                 ]);
 
-                const [statsRes, prodsRes, ordsRes, notifsRes, withdrawalsRes, settingsRes] = results;
+                const [statsRes, ordsRes, notifsRes, withdrawalsRes, settingsRes] = results;
 
                 if (statsRes.status === 'fulfilled' && statsRes.value.ok) {
                     setDashboardData(await statsRes.value.json());
-                }
-
-                if (prodsRes.status === 'fulfilled' && prodsRes.value.ok) {
-                    const p = await prodsRes.value.json();
-                    setVendorProducts(p.map((prod: any) => ({
-                        id: prod._id,
-                        name: prod.name,
-                        price: prod.price.toString(),
-                        image: prod.images?.[0] || '/product-1.jpg',
-                        images: prod.images?.map((img: string, idx: number) => ({
-                            url: img,
-                            label: prod.imageLabels?.[idx] || 'Product'
-                        })) || [],
-                        status: prod.stock < 10 ? 'Low Stock' : 'In Stock',
-                        sales: 0,
-                        quantity: prod.stock,
-                        tailoringTime: prod.tailoringTime || '3 Days',
-                        region: prod.region || 'Greater Accra',
-                        description: prod.description || '',
-                        category: prod.category || 'T-Shirt',
-                        imageLabels: prod.imageLabels || [],
-                        sizes: prod.sizes || [],
-                        hasSizes: prod.hasSizes !== undefined ? prod.hasSizes : true,
-                        colors: prod.colors || [],
-                        hasColors: prod.hasColors !== undefined ? prod.hasColors : true,
-                        colorStock: prod.colorStock,
-                        sizeStock: prod.sizeStock,
-                        variantStock: prod.variantStock,
-                        isActive: prod.isActive
-                    })));
                 }
 
                 if (ordsRes.status === 'fulfilled' && ordsRes.value.ok) {
@@ -451,6 +460,21 @@ function VendorDashboardInner() {
         };
         fetchData();
     }, [user, token, isAuthenticated, isLoading, isHydrated]);
+
+    useEffect(() => {
+        if (!token || !user?.id) return;
+        if (activeSection !== 'products') return;
+        fetchVendorProductsPage(vendorProductsPage);
+    }, [activeSection, token, user?.id, vendorProductsPage, fetchVendorProductsPage]);
+
+    const vendorProductsPagination = {
+        page: vendorProductsPage,
+        totalPages: vendorProductsTotalPages,
+        total: vendorProductsTotal || dashboardData?.totalProducts || 0,
+        pageSize: VENDOR_PRODUCTS_PAGE_SIZE,
+        onPageChange: (p: number) => setVendorProductsPage(p),
+        loading: vendorProductsLoading,
+    };
 
     const handleLogout = () => {
         Swal.fire({
@@ -540,43 +564,7 @@ function VendorDashboardInner() {
             
             await res.json();
 
-            const refreshVendorProducts = async () => {
-                if (!token || !user?.id) return;
-                const productsRes = await fetch(`${api}/products?vendorId=${user.id}&showAll=true`, {
-                    headers: { Authorization: `Bearer ${token}` },
-                    credentials: 'include',
-                });
-                if (!productsRes.ok) return;
-                const p = await productsRes.json();
-                setVendorProducts(p.map((prod: any) => ({
-                    id: prod._id,
-                    name: prod.name,
-                    price: prod.price.toString(),
-                    image: prod.images?.[0] || '/product-1.jpg',
-                    images: prod.images?.map((img: string, idx: number) => ({
-                        url: img,
-                        label: prod.imageLabels?.[idx] || 'Product',
-                    })) || [],
-                    status: prod.stock < 10 ? 'Low Stock' : 'In Stock',
-                    sales: 0,
-                    quantity: prod.stock,
-                    tailoringTime: prod.tailoringTime || '3 Days',
-                    region: prod.region || 'Greater Accra',
-                    description: prod.description || '',
-                    category: prod.category || 'T-Shirt',
-                    imageLabels: prod.imageLabels || [],
-                    sizes: prod.sizes || [],
-                    hasSizes: prod.hasSizes !== undefined ? prod.hasSizes : true,
-                    colors: prod.colors || [],
-                        hasColors: prod.hasColors !== undefined ? prod.hasColors : true,
-                        colorStock: prod.colorStock,
-                        sizeStock: prod.sizeStock,
-                        variantStock: prod.variantStock,
-                        isActive: prod.isActive,
-                })));
-            };
-
-            await refreshVendorProducts();
+            await fetchVendorProductsPage(vendorProductsPage);
             setShowAddProduct(false);
             resetProductForm();
             setActiveSection('products');
@@ -627,7 +615,7 @@ function VendorDashboardInner() {
                     throw new Error(errorData.message || 'Deletion failed on server');
                 }
 
-                setVendorProducts(prev => prev.filter(p => p.id !== id));
+                await fetchVendorProductsPage(vendorProductsPage);
                 Swal.fire({
                     icon: 'success',
                     title: 'DISCARDED',
@@ -1048,7 +1036,10 @@ function VendorDashboardInner() {
                                 )}
                             </div>
                         )}
-                        <VendorStatsGrid dashboardData={dashboardData} productsCount={vendorProducts.length} />
+                        <VendorStatsGrid
+                            dashboardData={dashboardData}
+                            productsCount={dashboardData?.totalProducts ?? vendorProductsTotal ?? vendorProducts.length}
+                        />
                     </div>
                 );
             case 'products':
@@ -1109,6 +1100,7 @@ function VendorDashboardInner() {
                             </div>
                             <VendorProducts
                                 products={vendorProducts}
+                                pagination={vendorProductsPagination}
                                 onEdit={(p) => {
                                     setEditingProduct(p);
                                     setFormName(p.name);
@@ -1144,6 +1136,7 @@ function VendorDashboardInner() {
                 return (
                     <VendorProducts 
                         products={vendorProducts}
+                        pagination={vendorProductsPagination}
                         onEdit={(p) => { 
                             setEditingProduct(p);
                             setFormName(p.name);

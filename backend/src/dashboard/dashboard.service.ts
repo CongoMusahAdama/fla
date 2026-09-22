@@ -52,8 +52,10 @@ export class DashboardService {
     }
 
     async getVendorStats(userId: string) {
-        const { orders } = await this.ordersService.findByVendor(userId, 1, 100); // Fetch last 100 for stats
-        const products = await this.productsService.findByVendor(userId);
+        const [{ orders }, totalProducts] = await Promise.all([
+            this.ordersService.findByVendor(userId, 1, 100),
+            this.productsService.countForVendor(userId),
+        ]);
 
         const paidOrders = orders
             .filter(o => o.status?.toLowerCase() !== 'cancelled' && o.isPaid);
@@ -103,6 +105,7 @@ export class DashboardService {
             pendingRevenue,
             activeOrders,
             totalSales,
+            totalProducts,
             recentOrders: orders.slice(0, 5),
             withdrawalHistory: user?.withdrawalHistory || []
         };

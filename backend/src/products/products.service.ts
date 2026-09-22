@@ -176,7 +176,12 @@ export class ProductsService implements OnModuleInit {
 
     if (paginate) {
       const page = Math.max(1, parseInt(String(query.page), 10) || 1);
-      const pageSize = Math.min(48, Math.max(1, parseInt(String(query.limit), 10) || 12));
+      const maxPageSize = query.showAll === 'true' ? 100 : 48;
+      const defaultPageSize = query.showAll === 'true' ? 24 : 12;
+      const pageSize = Math.min(
+        maxPageSize,
+        Math.max(1, parseInt(String(query.limit), 10) || defaultPageSize),
+      );
       const total = await this.productModel.countDocuments(filters).exec();
       const products = await q
         .skip((page - 1) * pageSize)
@@ -209,6 +214,21 @@ export class ProductsService implements OnModuleInit {
   /** Total products in catalog (admin dashboard) */
   async countCatalog(): Promise<number> {
     return this.productModel.countDocuments().exec();
+  }
+
+  async countForVendor(vendorId: string): Promise<number> {
+    return this.productModel.countDocuments({ vendorId }).exec();
+  }
+
+  async countGroupedByVendor(): Promise<Record<string, number>> {
+    const rows = await this.productModel
+      .aggregate([{ $group: { _id: '$vendorId', count: { $sum: 1 } } }])
+      .exec();
+    const out: Record<string, number> = {};
+    for (const row of rows) {
+      if (row._id) out[String(row._id)] = row.count;
+    }
+    return out;
   }
 
   async findByVendor(vendorId: string): Promise<Product[]> {

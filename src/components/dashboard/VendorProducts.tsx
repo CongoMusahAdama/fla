@@ -120,12 +120,22 @@ export interface Product {
   isActive?: boolean;
 }
 
+interface VendorProductsPagination {
+  page: number;
+  totalPages: number;
+  total: number;
+  pageSize: number;
+  onPageChange: (page: number) => void;
+  loading?: boolean;
+}
+
 interface VendorProductsProps {
   products: Product[];
   onEdit: (product: Product) => void;
   onDelete: (id: any) => void;
   onToggleStatus: (id: any, isActive: boolean) => void;
   onAddNew: () => void;
+  pagination?: VendorProductsPagination;
 }
 
 export const VendorProducts: React.FC<VendorProductsProps> = ({
@@ -133,7 +143,8 @@ export const VendorProducts: React.FC<VendorProductsProps> = ({
   onEdit,
   onDelete,
   onToggleStatus,
-  onAddNew
+  onAddNew,
+  pagination,
 }) => {
   const { token } = useAuth();
   const [searchQuery, setSearchQuery] = React.useState('');
@@ -313,6 +324,34 @@ export const VendorProducts: React.FC<VendorProductsProps> = ({
           </div>
         )}
       </div>
+
+      {pagination && pagination.totalPages > 1 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-100">
+          <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+            {pagination.loading
+              ? 'Loading…'
+              : `Page ${pagination.page} of ${pagination.totalPages} · ${pagination.total} listings`}
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled={pagination.page <= 1 || pagination.loading}
+              onClick={() => pagination.onPageChange(pagination.page - 1)}
+              className="px-5 py-2.5 rounded-full bg-slate-100 text-slate-700 text-[10px] font-black uppercase tracking-widest disabled:opacity-40"
+            >
+              Previous
+            </button>
+            <button
+              type="button"
+              disabled={pagination.page >= pagination.totalPages || pagination.loading}
+              onClick={() => pagination.onPageChange(pagination.page + 1)}
+              className="px-5 py-2.5 rounded-full bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest disabled:opacity-40"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
 
       {selectorsFor && (
         <ReferralSelectorsModal

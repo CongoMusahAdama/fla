@@ -90,9 +90,8 @@ function VendorAvatar({
     );
 }
 
-function countVendorProducts(products: any[] | undefined, vendorId: string): number {
-    const id = String(vendorId);
-    return (products || []).filter((p) => resolveProductVendorId(p) === id).length;
+function getVendorProductCount(counts: Record<string, number>, vendorId: string): number {
+    return counts[String(vendorId)] ?? 0;
 }
 
 function getOrderCommissionMeta(
@@ -129,7 +128,11 @@ export default function AdminDashboard() {
     const [selectedProduct, setSelectedProduct] = useState<any>(null);
     const [selectedKycVendor, setSelectedKycVendor] = useState<any>(null);
     const [allUsers, setAllUsers] = useState<any[]>([]);
-    const [allProducts, setAllProducts] = useState<any[]>([]);
+    const [vendorProductCounts, setVendorProductCounts] = useState<Record<string, number>>({});
+    const [catalogProducts, setCatalogProducts] = useState<any[]>([]);
+    const [catalogProductsTotal, setCatalogProductsTotal] = useState(0);
+    const [catalogProductsTotalPages, setCatalogProductsTotalPages] = useState(1);
+    const [catalogProductsLoading, setCatalogProductsLoading] = useState(false);
     const [allDisputes, setAllDisputes] = useState<any[]>([]);
     const [kycVendors, setKycVendors] = useState<any[]>([]);
     const [kycFilter, setKycFilter] = useState<'pending' | 'active' | 'rejected' | 'all'>('all');
@@ -239,11 +242,11 @@ export default function AdminDashboard() {
                 'Authorization': `Bearer ${authToken}`
             };
 
-            const [statsRes, ordersRes, usersRes, productsRes, allDisputesRes, settingsRes] = await Promise.all([
+            const [statsRes, ordersRes, usersRes, vendorCountsRes, allDisputesRes, settingsRes] = await Promise.all([
                 fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/dashboard/admin/stats`, { headers, credentials: 'include' }),
                 fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders?page=1&limit=500`, { headers, credentials: 'include' }),
                 fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/users`, { headers, credentials: 'include' }),
-                fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/products?showAll=true`, { headers, credentials: 'include' }),
+                fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/products/admin/vendor-counts`, { headers, credentials: 'include' }),
                 fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/support/my-disputes`, { headers, credentials: 'include' }),
                 fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/settings`, { headers, credentials: 'include' })
             ]);
@@ -254,14 +257,8 @@ export default function AdminDashboard() {
                 setAllOrders(ordersData.orders ? ordersData.orders : (Array.isArray(ordersData) ? ordersData : []));
             }
             if (usersRes.ok) setAllUsers(await usersRes.json());
-            if (productsRes.ok) {
-                const productsData = await productsRes.json();
-                const list = Array.isArray(productsData)
-                    ? productsData
-                    : Array.isArray(productsData?.products)
-                        ? productsData.products
-                        : [];
-                setAllProducts(list);
+            if (vendorCountsRes.ok) {
+                setVendorProductCounts(await vendorCountsRes.json());
             }
             if (allDisputesRes.ok) setAllDisputes(await allDisputesRes.json());
             if (settingsRes.ok) {
@@ -291,6 +288,49 @@ export default function AdminDashboard() {
             setHasLoadedOnce(true);
         }
     };
+
+    const fetchAdminCatalogProducts = async (page: number, search: string) => {
+        const authToken = token || (typeof window !== 'undefined' ? localStorage.getItem('fla_token') : null);
+        if (!authToken) return;
+        setCatalogProductsLoading(true);
+        try {
+            const params = new URLSearchParams({
+                showAll: 'true',
+                page: String(page),
+                limit: '10',
+                sort: 'latest',
+            });
+            const q = search.trim();
+            if (q.length >= 2) params.set('search', q);
+            const res = await fetch(
+                `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/products?${params.toString()}`,
+                {
+                    headers: { Authorization: `Bearer ${authToken}` },
+                    credentials: 'include',
+                },
+            );
+            if (!res.ok) return;
+            const data = await res.json();
+            const list = Array.isArray(data) ? data : data?.products || [];
+            setCatalogProducts(list);
+            setCatalogProductsTotal(typeof data?.total === 'number' ? data.total : list.length);
+            setCatalogProductsTotalPages(Math.max(1, data?.totalPages || 1));
+        } catch (err) {
+            console.error('Admin catalog fetch failed:', err);
+        } finally {
+            setCatalogProductsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        if (activeSection !== 'products') return;
+        const delay = searchQuery.trim().length >= 2 ? 350 : 0;
+        const timer = setTimeout(() => {
+            fetchAdminCatalogProducts(productsPage, searchQuery);
+        }, delay);
+        return () => clearTimeout(timer);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeSection, productsPage, searchQuery, token]);
 
     const handleLogout = () => {
         Swal.fire({
@@ -599,6 +639,7 @@ export default function AdminDashboard() {
                 body: JSON.stringify({ isActive: !currentStatus })
             });
             await refreshData();
+            fetchAdminCatalogProducts(productsPage, searchQuery);
             Swal.fire({
                 icon: 'success',
                 title: !currentStatus ? 'PRODUCT ACTIVATED' : 'PRODUCT HIDDEN',
@@ -636,6 +677,7 @@ export default function AdminDashboard() {
                     credentials: 'include'
                 });
                 await refreshData();
+                fetchAdminCatalogProducts(productsPage, searchQuery);
                 setSelectedProduct(null);
                 Swal.fire('Purged!', 'Design removed from archives.', 'success');
             } catch (error: any) {
@@ -1386,7 +1428,7 @@ export default function AdminDashboard() {
                                     <div className="flex justify-between items-center py-3 border-y border-slate-50">
                                         <div className="flex items-center gap-2">
                                             <Package className="w-3 h-3 text-slate-400" />
-                                            <span className="text-xs font-bold text-slate-700">{countVendorProducts(allProducts, u._id)} Products</span>
+                                            <span className="text-xs font-bold text-slate-700">{getVendorProductCount(vendorProductCounts, u._id)} Products</span>
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <Wallet className="w-3 h-3 text-slate-400" />
@@ -1509,7 +1551,7 @@ export default function AdminDashboard() {
                                             <td className="px-8 py-6 border-r border-slate-50">
                                                 <div className="flex items-center gap-2">
                                                     <Package className="w-4 h-4 text-brand-lemon" />
-                                                    <span className="text-sm font-black text-slate-900">{countVendorProducts(allProducts, u._id)}</span>
+                                                    <span className="text-sm font-black text-slate-900">{getVendorProductCount(vendorProductCounts, u._id)}</span>
                                                     <span className="text-[9px] font-bold text-slate-400 uppercase">Items</span>
                                                 </div>
                                             </td>
@@ -1774,22 +1816,11 @@ export default function AdminDashboard() {
                     </div>
                 );
             case 'products': {
-                const productList = Array.isArray(allProducts) ? allProducts : [];
-                const filteredProducts = productList.filter((p) => {
-                    const q = searchQuery.toLowerCase().trim();
-                    if (!q) return true;
-                    const vendor = (allUsers || []).find((u) => String(u._id) === resolveProductVendorId(p));
-                    return [p.name, p.category, p.vendorName, vendor?.shopName, vendor?.name, p._id].some((f) =>
-                        String(f || '').toLowerCase().includes(q),
-                    );
-                });
                 const productsPerPage = 10;
-                const productsTotalPages = Math.max(1, Math.ceil(filteredProducts.length / productsPerPage));
+                const productsTotalPages = Math.max(1, catalogProductsTotalPages);
                 const safeProductsPage = Math.min(productsPage, productsTotalPages);
-                const paginatedProducts = filteredProducts.slice(
-                    (safeProductsPage - 1) * productsPerPage,
-                    safeProductsPage * productsPerPage,
-                );
+                const paginatedProducts = catalogProducts;
+                const filteredTotal = catalogProductsTotal;
                 const pageWindow = (() => {
                     const pages: (number | '…')[] = [];
                     const total = productsTotalPages;
@@ -1812,8 +1843,9 @@ export default function AdminDashboard() {
                             <div>
                                 <h1 className="text-2xl md:text-3xl font-semibold text-slate-900 tracking-tight">Marketplace Inventory</h1>
                                 <p className="text-slate-500 text-sm mt-1">
-                                    {filteredProducts.length} product{filteredProducts.length === 1 ? '' : 's'}
-                                    {searchQuery.trim() ? ' matching search' : ' in catalog'}
+                                    {filteredTotal} product{filteredTotal === 1 ? '' : 's'}
+                                    {searchQuery.trim().length >= 2 ? ' matching search' : ' in catalog'}
+                                    {catalogProductsLoading ? ' · loading…' : ''}
                                 </p>
                             </div>
                             <div className="relative w-full sm:w-auto">
@@ -1847,7 +1879,13 @@ export default function AdminDashboard() {
                                         {paginatedProducts.length === 0 ? (
                                             <tr>
                                                 <td colSpan={8} className="px-5 py-16 text-center text-sm text-slate-400">
-                                                    {productList.length === 0 ? 'No products found.' : 'No products match your search.'}
+                                                    {filteredTotal === 0 && !catalogProductsLoading
+                                                        ? searchQuery.trim().length >= 2
+                                                            ? 'No products match your search.'
+                                                            : 'No products found.'
+                                                        : catalogProductsLoading
+                                                          ? 'Loading products…'
+                                                          : 'No products on this page.'}
                                                 </td>
                                             </tr>
                                         ) : (
@@ -1926,14 +1964,14 @@ export default function AdminDashboard() {
                                 </table>
                             </div>
 
-                            {filteredProducts.length > 0 && (
+                            {filteredTotal > 0 && (
                                 <div className="px-5 py-4 border-t border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-3 bg-slate-50">
                                     <p className="text-xs text-slate-500">
                                         Showing{' '}
                                         <span className="font-semibold text-slate-800">
-                                            {(safeProductsPage - 1) * productsPerPage + 1}–{Math.min(safeProductsPage * productsPerPage, filteredProducts.length)}
+                                            {(safeProductsPage - 1) * productsPerPage + 1}–{Math.min(safeProductsPage * productsPerPage, filteredTotal)}
                                         </span>{' '}
-                                        of <span className="font-semibold text-slate-800">{filteredProducts.length}</span>
+                                        of <span className="font-semibold text-slate-800">{filteredTotal}</span>
                                     </p>
                                     <div className="flex items-center gap-1">
                                         <button
@@ -2430,11 +2468,7 @@ export default function AdminDashboard() {
                     (u: any) => u.role === 'vendor',
                 );
                 return (
-                    <AdminBillboards
-                        token={token}
-                        vendors={vendors}
-                        products={Array.isArray(allProducts) ? allProducts : []}
-                    />
+                    <AdminBillboards token={token} vendors={vendors} />
                 );
             }
             case 'settings':
