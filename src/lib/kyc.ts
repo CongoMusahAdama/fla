@@ -46,19 +46,27 @@ export const kycToneClasses = {
   amber: 'bg-amber-50 text-amber-600',
 };
 
-/** Customer-facing: green badge = admin-confirmed business registration. */
+/** Customer-facing: green badge = documented / high-tier vendor. */
 export function isVendorDocumented(vendor?: {
   vendorTier?: string;
   businessRegistration?: string;
   businessRegistrationApprovedAt?: string | Date | null;
   businessRegistrationSubmittedAt?: string | Date | null;
 } | null): boolean {
-  if (!vendor?.businessRegistration?.trim()) return false;
-  if (vendor.businessRegistrationApprovedAt) return true;
-  if (vendor.vendorTier === 'high' && !vendor.businessRegistrationSubmittedAt) {
-    return true;
+  if (vendor?.businessRegistrationApprovedAt) return true;
+  if (vendor?.vendorTier === 'high') return true;
+
+  const hasCert = Boolean(vendor?.businessRegistration?.trim());
+  if (!hasCert) return false;
+
+  if (
+    vendor?.businessRegistrationSubmittedAt &&
+    !vendor?.businessRegistrationApprovedAt
+  ) {
+    return false;
   }
-  return false;
+
+  return true;
 }
 
 export function isBusinessRegistrationPendingReview(vendor?: {
@@ -69,8 +77,6 @@ export function isBusinessRegistrationPendingReview(vendor?: {
 } | null): boolean {
   if (!vendor?.businessRegistration?.trim()) return false;
   if (vendor.businessRegistrationApprovedAt) return false;
-  if (vendor.vendorTier === 'high' && !vendor.businessRegistrationSubmittedAt) {
-    return false;
-  }
-  return true;
+  if (vendor.vendorTier === 'high') return false;
+  return Boolean(vendor.businessRegistrationSubmittedAt);
 }

@@ -146,6 +146,8 @@ export default React.memo(function ProductCard({ id, name, price, images, sizes 
                 documented: isVendorDocumented({
                     vendorTier: vendor.vendorTier,
                     businessRegistration: vendor.businessRegistration,
+                    businessRegistrationApprovedAt: vendor.businessRegistrationApprovedAt,
+                    businessRegistrationSubmittedAt: vendor.businessRegistrationSubmittedAt,
                 }),
             });
         } catch (error) {

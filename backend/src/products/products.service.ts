@@ -104,11 +104,11 @@ export class ProductsService implements OnModuleInit {
     if (!p.storeSlug && vendor?.storeSlug) {
       p.storeSlug = vendor.storeSlug;
     }
-    // List views skip populate under load — use denormalized vendorTier when vendor isn't joined.
+    // List views skip full populate under load — trust badge comes from a batched vendor lookup.
     if (vendor) {
       p.vendorDocumented = isVendorDocumented(vendor);
-      p.vendorTier = isVendorDocumented(vendor) ? 'high' : 'low';
-    } else {
+      p.vendorTier = isVendorDocumented(vendor) ? 'high' : (vendor.vendorTier === 'high' ? 'high' : 'low');
+    } else if (p.vendorDocumented == null) {
       p.vendorDocumented = p.vendorTier === 'high';
     }
     // List payloads: keep first image only to cut JSON + bandwidth
@@ -116,6 +116,42 @@ export class ProductsService implements OnModuleInit {
       p.images = p.images.slice(0, 1);
     }
     return p;
+  }
+
+  /** One lean query for all vendors on a product page — keeps badges correct without N populates. */
+  private async attachVendorTrust(products: any[]): Promise<any[]> {
+    if (!products.length) return products;
+    const ids = [
+      ...new Set(
+        products
+          .map((p) => {
+            const v = p.vendorId;
+            if (!v) return '';
+            if (typeof v === 'object') return String(v._id || v.id || '');
+            return String(v);
+          })
+          .filter(Boolean),
+      ),
+    ];
+    if (!ids.length) return products.map((p) => this.mapProductForClient(p, { listView: true }));
+
+    const vendors = await this.userModel
+      .find({ _id: { $in: ids } })
+      .select(
+        'uniqueVendorId region location bio shopName vendorTier businessRegistration businessRegistrationApprovedAt businessRegistrationSubmittedAt storeSlug',
+      )
+      .lean()
+      .exec();
+    const byId = new Map(vendors.map((v: any) => [String(v._id), v]));
+
+    return products.map((p) => {
+      const rawId =
+        typeof p.vendorId === 'object' && p.vendorId
+          ? String(p.vendorId._id || p.vendorId.id || '')
+          : String(p.vendorId || '');
+      const vendor = byId.get(rawId);
+      return this.mapProductForClient({ ...p, vendorId: vendor || p.vendorId }, { listView: true });
+    });
   }
 
   private async buildProductFilters(query: any): Promise<Record<string, unknown>> {
@@ -237,7 +273,7 @@ export class ProductsService implements OnModuleInit {
         .exec() as any[];
 
       result = {
-        products: products.map((p) => this.mapProductForClient(p, { listView: true })),
+        products: await this.attachVendorTrust(products),
         total,
         page,
         pageSize,
@@ -247,7 +283,7 @@ export class ProductsService implements OnModuleInit {
       const unpaginatedCap = Math.min(48, Math.max(1, parseInt(String(query.limit), 10) || 48));
       q = q.limit(unpaginatedCap);
       const products = await q.exec() as any[];
-      result = products.map((p) => this.mapProductForClient(p, { listView: true }));
+      result = await this.attachVendorTrust(products);
     }
 
     if (cacheKey) this.catalogCache.set(cacheKey, result);
