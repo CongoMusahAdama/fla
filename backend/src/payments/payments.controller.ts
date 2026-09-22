@@ -27,7 +27,6 @@ import { PAYSTACK_BANK_CODE_MAP } from '../common/constants';
 import { WithdrawalService } from './withdrawal.service';
 import { RequestWithdrawalDto } from './dto/request-withdrawal.dto';
 import { amountDueForRenewal } from '../users/vendor-subscription.util';
-import { isVendorDocumented } from '../common/vendor-trust.util';
 import * as crypto from 'crypto';
 
 @Controller('payments')
@@ -175,9 +174,6 @@ export class PaymentsController {
             throw new ForbiddenException(
                 'Complete document verification and wait for admin approval before paying for uploads.',
             );
-        }
-        if (!isVendorDocumented(vendor as any)) {
-            throw new BadRequestException('Business registration documents must be uploaded before subscription.');
         }
 
         const amountGhs = amountDueForRenewal(vendor as any);

@@ -27,13 +27,17 @@ import { ReferralModule } from './referral/referral.module';
     ConfigModule.forRoot({ isGlobal: true }),
     ScheduleModule.forRoot(),
     MongooseModule.forRoot(process.env.MONGO_URI || 'mongodb://localhost:27017/fla_fashion', {
-      maxPoolSize: 25,
+      // Per API instance. With N load-balanced instances, Atlas sees ~N × maxPoolSize connections.
+      maxPoolSize: Number(process.env.MONGO_MAX_POOL || 40),
       minPoolSize: 2,
       serverSelectionTimeoutMS: 8000,
+      maxIdleTimeMS: 30_000,
     }),
+    // Auth/OTP/upload stay tightly @Throttle'd. Public catalog uses @SkipThrottle so
+    // 100 shoppers (or one mobile CGNAT IP) searching together won't get 429s.
     ThrottlerModule.forRoot([{
       ttl: 60000,
-      limit: 300, // 300 req/minute — prevents blocking normal browsing
+      limit: 400,
     }]),
     UsersModule,
     AuthModule,

@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards, Request, UnauthorizedException, ForbiddenException, Res } from '@nestjs/common';
 import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
-import { Throttle } from '@nestjs/throttler';
+import { SkipThrottle } from '@nestjs/throttler';
 import type { Response } from 'express';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -9,9 +9,8 @@ import { AuthGuard } from '@nestjs/passport';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { User, UserDocument } from '../users/schemas/user.schema';
-import { isSubscriptionActive } from '../users/vendor-subscription.util';
 import { FLA_CONSTANTS } from '../common/constants';
-import { isVendorDocumented } from '../common/vendor-trust.util';
+import { isSubscriptionActive } from '../users/vendor-subscription.util';
 
 @Controller('products')
 export class ProductsController {
@@ -20,18 +19,21 @@ export class ProductsController {
     @InjectModel(User.name) private userModel: Model<UserDocument>,
   ) { }
 
+  /** Public reads must not share a CGNAT/mobile IP rate budget — load balancers + 100 shoppers OK. */
+  @SkipThrottle()
   @Get('count')
   getCount(@Query() query: any) {
     return this.productsService.countAll(query);
   }
 
+  @SkipThrottle()
   @Get('suggestions')
   getSuggestions(@Query('search') search: string) {
     return this.productsService.getSuggestions(search);
   }
 
+  @SkipThrottle()
   @Get('grouped')
-  @Throttle({ default: { limit: 30, ttl: 60000 } })
   findGroupedByVendor(@Res({ passthrough: true }) res: Response) {
     res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=120');
     return this.productsService.findGroupedByVendor();
@@ -67,11 +69,7 @@ export class ProductsController {
           'Upload your verification documents and wait for admin approval (usually 4–5 hours) before you can list products.',
         );
       }
-      if (!isVendorDocumented(vendor as any)) {
-        throw new ForbiddenException(
-          'You must upload your business registration documents in settings to list products on the platform.',
-        );
-      }
+      // Business registration is optional for listing — it only unlocks the green trust badge after admin confirm.
       if (!isSubscriptionActive(vendor as any)) {
         throw new ForbiddenException(
           `Product uploads are locked until you renew via Paystack in your vendor dashboard (GHS ${FLA_CONSTANTS.SUBSCRIPTION_MONTHLY_GHS}). Existing listings stay live.`,
@@ -83,6 +81,7 @@ export class ProductsController {
     return this.productsService.create(createProductDto);
   }
 
+  @SkipThrottle()
   @Get()
   @UseGuards(OptionalJwtAuthGuard)
   async findAll(
@@ -102,10 +101,12 @@ export class ProductsController {
       }
     }
 
+    // Short browser/CDN cache — identical concurrent searches mostly hit this or the API TTL cache
     res.setHeader('Cache-Control', 'public, max-age=10, stale-while-revalidate=30');
     return this.productsService.findAll(query);
   }
 
+  @SkipThrottle()
   @Get(':id')
   findOne(@Param('id') id: string, @Res({ passthrough: true }) res: Response) {
     res.setHeader('Cache-Control', 'public, max-age=15, stale-while-revalidate=60');

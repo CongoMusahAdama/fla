@@ -1,4 +1,5 @@
 import { Controller, Get, Patch, Body, UseGuards } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import { SettingsService } from './settings.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -8,6 +9,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 export class SettingsController {
     constructor(private readonly settingsService: SettingsService) { }
 
+    @SkipThrottle()
     @Get()
     async getAll() {
         const settings = await this.settingsService.getAllSettings();

@@ -7,20 +7,48 @@ import { Product, ProductDocument } from './schemas/product.schema';
 import { User, UserDocument } from '../users/schemas/user.schema';
 import { isVendorDocumented } from '../common/vendor-trust.util';
 import { normalizeProductStockPayload } from './product-stock.util';
+import { TtlCache } from '../common/ttl-cache.util';
 
 const VENDOR_POPULATE_FIELDS =
-  'uniqueVendorId region location bio shopName vendorTier businessRegistration storeSlug';
+  'uniqueVendorId region location bio shopName vendorTier businessRegistration businessRegistrationApprovedAt businessRegistrationSubmittedAt storeSlug';
 
 /** Match frontend `NEW_ARRIVAL_MAX_AGE_DAYS` in src/lib/product-freshness.ts */
 const NEW_ARRIVAL_MAX_AGE_DAYS = 30;
 
+/** Same search/browse query → reuse result briefly (helps 100 people searching the same term). */
+const CATALOG_CACHE_TTL_MS = 12_000;
+const SUGGESTIONS_CACHE_TTL_MS = 20_000;
+
 @Injectable()
 export class ProductsService implements OnModuleInit {
   private readonly logger = new Logger(ProductsService.name);
+  private readonly catalogCache = new TtlCache<any>(CATALOG_CACHE_TTL_MS, 250);
+  private readonly suggestionsCache = new TtlCache<any[]>(SUGGESTIONS_CACHE_TTL_MS, 150);
+
   constructor(
     @InjectModel(Product.name) private productModel: Model<ProductDocument>,
     @InjectModel(User.name) private userModel: Model<UserDocument>
   ) { }
+
+  private bustPublicCaches() {
+    this.catalogCache.clear();
+    this.suggestionsCache.clear();
+  }
+
+  private catalogCacheKey(query: Record<string, unknown>): string | null {
+    // Never cache admin/vendor inventory (showAll) — freshness matters more there.
+    if (query.showAll === 'true') return null;
+    const keys = [
+      'page', 'limit', 'sort', 'filter', 'category', 'region', 'search',
+      'minPrice', 'maxPrice', 'priceLt', 'priceGt', 'vendorId', 'isFeatured',
+    ];
+    const parts: string[] = [];
+    for (const k of keys) {
+      const v = query[k];
+      if (v !== undefined && v !== null && v !== '') parts.push(`${k}=${String(v)}`);
+    }
+    return parts.sort().join('&') || 'default';
+  }
 
   onModuleInit() {
     // Run the auto-archiver every hour
@@ -51,7 +79,9 @@ export class ProductsService implements OnModuleInit {
   async create(createProductDto: CreateProductDto): Promise<Product> {
     const payload = normalizeProductStockPayload(createProductDto as any);
     const createdProduct = new this.productModel(payload);
-    return createdProduct.save();
+    const saved = await createdProduct.save();
+    this.bustPublicCaches();
+    return saved;
   }
 
   private mapProductForClient(p: any, options?: { listView?: boolean }) {
@@ -74,9 +104,12 @@ export class ProductsService implements OnModuleInit {
     if (!p.storeSlug && vendor?.storeSlug) {
       p.storeSlug = vendor.storeSlug;
     }
-    p.vendorDocumented = isVendorDocumented(vendor);
+    // List views skip populate under load — use denormalized vendorTier when vendor isn't joined.
     if (vendor) {
+      p.vendorDocumented = isVendorDocumented(vendor);
       p.vendorTier = isVendorDocumented(vendor) ? 'high' : 'low';
+    } else {
+      p.vendorDocumented = p.vendorTier === 'high';
     }
     // List payloads: keep first image only to cut JSON + bandwidth
     if (options?.listView && Array.isArray(p.images) && p.images.length > 1) {
@@ -156,14 +189,21 @@ export class ProductsService implements OnModuleInit {
     pageSize: number;
     totalPages: number;
   }> {
+    const cacheKey = this.catalogCacheKey(query);
+    if (cacheKey) {
+      const cached = this.catalogCache.get(cacheKey);
+      if (cached !== undefined) return cached;
+    }
+
     const filters = await this.buildProductFilters(query);
     const paginate = query.page !== undefined && query.page !== '';
 
+    // List/search: no populate — denormalized vendor fields on the product cut Mongo load
+    // when many shoppers hit the same query at once (load-balancer friendly).
     let q = this.productModel.find(filters)
       .select(
         'name price images imageLabels sizes stock colorStock sizeStock variantStock vendorId vendorName uniqueVendorId description hasSizes hasColors colors tailoringTime region vendorLocation vendorBio vendorTier storeSlug category rating reviewCount originalPrice isFeatured createdAt isActive',
       )
-      .populate('vendorId', VENDOR_POPULATE_FIELDS)
       .lean();
 
     if (query.sort === 'latest' || query.filter === 'New Arrival') {
@@ -173,6 +213,14 @@ export class ProductsService implements OnModuleInit {
     } else {
       q = q.sort({ createdAt: -1 });
     }
+
+    let result: Product[] | {
+      products: Product[];
+      total: number;
+      page: number;
+      pageSize: number;
+      totalPages: number;
+    };
 
     if (paginate) {
       const page = Math.max(1, parseInt(String(query.page), 10) || 1);
@@ -188,20 +236,22 @@ export class ProductsService implements OnModuleInit {
         .limit(pageSize)
         .exec() as any[];
 
-      return {
+      result = {
         products: products.map((p) => this.mapProductForClient(p, { listView: true })),
         total,
         page,
         pageSize,
         totalPages: Math.max(1, Math.ceil(total / pageSize)),
       };
+    } else {
+      const unpaginatedCap = Math.min(48, Math.max(1, parseInt(String(query.limit), 10) || 48));
+      q = q.limit(unpaginatedCap);
+      const products = await q.exec() as any[];
+      result = products.map((p) => this.mapProductForClient(p, { listView: true }));
     }
 
-    const unpaginatedCap = Math.min(48, Math.max(1, parseInt(String(query.limit), 10) || 48));
-    q = q.limit(unpaginatedCap);
-
-    const products = await q.exec() as any[];
-    return products.map((p) => this.mapProductForClient(p, { listView: true }));
+    if (cacheKey) this.catalogCache.set(cacheKey, result);
+    return result;
   }
 
   async countAll(query: any = {}): Promise<number> {
@@ -272,6 +322,7 @@ export class ProductsService implements OnModuleInit {
       .findByIdAndUpdate(id, payload, { new: true })
       .exec();
 
+    this.bustPublicCaches();
     return updatedProduct as Product;
   }
 
@@ -286,40 +337,72 @@ export class ProductsService implements OnModuleInit {
       throw new ForbiddenException('You do not have permission to delete this product');
     }
 
-    return await this.productModel.findByIdAndDelete(id).exec() as any;
+    const removed = await this.productModel.findByIdAndDelete(id).exec() as any;
+    this.bustPublicCaches();
+    return removed;
   }
 
   async getSuggestions(searchTerm: string) {
-    if (!searchTerm || searchTerm.length < 2) return [];
+    const term = String(searchTerm || '').trim().slice(0, 80);
+    if (term.length < 2) return [];
 
-    const productNames = await this.productModel
-      .find({ 
-        isActive: true,
-        name: { $regex: searchTerm, $options: 'i' } 
-      })
+    const cacheKey = term.toLowerCase();
+    const cached = this.suggestionsCache.get(cacheKey);
+    if (cached) return cached;
+
+    // Prefer text index (fast under concurrent typers); regex fallback if text finds nothing.
+    let productNames = await this.productModel
+      .find({ isActive: true, $text: { $search: term } })
       .limit(5)
       .select('name')
+      .lean()
       .exec();
+
+    if (!productNames.length) {
+      const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      productNames = await this.productModel
+        .find({
+          isActive: true,
+          name: { $regex: escaped, $options: 'i' },
+        })
+        .limit(5)
+        .select('name')
+        .lean()
+        .exec();
+    }
 
     const vendorNames = await this.userModel
       .find({
         role: 'vendor',
-        shopName: { $regex: searchTerm, $options: 'i' }
+        $text: { $search: term },
       })
       .limit(5)
       .select('shopName')
-      .exec();
+      .lean()
+      .exec()
+      .catch(async () => {
+        const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        return this.userModel
+          .find({
+            role: 'vendor',
+            shopName: { $regex: escaped, $options: 'i' },
+          })
+          .limit(5)
+          .select('shopName')
+          .lean()
+          .exec();
+      });
 
-    // Map to simple structure and remove duplicates if any
     const suggestions = [
-      ...productNames.map(p => ({ text: p.name, type: 'product' })),
-      ...vendorNames.map(v => ({ text: v.shopName, type: 'vendor' }))
-    ];
+      ...productNames.map((p) => ({ text: p.name, type: 'product' })),
+      ...vendorNames.map((v) => ({ text: v.shopName, type: 'vendor' })),
+    ].filter((s) => s.text);
 
-    // Remove potential duplicates (e.g. product name same as vendor name)
-    const uniqueSuggestions = Array.from(new Set(suggestions.map(s => s.text)))
-      .map(text => suggestions.find(s => s.text === text));
+    const uniqueSuggestions = Array.from(new Set(suggestions.map((s) => s.text))).map((text) =>
+      suggestions.find((s) => s.text === text),
+    );
 
+    this.suggestionsCache.set(cacheKey, uniqueSuggestions);
     return uniqueSuggestions;
   }
 

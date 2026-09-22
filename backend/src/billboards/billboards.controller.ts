@@ -9,6 +9,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import { BillboardsService } from './billboards.service';
 import { CreateBillboardDto } from './dto/create-billboard.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -20,6 +21,7 @@ export class BillboardsController {
   constructor(private readonly billboardsService: BillboardsService) {}
 
   /** Public: currently scheduled hero ads */
+  @SkipThrottle()
   @Get('active')
   findActive(@Query('slot') slot?: string) {
     const normalized =

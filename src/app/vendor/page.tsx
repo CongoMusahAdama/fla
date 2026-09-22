@@ -560,7 +560,13 @@ function VendorDashboardInner() {
                 })
             });
 
-            if (!res.ok) throw new Error("Save operation failed");
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                const msg = Array.isArray(errData?.message)
+                    ? errData.message.join(', ')
+                    : errData?.message;
+                throw new Error(msg || 'Save operation failed');
+            }
             
             await res.json();
 
@@ -585,8 +591,12 @@ function VendorDashboardInner() {
                 resetProductForm();
                 setShowAddProduct(true);
             }
-        } catch (err) {
-            Swal.fire({ icon: 'error', title: 'Operational Failure', text: 'Could not synchronize product.' });
+        } catch (err: any) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Could not publish',
+                text: err?.message || 'Could not synchronize product. Please try again.',
+            });
         }
     };
 
@@ -1645,21 +1655,10 @@ function VendorDashboardInner() {
                                             placeholder="0.00" 
                                             value={formPrice} 
                                             onChange={(e) => setFormPrice(e.target.value)} 
-                                            className={`w-full px-6 py-4 bg-slate-50 border rounded-2xl text-sm font-bold focus:ring-2 focus:ring-slate-900/10 h-14 ${parseFloat(formPrice) > 100 && !businessRegistration ? 'border-red-300 ring-4 ring-red-50' : 'border-slate-100'}`} 
+                                            className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-slate-900/10 h-14" 
                                         />
-                                        {parseFloat(formPrice) > 100 && !businessRegistration && (
-                                            <div className="mt-4 p-4 bg-red-50 border border-red-100 rounded-2xl flex items-start gap-3 animate-in slide-in-from-top-2 duration-300">
-                                                <ShieldAlert className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
-                                                <div>
-                                                    <p className="text-[10px] font-black text-red-600 uppercase tracking-widest mb-1">Compliance Alert</p>
-                                                    <p className="text-[11px] font-bold text-red-500 leading-relaxed">
-                                                        Products priced above GH₵ 100 require a <span className="underline">Business Registration Certificate</span>. Please upload yours in Settings to avoid account termination.
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        )}
                                         {formPrice && (
-                                            <div className="absolute right-4 top-[68px] bg-slate-900 text-white p-4 rounded-2xl shadow-2xl border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none w-48">
+                                            <div className="absolute right-4 top-[52px] bg-slate-900 text-white p-4 rounded-2xl shadow-2xl border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none w-48">
                                                 <div className="flex justify-between text-[8px] font-black uppercase tracking-widest mb-2 border-b border-white/10 pb-1">
                                                     <span>Breakdown</span>
                                                 </div>
