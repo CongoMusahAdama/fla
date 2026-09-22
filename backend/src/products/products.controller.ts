@@ -1,4 +1,6 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards, Request, UnauthorizedException, ForbiddenException, Res } from '@nestjs/common';
+import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
+import { Throttle } from '@nestjs/throttler';
 import type { Response } from 'express';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -29,7 +31,9 @@ export class ProductsController {
   }
 
   @Get('grouped')
-  findGroupedByVendor() {
+  @Throttle({ default: { limit: 30, ttl: 60000 } })
+  findGroupedByVendor(@Res({ passthrough: true }) res: Response) {
+    res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=120');
     return this.productsService.findGroupedByVendor();
   }
 
@@ -71,14 +75,31 @@ export class ProductsController {
   }
 
   @Get()
-  async findAll(@Query() query: any, @Res({ passthrough: true }) res: Response) {
-    // Cache public product listings for 30s (huge improvement for repeat visitors)
+  @UseGuards(OptionalJwtAuthGuard)
+  async findAll(
+    @Query() query: any,
+    @Request() req: { user?: { userId: string; role: string } },
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    if (query.showAll === 'true') {
+      const user = req.user;
+      const vendorId = query.vendorId ? String(query.vendorId) : '';
+      const allowed =
+        user &&
+        (user.role === 'admin' ||
+          (user.role === 'vendor' && vendorId && vendorId === String(user.userId)));
+      if (!allowed) {
+        throw new ForbiddenException('Not allowed to load full catalog for this scope.');
+      }
+    }
+
     res.setHeader('Cache-Control', 'public, max-age=10, stale-while-revalidate=30');
     return this.productsService.findAll(query);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
+  findOne(@Param('id') id: string, @Res({ passthrough: true }) res: Response) {
+    res.setHeader('Cache-Control', 'public, max-age=15, stale-while-revalidate=60');
     return this.productsService.findOne(id);
   }
 

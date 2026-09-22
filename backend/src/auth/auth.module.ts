@@ -12,6 +12,8 @@ import { OtpModule } from '../otp/otp.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
+import { OptionalJwtAuthGuard } from './guards/optional-jwt-auth.guard';
+import { resolveJwtSecret } from '../common/env-secrets.util';
 
 @Module({
   imports: [
@@ -23,14 +25,14 @@ import { RolesGuard } from './guards/roles.guard';
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: async (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET') || 'fla-super-secret-key-2024',
+      useFactory: async () => ({
+        secret: resolveJwtSecret(),
         signOptions: { expiresIn: '7d' },
       }),
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, LocalStrategy, JwtStrategy, JwtAuthGuard, RolesGuard],
-  exports: [AuthService, JwtAuthGuard, RolesGuard],
+  providers: [AuthService, LocalStrategy, JwtStrategy, JwtAuthGuard, RolesGuard, OptionalJwtAuthGuard],
+  exports: [AuthService, JwtAuthGuard, RolesGuard, OptionalJwtAuthGuard],
 })
 export class AuthModule { }

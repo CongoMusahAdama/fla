@@ -76,10 +76,7 @@ export class ProductsService implements OnModuleInit {
     }
     p.vendorDocumented = isVendorDocumented(vendor);
     if (vendor) {
-      p.vendorTier =
-        vendor.vendorTier === 'high' || vendor.businessRegistration?.trim()
-          ? 'high'
-          : 'low';
+      p.vendorTier = isVendorDocumented(vendor) ? 'high' : 'low';
     }
     // List payloads: keep first image only to cut JSON + bandwidth
     if (options?.listView && Array.isArray(p.images) && p.images.length > 1) {
@@ -118,24 +115,10 @@ export class ProductsService implements OnModuleInit {
     }
 
     if (query.search) {
-      const matchingVendors = await this.userModel.find({
-        role: 'vendor',
-        $or: [
-          { name: { $regex: query.search, $options: 'i' } },
-          { shopName: { $regex: query.search, $options: 'i' } },
-          { businessName: { $regex: query.search, $options: 'i' } },
-        ],
-      }).select('_id').lean().exec();
-
-      const matchingVendorIds = matchingVendors.map((v) => v._id);
-
-      filters.$or = [
-        { name: { $regex: query.search, $options: 'i' } },
-        { vendorName: { $regex: query.search, $options: 'i' } },
-        { description: { $regex: query.search, $options: 'i' } },
-        { region: { $regex: query.search, $options: 'i' } },
-        { vendorId: { $in: matchingVendorIds } },
-      ];
+      const term = String(query.search).trim().slice(0, 120);
+      if (term.length >= 2) {
+        filters.$text = { $search: term };
+      }
     }
 
     if (query.vendorId) {
@@ -209,9 +192,8 @@ export class ProductsService implements OnModuleInit {
       };
     }
 
-    if (query.limit) {
-      q = q.limit(parseInt(query.limit, 10));
-    }
+    const unpaginatedCap = Math.min(48, Math.max(1, parseInt(String(query.limit), 10) || 48));
+    q = q.limit(unpaginatedCap);
 
     const products = await q.exec() as any[];
     return products.map((p) => this.mapProductForClient(p, { listView: true }));

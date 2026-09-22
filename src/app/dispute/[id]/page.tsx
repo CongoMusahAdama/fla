@@ -91,10 +91,11 @@ export default function DisputeCenter() {
 
         try {
             Swal.fire({ title: 'Uploading Evidence...', didOpen: () => { Swal.showLoading(); } });
-            const res = await fetch(`${apiBase}/uploads/image`, {
+            const res = await fetch(`${apiBase}/upload`, {
                 method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` },
-                body: formData
+                headers: { Authorization: `Bearer ${token}` },
+                body: formData,
+                credentials: 'include',
             });
 
             if (res.ok) {

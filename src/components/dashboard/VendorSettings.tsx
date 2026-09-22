@@ -22,6 +22,7 @@ import {
   DEFAULT_STORE_THEME,
   normalizeStoreHex,
 } from '@/lib/store-theme';
+import { isBusinessRegistrationPendingReview, isVendorDocumented } from '@/lib/kyc';
 
 interface VendorSettingsProps {
   user: any;
@@ -605,7 +606,16 @@ export const VendorSettings: React.FC<VendorSettingsProps> = ({
               ))}
             </div>
 
-            <div className="relative">
+            <div className="relative space-y-2">
+              {businessRegistration && isVendorDocumented(user) ? (
+                <p className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-emerald-700">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Business registration confirmed
+                </p>
+              ) : businessRegistration && isBusinessRegistrationPendingReview(user) ? (
+                <p className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-amber-700">
+                  <Clock className="w-3.5 h-3.5" /> Uploaded — waiting for FLA to confirm
+                </p>
+              ) : null}
               {businessRegistration ? (
                 <div className="relative h-36 bg-slate-50 rounded-2xl overflow-hidden border border-slate-100 group">
                   <Image

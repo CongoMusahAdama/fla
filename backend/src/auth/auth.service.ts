@@ -108,6 +108,8 @@ export class AuthService {
       utilityBill: user.utilityBill,
       utilityType: user.utilityType,
       businessRegistration: user.businessRegistration,
+      businessRegistrationSubmittedAt: user.businessRegistrationSubmittedAt,
+      businessRegistrationApprovedAt: user.businessRegistrationApprovedAt,
       digitalAddress: user.digitalAddress,
       dob: user.dob,
       employeeCount: user.employeeCount,

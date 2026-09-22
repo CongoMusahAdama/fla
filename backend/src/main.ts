@@ -2,11 +2,18 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
+import { assertProductionEnv } from './common/env-secrets.util';
 
 async function bootstrap() {
+  assertProductionEnv();
+
   const app = await NestFactory.create(AppModule, {
     bodyParser: false,
   });
+
+  // Render / reverse proxies — needed for accurate rate limits and IP logging
+  const expressApp = app.getHttpAdapter().getInstance();
+  expressApp.set('trust proxy', 1);
 
   // Enable security headers with Helmet
   const compression = require('compression');

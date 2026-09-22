@@ -7,7 +7,7 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { getImageUrl } from '@/lib/utils';
 import { resolveStoreSlug, storeHomePath } from '@/lib/storefront';
-import { getShuftiKycStatus, kycToneClasses } from '@/lib/kyc';
+import { getShuftiKycStatus, isBusinessRegistrationPendingReview, isVendorDocumented, kycToneClasses } from '@/lib/kyc';
 import {
     LayoutDashboard, Users, ShoppingBag, Settings, LogOut, ArrowLeft,
     Wallet, Package, Truck, MessageSquare, BarChart3, ShieldCheck, ShieldAlert,
@@ -493,6 +493,65 @@ export default function AdminDashboard() {
                     : prev;
             setSelectedKycVendor(optimisticUpdate);
             setSelectedKycReferee(optimisticUpdate);
+        } catch (error: any) {
+            Swal.fire({ icon: 'error', title: 'Action Failed', text: error.message });
+        }
+    };
+
+    const handleApproveBusinessRegistration = async (userId: string) => {
+        const result = await Swal.fire({
+            title: 'CONFIRM BUSINESS REGISTRATION',
+            text: 'Confirm this certificate is genuine? The shop will show the verified (green) badge.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#059669',
+            cancelButtonColor: '#F1F5F9',
+            cancelButtonText: '<span style="color: #64748b">CANCEL</span>',
+            confirmButtonText: 'YES, CONFIRM',
+            customClass: {
+                popup: 'rounded-[32px] border-none shadow-2xl',
+                title: 'text-xl font-black text-slate-900 tracking-tighter uppercase',
+                htmlContainer: 'text-slate-500 font-medium text-sm',
+            },
+        });
+        if (!result.isConfirmed) return;
+
+        try {
+            const response = await fetch(
+                `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/users/admin/${userId}/approve-business-registration`,
+                {
+                    method: 'POST',
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                    credentials: 'include',
+                },
+            );
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                throw new Error(err.message || 'Failed to confirm business registration');
+            }
+            const updated = await response.json();
+            await refreshData();
+            setSelectedKycVendor((prev: any) =>
+                prev && prev._id === userId
+                    ? {
+                          ...prev,
+                          ...updated,
+                          businessRegistrationApprovedAt:
+                              updated.businessRegistrationApprovedAt || new Date().toISOString(),
+                          vendorTier: 'high',
+                      }
+                    : prev,
+            );
+            Swal.fire({
+                icon: 'success',
+                title: 'BUSINESS REG CONFIRMED',
+                text: 'The vendor has been notified and their badge is now verified.',
+                timer: 2200,
+                showConfirmButton: false,
+                customClass: { popup: 'rounded-[32px]' },
+            });
         } catch (error: any) {
             Swal.fire({ icon: 'error', title: 'Action Failed', text: error.message });
         }
@@ -995,6 +1054,7 @@ export default function AdminDashboard() {
                                             filteredKycVendors.map((v, i) => {
                                                 const kyc = getShuftiKycStatus(v);
                                                 const kycDisplay = getKycDisplayStatus(v);
+                                                const businessRegPending = isBusinessRegistrationPendingReview(v);
                                                 const docCount = [
                                                     v.ghanaCardFront,
                                                     v.ghanaCardBack,
@@ -1025,6 +1085,11 @@ export default function AdminDashboard() {
                                                         <td className="px-5 py-4">
                                                             <span className="text-sm font-medium text-slate-800">{docCount}/5</span>
                                                             <p className="text-[11px] text-slate-500 mt-0.5">{kyc.label}</p>
+                                                            {businessRegPending ? (
+                                                                <p className="text-[10px] font-semibold text-amber-700 mt-1">Business reg — review</p>
+                                                            ) : v.businessRegistration && isVendorDocumented(v) ? (
+                                                                <p className="text-[10px] font-semibold text-emerald-700 mt-1">Business reg — verified</p>
+                                                            ) : null}
                                                         </td>
                                                         <td className="px-5 py-4">
                                                             <span className={`inline-flex px-2.5 py-1 text-[11px] font-medium border ${kycDisplay.className}`}>
@@ -3217,6 +3282,22 @@ export default function AdminDashboard() {
                                         {detail('Utility type', v.utilityType)}
                                         {detail('Registered', v.createdAt ? new Date(v.createdAt).toLocaleString() : null)}
                                         {detail('KYC approved', v.kycApprovedAt ? new Date(v.kycApprovedAt).toLocaleString() : null)}
+                                        {detail(
+                                            'Business reg. submitted',
+                                            v.businessRegistrationSubmittedAt
+                                                ? new Date(v.businessRegistrationSubmittedAt).toLocaleString()
+                                                : v.businessRegistration
+                                                  ? 'On file (legacy)'
+                                                  : null,
+                                        )}
+                                        {detail(
+                                            'Business reg. confirmed',
+                                            v.businessRegistrationApprovedAt
+                                                ? new Date(v.businessRegistrationApprovedAt).toLocaleString()
+                                                : v.businessRegistration
+                                                  ? 'Awaiting admin review'
+                                                  : null,
+                                        )}
                                     </div>
                                     <div className="border border-slate-200 p-4">
                                         <p className="text-[11px] font-semibold text-slate-500 mb-2">Payout details</p>
@@ -3316,6 +3397,17 @@ export default function AdminDashboard() {
                                         )}
                                     </>
                                 )}
+                                {v.status === 'active' &&
+                                    v.kycApprovedAt &&
+                                    isBusinessRegistrationPendingReview(v) && (
+                                        <button
+                                            type="button"
+                                            onClick={() => handleApproveBusinessRegistration(v._id)}
+                                            className="inline-flex items-center justify-center gap-2 h-11 px-4 bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700"
+                                        >
+                                            <CheckCircle2 className="w-4 h-4" /> Confirm business registration
+                                        </button>
+                                    )}
                                 {v.status === 'active' && v.kycApprovedAt && (
                                     <button
                                         type="button"

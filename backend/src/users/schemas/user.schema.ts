@@ -160,6 +160,12 @@ export class User {
     @Prop()
     businessRegistration?: string;
 
+    /** Set when vendor uploads or replaces business registration — admin must confirm. */
+    businessRegistrationSubmittedAt?: Date;
+
+    /** Admin confirmed the current businessRegistration file (green documented badge). */
+    businessRegistrationApprovedAt?: Date;
+
     @Prop()
     employeeCount?: string;
 

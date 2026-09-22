@@ -46,12 +46,31 @@ export const kycToneClasses = {
   amber: 'bg-amber-50 text-amber-600',
 };
 
-/** Customer-facing: green badge = high-tier vendor; yellow = low-tier. */
+/** Customer-facing: green badge = admin-confirmed business registration. */
 export function isVendorDocumented(vendor?: {
   vendorTier?: string;
   businessRegistration?: string;
+  businessRegistrationApprovedAt?: string | Date | null;
+  businessRegistrationSubmittedAt?: string | Date | null;
 } | null): boolean {
-  if (!vendor) return false;
-  if (vendor.vendorTier === 'high') return true;
-  return Boolean(vendor.businessRegistration?.trim());
+  if (!vendor?.businessRegistration?.trim()) return false;
+  if (vendor.businessRegistrationApprovedAt) return true;
+  if (vendor.vendorTier === 'high' && !vendor.businessRegistrationSubmittedAt) {
+    return true;
+  }
+  return false;
+}
+
+export function isBusinessRegistrationPendingReview(vendor?: {
+  vendorTier?: string;
+  businessRegistration?: string;
+  businessRegistrationApprovedAt?: string | Date | null;
+  businessRegistrationSubmittedAt?: string | Date | null;
+} | null): boolean {
+  if (!vendor?.businessRegistration?.trim()) return false;
+  if (vendor.businessRegistrationApprovedAt) return false;
+  if (vendor.vendorTier === 'high' && !vendor.businessRegistrationSubmittedAt) {
+    return false;
+  }
+  return true;
 }

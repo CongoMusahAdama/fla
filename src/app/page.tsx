@@ -20,7 +20,6 @@ const HOME_LATEST_ALL = '__latest__';
 function resolveHomeShelfFilter(filt: string, cat: string, region: string): string {
   if (filt === HOME_LATEST_ALL) return '';
   if (filt) return filt;
-  if (cat === 'All Product' && !region) return 'New Arrival';
   return '';
 }
 
@@ -79,7 +78,7 @@ export default function Home() {
         setProducts(list);
         setHasMore(1 < totalPages);
 
-        if (cat === 'All Product' && !region && resolveHomeShelfFilter(filt, cat, region) === 'New Arrival') {
+        if (cat === 'All Product' && !region && !resolveHomeShelfFilter(filt, cat, region)) {
           const total = Array.isArray(data) ? list.length : (data?.total ?? list.length);
           setTotalCount(total);
         }

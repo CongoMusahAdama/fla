@@ -146,6 +146,7 @@ function ShopContent() {
         if (localSearch.trim()) params.set('search', localSearch.trim());
         if (catalogFilter) params.set('filter', catalogFilter);
         if (catalogSort) params.set('sort', catalogSort);
+        else if (!catalogFilter) params.set('sort', 'latest');
         if (activeFilters.Region) params.set('region', activeFilters.Region);
         const priceParams = getPriceQueryParams(activeFilters.Price);
         Object.entries(priceParams).forEach(([key, value]) => params.set(key, value));

@@ -126,48 +126,38 @@ export default function Hero() {
       const mainAd = ads.find((a) => a.slot === 'hero_main') || null;
       const sideAd = ads.find((a) => a.slot === 'hero_side') || null;
 
-      const tryUrls = [
-        `${api}/products?limit=80&filter=${encodeURIComponent('Best Seller')}`,
-        `${api}/products?limit=80&sort=latest`,
-      ];
-
       let pool: DayProduct[] = [];
-      for (const url of tryUrls) {
-        try {
-          const res = await fetch(url);
-          if (!res.ok) continue;
+      try {
+        const res = await fetch(`${api}/products?limit=32&sort=latest`);
+        if (res.ok) {
           const data = await res.json();
           const list = Array.isArray(data) ? data : data?.products;
-          if (!list?.length) continue;
-
-          pool = list
-            .filter((p: { images?: string[] }) => p.images?.[0])
-            .map(
-              (p: {
-                _id: string;
-                name: string;
-                price?: number;
-                category?: string;
-                images?: string[];
-                storeSlug?: string;
-                vendorId?: string | { storeSlug?: string; _id?: string; id?: string };
-              }) => ({
-                id: p._id,
-                name: p.name,
-                price: p.price,
-                category: p.category,
-                // Sized once here for the hero card use — category tiles ask for their
-                // own much smaller size below rather than downloading this full copy.
-                image: getOptimizedImage(p.images?.[0] || '', 1200, 1200),
-                storeSlug: p.storeSlug,
-                vendorId: p.vendorId,
-              }),
-            );
-
-          if (pool.length) break;
-        } catch {
-          /* try next */
+          if (list?.length) {
+            pool = list
+              .filter((p: { images?: string[] }) => p.images?.[0])
+              .map(
+                (p: {
+                  _id: string;
+                  name: string;
+                  price?: number;
+                  category?: string;
+                  images?: string[];
+                  storeSlug?: string;
+                  vendorId?: string | { storeSlug?: string; _id?: string; id?: string };
+                }) => ({
+                  id: p._id,
+                  name: p.name,
+                  price: p.price,
+                  category: p.category,
+                  image: getOptimizedImage(p.images?.[0] || '', 1200, 1200),
+                  storeSlug: p.storeSlug,
+                  vendorId: p.vendorId,
+                }),
+              );
+          }
         }
+      } catch {
+        /* fall through with empty pool */
       }
 
       const picks = pickToday(pool, 2);

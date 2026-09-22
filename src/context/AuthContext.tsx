@@ -52,6 +52,8 @@ export type User = {
     utilityBill?: string;
     utilityType?: string;
     businessRegistration?: string;
+    businessRegistrationSubmittedAt?: string | Date | null;
+    businessRegistrationApprovedAt?: string | Date | null;
     digitalAddress?: string;
     dob?: string;
     employeeCount?: string;
@@ -125,6 +127,10 @@ function mapApiUser(raw: Record<string, unknown>): User {
         ghanaCardBack: raw.ghanaCardBack as string | undefined,
         selfie: raw.selfie as string | undefined,
         businessRegistration: raw.businessRegistration as string | undefined,
+        businessRegistrationSubmittedAt:
+            (raw.businessRegistrationSubmittedAt as string | Date | null | undefined) ?? null,
+        businessRegistrationApprovedAt:
+            (raw.businessRegistrationApprovedAt as string | Date | null | undefined) ?? null,
         walletBalance: raw.walletBalance as number | undefined,
         pendingBalance: raw.pendingBalance as number | undefined,
         region: raw.region as string | undefined,

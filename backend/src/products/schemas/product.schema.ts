@@ -108,4 +108,6 @@ ProductSchema.index({ isActive: 1, createdAt: -1 });       // Homepage latest
 ProductSchema.index({ isActive: 1, category: 1 });         // Shop category filter
 ProductSchema.index({ isActive: 1, region: 1 });           // Region filter
 ProductSchema.index({ isActive: 1, rating: -1 });          // Best seller sort
+ProductSchema.index({ vendorId: 1, isActive: 1, createdAt: -1 }); // Storefront + vendor dashboard
+ProductSchema.index({ isActive: 1, stock: 1, createdAt: -1 }); // Default marketplace shelf
 ProductSchema.index({ name: 'text', description: 'text', vendorName: 'text' }); // Text search

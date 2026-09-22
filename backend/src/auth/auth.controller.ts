@@ -1,4 +1,5 @@
 import { Controller, Post, Body, UseGuards, Request, Get, Patch, Res, BadRequestException, HttpCode, HttpStatus } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import type { Response } from 'express';
 import { AuthService } from './auth.service';
 import { CreateUserDto } from '../users/dto/create-user.dto';
@@ -28,6 +29,7 @@ export class AuthController {
   }
 
   @UseGuards(AuthGuard('local'))
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
   @Post('login')
   async login(@Request() req, @Res({ passthrough: true }) res: Response) {
     const loginResult = await this.authService.login(req.user);
@@ -42,6 +44,7 @@ export class AuthController {
   }
 
   @Post('register')
+  @Throttle({ default: { limit: 8, ttl: 60000 } })
   @HttpCode(HttpStatus.CREATED)
   async register(@Body() createUserDto: CreateUserDto, @Request() req) {
     // SECURITY: Verify human status via Cloudflare Turnstile.
@@ -113,18 +116,16 @@ export class AuthController {
   }
 
   @Post('send-otp')
+  @Throttle({ default: { limit: 6, ttl: 60000 } })
   async sendOTP(@Body() body: { phone: string; name?: string }) {
     try {
       await this.authService.sendVendorOTP(body.phone, body.name);
       return { message: 'Verification code sent via SMS', success: true };
     } catch (error) {
       console.error('Error sending OTP:', error);
-      console.error('Error stack:', error.stack);
-      console.error('Error message:', error.message);
       return {
         message: error.message || 'Failed to send OTP',
         success: false,
-        error: error.toString()
       };
     }
   }
@@ -177,6 +178,7 @@ export class AuthController {
   }
 
   @Post('forgot-password')
+  @Throttle({ default: { limit: 8, ttl: 60000 } })
   async forgotPassword(@Body() body: { email: string }) {
     try {
       await this.authService.forgotPassword(body.email);

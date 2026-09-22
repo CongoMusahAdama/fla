@@ -119,6 +119,13 @@ export class UsersController {
     return this.usersService.approveVendorKycForSelling(id);
   }
 
+  @Post('admin/:id/approve-business-registration')
+  @UseGuards(AuthGuard('jwt'))
+  approveBusinessRegistration(@Request() req, @Param('id') id: string) {
+    this.assertAdmin(req);
+    return this.usersService.approveBusinessRegistration(id);
+  }
+
   @Post('admin/:id/subscription/renew')
   @UseGuards(AuthGuard('jwt'))
   renewSubscription(

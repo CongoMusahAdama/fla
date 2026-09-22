@@ -165,7 +165,7 @@ export default function VendorStorePage() {
         // active listing for this store is loaded (not just the first 100).
         do {
           const productsRes = await fetch(
-            `${apiBase()}/products?vendorId=${encodeURIComponent(vendorId)}&page=${page}&limit=48`,
+            `${apiBase()}/products?vendorId=${encodeURIComponent(vendorId)}&page=${page}&limit=48&sort=latest`,
           );
           if (!productsRes.ok) break;
           const raw = await productsRes.json();

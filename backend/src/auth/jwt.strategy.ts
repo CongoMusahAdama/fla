@@ -2,14 +2,11 @@
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PassportStrategy } from '@nestjs/passport';
 import { Injectable } from '@nestjs/common';
+import { resolveJwtSecret } from '../common/env-secrets.util';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
     constructor() {
-        const secret = process.env.JWT_SECRET;
-        if (!secret) {
-            console.error('CRITICAL: JWT_SECRET is not defined in environment variables');
-        }
         super({
             jwtFromRequest: ExtractJwt.fromExtractors([
                 ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -22,7 +19,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
                 },
             ]),
             ignoreExpiration: false,
-            secretOrKey: process.env.JWT_SECRET || 'fla-super-secret-key-2024',
+            secretOrKey: resolveJwtSecret(),
         });
     }
 

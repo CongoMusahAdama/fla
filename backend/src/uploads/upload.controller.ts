@@ -2,7 +2,35 @@ import { Controller, Post, UseInterceptors, UploadedFile, UseGuards, BadRequestE
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { AuthGuard } from '@nestjs/passport';
+import { Throttle } from '@nestjs/throttler';
 import { CloudinaryService } from './cloudinary.service';
+
+const UPLOAD_MAX_BYTES = 10 * 1024 * 1024;
+
+const AUTH_UPLOAD_MIMES = [
+  'image/jpeg',
+  'image/png',
+  'image/jpg',
+  'image/webp',
+  'application/pdf',
+  'image/gif',
+];
+
+const PUBLIC_UPLOAD_MIMES = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp', 'application/pdf'];
+
+function uploadInterceptor(allowedMimes: string[]) {
+  return FileInterceptor('file', {
+    storage: memoryStorage(),
+    limits: { fileSize: UPLOAD_MAX_BYTES },
+    fileFilter: (_req, file, callback) => {
+      if (allowedMimes.includes(file.mimetype)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Invalid file type.'), false);
+      }
+    },
+  });
+}
 
 @Controller('upload')
 export class UploadController {
@@ -10,39 +38,16 @@ export class UploadController {
 
     @Post()
     @UseGuards(AuthGuard('jwt'))
-    @UseInterceptors(
-        FileInterceptor('file', {
-            storage: memoryStorage(),
-            limits: { fileSize: 50 * 1024 * 1024 }, // Increased to 50MB
-            fileFilter: (req, file, callback) => {
-                const allowedMimes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp', 'application/pdf', 'image/gif', 'image/svg+xml'];
-                if (allowedMimes.includes(file.mimetype)) {
-                    callback(null, true);
-                } else {
-                    callback(new Error('Invalid file type. Only JPEG, PNG, WEBP, and PDF are allowed.'), false);
-                }
-            },
-        }),
-    )
+    @Throttle({ default: { limit: 40, ttl: 60000 } })
+    @UseInterceptors(uploadInterceptor(AUTH_UPLOAD_MIMES))
     async uploadFile(@UploadedFile() file: Express.Multer.File) {
         return this.handleUpload(file);
     }
 
+    /** Signup KYC/logo only — registration itself is Turnstile-gated; keep rate limits tight. */
     @Post('public')
-    @UseInterceptors(
-        FileInterceptor('file', {
-            storage: memoryStorage(),
-            limits: { fileSize: 50 * 1024 * 1024 }, // Increased to 50MB
-            fileFilter: (req, file, callback) => {
-                const allowedMimes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp', 'application/pdf', 'image/gif', 'image/svg+xml'];
-                if (allowedMimes.includes(file.mimetype)) {
-                    callback(null, true);
-                } else {
-                    callback(new Error('Invalid file type. Only JPEG, PNG, WEBP, and PDF are allowed.'), false);
-                }
-            },
-        }),
-    )
+    @Throttle({ default: { limit: 12, ttl: 60000 } })
+    @UseInterceptors(uploadInterceptor(PUBLIC_UPLOAD_MIMES))
     async uploadPublicFile(@UploadedFile() file: Express.Multer.File) {
         return this.handleUpload(file);
     }

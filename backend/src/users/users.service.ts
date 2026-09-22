@@ -33,6 +33,7 @@ import {
 } from './vendor-subscription.util';
 import { FLA_CONSTANTS, PAYSTACK_BANK_CODE_MAP } from '../common/constants';
 import { getFrontendBaseUrl } from '../common/frontend-url.util';
+import { USER_PUBLIC_PROJECTION } from '../common/user-projection.util';
 
 import * as crypto from 'crypto';
 
@@ -220,8 +221,11 @@ export class UsersService implements OnModuleInit {
         ? `FLA-V-${crypto.randomBytes(3).toString('hex').toUpperCase()}`
         : undefined;
 
-      const vendorTier =
-        role === 'vendor' && createUserDto.businessRegistration?.trim() ? 'high' : 'low';
+      const vendorTier = role === 'vendor' ? 'low' : undefined;
+      const businessRegistrationSubmittedAt =
+        role === 'vendor' && createUserDto.businessRegistration?.trim()
+          ? new Date()
+          : undefined;
 
       // Check for pending Shufti verification
       const tempVerification = await this.tempVerificationModel.findOne({ email: email.toLowerCase().trim() }).exec();
@@ -260,6 +264,7 @@ export class UsersService implements OnModuleInit {
         // Vendors get dashboard access immediately; selling stays locked until KYC is approved (free, no payment).
         status: 'active',
         kycSubmittedAt,
+        businessRegistrationSubmittedAt,
         ...(role === 'vendor' ? pendingApprovalSubscriptionFields() : {}),
       });
       const savedUser = await createdUser.save();
@@ -354,7 +359,11 @@ export class UsersService implements OnModuleInit {
   }
 
   async findAll(): Promise<User[]> {
-    return this.userModel.find().lean().exec() as unknown as User[];
+    return this.userModel
+      .find()
+      .select(USER_PUBLIC_PROJECTION)
+      .lean()
+      .exec() as unknown as User[];
   }
 
   async countAll(): Promise<number> {
@@ -366,7 +375,11 @@ export class UsersService implements OnModuleInit {
   }
 
   async findOneById(id: string): Promise<User | null> {
-    return this.userModel.findById(id).lean().exec() as unknown as User;
+    return this.userModel
+      .findById(id)
+      .select(USER_PUBLIC_PROJECTION)
+      .lean()
+      .exec() as unknown as User;
   }
 
   async update(id: string, updateUserDto: UpdateUserDto): Promise<User | null> {
@@ -382,6 +395,8 @@ export class UsersService implements OnModuleInit {
     delete updateData.subscriptionEndsAt;
     delete updateData.subscriptionPaymentRequired;
     delete updateData.kycSubmittedAt;
+    delete updateData.businessRegistrationApprovedAt;
+    delete updateData.businessRegistrationSubmittedAt;
 
     if (updateData.paymentMethods?.length) {
       const primary = updateData.paymentMethods[0];
@@ -389,18 +404,27 @@ export class UsersService implements OnModuleInit {
       if (primary?.accountName) updateData.accountName = primary.accountName;
     }
 
-    // Auto-promote to high tier if business registration is provided
-    if (updateData.businessRegistration?.trim()) {
-      updateData.vendorTier = 'high';
-    }
-
     const existing = await this.userModel
       .findById(id)
       .select(
-        'role shopName status storeSlug kycApprovedAt ghanaCardFront selfie businessRegistration kycSubmittedAt',
+        'role shopName status storeSlug kycApprovedAt ghanaCardFront selfie businessRegistration kycSubmittedAt businessRegistrationApprovedAt',
       )
       .lean()
       .exec();
+
+    const nextBusinessReg =
+      typeof updateData.businessRegistration === 'string'
+        ? updateData.businessRegistration.trim()
+        : undefined;
+    const prevBusinessReg = ((existing as any)?.businessRegistration || '').trim();
+    if (
+      nextBusinessReg &&
+      nextBusinessReg !== prevBusinessReg
+    ) {
+      updateData.businessRegistrationSubmittedAt = new Date();
+      updateData.businessRegistrationApprovedAt = null;
+      updateData.vendorTier = 'low';
+    }
     const shopNameChanging =
       typeof updateData.shopName === 'string' &&
       updateData.shopName.trim() &&
@@ -583,7 +607,7 @@ export class UsersService implements OnModuleInit {
           },
         ],
       })
-      .select('-password -resetPasswordToken -resetPasswordExpires')
+      .select(USER_PUBLIC_PROJECTION)
       .lean()
       .exec();
     return referees.map((v) => this.mapVendorKycRecord(v));
@@ -607,7 +631,7 @@ export class UsersService implements OnModuleInit {
     }
     const referees = await this.userModel
       .find(filter)
-      .select('-password -resetPasswordToken -resetPasswordExpires')
+      .select(USER_PUBLIC_PROJECTION)
       .sort({ createdAt: -1 })
       .lean()
       .exec();
@@ -752,7 +776,7 @@ export class UsersService implements OnModuleInit {
         { $set: update, $unset: { lastSubscriptionReminderDate: 1 } },
         { new: true },
       )
-      .select('-password -resetPasswordToken -resetPasswordExpires')
+      .select(USER_PUBLIC_PROJECTION)
       .lean()
       .exec();
 
@@ -946,6 +970,7 @@ export class UsersService implements OnModuleInit {
       isVerified: true,
     };
     if (existing.businessRegistration?.trim()) {
+      update.businessRegistrationApprovedAt = new Date();
       update.vendorTier = 'high';
     }
     // Free entry — approval grants full, permanent selling access immediately.
@@ -1021,7 +1046,7 @@ export class UsersService implements OnModuleInit {
         { $set: fields, $unset: { lastSubscriptionReminderDate: 1 } },
         { new: true },
       )
-      .select('-password -resetPasswordToken -resetPasswordExpires')
+      .select(USER_PUBLIC_PROJECTION)
       .lean()
       .exec();
 
@@ -1095,11 +1120,53 @@ export class UsersService implements OnModuleInit {
             kycSubmittedAt: { $exists: true, $ne: null },
             $or: [{ kycApprovedAt: { $exists: false } }, { kycApprovedAt: null }],
           },
+          {
+            businessRegistration: { $exists: true, $nin: [null, ''] },
+            $or: [
+              { businessRegistrationApprovedAt: { $exists: false } },
+              { businessRegistrationApprovedAt: null },
+            ],
+          },
         ],
       })
       .lean()
       .exec();
     return vendors.map((v) => this.mapVendorKycRecord(v));
+  }
+
+  async approveBusinessRegistration(id: string): Promise<User | null> {
+    const existing = await this.userModel.findById(id).exec();
+    if (!existing || existing.role !== 'vendor') {
+      throw new NotFoundException('Vendor not found');
+    }
+    if (!existing.businessRegistration?.trim()) {
+      throw new BadRequestException('Vendor has not uploaded a business registration document.');
+    }
+
+    const user = (await this.userModel
+      .findByIdAndUpdate(
+        id,
+        {
+          $set: {
+            businessRegistrationApprovedAt: new Date(),
+            vendorTier: 'high',
+          },
+        },
+        { new: true },
+      )
+      .lean()
+      .exec()) as unknown as User;
+
+    if ((user as any)?.phone) {
+      const shop = (user as any).shopName || (user as any).name;
+      this.sendRegistrationSms(
+        (user as any).phone,
+        `Hi ${shop}, your FLA business registration document is confirmed. Your shop now shows the verified (green) badge.`,
+        'vendor-business-reg-approved',
+      );
+    }
+
+    return user;
   }
 
   async findKycVendors(status?: 'pending' | 'active' | 'rejected' | 'banned' | 'all'): Promise<User[]> {
@@ -1111,6 +1178,13 @@ export class UsersService implements OnModuleInit {
           kycSubmittedAt: { $exists: true, $ne: null },
           $or: [{ kycApprovedAt: { $exists: false } }, { kycApprovedAt: null }],
         },
+        {
+          businessRegistration: { $exists: true, $nin: [null, ''] },
+          $or: [
+            { businessRegistrationApprovedAt: { $exists: false } },
+            { businessRegistrationApprovedAt: null },
+          ],
+        },
       ];
     } else if (status === 'active') {
       // Cleared to sell
@@ -1121,7 +1195,7 @@ export class UsersService implements OnModuleInit {
     }
     const vendors = await this.userModel
       .find(filter)
-      .select('-password -resetPasswordToken -resetPasswordExpires')
+      .select(USER_PUBLIC_PROJECTION)
       .sort({ createdAt: -1 })
       .lean()
       .exec();
@@ -1140,9 +1214,6 @@ export class UsersService implements OnModuleInit {
 
     const existing = await this.userModel.findById(id).exec();
     const update: Record<string, unknown> = { status };
-    if (existing?.role === 'vendor' && existing.businessRegistration?.trim()) {
-      update.vendorTier = 'high';
-    }
     const user = await this.userModel.findByIdAndUpdate(id, { $set: update }, { new: true }).lean().exec() as unknown as User;
 
     if (user) {
