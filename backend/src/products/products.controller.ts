@@ -58,7 +58,7 @@ export class ProductsController {
     if (req.user.role === 'vendor') {
       const vendor = await this.userModel
         .findById(req.user.userId)
-        .select('mustChangePassword kycApprovedAt subscriptionEndsAt subscriptionPaymentRequired subscriptionPlan subscriptionLastPaidAt businessRegistration vendorTier')
+        .select('mustChangePassword kycApprovedAt subscriptionEndsAt subscriptionPaymentRequired subscriptionPlan subscriptionLastPaidAt businessRegistration vendorTier shopName name storeSlug uniqueVendorId')
         .lean()
         .exec();
       if ((vendor as any)?.mustChangePassword) {
@@ -74,6 +74,15 @@ export class ProductsController {
         throw new ForbiddenException(
           `Product uploads are locked until you renew via Paystack in your vendor dashboard (GHS ${FLA_CONSTANTS.SUBSCRIPTION_MONTHLY_GHS}). Existing listings stay live.`,
         );
+      }
+      if ((vendor as any)?.storeSlug) {
+        createProductDto.storeSlug = (vendor as any).storeSlug;
+      }
+      if ((vendor as any)?.uniqueVendorId) {
+        createProductDto.uniqueVendorId = (vendor as any).uniqueVendorId;
+      }
+      if ((vendor as any)?.shopName || (vendor as any)?.name) {
+        createProductDto.vendorName = (vendor as any).shopName || (vendor as any).name;
       }
     }
 

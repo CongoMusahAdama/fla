@@ -84,12 +84,36 @@ export default React.memo(function ProductCard({ id, name, price, images, sizes 
 
     const resolvedStoreSlug = resolveStoreSlug(storeSlug, vendorId);
 
-    const openStoreProduct = () => {
-        if (resolvedStoreSlug) {
-            saveMarketplaceReturn(id);
-            router.push(storeProductPath(resolvedStoreSlug, id));
+    const openStoreProduct = async () => {
+        saveMarketplaceReturn(id);
+
+        let slug = resolveStoreSlug(storeSlug, vendorId);
+        if (!slug) {
+            let validVendorId: string | undefined;
+            if (typeof vendorId === 'object' && vendorId !== null) {
+                validVendorId = String(vendorId._id || vendorId.id || '');
+            } else if (vendorId) {
+                validVendorId = String(vendorId);
+            }
+            if (validVendorId) {
+                try {
+                    const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+                    const res = await fetch(`${apiBase}/users/vendor/${validVendorId}/profile`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        slug = data?.vendor?.storeSlug?.trim() || null;
+                    }
+                } catch {
+                    // fall through
+                }
+            }
+        }
+
+        if (slug) {
+            router.push(storeProductPath(slug, id));
             return;
         }
+        // Last resort if the vendor still has no storefront slug
         setIsDetailModalOpen(true);
     };
 

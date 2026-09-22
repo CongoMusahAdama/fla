@@ -69,6 +69,10 @@ export class CreateProductDto {
     @IsOptional()
     uniqueVendorId?: string;
 
+    @IsString()
+    @IsOptional()
+    storeSlug?: string;
+
     @IsBoolean()
     @IsOptional()
     hasSizes?: boolean;
