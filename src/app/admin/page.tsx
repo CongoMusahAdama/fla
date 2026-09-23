@@ -481,8 +481,8 @@ export default function AdminDashboard() {
             }
 
             if (status === 'active' && isReferee) {
-                Swal.fire({
-                    icon: 'success',
+            Swal.fire({
+                icon: 'success',
                     title: 'REFEREE APPROVED',
                     text: 'Their Paystack payout account is being linked and they have been notified by SMS.',
                     timer: 2500,
@@ -514,10 +514,10 @@ export default function AdminDashboard() {
                     icon: 'success',
                     title: 'KYC REJECTED',
                     text: 'The registration has been declined.',
-                    timer: 2000,
-                    showConfirmButton: false,
+                timer: 2000,
+                showConfirmButton: false,
                     customClass: { popup: 'rounded-[32px]' },
-                });
+            });
             }
 
             await refreshData();
@@ -1004,25 +1004,25 @@ export default function AdminDashboard() {
                             </div>
                             <div className="flex gap-3">
                                 <div className="bg-white px-4 py-3 border border-slate-200 flex items-center gap-3">
-                                    <div className="text-right">
+                                <div className="text-right">
                                         <p className="text-[11px] font-medium text-slate-500">Pending</p>
                                         <p className="text-lg font-semibold text-slate-900 leading-none mt-0.5">{pendingKycCount}</p>
-                                    </div>
+                                </div>
                                     <div className="w-9 h-9 bg-orange-50 text-orange-600 flex items-center justify-center">
                                         <Clock className="w-4 h-4" />
-                                    </div>
                                 </div>
+                            </div>
                                 <div className="bg-white px-4 py-3 border border-slate-200 flex items-center gap-3">
                                     <div className="text-right">
                                         <p className="text-[11px] font-medium text-slate-500">Approved</p>
                                         <p className="text-lg font-semibold text-slate-900 leading-none mt-0.5">{approvedKycCount}</p>
-                                    </div>
+                        </div>
                                     <div className="w-9 h-9 bg-emerald-50 text-emerald-600 flex items-center justify-center">
                                         <CheckCircle2 className="w-4 h-4" />
-                                    </div>
-                                </div>
                             </div>
-                        </div>
+                                                    </div>
+                                                    </div>
+                                                </div>
 
                         <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                             <div className="flex flex-wrap gap-2">
@@ -1056,7 +1056,7 @@ export default function AdminDashboard() {
                                         </span>
                                     </button>
                                 ))}
-                            </div>
+                                                    </div>
                             <div className="relative w-full sm:max-w-xs sm:ml-auto">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                                 <input
@@ -1094,7 +1094,7 @@ export default function AdminDashboard() {
                                             </tr>
                                         ) : (
                                             filteredKycVendors.map((v, i) => {
-                                                const kyc = getShuftiKycStatus(v);
+                                                            const kyc = getShuftiKycStatus(v);
                                                 const kycDisplay = getKycDisplayStatus(v);
                                                 const businessRegPending = isBusinessRegistrationPendingReview(v);
                                                 const docCount = [
@@ -1104,7 +1104,7 @@ export default function AdminDashboard() {
                                                     v.utilityBill,
                                                     v.businessRegistration,
                                                 ].filter(Boolean).length;
-                                                return (
+                                                            return (
                                                     <tr key={v._id} className="hover:bg-slate-50/80 transition-colors">
                                                         <td className="px-5 py-4 text-xs font-medium text-slate-400 tabular-nums">{i + 1}</td>
                                                         <td className="px-5 py-4">
@@ -1136,7 +1136,7 @@ export default function AdminDashboard() {
                                                         <td className="px-5 py-4">
                                                             <span className={`inline-flex px-2.5 py-1 text-[11px] font-medium border ${kycDisplay.className}`}>
                                                                 {kycDisplay.label}
-                                                            </span>
+                                                                </span>
                                                         </td>
                                                         <td className="px-5 py-4 text-right">
                                                             <button
@@ -1158,9 +1158,9 @@ export default function AdminDashboard() {
                                         )}
                                     </tbody>
                                 </table>
-                            </div>
-                        </div>
-                    </div>
+                                                    </div>
+                                                </div>
+                                            </div>
                 );
             }
             case 'referees': {
@@ -1205,17 +1205,17 @@ export default function AdminDashboard() {
                                     {filteredKycReferees.length} record{filteredKycReferees.length === 1 ? '' : 's'}
                                     {searchQuery.trim() ? ' matching search' : ''}
                                 </p>
-                            </div>
+                                                                </div>
                             <div className="flex gap-3">
                                 <div className="bg-white px-4 py-3 border border-slate-200 flex items-center gap-3">
                                     <div className="text-right">
                                         <p className="text-[11px] font-medium text-slate-500">Pending</p>
                                         <p className="text-lg font-semibold text-slate-900 leading-none mt-0.5">{pendingRefereeCount}</p>
-                                    </div>
+                                                            </div>
                                     <div className="w-9 h-9 bg-orange-50 text-orange-600 flex items-center justify-center">
                                         <Clock className="w-4 h-4" />
-                                    </div>
-                                </div>
+                                                            </div>
+                                                    </div>
                                 <div className="bg-white px-4 py-3 border border-slate-200 flex items-center gap-3">
                                     <div className="text-right">
                                         <p className="text-[11px] font-medium text-slate-500">Approved</p>
@@ -1269,7 +1269,7 @@ export default function AdminDashboard() {
                                     className="w-full h-9 pl-9 pr-3 bg-white border border-slate-300 text-sm focus:outline-none focus:border-brand-blue focus:ring-1 focus:ring-brand-blue"
                                 />
                             </div>
-                        </div>
+                                            </div>
 
                         <div className="bg-white border border-slate-200 overflow-hidden">
                             <div className="admin-table-scroll">
@@ -1322,7 +1322,7 @@ export default function AdminDashboard() {
                                                         </td>
                                                         <td className="px-5 py-4 text-right">
                                                             <div className="inline-flex items-center gap-2">
-                                                                <button
+                                                <button 
                                                                     type="button"
                                                                     onClick={(e) => {
                                                                         e.preventDefault();
@@ -1333,8 +1333,8 @@ export default function AdminDashboard() {
                                                                 >
                                                                     <Eye className="w-3.5 h-3.5" />
                                                                     View
-                                                                </button>
-                                                                <button
+                                                </button>
+                                                <button 
                                                                     type="button"
                                                                     onClick={(e) => {
                                                                         e.preventDefault();
@@ -1345,8 +1345,8 @@ export default function AdminDashboard() {
                                                                     aria-label="Delete referee"
                                                                 >
                                                                     <Trash2 className="w-3.5 h-3.5" />
-                                                                </button>
-                                                            </div>
+                                                </button>
+                                            </div>
                                                         </td>
                                                     </tr>
                                                 );
@@ -1354,8 +1354,8 @@ export default function AdminDashboard() {
                                         )}
                                     </tbody>
                                 </table>
-                            </div>
-                        </div>
+                                        </div>
+                                    </div>
                     </div>
                 );
             }
@@ -1604,46 +1604,46 @@ export default function AdminDashboard() {
                                 </tbody>
                             </table>
                             </div>
-                        </div>
+                            </div>
 
-                        {vendorsTotalPages > 1 && (
+                            {vendorsTotalPages > 1 && (
                             <div className="hidden md:flex px-10 py-6 bg-slate-50 border-t border-slate-100 flex-col md:flex-row justify-between items-center gap-4">
                                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center md:text-left">
                                     Displaying <span className="text-slate-900">{(vendorsPage - 1) * itemsPerPage + 1} - {Math.min(vendorsPage * itemsPerPage, filteredVendors.length)}</span> of <span className="text-slate-900">{filteredVendors.length}</span> Studios
-                                </p>
-                                <div className="flex items-center gap-2">
-                                    <button
-                                        onClick={() => setVendorsPage(prev => Math.max(1, prev - 1))}
-                                        disabled={vendorsPage === 1}
-                                        className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-200"
-                                    >
-                                        Prev
-                                    </button>
-                                    <div className="flex items-center gap-1">
-                                        {[...Array(vendorsTotalPages)].map((_, i) => (
-                                            <button
-                                                key={i}
-                                                onClick={() => setVendorsPage(i + 1)}
-                                                className={`w-8 h-8 rounded-xl text-[10px] font-black transition-all ${
-                                                    vendorsPage === i + 1
-                                                        ? 'bg-slate-900 text-white shadow-lg'
-                                                        : 'text-slate-400 hover:bg-slate-200'
-                                                }`}
-                                            >
-                                                {i + 1}
-                                            </button>
-                                        ))}
+                                    </p>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={() => setVendorsPage(prev => Math.max(1, prev - 1))}
+                                            disabled={vendorsPage === 1}
+                                            className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-200"
+                                        >
+                                            Prev
+                                        </button>
+                                        <div className="flex items-center gap-1">
+                                            {[...Array(vendorsTotalPages)].map((_, i) => (
+                                                <button
+                                                    key={i}
+                                                    onClick={() => setVendorsPage(i + 1)}
+                                                    className={`w-8 h-8 rounded-xl text-[10px] font-black transition-all ${
+                                                        vendorsPage === i + 1 
+                                                            ? 'bg-slate-900 text-white shadow-lg' 
+                                                            : 'text-slate-400 hover:bg-slate-200'
+                                                    }`}
+                                                >
+                                                    {i + 1}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <button
+                                            onClick={() => setVendorsPage(prev => Math.min(vendorsTotalPages, prev + 1))}
+                                            disabled={vendorsPage === vendorsTotalPages}
+                                            className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-200"
+                                        >
+                                            Next
+                                        </button>
                                     </div>
-                                    <button
-                                        onClick={() => setVendorsPage(prev => Math.min(vendorsTotalPages, prev + 1))}
-                                        disabled={vendorsPage === vendorsTotalPages}
-                                        className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-200"
-                                    >
-                                        Next
-                                    </button>
                                 </div>
-                            </div>
-                        )}
+                            )}
                     </div>
                 );
             case 'customers':
@@ -1908,11 +1908,11 @@ export default function AdminDashboard() {
                                                                         sizes="48px"
                                                                         className="object-cover"
                                                                     />
-                                                                </div>
+                                                </div>
                                                                 <div className="min-w-0">
                                                                     <p className="text-sm font-semibold text-slate-900 truncate max-w-[220px]">{p.name}</p>
                                                                     <p className="text-[11px] text-slate-400 font-mono mt-0.5">#{String(p._id).slice(-8).toUpperCase()}</p>
-                                                                </div>
+                                            </div>
                                                             </div>
                                                         </td>
                                                         <td className="px-5 py-4 text-sm text-slate-700 max-w-[160px] truncate">{vendorLabel}</td>
@@ -1954,7 +1954,7 @@ export default function AdminDashboard() {
                                                             >
                                                                 <Eye className="w-3.5 h-3.5" />
                                                                 View
-                                                            </button>
+                                                </button>
                                                         </td>
                                                     </tr>
                                                 );
@@ -1962,7 +1962,7 @@ export default function AdminDashboard() {
                                         )}
                                     </tbody>
                                 </table>
-                            </div>
+                        </div>
 
                             {filteredTotal > 0 && (
                                 <div className="px-5 py-4 border-t border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-3 bg-slate-50">
@@ -1974,19 +1974,19 @@ export default function AdminDashboard() {
                                         of <span className="font-semibold text-slate-800">{filteredTotal}</span>
                                     </p>
                                     <div className="flex items-center gap-1">
-                                        <button
+                                    <button
                                             type="button"
                                             onClick={() => setProductsPage((prev) => Math.max(1, prev - 1))}
                                             disabled={safeProductsPage === 1}
                                             className="h-9 px-3 border border-slate-300 bg-white text-xs font-medium text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100"
-                                        >
-                                            Prev
-                                        </button>
+                                    >
+                                        Prev
+                                    </button>
                                         {pageWindow.map((page, idx) =>
                                             page === '…' ? (
                                                 <span key={`e-${idx}`} className="w-9 text-center text-slate-400 text-xs">…</span>
                                             ) : (
-                                                <button
+                                            <button
                                                     key={page}
                                                     type="button"
                                                     onClick={() => setProductsPage(page)}
@@ -1997,20 +1997,20 @@ export default function AdminDashboard() {
                                                     }`}
                                                 >
                                                     {page}
-                                                </button>
+                                            </button>
                                             ),
                                         )}
-                                        <button
+                                    <button
                                             type="button"
                                             onClick={() => setProductsPage((prev) => Math.min(productsTotalPages, prev + 1))}
                                             disabled={safeProductsPage === productsTotalPages}
                                             className="h-9 px-3 border border-slate-300 bg-white text-xs font-medium text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100"
-                                        >
-                                            Next
-                                        </button>
-                                    </div>
+                                    >
+                                        Next
+                                    </button>
                                 </div>
-                            )}
+                            </div>
+                        )}
                         </div>
                     </div>
                 );
@@ -2176,15 +2176,15 @@ export default function AdminDashboard() {
                                                 <td className="px-8 py-6 border-r border-slate-50">
                                                     <span className="text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-tighter bg-slate-100 text-slate-700">
                                                         {(o.status || 'pending').replace(/_/g, ' ')}
-                                                    </span>
+                                                                    </span>
                                                 </td>
                                                 <td className="px-8 py-6 text-right">
-                                                    <button
-                                                        onClick={() => setSelectedOrder(o)}
-                                                        className="px-5 py-2 bg-slate-50 text-slate-400 text-[10px] font-black rounded-full uppercase tracking-widest hover:bg-slate-900 hover:text-white transition-all border border-slate-100"
-                                                    >
-                                                        Details
-                                                    </button>
+                                                            <button
+                                                                onClick={() => setSelectedOrder(o)}
+                                                                className="px-5 py-2 bg-slate-50 text-slate-400 text-[10px] font-black rounded-full uppercase tracking-widest hover:bg-slate-900 hover:text-white transition-all border border-slate-100"
+                                                            >
+                                                                Details
+                                                            </button>
                                                 </td>
                                             </tr>
                                             );
@@ -2192,21 +2192,21 @@ export default function AdminDashboard() {
                                     </tbody>
                                 </table>
                             </div>
-                        </div>
+                            </div>
 
-                        {ordersTotalPages > 1 && (
+                            {ordersTotalPages > 1 && (
                             <div className="px-4 md:px-10 py-6 bg-white border border-slate-200 rounded-2xl md:rounded-none flex flex-col md:flex-row justify-between items-center gap-4">
                                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center md:text-left">
-                                    Showing <span className="text-slate-900">{(ordersPage - 1) * itemsPerPage + 1} - {Math.min(ordersPage * itemsPerPage, filteredOrders.length)}</span> of <span className="text-slate-900">{filteredOrders.length}</span> Orders
-                                </p>
+                                        Showing <span className="text-slate-900">{(ordersPage - 1) * itemsPerPage + 1} - {Math.min(ordersPage * itemsPerPage, filteredOrders.length)}</span> of <span className="text-slate-900">{filteredOrders.length}</span> Orders
+                                    </p>
                                 <div className="flex items-center gap-2 flex-wrap justify-center">
-                                    <button
-                                        onClick={() => setOrdersPage(prev => Math.max(1, prev - 1))}
-                                        disabled={ordersPage === 1}
-                                        className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-200"
-                                    >
-                                        Prev
-                                    </button>
+                                        <button
+                                            onClick={() => setOrdersPage(prev => Math.max(1, prev - 1))}
+                                            disabled={ordersPage === 1}
+                                            className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-200"
+                                        >
+                                            Prev
+                                        </button>
                                     <div className="flex items-center gap-1 flex-wrap justify-center max-w-[280px] md:max-w-none">
                                         {Array.from({ length: ordersTotalPages }, (_, i) => i + 1)
                                             .filter((page) => {
@@ -2222,31 +2222,31 @@ export default function AdminDashboard() {
                                                         {showEllipsis && (
                                                             <span className="w-6 text-center text-slate-300 text-[10px] font-black">…</span>
                                                         )}
-                                                        <button
+                                                <button
                                                             type="button"
                                                             onClick={() => setOrdersPage(page)}
-                                                            className={`w-8 h-8 rounded-xl text-[10px] font-black transition-all ${
+                                                    className={`w-8 h-8 rounded-xl text-[10px] font-black transition-all ${
                                                                 ordersPage === page
-                                                                    ? 'bg-slate-900 text-white shadow-lg'
-                                                                    : 'text-slate-400 hover:bg-slate-200'
-                                                            }`}
-                                                        >
+                                                            ? 'bg-slate-900 text-white shadow-lg' 
+                                                            : 'text-slate-400 hover:bg-slate-200'
+                                                    }`}
+                                                >
                                                             {page}
-                                                        </button>
+                                                </button>
                                                     </span>
                                                 );
                                             })}
+                                        </div>
+                                        <button
+                                            onClick={() => setOrdersPage(prev => Math.min(ordersTotalPages, prev + 1))}
+                                            disabled={ordersPage === ordersTotalPages}
+                                            className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-200"
+                                        >
+                                            Next
+                                        </button>
                                     </div>
-                                    <button
-                                        onClick={() => setOrdersPage(prev => Math.min(ordersTotalPages, prev + 1))}
-                                        disabled={ordersPage === ordersTotalPages}
-                                        className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-200"
-                                    >
-                                        Next
-                                    </button>
                                 </div>
-                            </div>
-                        )}
+                            )}
                     </div>
                 );
             }
@@ -2272,7 +2272,7 @@ export default function AdminDashboard() {
                 });
                 const openLedgerCount = (allDisputes || []).filter(d => d.status === 'pending').length;
                 const resolvedLedgerCount = (allDisputes || []).filter(d => d.status === 'resolved').length;
-
+                
                 return (
                     <div className="space-y-8 animate-in fade-in duration-500">
                         <div className="flex justify-between items-end gap-6 flex-wrap">
@@ -2286,17 +2286,17 @@ export default function AdminDashboard() {
                                 <div className="bg-white px-5 py-3 rounded-2xl border border-slate-100 shadow-sm text-right">
                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Disputed orders</p>
                                     <p className="text-2xl font-black text-slate-900">{disputedOrders.length}</p>
-                                </div>
+                        </div>
                                 <div className="bg-white px-5 py-3 rounded-2xl border border-slate-100 shadow-sm text-right">
                                     <p className="text-[10px] font-black text-orange-600 uppercase tracking-widest">Open ledgers</p>
                                     <p className="text-2xl font-black text-orange-600">{openLedgerCount}</p>
-                                </div>
+                                                        </div>
                                 <div className="bg-emerald-50 px-5 py-3 rounded-2xl border border-emerald-100 shadow-sm text-right">
                                     <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Resolved ledgers</p>
                                     <p className="text-2xl font-black text-emerald-600">{resolvedLedgerCount}</p>
-                                </div>
-                            </div>
-                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
 
                         <div className="relative max-w-md">
                             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
@@ -2307,7 +2307,7 @@ export default function AdminDashboard() {
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 className="w-full bg-white py-3 pl-11 pr-4 rounded-2xl border border-slate-100 text-xs font-bold focus:ring-2 focus:ring-brand-lemon/20 transition-all shadow-sm"
                             />
-                        </div>
+                                            </div>
 
                         {filteredDisputedOrders.length > 0 ? (
                             <div className="space-y-8">
@@ -2320,17 +2320,17 @@ export default function AdminDashboard() {
                                         onRelease={() => handleResolveDispute(o._id, 'release')}
                                     />
                                 ))}
-                            </div>
+                                            </div>
                         ) : disputedOrders.length > 0 ? (
                             <div className="py-12 text-center bg-white rounded-[40px] border border-dashed border-slate-200">
                                 <p className="text-slate-400 font-bold text-sm uppercase tracking-widest">No disputed orders match your search</p>
-                            </div>
+                                        </div>
                         ) : (
                             <div className="py-20 text-center bg-white rounded-[40px] border border-dashed border-slate-200 mx-4 md:mx-0">
                                 <ShieldCheck className="w-16 h-16 text-slate-100 mx-auto mb-4" />
                                 <p className="text-slate-400 font-bold text-sm uppercase tracking-widest">No disputed orders</p>
                                 <p className="text-[10px] text-slate-300 mt-1">Orders with status &quot;disputed&quot; appear here with full snapshots.</p>
-                            </div>
+                                </div>
                         )}
 
                         <div className="space-y-4">
@@ -2344,9 +2344,9 @@ export default function AdminDashboard() {
                                             <th className="px-8 py-4 text-[11px] font-medium text-white/75 tracking-wide">Category</th>
                                             <th className="px-8 py-4 text-[11px] font-medium text-white/75 tracking-wide">Status</th>
                                             <th className="px-8 py-4 text-[11px] font-medium text-white/75 tracking-wide text-right">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-50">
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-50">
                                         {filteredDisputeLedgers.length > 0 ? (
                                             filteredDisputeLedgers.map((dispute) => (
                                                 <tr key={dispute._id} className="hover:bg-slate-50/50 transition-colors">
@@ -2392,11 +2392,11 @@ export default function AdminDashboard() {
                                                 </td>
                                             </tr>
                                         )}
-                                    </tbody>
-                                </table>
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
-                        </div>
+                            </div>
                     </div>
                 );
             }
@@ -2845,7 +2845,7 @@ export default function AdminDashboard() {
                                 >
                                     <Plus className="w-4 h-4" />
                                     Add vendor
-                                </button>
+                            </button>
                             )}
                             <div className="hidden md:flex gap-3">
                                 {(activeSection === 'dashboard' || activeSection === 'vendors') && (
@@ -2858,12 +2858,12 @@ export default function AdminDashboard() {
                                         Add vendor
                                     </button>
                                 )}
-                                <Link href="/">
+                            <Link href="/">
                                     <button className="flex items-center gap-2 px-5 py-3 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-900 hover:text-white hover:border-slate-900 transition-all shadow-sm">
                                         <ArrowLeft className="w-3.5 h-3.5" />
-                                        Launch Store
-                                    </button>
-                                </Link>
+                                    Launch Store
+                                </button>
+                            </Link>
                             </div>
                         </div>
                     </header>
@@ -2901,9 +2901,9 @@ export default function AdminDashboard() {
                                 onCreated={() => refreshData()}
                                 onClose={() => setShowAddVendorModal(false)}
                             />
+                                </div>
                         </div>
                     </div>
-                </div>
             )}
             {/* Order Detail Modal */}
             {selectedOrder && (
@@ -3006,7 +3006,7 @@ export default function AdminDashboard() {
                                                         <h4 className="font-black text-slate-900 text-[13px] uppercase tracking-tighter truncate">{item.name}</h4>
                                                         <div className="flex flex-wrap gap-2 mt-2">
                                                             {item.size && (
-                                                                <span className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded text-[9px] font-black uppercase tracking-widest">SIZE: {item.size}</span>
+                                                            <span className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded text-[9px] font-black uppercase tracking-widest">SIZE: {item.size}</span>
                                                             )}
                                                             {item.color && (
                                                                 <span className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded text-[9px] font-black uppercase tracking-widest">COLOR: {item.color}</span>
@@ -3045,7 +3045,7 @@ export default function AdminDashboard() {
                                                         <td className="px-6 py-4">
                                                             <div className="flex flex-col gap-1">
                                                                 {item.size && (
-                                                                    <span className="text-xs font-bold text-slate-600 uppercase">Size: {item.size}</span>
+                                                            <span className="text-xs font-bold text-slate-600 uppercase">Size: {item.size}</span>
                                                                 )}
                                                                 {item.color && (
                                                                     <span className="text-xs font-bold text-slate-600 uppercase">Color: {item.color}</span>
@@ -3079,13 +3079,13 @@ export default function AdminDashboard() {
                                 </button>
                             </div>
                         </div>
-                    </div>
-                </div>
-            )}
+                                    </div>
+                                </div>
+                            )}
 
             {selectedProduct && (
                 <div className="fixed inset-0 z-[1000] flex items-end sm:items-center justify-center p-0 sm:p-6">
-                    <button
+                                    <button
                         type="button"
                         aria-label="Close product details"
                         className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
@@ -3103,7 +3103,7 @@ export default function AdminDashboard() {
                                 className="w-9 h-9 shrink-0 bg-white/10 hover:bg-white/20 flex items-center justify-center"
                             >
                                 <X className="w-5 h-5" />
-                            </button>
+                                    </button>
                         </div>
 
                         <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-5">
@@ -3198,7 +3198,7 @@ export default function AdminDashboard() {
                         </div>
 
                         <div className="shrink-0 border-t border-slate-200 bg-slate-50 px-5 py-4 sm:px-6 flex flex-col sm:flex-row gap-2">
-                            <button
+                                <button
                                 type="button"
                                 onClick={() => handleToggleProductStatus(selectedProduct._id, selectedProduct.isActive)}
                                 className="inline-flex items-center justify-center gap-2 h-11 px-4 border border-slate-300 bg-white text-sm font-medium text-slate-800 hover:bg-slate-100"
@@ -3220,10 +3220,10 @@ export default function AdminDashboard() {
                                 className="inline-flex items-center justify-center gap-2 h-11 px-4 bg-brand-blue text-white text-sm font-medium hover:bg-slate-800 sm:ml-auto"
                             >
                                 Close
-                            </button>
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
             )}
 
             {selectedKycVendor && typeof document !== 'undefined' && createPortal((() => {
@@ -3234,7 +3234,7 @@ export default function AdminDashboard() {
                     <div className="flex justify-between gap-3 py-2 border-b border-slate-100 last:border-0">
                         <span className="text-[11px] font-medium text-slate-500 shrink-0">{label}</span>
                         <span className="text-sm font-medium text-slate-900 text-right break-all">{formatKycDetailValue(value)}</span>
-                    </div>
+                </div>
                 );
                 const docs = [
                     { label: 'Ghana Card (F)', value: v.ghanaCardFront, icon: CreditCard },

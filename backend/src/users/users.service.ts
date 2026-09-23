@@ -59,9 +59,8 @@ export class UsersService implements OnModuleInit {
     this.backfillMissingStoreSlugs().catch((err) =>
       this.logger.error(`Store slug backfill failed: ${err.message}`),
     );
-    this.backfillLegacyVendorAccess().catch((err) =>
-      this.logger.error(`Legacy vendor access backfill failed: ${err.message}`),
-    );
+    // Legacy vendor backfill removed: it was mistakenly approving newly registered vendors
+    // (who are created with status: 'active' for dashboard access) upon server restarts.
   }
 
   /**
