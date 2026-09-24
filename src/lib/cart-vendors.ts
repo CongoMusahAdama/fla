@@ -45,15 +45,39 @@ export function groupCartByVendor(cartItems: CartItem[]): VendorCartGroup[] {
 
 export const MULTI_CHECKOUT_STORAGE_KEY = 'fla_multi_checkout';
 
+export type MultiCheckoutStep = {
+  orderId: string;
+  paymentLink: string;
+  vendorName: string;
+};
+
 export type MultiCheckoutState = {
   orderIds: string[];
+  steps?: MultiCheckoutStep[];
   startedAt: number;
 };
 
-export function setMultiCheckoutQueue(orderIds: string[]): void {
-  if (typeof window === 'undefined' || orderIds.length < 2) return;
-  const state: MultiCheckoutState = { orderIds, startedAt: Date.now() };
+export function setMultiCheckoutQueue(steps: MultiCheckoutStep[]): void {
+  if (typeof window === 'undefined' || steps.length < 2) return;
+  const state: MultiCheckoutState = {
+    orderIds: steps.map((step) => step.orderId),
+    steps,
+    startedAt: Date.now(),
+  };
   localStorage.setItem(MULTI_CHECKOUT_STORAGE_KEY, JSON.stringify(state));
+}
+
+export function getMultiCheckoutSteps(): MultiCheckoutStep[] | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(MULTI_CHECKOUT_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as MultiCheckoutState;
+    if (Array.isArray(parsed.steps) && parsed.steps.length > 1) return parsed.steps;
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 export function getMultiCheckoutQueue(): string[] | null {

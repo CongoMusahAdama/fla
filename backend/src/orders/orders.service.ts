@@ -501,13 +501,15 @@ export class OrdersService implements OnModuleInit {
       // knows which referee's markup to show after the buyer returns from paying.
       const refParam = refereeId ? `&ref=${encodeURIComponent(refereeCode!)}` : '';
       let callbackUrl: string;
-      if (sanitizedCallback) {
+      if (options?.multiCheckout) {
+        // One Paystack page per vendor. After each payment, /checkout/next sends the
+        // buyer to the next vendor instead of stopping on the shop or store page.
+        callbackUrl = `${frontendBase}/checkout/next?order_id=${orderId}&paid=1`;
+      } else if (sanitizedCallback) {
         callbackUrl = `${frontendBase}${sanitizedCallback}?order_id=${orderId}&paid=1${refParam}`;
       } else if (!hasCustomer) {
         // Guest without store path → marketplace, not auth/login.
         callbackUrl = `${frontendBase}/shop?order_id=${orderId}&paid=1`;
-      } else if (options?.multiCheckout) {
-        callbackUrl = `${frontendBase}/dashboard?order_id=${orderId}&multi_checkout=1`;
       } else {
         callbackUrl = `${frontendBase}/dashboard?order_id=${orderId}`;
       }

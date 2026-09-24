@@ -411,10 +411,20 @@ export default function CartDrawer() {
                 }
 
                 const result = await response.json();
-                const orderIds = (result.orders || []).map((o: { orderId: string }) => o.orderId);
+                const checkoutOrders = (result.orders || []) as Array<{
+                    orderId: string;
+                    paymentLink: string;
+                    vendorName: string;
+                }>;
 
-                if (result.multiVendor && orderIds.length > 1) {
-                    setMultiCheckoutQueue(orderIds);
+                if (result.multiVendor && checkoutOrders.length > 1) {
+                    setMultiCheckoutQueue(
+                        checkoutOrders.map((order) => ({
+                            orderId: order.orderId,
+                            paymentLink: order.paymentLink,
+                            vendorName: order.vendorName,
+                        })),
+                    );
                 }
 
                 const firstPayment = result.orders?.[0]?.paymentLink;
@@ -521,7 +531,12 @@ export default function CartDrawer() {
                                 <div className="flex-1 flex flex-col justify-between py-0.5">
                                     <div>
                                         <div className="flex justify-between items-start">
-                                            <h3 className="font-heading font-bold text-slate-900 text-sm line-clamp-2">{item.name}</h3>
+                                            <div>
+                                                <h3 className="font-heading font-bold text-slate-900 text-sm line-clamp-2">{item.name}</h3>
+                                                {item.vendorName && (
+                                                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mt-0.5">{item.vendorName}</p>
+                                                )}
+                                            </div>
                                             <button
                                                 onClick={() => removeFromCart(item.id, item.size, item.color)}
                                                 className="text-gray-300 hover:text-red-500 transition-colors p-1 -mr-1"
