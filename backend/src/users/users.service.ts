@@ -59,31 +59,49 @@ export class UsersService implements OnModuleInit {
     this.backfillMissingStoreSlugs().catch((err) =>
       this.logger.error(`Store slug backfill failed: ${err.message}`),
     );
-    // Legacy vendor backfill removed: it was mistakenly approving newly registered vendors
-    // (who are created with status: 'active' for dashboard access) upon server restarts.
+    this.revokeUnattendedKycApprovals().catch((err) =>
+      this.logger.error(`KYC approval repair failed: ${err.message}`),
+    );
   }
 
   /**
-   * Existing active vendors (already selling before soft-onboarding / subscriptions)
-   * may lack kycApprovedAt. Grant it so product uploads stay unlocked.
-   * Does NOT touch Paystack subaccounts or split percentages.
+   * Selling access is only granted by approveVendorKycForSelling (admin tap).
+   * A previous startup job stamped kycApprovedAt on every active vendor, including
+   * accounts that never uploaded documents. Take those stamps back.
+   * A real admin approval sets kycApprovedByAdmin, or the full approval signature.
    */
-  async backfillLegacyVendorAccess(): Promise<{ kycBackfilled: number }> {
+  async revokeUnattendedKycApprovals(): Promise<{ revoked: number }> {
     const result = await this.userModel.updateMany(
       {
         role: 'vendor',
-        status: 'active',
-        $or: [{ kycApprovedAt: { $exists: false } }, { kycApprovedAt: null }],
+        kycApprovedAt: { $exists: true, $ne: null },
+        kycApprovedByAdmin: { $ne: true },
+        $or: [
+          { ghanaCardFront: { $exists: false } },
+          { ghanaCardFront: null },
+          { ghanaCardFront: '' },
+          { selfie: { $exists: false } },
+          { selfie: null },
+          { selfie: '' },
+          { verificationStatus: { $ne: 'verified' } },
+          { isIdentityVerified: { $ne: true } },
+          { subscriptionPaymentRequired: { $ne: false } },
+          { subscriptionStartsAt: { $exists: false } },
+          { subscriptionStartsAt: null },
+        ],
       },
-      { $set: { kycApprovedAt: new Date() } },
+      {
+        $unset: { kycApprovedAt: 1 },
+        $set: { subscriptionPaymentRequired: true },
+      },
     );
-    const kycBackfilled = result.modifiedCount || 0;
-    if (kycBackfilled > 0) {
-      this.logger.log(
-        `Backfilled kycApprovedAt for ${kycBackfilled} existing active vendors (Paystack splits unchanged)`,
+    const revoked = result.modifiedCount || 0;
+    if (revoked > 0) {
+      this.logger.warn(
+        `Revoked ${revoked} vendor KYC approvals that were not an admin approve action`,
       );
     }
-    return { kycBackfilled };
+    return { revoked };
   }
 
   private async getPlatformCommissionRate(): Promise<number> {
@@ -260,8 +278,10 @@ export class UsersService implements OnModuleInit {
         verificationDeclineReason,
         isIdentityVerified: isVerified,
         isEmailVerified: true,
-        // Vendors get dashboard access immediately; selling stays locked until KYC is approved (free, no payment).
+        // Dashboard access only. Selling stays locked until an admin taps Approve.
         status: 'active',
+        kycApprovedAt: undefined,
+        kycApprovedByAdmin: false,
         kycSubmittedAt,
         businessRegistrationSubmittedAt,
         ...(role === 'vendor' ? pendingApprovalSubscriptionFields() : {}),
@@ -381,11 +401,18 @@ export class UsersService implements OnModuleInit {
       .exec() as unknown as User;
   }
 
-  async update(id: string, updateUserDto: UpdateUserDto): Promise<User | null> {
+  async update(
+    id: string,
+    updateUserDto: UpdateUserDto,
+    options?: { allowVerificationWrite?: boolean },
+  ): Promise<User | null> {
     const updateData: any = { ...updateUserDto };
-    // System-managed fields — ignore client attempts
+    // System-managed fields — ignore client attempts. KYC approval is admin-only.
     delete updateData.storeSlug;
     delete updateData.kycApprovedAt;
+    delete updateData.kycApprovedByAdmin;
+    delete updateData.vendorTier;
+    delete updateData.businessRegistrationApprovedAt;
     delete updateData.mustChangePassword;
     delete updateData.subscriptionPlan;
     delete updateData.subscriptionLabel;
@@ -394,8 +421,14 @@ export class UsersService implements OnModuleInit {
     delete updateData.subscriptionEndsAt;
     delete updateData.subscriptionPaymentRequired;
     delete updateData.kycSubmittedAt;
-    delete updateData.businessRegistrationApprovedAt;
     delete updateData.businessRegistrationSubmittedAt;
+    if (!options?.allowVerificationWrite) {
+      delete updateData.isVerified;
+      delete updateData.isIdentityVerified;
+      delete updateData.verificationStatus;
+      delete updateData.verificationDate;
+      delete updateData.verificationDeclineReason;
+    }
 
     if (updateData.paymentMethods?.length) {
       const primary = updateData.paymentMethods[0];
@@ -406,7 +439,7 @@ export class UsersService implements OnModuleInit {
     const existing = await this.userModel
       .findById(id)
       .select(
-        'role shopName status storeSlug kycApprovedAt ghanaCardFront selfie businessRegistration kycSubmittedAt businessRegistrationApprovedAt',
+        'role shopName status storeSlug kycApprovedAt ghanaCardFront selfie businessRegistration kycSubmittedAt businessRegistrationApprovedAt verificationStatus',
       )
       .lean()
       .exec();
@@ -434,9 +467,11 @@ export class UsersService implements OnModuleInit {
       const nextFront = updateData.ghanaCardFront ?? (existing as any)?.ghanaCardFront;
       const nextSelfie = updateData.selfie ?? (existing as any)?.selfie;
       const docsReady = Boolean(nextFront && nextSelfie);
-      if (docsReady) {
+      if (docsReady && !options?.allowVerificationWrite) {
         updateData.kycSubmittedAt = new Date();
-        updateData.verificationStatus = 'submitted';
+        if ((existing as any)?.verificationStatus !== 'verified') {
+          updateData.verificationStatus = 'submitted';
+        }
       }
     }
 
@@ -705,7 +740,12 @@ export class UsersService implements OnModuleInit {
   async clearKycApproval(userId: string): Promise<void> {
     await this.userModel.findByIdAndUpdate(userId, {
       $unset: { kycApprovedAt: 1 },
-      $set: { verificationStatus: 'pending', isIdentityVerified: false },
+      $set: {
+        kycApprovedByAdmin: false,
+        verificationStatus: 'pending',
+        isIdentityVerified: false,
+        subscriptionPaymentRequired: true,
+      },
     }).exec();
   }
 
@@ -964,14 +1004,13 @@ export class UsersService implements OnModuleInit {
     const update: Record<string, unknown> = {
       status: 'active',
       kycApprovedAt: new Date(),
+      kycApprovedByAdmin: true,
       verificationStatus: 'verified',
       isIdentityVerified: true,
       isVerified: true,
     };
-    if (existing.businessRegistration?.trim()) {
-      update.businessRegistrationApprovedAt = new Date();
-      update.vendorTier = 'high';
-    }
+    // Business registration stays a separate admin confirm. Identity approval must not
+    // mark the certificate verified on its own.
     // Free entry — approval grants full, permanent selling access immediately.
     Object.assign(update, introSubscriptionFields());
 
@@ -1113,14 +1152,13 @@ export class UsersService implements OnModuleInit {
     const vendors = await this.userModel
       .find({
         role: 'vendor',
+        status: { $nin: ['rejected', 'banned'] },
         $or: [
-          { status: 'pending' },
-          {
-            kycSubmittedAt: { $exists: true, $ne: null },
-            $or: [{ kycApprovedAt: { $exists: false } }, { kycApprovedAt: null }],
-          },
+          { kycApprovedAt: { $exists: false } },
+          { kycApprovedAt: null },
           {
             businessRegistration: { $exists: true, $nin: [null, ''] },
+            vendorTier: { $ne: 'high' },
             $or: [
               { businessRegistrationApprovedAt: { $exists: false } },
               { businessRegistrationApprovedAt: null },
@@ -1171,14 +1209,13 @@ export class UsersService implements OnModuleInit {
   async findKycVendors(status?: 'pending' | 'active' | 'rejected' | 'banned' | 'all'): Promise<User[]> {
     const filter: Record<string, unknown> = { role: 'vendor' };
     if (status === 'pending') {
+      filter.status = { $nin: ['rejected', 'banned'] };
       filter.$or = [
-        { status: 'pending' },
-        {
-          kycSubmittedAt: { $exists: true, $ne: null },
-          $or: [{ kycApprovedAt: { $exists: false } }, { kycApprovedAt: null }],
-        },
+        { kycApprovedAt: { $exists: false } },
+        { kycApprovedAt: null },
         {
           businessRegistration: { $exists: true, $nin: [null, ''] },
+          vendorTier: { $ne: 'high' },
           $or: [
             { businessRegistrationApprovedAt: { $exists: false } },
             { businessRegistrationApprovedAt: null },
@@ -1211,9 +1248,18 @@ export class UsersService implements OnModuleInit {
       return this.approveVendorKycForSelling(id);
     }
 
-    const existing = await this.userModel.findById(id).exec();
-    const update: Record<string, unknown> = { status };
-    const user = await this.userModel.findByIdAndUpdate(id, { $set: update }, { new: true }).lean().exec() as unknown as User;
+    const locksSelling = status === 'rejected' || status === 'banned';
+    const user = await this.userModel.findByIdAndUpdate(
+      id,
+      {
+        $set: {
+          status,
+          ...(locksSelling ? { kycApprovedByAdmin: false, subscriptionPaymentRequired: true } : {}),
+        },
+        ...(locksSelling ? { $unset: { kycApprovedAt: 1 } } : {}),
+      },
+      { new: true },
+    ).lean().exec() as unknown as User;
 
     if (user) {
         try {

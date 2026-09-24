@@ -161,9 +161,11 @@ export class User {
     businessRegistration?: string;
 
     /** Set when vendor uploads or replaces business registration — admin must confirm. */
+    @Prop()
     businessRegistrationSubmittedAt?: Date;
 
     /** Admin confirmed the current businessRegistration file (green documented badge). */
+    @Prop()
     businessRegistrationApprovedAt?: Date;
 
     @Prop()
@@ -190,6 +192,10 @@ export class User {
 
     @Prop()
     kycApprovedAt?: Date;
+
+    /** True only after an admin explicitly approves KYC. Never set on signup or by Shufti. */
+    @Prop()
+    kycApprovedByAdmin?: boolean;
 
     /** When vendor submitted KYC docs and is waiting for admin review */
     @Prop()

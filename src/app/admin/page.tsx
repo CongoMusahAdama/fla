@@ -805,7 +805,7 @@ export default function AdminDashboard() {
             Swal.fire({
                 icon: 'success',
                 title: 'VENDOR CREATED',
-                text: 'Vendor has been successfully onboarded with auto-approved KYC.',
+                text: 'Vendor account created. They still need to upload documents, and you must tap Approve before they can sell.',
                 timer: 2000,
                 showConfirmButton: false,
                 customClass: { popup: 'rounded-[32px]' }
@@ -945,8 +945,7 @@ export default function AdminDashboard() {
                 const getKycBucket = (v: any): 'pending' | 'active' | 'rejected' | 'all' => {
                     if (v.status === 'rejected' || v.status === 'banned') return 'rejected';
                     if (v.kycApprovedAt) return 'active';
-                    if (v.status === 'pending' || (Boolean(v.kycSubmittedAt) && !v.kycApprovedAt)) return 'pending';
-                    return 'all';
+                    return 'pending';
                 };
 
                 const getKycDisplayStatus = (v: any): { label: string; className: string } => {
@@ -959,7 +958,7 @@ export default function AdminDashboard() {
                     if (v.kycApprovedAt) {
                         return { label: 'Approved', className: kycStatusStyles.active };
                     }
-                    if (v.kycSubmittedAt) {
+                    if (v.kycSubmittedAt || (v.ghanaCardFront && v.selfie)) {
                         return { label: 'Docs under review', className: kycStatusStyles.pending };
                     }
                     if (v.status === 'pending') {
@@ -1131,6 +1130,8 @@ export default function AdminDashboard() {
                                                                 <p className="text-[10px] font-semibold text-amber-700 mt-1">Business reg — review</p>
                                                             ) : v.businessRegistration && isVendorDocumented(v) ? (
                                                                 <p className="text-[10px] font-semibold text-emerald-700 mt-1">Business reg — verified</p>
+                                                            ) : v.businessRegistration ? (
+                                                                <p className="text-[10px] font-semibold text-slate-500 mt-1">Business reg — not confirmed</p>
                                                             ) : null}
                                                         </td>
                                                         <td className="px-5 py-4">
@@ -1173,8 +1174,7 @@ export default function AdminDashboard() {
                 const getRefereeBucket = (v: any): 'pending' | 'active' | 'rejected' | 'all' => {
                     if (v.status === 'rejected' || v.status === 'banned') return 'rejected';
                     if (v.kycApprovedAt) return 'active';
-                    if (v.status === 'pending' || (Boolean(v.kycSubmittedAt) && !v.kycApprovedAt)) return 'pending';
-                    return 'all';
+                    return 'pending';
                 };
                 const getRefereeDisplayStatus = (v: any): { label: string; className: string } => {
                     if (v.status === 'rejected') return { label: 'Rejected', className: refereeStatusStyles.rejected };
@@ -3413,22 +3413,26 @@ export default function AdminDashboard() {
                             <div className="shrink-0 border-t border-slate-200 bg-slate-50 px-5 py-4 sm:px-6 flex flex-col sm:flex-row flex-wrap gap-2">
                                 {(v.status === 'pending' || (v.status === 'active' && !v.kycApprovedAt)) && (
                                     <>
+                                        {v.ghanaCardFront && v.selfie ? (
                                         <button
                                             type="button"
                                             onClick={() => handleKYCAction(v._id, 'active')}
                                             className="inline-flex items-center justify-center gap-2 h-11 px-4 bg-brand-blue text-brand-lemon text-sm font-medium hover:bg-slate-800"
                                         >
-                                            <CheckCircle2 className="w-4 h-4" /> {v.kycSubmittedAt ? 'Approve docs — allow selling' : 'Approve shop'}
+                                            <CheckCircle2 className="w-4 h-4" /> Approve docs — allow selling
                                         </button>
-                                        {v.status === 'pending' && (
-                                            <button
-                                                type="button"
-                                                onClick={() => handleKYCAction(v._id, 'rejected')}
-                                                className="inline-flex items-center justify-center gap-2 h-11 px-4 bg-rose-600 text-white text-sm font-medium hover:bg-rose-700"
-                                            >
-                                                <XCircle className="w-4 h-4" /> Reject KYC
-                                            </button>
+                                        ) : (
+                                        <p className="inline-flex items-center h-11 px-1 text-sm text-slate-500">
+                                            Waiting for Ghana Card and selfie. Approve stays locked until both are uploaded.
+                                        </p>
                                         )}
+                                        <button
+                                            type="button"
+                                            onClick={() => handleKYCAction(v._id, 'rejected')}
+                                            className="inline-flex items-center justify-center gap-2 h-11 px-4 bg-rose-600 text-white text-sm font-medium hover:bg-rose-700"
+                                        >
+                                            <XCircle className="w-4 h-4" /> Reject KYC
+                                        </button>
                                     </>
                                 )}
                                 {v.status === 'active' &&

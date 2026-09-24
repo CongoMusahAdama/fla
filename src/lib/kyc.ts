@@ -46,7 +46,7 @@ export const kycToneClasses = {
   amber: 'bg-amber-50 text-amber-600',
 };
 
-/** Customer-facing: green badge = documented / high-tier vendor. */
+/** Green badge only after an admin confirms the certificate, or the shop was already promoted to high tier. */
 export function isVendorDocumented(vendor?: {
   vendorTier?: string;
   businessRegistration?: string;
@@ -55,18 +55,7 @@ export function isVendorDocumented(vendor?: {
 } | null): boolean {
   if (vendor?.businessRegistrationApprovedAt) return true;
   if (vendor?.vendorTier === 'high') return true;
-
-  const hasCert = Boolean(vendor?.businessRegistration?.trim());
-  if (!hasCert) return false;
-
-  if (
-    vendor?.businessRegistrationSubmittedAt &&
-    !vendor?.businessRegistrationApprovedAt
-  ) {
-    return false;
-  }
-
-  return true;
+  return false;
 }
 
 export function isBusinessRegistrationPendingReview(vendor?: {

@@ -72,7 +72,7 @@ export class PaymentsController {
                     isIdentityVerified: true,
                     verificationStatus: 'verified',
                     verificationDate: new Date()
-                });
+                }, { allowVerificationWrite: true });
             } else {
                 // Store in TempVerification for future signup
                 await this.tempVerificationModel.findOneAndUpdate(
@@ -90,7 +90,7 @@ export class PaymentsController {
                     isIdentityVerified: false,
                     verificationStatus: 'declined',
                     verificationDeclineReason: payload.declined_reason
-                });
+                }, { allowVerificationWrite: true });
             } else {
                 await this.tempVerificationModel.findOneAndUpdate(
                     { email },

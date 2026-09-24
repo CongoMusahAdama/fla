@@ -58,11 +58,14 @@ export class ProductsController {
     if (req.user.role === 'vendor') {
       const vendor = await this.userModel
         .findById(req.user.userId)
-        .select('mustChangePassword kycApprovedAt subscriptionEndsAt subscriptionPaymentRequired subscriptionPlan subscriptionLastPaidAt businessRegistration vendorTier shopName name storeSlug uniqueVendorId')
+        .select('mustChangePassword status kycApprovedAt subscriptionEndsAt subscriptionPaymentRequired subscriptionPlan subscriptionLastPaidAt businessRegistration vendorTier shopName name storeSlug uniqueVendorId')
         .lean()
         .exec();
       if ((vendor as any)?.mustChangePassword) {
         throw new ForbiddenException('Please change your temporary password before uploading products.');
+      }
+      if ((vendor as any)?.status === 'rejected' || (vendor as any)?.status === 'banned') {
+        throw new ForbiddenException('This vendor account is not allowed to list products.');
       }
       if (!(vendor as any)?.kycApprovedAt) {
         throw new ForbiddenException(

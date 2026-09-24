@@ -1,4 +1,4 @@
-/** Green badge: confirmed documented vendor (or legacy high-tier / certificate on file). */
+/** Green badge only after an admin confirms the certificate, or the shop was already promoted to high tier. */
 export function isVendorDocumented(vendor?: {
   vendorTier?: string;
   businessRegistration?: string;
@@ -6,22 +6,8 @@ export function isVendorDocumented(vendor?: {
   businessRegistrationSubmittedAt?: Date | string | null;
 } | null): boolean {
   if (vendor?.businessRegistrationApprovedAt) return true;
-  // Already promoted / grandfathered high-tier shops stay green
   if (vendor?.vendorTier === 'high') return true;
-
-  const hasCert = Boolean(vendor?.businessRegistration?.trim());
-  if (!hasCert) return false;
-
-  // New upload awaiting admin review → yellow until Confirm business registration
-  if (
-    vendor?.businessRegistrationSubmittedAt &&
-    !vendor?.businessRegistrationApprovedAt
-  ) {
-    return false;
-  }
-
-  // Certificate on file from before the review workflow
-  return true;
+  return false;
 }
 
 /** Admin queue: certificate uploaded/replaced and not yet confirmed (and not already high-tier). */
