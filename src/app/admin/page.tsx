@@ -410,14 +410,14 @@ export default function AdminDashboard() {
         if (!result.isConfirmed) return;
 
         try {
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/users/${userId}`, {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/users/admin/${userId}/status`, {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
                 credentials: 'include',
-                body: JSON.stringify({ status })
+                body: JSON.stringify({ status: status === 'suspended' ? 'banned' : status })
             });
 
             if (!response.ok) {
@@ -3413,7 +3413,7 @@ export default function AdminDashboard() {
                             <div className="shrink-0 border-t border-slate-200 bg-slate-50 px-5 py-4 sm:px-6 flex flex-col sm:flex-row flex-wrap gap-2">
                                 {(v.status === 'pending' || (v.status === 'active' && !v.kycApprovedAt)) && (
                                     <>
-                                        {v.ghanaCardFront && v.selfie ? (
+                                        {v.ghanaCardFront && v.selfie && v.businessRegistration ? (
                                         <button
                                             type="button"
                                             onClick={() => handleKYCAction(v._id, 'active')}
@@ -3423,7 +3423,7 @@ export default function AdminDashboard() {
                                         </button>
                                         ) : (
                                         <p className="inline-flex items-center h-11 px-1 text-sm text-slate-500">
-                                            Waiting for Ghana Card and selfie. Approve stays locked until both are uploaded.
+                                            Waiting for Ghana Card, selfie, and business registration. Approve stays locked until all three are uploaded.
                                         </p>
                                         )}
                                         <button
@@ -3456,6 +3456,7 @@ export default function AdminDashboard() {
                                     </button>
                                 )}
                                 {(v.status === 'rejected' || v.status === 'banned') && (
+                                    v.ghanaCardFront && v.selfie && v.businessRegistration ? (
                                     <button
                                         type="button"
                                         onClick={() => handleKYCAction(v._id, 'active')}
@@ -3463,6 +3464,11 @@ export default function AdminDashboard() {
                                     >
                                         <CheckCircle2 className="w-4 h-4" /> Re-approve
                                     </button>
+                                    ) : (
+                                    <p className="inline-flex items-center h-11 px-1 text-sm text-slate-500">
+                                        Re-approve stays locked until Ghana Card, selfie, and business registration are uploaded. Paystack is created only when you tap it.
+                                    </p>
+                                    )
                                 )}
                                 <a
                                     href={`/admin/vendors/${v._id}/agreement`}

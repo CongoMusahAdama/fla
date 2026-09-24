@@ -66,9 +66,8 @@ export class UsersService implements OnModuleInit {
 
   /**
    * Selling access is only granted by approveVendorKycForSelling (admin tap).
-   * A previous startup job stamped kycApprovedAt on every active vendor, including
-   * accounts that never uploaded documents. Take those stamps back.
-   * A real admin approval sets kycApprovedByAdmin, or the full approval signature.
+   * Anything else that left kycApprovedAt set — signup, Shufti, or the old
+   * startup backfill — is not an approval and must not create a Paystack subaccount.
    */
   async revokeUnattendedKycApprovals(): Promise<{ revoked: number }> {
     const result = await this.userModel.updateMany(
@@ -76,23 +75,10 @@ export class UsersService implements OnModuleInit {
         role: 'vendor',
         kycApprovedAt: { $exists: true, $ne: null },
         kycApprovedByAdmin: { $ne: true },
-        $or: [
-          { ghanaCardFront: { $exists: false } },
-          { ghanaCardFront: null },
-          { ghanaCardFront: '' },
-          { selfie: { $exists: false } },
-          { selfie: null },
-          { selfie: '' },
-          { verificationStatus: { $ne: 'verified' } },
-          { isIdentityVerified: { $ne: true } },
-          { subscriptionPaymentRequired: { $ne: false } },
-          { subscriptionStartsAt: { $exists: false } },
-          { subscriptionStartsAt: null },
-        ],
       },
       {
         $unset: { kycApprovedAt: 1 },
-        $set: { subscriptionPaymentRequired: true },
+        $set: { kycApprovedByAdmin: false, subscriptionPaymentRequired: true },
       },
     );
     const revoked = result.modifiedCount || 0;
@@ -462,6 +448,11 @@ export class UsersService implements OnModuleInit {
       updateData.shopName.trim() &&
       updateData.shopName.trim() !== (existing as any)?.shopName;
 
+    // Vendor selling status only changes through the admin Approve / Reject / Suspend action.
+    if ((existing as any)?.role === 'vendor') {
+      delete updateData.status;
+    }
+
     // Detect KYC document submission → waiting for admin (4–5 hours messaging on frontend)
     if ((existing as any)?.role === 'vendor' && !(existing as any)?.kycApprovedAt) {
       const nextFront = updateData.ghanaCardFront ?? (existing as any)?.ghanaCardFront;
@@ -497,6 +488,13 @@ export class UsersService implements OnModuleInit {
   async syncVendorSubaccount(userId: string) {
     const user = await this.userModel.findById(userId).exec();
     if (!user || user.role !== 'vendor') return;
+
+    if (!user.kycApprovedByAdmin) {
+      this.logger.warn(
+        `Refusing Paystack subaccount for vendor ${userId}: approval only happens when an admin taps Approve`,
+      );
+      return;
+    }
 
     if (user.paystackSubaccountCode) {
       // Already linked — do not update Paystack (avoids re-approval / duplicate pending accounts).
@@ -995,9 +993,13 @@ export class UsersService implements OnModuleInit {
       throw new NotFoundException('Vendor not found');
     }
 
-    if (!existing.ghanaCardFront?.trim() || !existing.selfie?.trim()) {
+    if (
+      !existing.ghanaCardFront?.trim() ||
+      !existing.selfie?.trim() ||
+      !existing.businessRegistration?.trim()
+    ) {
       throw new BadRequestException(
-        'Vendor has not uploaded a Ghana Card and selfie. They cannot be cleared to sell without identity documents.',
+        'Approve stays locked until the vendor has uploaded a Ghana Card, a selfie, and business registration.',
       );
     }
 
@@ -1008,9 +1010,9 @@ export class UsersService implements OnModuleInit {
       verificationStatus: 'verified',
       isIdentityVerified: true,
       isVerified: true,
+      businessRegistrationApprovedAt: existing.businessRegistrationApprovedAt || new Date(),
+      vendorTier: 'high',
     };
-    // Business registration stays a separate admin confirm. Identity approval must not
-    // mark the certificate verified on its own.
     // Free entry — approval grants full, permanent selling access immediately.
     Object.assign(update, introSubscriptionFields());
 
