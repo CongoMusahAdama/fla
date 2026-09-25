@@ -993,15 +993,7 @@ export class UsersService implements OnModuleInit {
       throw new NotFoundException('Vendor not found');
     }
 
-    if (
-      !existing.ghanaCardFront?.trim() ||
-      !existing.selfie?.trim() ||
-      !existing.businessRegistration?.trim()
-    ) {
-      throw new BadRequestException(
-        'Approve stays locked until the vendor has uploaded a Ghana Card, a selfie, and business registration.',
-      );
-    }
+    const hasBusinessRegistration = Boolean(existing.businessRegistration?.trim());
 
     const update: Record<string, unknown> = {
       status: 'active',
@@ -1010,8 +1002,12 @@ export class UsersService implements OnModuleInit {
       verificationStatus: 'verified',
       isIdentityVerified: true,
       isVerified: true,
-      businessRegistrationApprovedAt: existing.businessRegistrationApprovedAt || new Date(),
-      vendorTier: 'high',
+      ...(hasBusinessRegistration
+        ? {
+            businessRegistrationApprovedAt: existing.businessRegistrationApprovedAt || new Date(),
+            vendorTier: 'high',
+          }
+        : {}),
     };
     // Free entry — approval grants full, permanent selling access immediately.
     Object.assign(update, introSubscriptionFields());

@@ -1,3 +1,35 @@
+/** Pull a stored file URL whether it was saved as a string or as an upload object. */
+export function kycFileUrl(value: unknown): string {
+  if (!value) return '';
+  if (typeof value === 'string') return value.trim();
+  if (typeof value === 'object') {
+    const file = value as { url?: unknown; secure_url?: unknown; path?: unknown };
+    const url = file.url || file.secure_url || file.path;
+    return typeof url === 'string' ? url.trim() : '';
+  }
+  return '';
+}
+
+export function hasGhanaCardFile(vendor?: {
+  ghanaCardFront?: unknown;
+  ghanaCardBack?: unknown;
+} | null): boolean {
+  return Boolean(kycFileUrl(vendor?.ghanaCardFront) || kycFileUrl(vendor?.ghanaCardBack));
+}
+
+export function hasSelfieFile(vendor?: { selfie?: unknown } | null): boolean {
+  return Boolean(kycFileUrl(vendor?.selfie));
+}
+
+/** Approve is available once the Ghana Card and selfie are on file. Shufti and business registration are not required. */
+export function canApproveVendorDocs(vendor?: {
+  ghanaCardFront?: unknown;
+  ghanaCardBack?: unknown;
+  selfie?: unknown;
+} | null): boolean {
+  return hasGhanaCardFile(vendor) && hasSelfieFile(vendor);
+}
+
 /** Shufti Pro KYC display status for admin/vendor UI */
 export function getShuftiKycStatus(vendor: {
   ghanaCardFront?: string;
@@ -8,7 +40,7 @@ export function getShuftiKycStatus(vendor: {
   isIdentityVerified?: boolean;
   verificationDeclineReason?: string;
 }) {
-  const hasRequiredDocs = Boolean(vendor.ghanaCardFront && vendor.selfie);
+  const hasRequiredDocs = canApproveVendorDocs(vendor);
   const status = vendor.verificationStatus || (vendor.isVerified ? 'verified' : 'pending');
 
   if (!hasRequiredDocs) {

@@ -7,7 +7,7 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { getImageUrl } from '@/lib/utils';
 import { resolveStoreSlug, storeHomePath } from '@/lib/storefront';
-import { getShuftiKycStatus, isBusinessRegistrationPendingReview, isVendorDocumented, kycToneClasses } from '@/lib/kyc';
+import { canApproveVendorDocs, getShuftiKycStatus, hasGhanaCardFile, hasSelfieFile, isBusinessRegistrationPendingReview, isVendorDocumented, kycFileUrl, kycToneClasses } from '@/lib/kyc';
 import {
     LayoutDashboard, Users, ShoppingBag, Settings, LogOut, ArrowLeft,
     Wallet, Package, Truck, MessageSquare, BarChart3, ShieldCheck, ShieldAlert,
@@ -958,7 +958,7 @@ export default function AdminDashboard() {
                     if (v.kycApprovedAt) {
                         return { label: 'Approved', className: kycStatusStyles.active };
                     }
-                    if (v.kycSubmittedAt || (v.ghanaCardFront && v.selfie)) {
+                    if (v.kycSubmittedAt || canApproveVendorDocs(v)) {
                         return { label: 'Docs under review', className: kycStatusStyles.pending };
                     }
                     if (v.status === 'pending') {
@@ -1097,11 +1097,11 @@ export default function AdminDashboard() {
                                                 const kycDisplay = getKycDisplayStatus(v);
                                                 const businessRegPending = isBusinessRegistrationPendingReview(v);
                                                 const docCount = [
-                                                    v.ghanaCardFront,
-                                                    v.ghanaCardBack,
-                                                    v.selfie,
-                                                    v.utilityBill,
-                                                    v.businessRegistration,
+                                                    kycFileUrl(v.ghanaCardFront),
+                                                    kycFileUrl(v.ghanaCardBack),
+                                                    kycFileUrl(v.selfie),
+                                                    kycFileUrl(v.utilityBill),
+                                                    kycFileUrl(v.businessRegistration),
                                                 ].filter(Boolean).length;
                                                             return (
                                                     <tr key={v._id} className="hover:bg-slate-50/80 transition-colors">
@@ -3237,12 +3237,19 @@ export default function AdminDashboard() {
                 </div>
                 );
                 const docs = [
-                    { label: 'Ghana Card (F)', value: v.ghanaCardFront, icon: CreditCard },
-                    { label: 'Ghana Card (B)', value: v.ghanaCardBack, icon: CreditCard },
-                    { label: 'Selfie', value: v.selfie, icon: Camera },
-                    { label: 'Utility Bill', value: v.utilityBill, icon: FileText },
-                    { label: 'Business Reg.', value: v.businessRegistration, icon: FileText },
+                    { label: 'Ghana Card (F)', value: kycFileUrl(v.ghanaCardFront), icon: CreditCard },
+                    { label: 'Ghana Card (B)', value: kycFileUrl(v.ghanaCardBack), icon: CreditCard },
+                    { label: 'Selfie', value: kycFileUrl(v.selfie), icon: Camera },
+                    { label: 'Utility Bill', value: kycFileUrl(v.utilityBill), icon: FileText },
+                    { label: 'Business Reg.', value: kycFileUrl(v.businessRegistration), icon: FileText },
                 ];
+                const cardOnFile = hasGhanaCardFile(v);
+                const selfieOnFile = hasSelfieFile(v);
+                const canApprove = canApproveVendorDocs(v);
+                const missingDocs = [
+                    !cardOnFile ? 'Ghana Card' : '',
+                    !selfieOnFile ? 'selfie' : '',
+                ].filter(Boolean);
                 return (
                     <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-6" role="dialog" aria-modal="true" aria-label="KYC details">
                         <button
@@ -3413,17 +3420,21 @@ export default function AdminDashboard() {
                             <div className="shrink-0 border-t border-slate-200 bg-slate-50 px-5 py-4 sm:px-6 flex flex-col sm:flex-row flex-wrap gap-2">
                                 {(v.status === 'pending' || (v.status === 'active' && !v.kycApprovedAt)) && (
                                     <>
-                                        {v.ghanaCardFront && v.selfie && v.businessRegistration ? (
+                                        {canApprove ? (
                                         <button
                                             type="button"
                                             onClick={() => handleKYCAction(v._id, 'active')}
-                                            className="inline-flex items-center justify-center gap-2 h-11 px-4 bg-brand-blue text-brand-lemon text-sm font-medium hover:bg-slate-800"
+                                            className="inline-flex items-center justify-center gap-2 h-11 px-4 bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700"
                                         >
-                                            <CheckCircle2 className="w-4 h-4" /> Approve docs — allow selling
+                                            <CheckCircle2 className="w-4 h-4" /> Approve
                                         </button>
                                         ) : (
                                         <p className="inline-flex items-center h-11 px-1 text-sm text-slate-500">
-                                            Waiting for Ghana Card, selfie, and business registration. Approve stays locked until all three are uploaded.
+                                            {cardOnFile
+                                                ? 'Ghana Card is on file. Approve appears once the selfie is uploaded.'
+                                                : selfieOnFile
+                                                    ? 'Selfie is on file. Approve appears once the Ghana Card is uploaded.'
+                                                    : `Approve appears once the ${missingDocs.join(' and ')} ${missingDocs.length === 1 ? 'is' : 'are'} uploaded.`}
                                         </p>
                                         )}
                                         <button
@@ -3455,20 +3466,21 @@ export default function AdminDashboard() {
                                         <ShieldAlert className="w-4 h-4" /> Suspend vendor
                                     </button>
                                 )}
-                                {(v.status === 'rejected' || v.status === 'banned') && (
-                                    v.ghanaCardFront && v.selfie && v.businessRegistration ? (
+                                {(v.status === 'rejected' || v.status === 'banned') && canApprove && (
                                     <button
                                         type="button"
                                         onClick={() => handleKYCAction(v._id, 'active')}
                                         className="inline-flex items-center justify-center gap-2 h-11 px-4 bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700"
                                     >
-                                        <CheckCircle2 className="w-4 h-4" /> Re-approve
+                                        <CheckCircle2 className="w-4 h-4" /> Approve
                                     </button>
-                                    ) : (
+                                )}
+                                {(v.status === 'rejected' || v.status === 'banned') && !canApprove && (
                                     <p className="inline-flex items-center h-11 px-1 text-sm text-slate-500">
-                                        Re-approve stays locked until Ghana Card, selfie, and business registration are uploaded. Paystack is created only when you tap it.
+                                        {cardOnFile
+                                            ? 'Ghana Card is on file. Approve appears once the selfie is uploaded.'
+                                            : 'Approve appears once the Ghana Card and selfie are uploaded.'}
                                     </p>
-                                    )
                                 )}
                                 <a
                                     href={`/admin/vendors/${v._id}/agreement`}
