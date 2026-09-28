@@ -819,6 +819,7 @@ export class OrdersService implements OnModuleInit {
       this.orderModel.find(query).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).exec(),
       this.orderModel.countDocuments(query)
     ]);
+    await this.attachTailoringTimeToOrderItems(orders);
     return { orders, total };
   }
 

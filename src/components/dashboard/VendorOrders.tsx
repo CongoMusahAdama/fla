@@ -197,23 +197,40 @@ export const VendorOrders: React.FC<VendorOrdersProps> = ({
                   </div>
                 </div>
 
-                <div className="p-4 bg-slate-50 rounded-2xl flex items-center gap-4">
+                <div className="p-4 bg-slate-50 rounded-2xl flex items-start gap-4">
                   {order.items && order.items.length > 0 && (
-                    <div className="w-16 h-16 rounded-xl bg-white overflow-hidden border border-slate-100 flex-shrink-0">
-                      <img 
-                        src={getImageUrl(order.items[0].image)} 
-                        alt={order.items[0].name} 
-                        className="w-full h-full object-cover"
-                        onError={(e) => (e.target as HTMLImageElement).src = '/product-1.jpg'}
-                      />
+                    <div className="relative flex-shrink-0">
+                      <div className="w-16 h-16 rounded-xl bg-white overflow-hidden border border-slate-100">
+                        <img
+                          src={getImageUrl(order.items[0].image)}
+                          alt={order.items[0].name}
+                          className="w-full h-full object-cover"
+                          onError={(e) => (e.target as HTMLImageElement).src = '/product-1.jpg'}
+                        />
+                      </div>
+                      {order.items.length > 1 && (
+                        <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] bg-slate-900 text-white text-[7px] font-black rounded-full flex items-center justify-center px-1">
+                          +{order.items.length - 1}
+                        </span>
+                      )}
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
-                    <p className="font-black text-slate-900 uppercase text-[10px] truncate">{order.items?.[0]?.name || order.productName}</p>
-                    <p className="text-[9px] font-bold text-slate-400 uppercase mt-1">
-                      {formatOrderItemLedgerMeta(order.items?.[0])}
-                    </p>
-                    <div className="flex items-center justify-between mt-2">
+                    {order.items && order.items.length > 0 ? (
+                      <div className="space-y-1 mb-2">
+                        {order.items.map((item: any, idx: number) => (
+                          <div key={idx}>
+                            <p className="font-black text-slate-900 uppercase text-[10px] truncate">{item.name}</p>
+                            <p className="text-[9px] font-bold text-slate-400 uppercase">
+                              {formatOrderItemLedgerMeta(item)}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="font-black text-slate-900 uppercase text-[10px] truncate mb-2">{order.productName}</p>
+                    )}
+                    <div className="flex items-center justify-between mt-1">
                         <div className="flex items-center gap-1.5 text-slate-900 font-black text-[9px] uppercase">
                             <MapPin className="w-3 h-3 text-brand-black" />
                             {order.shippingCity || 'Global Base'}
