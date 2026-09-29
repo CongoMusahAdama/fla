@@ -3,6 +3,9 @@ const PENDING_SCROLL_KEY = 'fla_marketplace_pending_scroll';
 /** Where the user opened the product detail page from (drives back-link UI). */
 const PRODUCT_ORIGIN_KEY = 'fla_product_nav_origin';
 
+const HOME_FILTERS_KEY = 'fla_home_marketplace_filters';
+const SHOP_FILTERS_KEY = 'fla_shop_marketplace_filters';
+
 export type ProductNavOrigin = 'marketplace' | 'store';
 
 export function setProductNavOrigin(origin: ProductNavOrigin): void {
@@ -165,4 +168,55 @@ export function restoreMarketplaceScrollIfNeeded(): void {
     // Second pass in case images/layout shift the page.
     setTimeout(apply, 120);
   });
+}
+
+export type HomeFilters = {
+  region: string;
+  category: string;
+  filter: string;
+};
+
+export type ShopFilters = {
+  region: string;
+  price: string;
+};
+
+/** Persist home-page filter state so it survives a round-trip through a product page. */
+export function saveHomeMarketplaceFilters(filters: HomeFilters): void {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.setItem(HOME_FILTERS_KEY, JSON.stringify(filters));
+  } catch {
+    // ignore
+  }
+}
+
+export function getHomeMarketplaceFilters(): HomeFilters | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = sessionStorage.getItem(HOME_FILTERS_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Persist shop-page filter state (Region/Price are NOT encoded in the URL). */
+export function saveShopMarketplaceFilters(filters: ShopFilters): void {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.setItem(SHOP_FILTERS_KEY, JSON.stringify(filters));
+  } catch {
+    // ignore
+  }
+}
+
+export function getShopMarketplaceFilters(): ShopFilters | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = sessionStorage.getItem(SHOP_FILTERS_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
 }

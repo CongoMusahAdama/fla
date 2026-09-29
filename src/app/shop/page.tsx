@@ -10,7 +10,7 @@ import { Suspense } from 'react';
 
 import { GHANA_REGIONS } from '@/lib/ghana-regions';
 import { useProductCategories } from '@/hooks/useProductCategories';
-import { restoreMarketplaceScrollIfNeeded, peekPendingMarketplaceScroll } from '@/lib/marketplace-return';
+import { restoreMarketplaceScrollIfNeeded, peekPendingMarketplaceScroll, getShopMarketplaceFilters, saveShopMarketplaceFilters } from '@/lib/marketplace-return';
 
 const REGION_ALL_LABEL = 'All Regions';
 const PRICE_ALL_LABEL = 'All Prices';
@@ -62,6 +62,28 @@ function ShopContent() {
     const [isSearchPinned, setIsSearchPinned] = useState(false);
     const suppressSuggestionsRef = useRef(false);
     const searchSentinelRef = useRef<HTMLDivElement>(null);
+    const restoredFiltersRef = useRef(false);
+
+    // Restore Region/Price filter state when returning from a product detail page.
+    // Only do this once on mount, and only if the scroll-pending marker is set
+    // (i.e. the user actually navigated away from this page to a product).
+    useEffect(() => {
+        if (restoredFiltersRef.current) return;
+        restoredFiltersRef.current = true;
+        const pending = peekPendingMarketplaceScroll();
+        if (!pending?.shopLoadedCount && !(pending?.shopPage && pending.shopPage > 1)) return;
+        const saved = getShopMarketplaceFilters();
+        if (!saved) return;
+        setActiveFilters(prev => ({ ...prev, Region: saved.region, Price: saved.price }));
+    }, []);
+
+    // Persist Region/Price filter state so it survives a round-trip through a product page.
+    useEffect(() => {
+        saveShopMarketplaceFilters({
+            region: activeFilters.Region || '',
+            price: activeFilters.Price || '',
+        });
+    }, [activeFilters.Region, activeFilters.Price]);
 
     const urlSearch = searchParams.get('search') || '';
     const urlCategory = searchParams.get('category');

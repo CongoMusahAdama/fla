@@ -5,12 +5,12 @@ import ProductCard from "@/components/ProductCard";
 import Footer from "@/components/Footer";
 import ProcessSection from "@/components/ProcessSection";
 import { ChevronDown, LayoutGrid, List, MapPin, SlidersHorizontal } from 'lucide-react';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Product } from '@/lib/types';
 import { PRODUCT_FILTERS } from '@/lib/constants';
 import { GHANA_REGIONS } from '@/lib/ghana-regions';
 import { useProductCategories } from '@/hooks/useProductCategories';
-import { restoreMarketplaceScrollIfNeeded, peekPendingMarketplaceScroll } from '@/lib/marketplace-return';
+import { restoreMarketplaceScrollIfNeeded, peekPendingMarketplaceScroll, getHomeMarketplaceFilters, saveHomeMarketplaceFilters } from '@/lib/marketplace-return';
 
 const HOME_PAGE_SIZE = 12;
 
@@ -40,6 +40,31 @@ export default function Home() {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [activeRegion, setActiveRegion] = useState('');
+  const restoredFiltersRef = useRef(false);
+
+  // Restore filter state when returning from a product detail page.
+  // Only do this once on mount, and only if the scroll-pending marker is set
+  // (i.e. the user actually navigated away from this page to a product).
+  useEffect(() => {
+    if (restoredFiltersRef.current) return;
+    restoredFiltersRef.current = true;
+    const pending = peekPendingMarketplaceScroll();
+    if (!pending?.homeLoadedCount) return;
+    const saved = getHomeMarketplaceFilters();
+    if (!saved) return;
+    setActiveCategory(saved.category);
+    setActiveFilter(saved.filter);
+    setActiveRegion(saved.region);
+  }, []);
+
+  // Persist filter state so it survives a round-trip through a product page.
+  useEffect(() => {
+    saveHomeMarketplaceFilters({
+      region: activeRegion,
+      category: activeCategory,
+      filter: activeFilter,
+    });
+  }, [activeRegion, activeCategory, activeFilter]);
 
   const buildProductsUrl = (cat: string, filt: string, region: string, pageNum: number) => {
     const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
