@@ -27,6 +27,8 @@ import { PAYSTACK_BANK_CODE_MAP } from '../common/constants';
 import { WithdrawalService } from './withdrawal.service';
 import { RequestWithdrawalDto } from './dto/request-withdrawal.dto';
 import { amountDueForRenewal } from '../users/vendor-subscription.util';
+import { clicksForAmount } from '../common/whatsapp-clicks.util';
+import { normalizeWhatsAppPhone } from '../common/whatsapp.util';
 import * as crypto from 'crypto';
 
 @Controller('payments')
@@ -127,7 +129,21 @@ export class PaymentsController {
             if (status === 'success') {
                 const paymentType = metadata?.paymentType;
 
-                if (paymentType === 'vendor_subscription') {
+                if (paymentType === 'whatsapp_clicks') {
+                    const vendorId = metadata.vendorId || metadata.userId;
+                    const paidGhs = typeof data.amount === 'number' ? data.amount / 100 : 0;
+                    const quote = clicksForAmount(paidGhs);
+                    if (!vendorId || quote.clicks < 1) {
+                        this.logger.error(`Paystack WhatsApp click charge missing vendor or clicks (ref=${reference})`);
+                    } else {
+                        await this.usersService.creditWhatsappClicks(vendorId, {
+                            clicks: quote.clicks,
+                            amountGhs: quote.chargeGhs,
+                            reference,
+                        });
+                        this.logger.log(`WhatsApp clicks credited for ${vendorId} (ref=${reference})`);
+                    }
+                } else if (paymentType === 'vendor_subscription') {
                     const vendorId = metadata.vendorId || metadata.userId;
                     if (!vendorId) {
                         this.logger.error(`Paystack subscription charge missing vendorId (ref=${reference})`);
@@ -260,7 +276,11 @@ export class PaymentsController {
         }
 
         const meta = tx.metadata || {};
-        if (meta.paymentType === 'vendor_subscription' || meta.paymentType === 'first_mile_fee') {
+        if (
+            meta.paymentType === 'vendor_subscription' ||
+            meta.paymentType === 'first_mile_fee' ||
+            meta.paymentType === 'whatsapp_clicks'
+        ) {
             throw new BadRequestException('Not an order payment');
         }
 
@@ -309,6 +329,110 @@ export class PaymentsController {
         const amountGhs = typeof tx.amount === 'number' ? tx.amount / 100 : undefined;
         return this.usersService.activateSubscriptionFromPayment(req.user.userId, {
             amountGhs,
+            reference,
+        });
+    }
+
+    /**
+     * Prepaid WhatsApp clicks. The vendor types an amount; we charge only for
+     * whole clicks at GHS 0.50 and credit that many taps.
+     */
+    @UseGuards(AuthGuard('jwt'))
+    @Post('whatsapp-clicks/initialize')
+    async initializeWhatsappClicks(@Request() req, @Body() body: { amountGhs?: number }) {
+        if (req.user.role !== 'vendor') {
+            throw new ForbiddenException('Only vendors can buy WhatsApp clicks');
+        }
+        const vendor = await this.usersService.findOneById(req.user.userId);
+        if (!vendor || (vendor as any).role !== 'vendor') {
+            throw new BadRequestException('Vendor not found');
+        }
+        if (!(vendor as any).kycApprovedAt) {
+            throw new ForbiddenException('Finish verification before buying WhatsApp clicks.');
+        }
+        if (!normalizeWhatsAppPhone((vendor as any).phone)) {
+            throw new BadRequestException('Add your WhatsApp number in Studio Identity before buying clicks.');
+        }
+
+        const quote = clicksForAmount(Number(body?.amountGhs));
+        if (quote.clicks < 1) {
+            throw new BadRequestException('Enter at least GHS 0.50. That buys 1 WhatsApp click.');
+        }
+
+        const frontend = getFrontendBaseUrl();
+        const vendorEmail = String((vendor as any).email || '').trim();
+        const email =
+            vendorEmail && vendorEmail.includes('@')
+                ? vendorEmail
+                : `vendor-${req.user.userId.slice(-8)}@flamingo-store1.com`;
+        const reference = `FLA-CLK-${req.user.userId.slice(-8)}-${crypto.randomBytes(4).toString('hex')}`;
+
+        try {
+            const init = await this.paystackService.initializePayment({
+                email,
+                amount: quote.chargeGhs,
+                currency: 'GHS',
+                reference,
+                callback_url: `${frontend}/vendor?tab=wallet&clicks=paid`,
+                metadata: {
+                    paymentType: 'whatsapp_clicks',
+                    vendorId: req.user.userId,
+                    clicks: quote.clicks,
+                    amountGhs: quote.chargeGhs,
+                },
+            });
+
+            return {
+                authorizationUrl: init.authorization_url,
+                accessCode: init.access_code,
+                reference: init.reference || reference,
+                clicks: quote.clicks,
+                amountGhs: quote.chargeGhs,
+            };
+        } catch (err: any) {
+            const msg =
+                err?.response?.data?.message ||
+                err?.message ||
+                'Could not start Paystack checkout';
+            this.logger.error(`WhatsApp click Paystack init failed: ${msg}`);
+            throw new BadRequestException(Array.isArray(msg) ? msg.join(', ') : String(msg));
+        }
+    }
+
+    @UseGuards(AuthGuard('jwt'))
+    @Post('whatsapp-clicks/verify')
+    async verifyWhatsappClicks(@Request() req, @Body() body: { reference?: string }) {
+        if (req.user.role !== 'vendor') {
+            throw new ForbiddenException('Only vendors can verify WhatsApp click payments');
+        }
+        const reference = body?.reference?.trim();
+        if (!reference) {
+            throw new BadRequestException('Payment reference is required');
+        }
+
+        const tx = await this.paystackService.verifyTransaction(reference);
+        if (!tx || tx.status !== 'success') {
+            throw new BadRequestException('Payment not successful yet');
+        }
+
+        const meta = tx.metadata || {};
+        if (meta.paymentType !== 'whatsapp_clicks') {
+            throw new BadRequestException('Not a WhatsApp click payment');
+        }
+        const vendorId = String(meta.vendorId || meta.userId || '');
+        if (vendorId !== req.user.userId) {
+            throw new ForbiddenException('This payment belongs to another account');
+        }
+
+        const paidGhs = typeof tx.amount === 'number' ? tx.amount / 100 : 0;
+        const quote = clicksForAmount(paidGhs);
+        if (quote.clicks < 1) {
+            throw new BadRequestException('Payment did not cover a WhatsApp click');
+        }
+
+        return this.usersService.creditWhatsappClicks(req.user.userId, {
+            clicks: quote.clicks,
+            amountGhs: quote.chargeGhs,
             reference,
         });
     }

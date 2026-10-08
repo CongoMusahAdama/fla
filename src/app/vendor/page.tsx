@@ -23,6 +23,7 @@ import { VendorStatsGrid } from '@/components/dashboard/VendorStatsGrid';
 import { VendorProducts, Product } from '@/components/dashboard/VendorProducts';
 import { VendorOrders } from '@/components/dashboard/VendorOrders';
 import { VendorFinances } from '@/components/dashboard/VendorFinances';
+import { VendorClickCredits } from '@/components/dashboard/VendorClickCredits';
 import { VendorSettings } from '@/components/dashboard/VendorSettings';
 import { VendorNotifications } from '@/components/dashboard/VendorNotifications';
 import { VendorHelp } from '@/components/dashboard/VendorHelp';
@@ -82,6 +83,7 @@ function VendorDashboardInner() {
     const [formName, setFormName] = useState('');
     const [formPrice, setFormPrice] = useState('');
     const [formCategory, setFormCategory] = useState('Electronics');
+    const [formListingMode, setFormListingMode] = useState<'shop' | 'contact'>('shop');
     const [formQuantity, setFormQuantity] = useState('');
     const vendorProductCategories = PRODUCT_CATEGORIES.filter((c) => c !== 'All Product');
     const [formTailoring, setFormTailoring] = useState('');
@@ -309,6 +311,78 @@ function VendorDashboardInner() {
                 /* webhook may still activate — refresh on next login */
             } finally {
                 router.replace('/vendor?tab=dashboard');
+            }
+        })();
+    }, [token, updateUser, router]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined' || !token) return;
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('clicks') !== 'paid') return;
+
+        const reference =
+            params.get('reference') ||
+            params.get('trxref') ||
+            sessionStorage.getItem('fla_click_ref') ||
+            '';
+
+        (async () => {
+            try {
+                const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+                if (!reference) {
+                    Swal.fire({
+                        icon: 'info',
+                        title: 'No payment reference',
+                        text: 'If you completed payment, refresh this page. Otherwise recharge again.',
+                        customClass: { popup: 'rounded-[32px]' },
+                    });
+                    return;
+                }
+                const res = await fetch(`${api}/payments/whatsapp-clicks/verify`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`,
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({ reference }),
+                });
+                const data = await res.json().catch(() => ({}));
+                const me = await fetch(`${api}/auth/me`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                    credentials: 'include',
+                });
+                if (me.ok) {
+                    const payload = await me.json();
+                    if (payload.user) updateUser(payload.user);
+                } else if (res.ok && data?.vendor) {
+                    updateUser(data.vendor);
+                }
+                sessionStorage.removeItem('fla_click_ref');
+                if (res.ok) {
+                    const added = Number(data?.clicksAdded || 0);
+                    const left = Number(data?.whatsappClickBalance ?? 0);
+                    Swal.fire({
+                        icon: 'success',
+                        title: data?.alreadyProcessed ? 'Clicks already added' : 'Clicks added',
+                        text: added > 0
+                            ? `${added} WhatsApp click${added === 1 ? '' : 's'} added. Balance: ${left}.`
+                            : `Your WhatsApp click balance is ${left}.`,
+                        customClass: { popup: 'rounded-[32px]' },
+                    });
+                } else {
+                    const msg = Array.isArray(data?.message) ? data.message.join(', ') : data?.message;
+                    Swal.fire({
+                        icon: 'info',
+                        title: 'Payment pending',
+                        text: msg || 'We could not confirm payment yet. If you paid, wait a moment and refresh.',
+                        customClass: { popup: 'rounded-[32px]' },
+                    });
+                }
+            } catch {
+                /* webhook may still credit the balance */
+            } finally {
+                router.replace('/vendor?tab=wallet');
             }
         })();
     }, [token, updateUser, router]);
@@ -544,6 +618,7 @@ function VendorDashboardInner() {
                     name: formName,
                     price: parseFloat(formPrice),
                     category: formCategory,
+                    listingMode: formListingMode,
                     ...stockMapsForSave(),
                     description: formNarrative,
                     images: formImages.filter(url => url !== ''),
@@ -916,6 +991,7 @@ function VendorDashboardInner() {
         setFormName('');
         setFormPrice('');
         setFormCategory(user?.productTypes || 'Electronics');
+        setFormListingMode('shop');
         setFormQuantity('');
         setFormTailoring('');
         setFormRegion('Greater Accra');
@@ -1116,6 +1192,7 @@ function VendorDashboardInner() {
                                     setFormName(p.name);
                                     setFormPrice(p.price);
                                     setFormCategory(p.category);
+                                    setFormListingMode(p.listingMode === 'contact' ? 'contact' : 'shop');
                                     setFormQuantity(p.quantity.toString());
                                     setFormTailoring(p.tailoringTime);
                                     setFormRegion(p.region);
@@ -1152,6 +1229,7 @@ function VendorDashboardInner() {
                             setFormName(p.name);
                             setFormPrice(p.price);
                             setFormCategory(p.category);
+                            setFormListingMode(p.listingMode === 'contact' ? 'contact' : 'shop');
                             setFormQuantity(p.quantity.toString());
                             setFormTailoring(p.tailoringTime);
                             setFormRegion(p.region);
@@ -1275,7 +1353,12 @@ function VendorDashboardInner() {
                         shopName={user?.shopName || user?.name}
                     />
                 );
-            case 'wallet': return <VendorFinances user={user} dashboardData={dashboardData} commissionRate={commissionRate} handleWithdrawal={handleWithdrawal} />;
+            case 'wallet': return (
+                <div className="space-y-8">
+                    <VendorClickCredits user={user} token={token} />
+                    <VendorFinances user={user} dashboardData={dashboardData} commissionRate={commissionRate} handleWithdrawal={handleWithdrawal} />
+                </div>
+            );
             case 'settings': return <VendorSettings user={user} shopName={shopName} setShopName={setShopName} storeCategory={storeCategory} setStoreCategory={setStoreCategory} storeAccentColor={storeAccentColor} setStoreAccentColor={setStoreAccentColor} storeThemeColor={storeThemeColor} setStoreThemeColor={setStoreThemeColor} phone={phone} setPhone={setPhone} momoNumber={momoNumber} setMomoNumber={setMomoNumber} momoNetwork={momoNetwork} setMomoNetwork={setMomoNetwork} accountName={accountName} setAccountName={setAccountName} shopLocation={shopLocation} setShopLocation={setShopLocation} bio={bio} setBio={setBio} bannerImage={bannerImage} profileImage={profileImage} businessRegistration={businessRegistration} ghanaCardFront={ghanaCardFront} ghanaCardBack={ghanaCardBack} selfie={selfie} handleImageUpload={handleImageUpload} handleUpdateVendorProfile={handleUpdateVendorProfile} startOnDocuments={needsKycUpload} />;
             case 'notifications': return <VendorNotifications notifications={notifications} />;
             case 'help': return <VendorHelp />;
@@ -1454,6 +1537,7 @@ function VendorDashboardInner() {
                         </div>
                     )}
                     {activeSection === 'dashboard' && (
+                        <>
                         <div className="mb-8 p-6 md:p-8 bg-brand-blue rounded-[32px] text-white space-y-4 shadow-sm">
                             <div>
                                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-lemon mb-1">
@@ -1527,6 +1611,10 @@ function VendorDashboardInner() {
                                 </p>
                             )}
                         </div>
+                        <div className="mt-6">
+                            <VendorClickCredits user={user} token={token} />
+                        </div>
+                        </>
                     )}
                     
                     {renderContent()}
@@ -1675,6 +1763,38 @@ function VendorDashboardInner() {
                                             </div>
                                         )}
                                     </div>
+                                </div>
+                            </div>
+
+                            <div className="space-y-3">
+                                <p className="text-[12px] font-black text-slate-900 uppercase tracking-widest ml-1">How customers buy</p>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => setFormListingMode('shop')}
+                                        className={`text-left p-4 rounded-2xl border ${formListingMode === 'shop' ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-slate-50 text-slate-700'}`}
+                                    >
+                                        <p className="text-[11px] font-black uppercase tracking-widest">Shop listing</p>
+                                        <p className={`text-xs mt-1 leading-relaxed ${formListingMode === 'shop' ? 'text-white/70' : 'text-slate-500'}`}>
+                                            Add to cart and Buy now. Payment stays on FLA.
+                                        </p>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setFormListingMode('contact');
+                                            if (!editingProduct) {
+                                                setFormHasSizes(false);
+                                                setFormHasColors(false);
+                                            }
+                                        }}
+                                        className={`text-left p-4 rounded-2xl border ${formListingMode === 'contact' ? 'border-[#128C7E] bg-[#25D366] text-white' : 'border-slate-200 bg-slate-50 text-slate-700'}`}
+                                    >
+                                        <p className="text-[11px] font-black uppercase tracking-widest">WhatsApp listing</p>
+                                        <p className={`text-xs mt-1 leading-relaxed ${formListingMode === 'contact' ? 'text-white/80' : 'text-slate-500'}`}>
+                                            Customers open your WhatsApp. Each tap costs GHS 0.50 from your click balance.
+                                        </p>
+                                    </button>
                                 </div>
                             </div>
 

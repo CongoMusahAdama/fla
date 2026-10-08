@@ -1,16 +1,22 @@
-import { Injectable, NotFoundException, UnauthorizedException, ForbiddenException, OnModuleInit, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, UnauthorizedException, ForbiddenException, OnModuleInit, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { Product, ProductDocument } from './schemas/product.schema';
+import { WhatsappClickLog, WhatsappClickLogDocument } from './schemas/whatsapp-click-log.schema';
 import { User, UserDocument } from '../users/schemas/user.schema';
 import { isVendorDocumented } from '../common/vendor-trust.util';
 import { normalizeProductStockPayload } from './product-stock.util';
 import { TtlCache } from '../common/ttl-cache.util';
+import { accraDayKey, normalizeListingMode } from '../common/whatsapp-clicks.util';
+import { normalizeWhatsAppPhone } from '../common/whatsapp.util';
 
 const VENDOR_POPULATE_FIELDS =
-  'uniqueVendorId region location bio shopName vendorTier businessRegistration businessRegistrationApprovedAt businessRegistrationSubmittedAt storeSlug';
+  'uniqueVendorId region location bio shopName vendorTier businessRegistration businessRegistrationApprovedAt businessRegistrationSubmittedAt storeSlug phone whatsappClickBalance';
+
+const LIST_PRODUCT_FIELDS =
+  'name price images imageLabels sizes stock colorStock sizeStock variantStock vendorId vendorName uniqueVendorId description hasSizes hasColors colors tailoringTime region vendorLocation vendorBio vendorTier storeSlug category listingMode rating reviewCount originalPrice isFeatured createdAt isActive';
 
 /** Match frontend `NEW_ARRIVAL_MAX_AGE_DAYS` in src/lib/product-freshness.ts */
 const NEW_ARRIVAL_MAX_AGE_DAYS = 30;
@@ -27,6 +33,7 @@ export class ProductsService implements OnModuleInit {
 
   constructor(
     @InjectModel(Product.name) private productModel: Model<ProductDocument>,
+    @InjectModel(WhatsappClickLog.name) private whatsappClickLogModel: Model<WhatsappClickLogDocument>,
     @InjectModel(User.name) private userModel: Model<UserDocument>
   ) { }
 
@@ -77,7 +84,8 @@ export class ProductsService implements OnModuleInit {
   }
 
   async create(createProductDto: CreateProductDto): Promise<Product> {
-    const payload = normalizeProductStockPayload(createProductDto as any);
+    const payload = normalizeProductStockPayload(createProductDto as any) as any;
+    payload.listingMode = normalizeListingMode(payload.listingMode);
     const createdProduct = new this.productModel(payload);
     const saved = await createdProduct.save();
     this.bustPublicCaches();
@@ -115,7 +123,22 @@ export class ProductsService implements OnModuleInit {
     if (options?.listView && Array.isArray(p.images) && p.images.length > 1) {
       p.images = p.images.slice(0, 1);
     }
+    this.applyWhatsappLead(p);
     return p;
+  }
+
+  /** Public flag only. Phone and remaining clicks stay off the product payload. */
+  private applyWhatsappLead(p: any) {
+    const vendor = p.vendorId && typeof p.vendorId === 'object' ? p.vendorId : null;
+    const listingMode = normalizeListingMode(p.listingMode);
+    p.listingMode = listingMode;
+    const balance = Number(vendor?.whatsappClickBalance || 0);
+    const hasPhone = Boolean(normalizeWhatsAppPhone(vendor?.phone));
+    p.whatsappLeadAvailable = listingMode === 'contact' && balance > 0 && hasPhone;
+    if (vendor) {
+      delete vendor.phone;
+      delete vendor.whatsappClickBalance;
+    }
   }
 
   /** One lean query for all vendors on a product page — keeps badges correct without N populates. */
@@ -138,7 +161,7 @@ export class ProductsService implements OnModuleInit {
     const vendors = await this.userModel
       .find({ _id: { $in: ids } })
       .select(
-        'uniqueVendorId region location bio shopName vendorTier businessRegistration businessRegistrationApprovedAt businessRegistrationSubmittedAt storeSlug',
+        'uniqueVendorId region location bio shopName vendorTier businessRegistration businessRegistrationApprovedAt businessRegistrationSubmittedAt storeSlug phone whatsappClickBalance',
       )
       .lean()
       .exec();
@@ -237,9 +260,7 @@ export class ProductsService implements OnModuleInit {
     // List/search: no populate — denormalized vendor fields on the product cut Mongo load
     // when many shoppers hit the same query at once (load-balancer friendly).
     let q = this.productModel.find(filters)
-      .select(
-        'name price images imageLabels sizes stock colorStock sizeStock variantStock vendorId vendorName uniqueVendorId description hasSizes hasColors colors tailoringTime region vendorLocation vendorBio vendorTier storeSlug category rating reviewCount originalPrice isFeatured createdAt isActive',
-      )
+      .select(LIST_PRODUCT_FIELDS)
       .lean();
 
     if (query.sort === 'latest' || query.filter === 'New Arrival') {
@@ -338,6 +359,109 @@ export class ProductsService implements OnModuleInit {
     return this.mapProductForClient(product) as any;
   }
 
+  /**
+   * Open the vendor WhatsApp for a contact listing.
+   * Charges one prepaid click, except when this buyer already tapped today
+   * or the signed-in user is the vendor.
+   */
+  async consumeWhatsappClick(
+    productId: string,
+    opts: { userId?: string; clientId?: string },
+  ) {
+    if (!Types.ObjectId.isValid(productId)) {
+      throw new NotFoundException('Product not found');
+    }
+
+    const product = await this.productModel
+      .findById(productId)
+      .select('name listingMode isActive vendorId')
+      .lean()
+      .exec();
+    if (!product || product.isActive === false) {
+      throw new NotFoundException('Product not found');
+    }
+    if (normalizeListingMode(product.listingMode) !== 'contact') {
+      throw new BadRequestException('This listing is sold with Buy now on FLA.');
+    }
+
+    const vendor = await this.userModel
+      .findById(product.vendorId)
+      .select('phone whatsappClickBalance role')
+      .lean()
+      .exec();
+    const phone = normalizeWhatsAppPhone((vendor as any)?.phone);
+    if (!phone) {
+      throw new BadRequestException('This vendor has not added a WhatsApp number yet.');
+    }
+
+    const message = `Hello, I saw "${product.name}" on FLA and I am interested.`;
+    const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+    const vendorId = String(product.vendorId);
+    const requester = opts.userId ? String(opts.userId) : '';
+
+    if (requester && requester === vendorId) {
+      return { available: true, url, charged: false };
+    }
+
+    let buyerKey = '';
+    if (requester) {
+      buyerKey = `user:${requester}`;
+    } else {
+      const clientId = String(opts.clientId || '').trim();
+      if (!/^[a-zA-Z0-9-]{16,80}$/.test(clientId)) {
+        throw new BadRequestException('Missing click client id');
+      }
+      buyerKey = `guest:${clientId}`;
+    }
+
+    const dayKey = accraDayKey();
+    const existing = await this.whatsappClickLogModel
+      .findOne({ productId: product._id, buyerKey, dayKey })
+      .select('_id')
+      .lean()
+      .exec();
+    if (existing) {
+      return { available: true, url, charged: false, alreadyCounted: true };
+    }
+
+    const decremented = await this.userModel
+      .findOneAndUpdate(
+        { _id: product.vendorId, whatsappClickBalance: { $gte: 1 } },
+        { $inc: { whatsappClickBalance: -1 } },
+        { new: true },
+      )
+      .select('whatsappClickBalance')
+      .lean()
+      .exec();
+
+    if (!decremented) {
+      return {
+        available: false,
+        message: 'WhatsApp contact is unavailable until this vendor recharges.',
+      };
+    }
+
+    try {
+      await this.whatsappClickLogModel.create({
+        vendorId: product.vendorId,
+        productId: product._id,
+        buyerKey,
+        dayKey,
+      });
+    } catch (err: any) {
+      await this.userModel
+        .updateOne({ _id: product.vendorId }, { $inc: { whatsappClickBalance: 1 } })
+        .exec();
+      if (err?.code === 11000) {
+        return { available: true, url, charged: false, alreadyCounted: true };
+      }
+      throw err;
+    }
+
+    this.bustPublicCaches();
+    return { available: true, url, charged: true };
+  }
+
   async update(id: string, updateProductDto: UpdateProductDto, user: any): Promise<Product> {
     const product = await this.productModel.findById(id).exec();
     if (!product) {
@@ -352,7 +476,8 @@ export class ProductsService implements OnModuleInit {
     const payload = normalizeProductStockPayload({
       ...product.toObject(),
       ...updateProductDto,
-    } as any);
+    } as any) as any;
+    payload.listingMode = normalizeListingMode(payload.listingMode);
 
     const updatedProduct = await this.productModel
       .findByIdAndUpdate(id, payload, { new: true })

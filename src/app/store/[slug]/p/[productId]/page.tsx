@@ -19,6 +19,7 @@ import {
 } from '@/lib/marketplace-return';
 import { getStoreReturn, markStoreScrollRestore } from '@/lib/store-return';
 import { resolveStoreTheme } from '@/lib/store-theme';
+import { WhatsAppLeadButton } from '@/components/WhatsAppLeadButton';
 
 type ProductDetail = {
   _id: string;
@@ -37,6 +38,8 @@ type ProductDetail = {
   storeSlug?: string;
   region?: string;
   vendorLocation?: string;
+  listingMode?: 'shop' | 'contact';
+  whatsappLeadAvailable?: boolean;
 };
 
 const apiBase = () => process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
@@ -64,6 +67,7 @@ export default function StoreProductPage() {
   const [isAdding, setIsAdding] = useState(false);
   const [navOrigin, setNavOrigin] = useState<ProductNavOrigin>('store');
   const [linkCopied, setLinkCopied] = useState(false);
+  const [leadHidden, setLeadHidden] = useState(false);
 
   const handleCopyProductLink = async () => {
     try {
@@ -633,6 +637,22 @@ export default function StoreProductPage() {
             </div>
           )}
 
+          {product.listingMode === 'contact' ? (
+            <div className="pt-2">
+              {product.whatsappLeadAvailable && !leadHidden ? (
+                <WhatsAppLeadButton
+                  productId={product._id}
+                  label="WhatsApp vendor"
+                  onUnavailable={() => setLeadHidden(true)}
+                  className="w-full px-8 py-4 rounded-full text-[11px]"
+                />
+              ) : (
+                <p className="text-center text-sm font-semibold text-slate-400 py-4">
+                  WhatsApp contact is paused until this vendor recharges.
+                </p>
+              )}
+            </div>
+          ) : (
           <div className="flex flex-col sm:flex-row gap-3 pt-2">
             <button
               type="button"
@@ -652,6 +672,7 @@ export default function StoreProductPage() {
               Buy now
             </button>
           </div>
+          )}
 
           {navOrigin === 'marketplace' && (
             <Link

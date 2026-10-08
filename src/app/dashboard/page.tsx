@@ -1371,6 +1371,8 @@ export default function CustomerDashboard() {
                                         hasSizes={item.productId?.hasSizes}
                                         hasColors={item.productId?.hasColors}
                                         colors={item.productId?.colors}
+                                        listingMode={item.productId?.listingMode}
+                                        whatsappLeadAvailable={item.productId?.whatsappLeadAvailable}
                                     />
                                 ))
                             ) : (

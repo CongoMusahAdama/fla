@@ -698,6 +698,8 @@ function ShopContent() {
                                     vendorTier={product.vendorTier}
                                     storeSlug={product.storeSlug}
                                     createdAt={product.createdAt}
+                                    listingMode={product.listingMode}
+                                    whatsappLeadAvailable={product.whatsappLeadAvailable}
                                 />
                             ))}
                         </div>

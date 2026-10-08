@@ -189,7 +189,7 @@ export class OrdersService implements OnModuleInit {
     const products = await this.productModel
       .find({ _id: { $in: productIds } })
       .select(
-        'name stock isActive hasColors hasSizes colors sizes colorStock sizeStock variantStock',
+        'name stock isActive hasColors hasSizes colors sizes colorStock sizeStock variantStock listingMode',
       )
       .lean()
       .exec();
@@ -200,6 +200,9 @@ export class OrdersService implements OnModuleInit {
       const label = item.name || product?.name || 'This item';
       if (!product) {
         throw new BadRequestException(`${label} is no longer available.`);
+      }
+      if (product.listingMode === 'contact') {
+        throw new BadRequestException(`${label} is arranged on WhatsApp. Use the WhatsApp button on the listing.`);
       }
       try {
         assertLineItemStock(product, item.quantity, item.color, item.size);

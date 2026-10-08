@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsNumber, IsOptional, IsArray, IsBoolean, IsObject } from 'class-validator';
+import { IsString, IsNotEmpty, IsNumber, IsOptional, IsArray, IsBoolean, IsObject, IsIn } from 'class-validator';
 
 export class CreateProductDto {
     @IsString()
@@ -20,6 +20,11 @@ export class CreateProductDto {
     @IsString()
     @IsNotEmpty()
     category: string;
+
+    /** shop keeps cart and Buy now. contact shows WhatsApp instead. */
+    @IsIn(['shop', 'contact'])
+    @IsOptional()
+    listingMode?: 'shop' | 'contact';
 
     @IsArray()
     @IsString({ each: true })

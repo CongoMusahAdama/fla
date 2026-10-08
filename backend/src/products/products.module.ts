@@ -3,6 +3,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { ProductsService } from './products.service';
 import { ProductsController } from './products.controller';
 import { Product, ProductSchema } from './schemas/product.schema';
+import { WhatsappClickLog, WhatsappClickLogSchema } from './schemas/whatsapp-click-log.schema';
 import { User, UserSchema } from '../users/schemas/user.schema';
 import { AuthModule } from '../auth/auth.module';
 
@@ -11,6 +12,7 @@ import { AuthModule } from '../auth/auth.module';
     forwardRef(() => AuthModule),
     MongooseModule.forFeature([
     { name: Product.name, schema: ProductSchema },
+    { name: WhatsappClickLog.name, schema: WhatsappClickLogSchema },
     { name: User.name, schema: UserSchema }
   ])],
   controllers: [ProductsController],

@@ -118,6 +118,19 @@ export class ProductsController {
     return this.productsService.findAll(query);
   }
 
+  @Post(':id/whatsapp-click')
+  @UseGuards(OptionalJwtAuthGuard)
+  consumeWhatsappClick(
+    @Param('id') id: string,
+    @Body() body: { clientId?: string },
+    @Request() req: { user?: { userId?: string } },
+  ) {
+    return this.productsService.consumeWhatsappClick(id, {
+      userId: req.user?.userId,
+      clientId: body?.clientId,
+    });
+  }
+
   @SkipThrottle()
   @Get(':id')
   findOne(@Param('id') id: string, @Res({ passthrough: true }) res: Response) {

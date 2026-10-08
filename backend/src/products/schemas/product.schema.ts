@@ -20,6 +20,10 @@ export class Product {
     @Prop({ required: true })
     category: string;
 
+    /** shop: cart + Buy now. contact: WhatsApp lead while the vendor has clicks left. */
+    @Prop({ enum: ['shop', 'contact'], default: 'shop' })
+    listingMode: 'shop' | 'contact';
+
     @Prop({ type: [String], default: [] })
     images: string[];
 

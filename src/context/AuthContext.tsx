@@ -43,6 +43,8 @@ export type User = {
     subscriptionPaymentRequired?: boolean;
     subscriptionLastPaidAt?: string | Date | null;
     walletBalance?: number;
+    /** Prepaid taps that open this vendor's WhatsApp on contact listings. */
+    whatsappClickBalance?: number;
     pendingBalance?: number;
     region?: string;
     ghanaCardNumber?: string;
@@ -132,6 +134,7 @@ function mapApiUser(raw: Record<string, unknown>): User {
         businessRegistrationApprovedAt:
             (raw.businessRegistrationApprovedAt as string | Date | null | undefined) ?? null,
         walletBalance: raw.walletBalance as number | undefined,
+        whatsappClickBalance: raw.whatsappClickBalance as number | undefined,
         pendingBalance: raw.pendingBalance as number | undefined,
         region: raw.region as string | undefined,
         vendorTier: raw.vendorTier as 'low' | 'high' | undefined,

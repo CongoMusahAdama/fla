@@ -1,6 +1,11 @@
 import type { NextConfig } from "next";
+import path from "path";
 
 const nextConfig: NextConfig = {
+  // A lockfile in the parent folder was making Next resolve CSS from Desktop instead of this app.
+  turbopack: {
+    root: path.join(__dirname),
+  },
   reactStrictMode: true,
   compress: true, // Enable gzip compression
   poweredByHeader: false, // Remove X-Powered-By header for security

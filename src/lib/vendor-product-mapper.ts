@@ -19,6 +19,7 @@ export function mapApiProductToVendorProduct(prod: any): VendorProduct {
     region: prod.region || 'Greater Accra',
     description: prod.description || '',
     category: prod.category || 'T-Shirt',
+    listingMode: prod.listingMode === 'contact' ? 'contact' : 'shop',
     imageLabels: prod.imageLabels || [],
     sizes: prod.sizes || [],
     hasSizes: prod.hasSizes !== undefined ? prod.hasSizes : true,

@@ -333,6 +333,8 @@ export default function Home() {
                   vendorTier={product.vendorTier}
                   storeSlug={product.storeSlug}
                   createdAt={product.createdAt}
+                  listingMode={product.listingMode}
+                  whatsappLeadAvailable={product.whatsappLeadAvailable}
                   index={index % HOME_PAGE_SIZE}
                 />
               ))

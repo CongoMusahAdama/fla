@@ -259,6 +259,10 @@ export class User {
     @Prop({ unique: true, sparse: true, index: true })
     refereeStoreSlug?: string;
 
+    /** Prepaid customer taps that open this vendor's WhatsApp. GHS 0.50 each. */
+    @Prop({ default: 0 })
+    whatsappClickBalance: number;
+
     /** Accumulated unpaid referee commissions (GHS) */
     @Prop({ default: 0 })
     refereeWalletBalance: number;

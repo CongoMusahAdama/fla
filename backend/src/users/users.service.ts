@@ -4,6 +4,7 @@ import { Model } from 'mongoose';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User, UserDocument } from './schemas/user.schema';
+import { WhatsappClickTopup, WhatsappClickTopupDocument } from '../payments/schemas/whatsapp-click-topup.schema';
 import * as bcrypt from 'bcrypt';
 import { OrdersService } from '../orders/orders.service';
 import { PaystackService } from '../common/paystack.service';
@@ -46,6 +47,7 @@ export class UsersService implements OnModuleInit {
 
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
+    @InjectModel(WhatsappClickTopup.name) private whatsappClickTopupModel: Model<WhatsappClickTopupDocument>,
     @InjectModel(TempVerification.name) private tempVerificationModel: Model<TempVerification>,
     @Inject(forwardRef(() => OrdersService)) private ordersService: OrdersService,
     private readonly paystackService: PaystackService,
@@ -406,6 +408,7 @@ export class UsersService implements OnModuleInit {
     delete updateData.subscriptionStartsAt;
     delete updateData.subscriptionEndsAt;
     delete updateData.subscriptionPaymentRequired;
+    delete updateData.whatsappClickBalance;
     delete updateData.kycSubmittedAt;
     delete updateData.businessRegistrationSubmittedAt;
     if (!options?.allowVerificationWrite) {
@@ -1106,9 +1109,98 @@ export class UsersService implements OnModuleInit {
     };
   }
 
+  /** Add prepaid WhatsApp clicks after Paystack. The same reference cannot credit twice. */
+  async creditWhatsappClicks(
+    vendorId: string,
+    opts: { clicks: number; amountGhs: number; reference: string },
+  ) {
+    const existing = await this.userModel.findById(vendorId).exec();
+    if (!existing || existing.role !== 'vendor') {
+      throw new NotFoundException('Vendor not found');
+    }
+
+    const reference = opts.reference.trim();
+    const clicks = Math.floor(opts.clicks);
+    if (!reference || clicks < 1) {
+      throw new BadRequestException('Click top-up is missing a payment reference or click count');
+    }
+
+    const already = await this.paidClickVendor(vendorId, reference);
+    if (already) return already;
+
+    try {
+      await this.whatsappClickTopupModel.create({
+        reference,
+        vendorId,
+        clicks,
+        amountGhs: opts.amountGhs,
+        credited: false,
+      });
+    } catch (err: any) {
+      if (err?.code !== 11000) throw err;
+      const raced = await this.paidClickVendor(vendorId, reference);
+      if (raced) return raced;
+    }
+
+    const claimed = await this.whatsappClickTopupModel.findOneAndUpdate(
+      { reference, credited: { $ne: true } },
+      { $set: { credited: true, clicks, amountGhs: opts.amountGhs } },
+      { new: true },
+    ).exec();
+
+    if (!claimed) {
+      const done = await this.paidClickVendor(vendorId, reference);
+      if (done) return done;
+      throw new BadRequestException('Could not apply this click top-up');
+    }
+
+    try {
+      const user = await this.userModel
+        .findByIdAndUpdate(
+          vendorId,
+          { $inc: { whatsappClickBalance: clicks } },
+          { new: true },
+        )
+        .select(USER_PUBLIC_PROJECTION)
+        .lean()
+        .exec();
+
+      if ((user as any)?.phone) {
+        const balance = Number((user as any).whatsappClickBalance || 0);
+        this.sendRegistrationSms(
+          (user as any).phone,
+          `FLA: ${clicks} WhatsApp click${clicks === 1 ? '' : 's'} added. Balance: ${balance}.`,
+          'vendor-whatsapp-clicks',
+        );
+      }
+
+      return {
+        alreadyProcessed: false,
+        clicksAdded: clicks,
+        whatsappClickBalance: Number((user as any)?.whatsappClickBalance || 0),
+        vendor: { ...(user as any), id: (user as any)?._id?.toString?.() || vendorId },
+      };
+    } catch (err) {
+      await this.whatsappClickTopupModel.updateOne({ reference }, { $set: { credited: false } }).exec();
+      throw err;
+    }
+  }
+
+  private async paidClickVendor(vendorId: string, reference: string) {
+    const topup = await this.whatsappClickTopupModel.findOne({ reference, credited: true }).lean().exec();
+    if (!topup) return null;
+    const user = await this.userModel.findById(vendorId).select(USER_PUBLIC_PROJECTION).lean().exec();
+    return {
+      alreadyProcessed: true,
+      clicksAdded: 0,
+      whatsappClickBalance: Number((user as any)?.whatsappClickBalance || 0),
+      vendor: { ...(user as any), id: (user as any)?._id?.toString?.() || vendorId },
+    };
+  }
+
   async getPublicVendorProfile(vendorId: string) {
     const user = await this.userModel.findById(vendorId)
-      .select('-password -paymentMethods -withdrawalHistory')
+      .select('-password -paymentMethods -withdrawalHistory -whatsappClickBalance')
       .exec();
     if (!user) {
       throw new NotFoundException('Vendor not found');
@@ -1123,7 +1215,7 @@ export class UsersService implements OnModuleInit {
     if (user.role === 'vendor' && user.status === 'active' && !user.storeSlug) {
       await this.ensureStoreSlug(vendorId, user.shopName || user.name);
       const refreshed = await this.userModel.findById(vendorId)
-        .select('-password -paymentMethods -withdrawalHistory')
+        .select('-password -paymentMethods -withdrawalHistory -whatsappClickBalance')
         .exec();
       const stats = await this.ordersService.getVendorStats(vendorId);
       return { vendor: refreshed || user, stats };
