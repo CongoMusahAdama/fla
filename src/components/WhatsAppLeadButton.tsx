@@ -37,6 +37,7 @@ export function WhatsAppLeadButton({
         });
         return;
       }
+      if (result.whatsappLeadAvailable === false) onUnavailable?.();
       window.location.href = result.url;
     } catch (err: any) {
       Swal.fire({

@@ -1,18 +1,46 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Swal from "sweetalert2";
 import { clicksForAmount, WHATSAPP_CLICK_PRICE_GHS } from "@/lib/whatsapp-clicks";
 
 type VendorClickCreditsProps = {
   user: { phone?: string; whatsappClickBalance?: number } | null;
   token?: string | null;
+  onUser?: (user: any) => void;
 };
 
-export function VendorClickCredits({ user, token }: VendorClickCreditsProps) {
+export function VendorClickCredits({ user, token, onUser }: VendorClickCreditsProps) {
   const [amount, setAmount] = useState("1");
   const [paying, setPaying] = useState(false);
   const balance = Math.max(0, Number(user?.whatsappClickBalance || 0));
+
+  useEffect(() => {
+    if (!token || !onUser) return;
+    let cancelled = false;
+    const pull = async () => {
+      try {
+        const api = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
+        const res = await fetch(`${api}/auth/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+          credentials: "include",
+        });
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        if (data?.user) onUser(data.user);
+      } catch {
+        /* keep the last balance on screen */
+      }
+    };
+    void pull();
+    const timer = window.setInterval(pull, 20000);
+    window.addEventListener("focus", pull);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+      window.removeEventListener("focus", pull);
+    };
+  }, [token, onUser]);
   const parsed = parseFloat(amount);
   const quote = clicksForAmount(parsed);
   const hasPhone = Boolean(user?.phone?.trim());

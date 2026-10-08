@@ -12,6 +12,11 @@ export class WhatsappClickLog {
   @Prop({ type: Types.ObjectId, ref: 'Product', required: true })
   productId: Types.ObjectId;
 
+  /** Stable buyer identity. Used to ignore an accidental double tap. */
+  @Prop({ required: true })
+  actorKey: string;
+
+  /** Unique per tap so an older once-a-day index cannot block the next charge. */
   @Prop({ required: true })
   buyerKey: string;
 
@@ -21,4 +26,4 @@ export class WhatsappClickLog {
 
 export const WhatsappClickLogSchema = SchemaFactory.createForClass(WhatsappClickLog);
 
-WhatsappClickLogSchema.index({ productId: 1, buyerKey: 1, dayKey: 1 }, { unique: true });
+WhatsappClickLogSchema.index({ productId: 1, actorKey: 1, createdAt: -1 });

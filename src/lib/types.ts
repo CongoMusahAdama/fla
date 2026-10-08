@@ -24,6 +24,6 @@ export interface Product {
   colorStock?: Record<string, number>;
   sizeStock?: Record<string, number>;
   variantStock?: Record<string, number>;
-  listingMode?: 'shop' | 'contact';
+  listingMode?: 'shop' | 'contact' | 'both';
   whatsappLeadAvailable?: boolean;
 }

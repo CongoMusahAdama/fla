@@ -9,7 +9,7 @@ import { User, UserDocument } from '../users/schemas/user.schema';
 import { isVendorDocumented } from '../common/vendor-trust.util';
 import { normalizeProductStockPayload } from './product-stock.util';
 import { TtlCache } from '../common/ttl-cache.util';
-import { accraDayKey, normalizeListingMode } from '../common/whatsapp-clicks.util';
+import { accraDayKey, normalizeListingMode, showsWhatsappLead } from '../common/whatsapp-clicks.util';
 import { normalizeWhatsAppPhone } from '../common/whatsapp.util';
 
 const VENDOR_POPULATE_FIELDS =
@@ -37,7 +37,7 @@ export class ProductsService implements OnModuleInit {
     @InjectModel(User.name) private userModel: Model<UserDocument>
   ) { }
 
-  private bustPublicCaches() {
+  bustPublicCaches() {
     this.catalogCache.clear();
     this.suggestionsCache.clear();
   }
@@ -57,7 +57,13 @@ export class ProductsService implements OnModuleInit {
     return parts.sort().join('&') || 'default';
   }
 
-  onModuleInit() {
+  async onModuleInit() {
+    try {
+      await this.whatsappClickLogModel.collection.dropIndex('productId_1_buyerKey_1_dayKey_1');
+    } catch {
+      // Fresh databases never had the once-a-day unique index.
+    }
+
     // Run the auto-archiver every hour
     setInterval(async () => {
       try {
@@ -134,7 +140,7 @@ export class ProductsService implements OnModuleInit {
     p.listingMode = listingMode;
     const balance = Number(vendor?.whatsappClickBalance || 0);
     const hasPhone = Boolean(normalizeWhatsAppPhone(vendor?.phone));
-    p.whatsappLeadAvailable = listingMode === 'contact' && balance > 0 && hasPhone;
+    p.whatsappLeadAvailable = showsWhatsappLead(listingMode) && balance > 0 && hasPhone;
     if (vendor) {
       delete vendor.phone;
       delete vendor.whatsappClickBalance;
@@ -360,9 +366,9 @@ export class ProductsService implements OnModuleInit {
   }
 
   /**
-   * Open the vendor WhatsApp for a contact listing.
-   * Charges one prepaid click, except when this buyer already tapped today
-   * or the signed-in user is the vendor.
+   * Open the vendor WhatsApp for a contact or combined listing.
+   * Every tap costs one prepaid click. A second tap within a few seconds
+   * does not charge again. At zero, the button is unavailable on every listing.
    */
   async consumeWhatsappClick(
     productId: string,
@@ -380,8 +386,8 @@ export class ProductsService implements OnModuleInit {
     if (!product || product.isActive === false) {
       throw new NotFoundException('Product not found');
     }
-    if (normalizeListingMode(product.listingMode) !== 'contact') {
-      throw new BadRequestException('This listing is sold with Buy now on FLA.');
+    if (!showsWhatsappLead(product.listingMode)) {
+      throw new BadRequestException('This listing does not open WhatsApp.');
     }
 
     const vendor = await this.userModel
@@ -396,32 +402,37 @@ export class ProductsService implements OnModuleInit {
 
     const message = `Hello, I saw "${product.name}" on FLA and I am interested.`;
     const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
-    const vendorId = String(product.vendorId);
+    const paused = {
+      available: false,
+      whatsappLeadAvailable: false,
+      message: 'WhatsApp contact is unavailable until this vendor recharges.',
+    };
+
     const requester = opts.userId ? String(opts.userId) : '';
-
-    if (requester && requester === vendorId) {
-      return { available: true, url, charged: false };
-    }
-
-    let buyerKey = '';
+    let actorKey = '';
     if (requester) {
-      buyerKey = `user:${requester}`;
+      actorKey = `user:${requester}`;
     } else {
       const clientId = String(opts.clientId || '').trim();
       if (!/^[a-zA-Z0-9-]{16,80}$/.test(clientId)) {
         throw new BadRequestException('Missing click client id');
       }
-      buyerKey = `guest:${clientId}`;
+      actorKey = `guest:${clientId}`;
     }
 
-    const dayKey = accraDayKey();
-    const existing = await this.whatsappClickLogModel
-      .findOne({ productId: product._id, buyerKey, dayKey })
+    const recent = await this.whatsappClickLogModel
+      .findOne({
+        productId: product._id,
+        actorKey,
+        createdAt: { $gte: new Date(Date.now() - 4_000) },
+      })
       .select('_id')
       .lean()
       .exec();
-    if (existing) {
-      return { available: true, url, charged: false, alreadyCounted: true };
+    if (recent) {
+      const live = Number((vendor as any)?.whatsappClickBalance || 0);
+      if (live < 1) return paused;
+      return { available: true, url, charged: false, alreadyCounted: true, whatsappLeadAvailable: true };
     }
 
     const decremented = await this.userModel
@@ -434,32 +445,36 @@ export class ProductsService implements OnModuleInit {
       .lean()
       .exec();
 
-    if (!decremented) {
-      return {
-        available: false,
-        message: 'WhatsApp contact is unavailable until this vendor recharges.',
-      };
-    }
+    if (!decremented) return paused;
 
+    const remaining = Number((decremented as any).whatsappClickBalance || 0);
     try {
       await this.whatsappClickLogModel.create({
         vendorId: product.vendorId,
         productId: product._id,
-        buyerKey,
-        dayKey,
+        actorKey,
+        buyerKey: `${actorKey}:${Date.now().toString(36)}:${Math.random().toString(36).slice(2, 8)}`,
+        dayKey: accraDayKey(),
       });
     } catch (err: any) {
       await this.userModel
         .updateOne({ _id: product.vendorId }, { $inc: { whatsappClickBalance: 1 } })
         .exec();
       if (err?.code === 11000) {
-        return { available: true, url, charged: false, alreadyCounted: true };
+        const live = remaining + 1;
+        if (live < 1) return paused;
+        return { available: true, url, charged: false, alreadyCounted: true, whatsappLeadAvailable: true };
       }
       throw err;
     }
 
     this.bustPublicCaches();
-    return { available: true, url, charged: true };
+    return {
+      available: true,
+      url,
+      charged: true,
+      whatsappLeadAvailable: remaining > 0,
+    };
   }
 
   async update(id: string, updateProductDto: UpdateProductDto, user: any): Promise<Product> {

@@ -12,6 +12,7 @@ import { useAuth } from '@/context/AuthContext';
 import { getMarketplaceReturn, getProductNavOrigin, markMarketplaceScrollRestore } from '@/lib/marketplace-return';
 import { storeHomePath } from '@/lib/storefront';
 import { WhatsAppLeadButton } from '@/components/WhatsAppLeadButton';
+import { showsShopCheckout, showsWhatsappLead } from '@/lib/whatsapp-clicks';
 
 const apiBase = () => process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
@@ -465,26 +466,27 @@ function ProductContent() {
           </div>
 
           <div className="pt-6 mt-auto">
-            {product.listingMode === 'contact' ? (
-              product.whatsappLeadAvailable && !leadHidden ? (
-                <WhatsAppLeadButton
-                  productId={product._id}
-                  label="WhatsApp vendor"
-                  onUnavailable={() => setLeadHidden(true)}
-                  className="w-full h-14 rounded-2xl text-sm"
-                />
-              ) : (
-                <p className="text-center text-sm font-semibold text-slate-400 py-4">
-                  WhatsApp contact is paused until this vendor recharges.
-                </p>
-              )
-            ) : (
-            <div className="flex flex-col sm:flex-row gap-3">
-              <button onClick={handleBuyNow} disabled={soldOut} className="flex-1 h-14 bg-brand-lemon text-slate-900 font-black text-sm uppercase tracking-widest rounded-2xl hover:bg-brand-lemon-hover shadow-xl shadow-brand-lemon/20 transition-all disabled:opacity-50">
-                Buy Now
-              </button>
+            <div className="flex flex-col gap-3">
+              {showsWhatsappLead(product.listingMode) && (
+                product.whatsappLeadAvailable && !leadHidden ? (
+                  <WhatsAppLeadButton
+                    productId={product._id}
+                    label="WhatsApp vendor"
+                    onUnavailable={() => setLeadHidden(true)}
+                    className="w-full h-14 rounded-2xl text-sm"
+                  />
+                ) : !showsShopCheckout(product.listingMode) ? (
+                  <p className="text-center text-sm font-semibold text-slate-400 py-4">
+                    WhatsApp contact is paused until this vendor recharges.
+                  </p>
+                ) : null
+              )}
+              {showsShopCheckout(product.listingMode) && (
+                <button onClick={handleBuyNow} disabled={soldOut} className="w-full h-14 bg-brand-lemon text-slate-900 font-black text-sm uppercase tracking-widest rounded-2xl hover:bg-brand-lemon-hover shadow-xl shadow-brand-lemon/20 transition-all disabled:opacity-50">
+                  Buy Now
+                </button>
+              )}
             </div>
-            )}
           </div>
         </div>
       </section>

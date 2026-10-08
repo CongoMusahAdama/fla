@@ -21,6 +21,19 @@ export function accraDayKey(date = new Date()): string {
   }).format(date);
 }
 
-export function normalizeListingMode(value: unknown): 'shop' | 'contact' {
-  return value === 'contact' ? 'contact' : 'shop';
+export type ListingMode = 'shop' | 'contact' | 'both';
+
+export function normalizeListingMode(value: unknown): ListingMode {
+  return value === 'contact' || value === 'both' ? value : 'shop';
+}
+
+/** Cart and Buy now. Hidden only on a WhatsApp-only listing. */
+export function showsShopCheckout(mode: unknown): boolean {
+  return normalizeListingMode(mode) !== 'contact';
+}
+
+/** WhatsApp button, while the vendor still has clicks. */
+export function showsWhatsappLead(mode: unknown): boolean {
+  const listing = normalizeListingMode(mode);
+  return listing === 'contact' || listing === 'both';
 }

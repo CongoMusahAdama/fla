@@ -1,4 +1,10 @@
-import { clicksForAmount, normalizeListingMode, WHATSAPP_CLICK_PRICE_GHS } from './whatsapp-clicks.util';
+import {
+  clicksForAmount,
+  normalizeListingMode,
+  showsShopCheckout,
+  showsWhatsappLead,
+  WHATSAPP_CLICK_PRICE_GHS,
+} from './whatsapp-clicks.util';
 
 describe('clicksForAmount', () => {
   it('prices one click at 0.50', () => {
@@ -20,9 +26,19 @@ describe('clicksForAmount', () => {
 });
 
 describe('normalizeListingMode', () => {
-  it('keeps contact listings and treats everything else as shop', () => {
+  it('keeps contact and both, and treats everything else as shop', () => {
     expect(normalizeListingMode('contact')).toBe('contact');
+    expect(normalizeListingMode('both')).toBe('both');
     expect(normalizeListingMode('shop')).toBe('shop');
     expect(normalizeListingMode(undefined)).toBe('shop');
+  });
+
+  it('shows checkout and WhatsApp together only when both are selected', () => {
+    expect(showsShopCheckout('shop')).toBe(true);
+    expect(showsWhatsappLead('shop')).toBe(false);
+    expect(showsShopCheckout('contact')).toBe(false);
+    expect(showsWhatsappLead('contact')).toBe(true);
+    expect(showsShopCheckout('both')).toBe(true);
+    expect(showsWhatsappLead('both')).toBe(true);
   });
 });

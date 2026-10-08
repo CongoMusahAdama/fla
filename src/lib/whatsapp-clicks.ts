@@ -31,11 +31,27 @@ export function getWhatsappClickClientId(): string {
   }
 }
 
+export type ListingMode = 'shop' | 'contact' | 'both';
+
+export function listingModeFromApi(value: unknown): ListingMode {
+  return value === 'contact' || value === 'both' ? value : 'shop';
+}
+
+/** Cart and Buy now stay on shop listings and on listings that also offer WhatsApp. */
+export function showsShopCheckout(mode?: string | null): boolean {
+  return mode !== 'contact';
+}
+
+export function showsWhatsappLead(mode?: string | null): boolean {
+  return mode === 'contact' || mode === 'both';
+}
+
 export type WhatsappLeadResult = {
   available: boolean;
   url?: string;
   charged?: boolean;
   alreadyCounted?: boolean;
+  whatsappLeadAvailable?: boolean;
   message?: string;
 };
 

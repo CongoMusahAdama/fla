@@ -20,6 +20,7 @@ import {
 import { getStoreReturn, markStoreScrollRestore } from '@/lib/store-return';
 import { resolveStoreTheme } from '@/lib/store-theme';
 import { WhatsAppLeadButton } from '@/components/WhatsAppLeadButton';
+import { showsShopCheckout, showsWhatsappLead } from '@/lib/whatsapp-clicks';
 
 type ProductDetail = {
   _id: string;
@@ -38,7 +39,7 @@ type ProductDetail = {
   storeSlug?: string;
   region?: string;
   vendorLocation?: string;
-  listingMode?: 'shop' | 'contact';
+  listingMode?: 'shop' | 'contact' | 'both';
   whatsappLeadAvailable?: boolean;
 };
 
@@ -637,42 +638,43 @@ export default function StoreProductPage() {
             </div>
           )}
 
-          {product.listingMode === 'contact' ? (
-            <div className="pt-2">
-              {product.whatsappLeadAvailable && !leadHidden ? (
+          <div className="flex flex-col gap-3 pt-2">
+            {showsWhatsappLead(product.listingMode) && (
+              product.whatsappLeadAvailable && !leadHidden ? (
                 <WhatsAppLeadButton
                   productId={product._id}
                   label="WhatsApp vendor"
                   onUnavailable={() => setLeadHidden(true)}
                   className="w-full px-8 py-4 rounded-full text-[11px]"
                 />
-              ) : (
+              ) : !showsShopCheckout(product.listingMode) ? (
                 <p className="text-center text-sm font-semibold text-slate-400 py-4">
                   WhatsApp contact is paused until this vendor recharges.
                 </p>
-              )}
-            </div>
-          ) : (
-          <div className="flex flex-col sm:flex-row gap-3 pt-2">
-            <button
-              type="button"
-              disabled={soldOut || isAdding}
-              onClick={handleAddToCart}
-              className="flex-1 px-8 py-4 rounded-full text-slate-900 text-[11px] font-black uppercase tracking-widest hover:bg-black hover:text-white transition-all disabled:opacity-50"
-              style={{ backgroundColor: theme.accent }}
-            >
-              Add to cart
-            </button>
-            <button
-              type="button"
-              disabled={soldOut}
-              onClick={handleBuyNow}
-              className="flex-1 px-8 py-4 rounded-full bg-slate-900 text-white text-[11px] font-black uppercase tracking-widest hover:bg-black transition-all disabled:opacity-50"
-            >
-              Buy now
-            </button>
+              ) : null
+            )}
+            {showsShopCheckout(product.listingMode) && (
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button
+                  type="button"
+                  disabled={soldOut || isAdding}
+                  onClick={handleAddToCart}
+                  className="flex-1 px-8 py-4 rounded-full text-slate-900 text-[11px] font-black uppercase tracking-widest hover:bg-black hover:text-white transition-all disabled:opacity-50"
+                  style={{ backgroundColor: theme.accent }}
+                >
+                  Add to cart
+                </button>
+                <button
+                  type="button"
+                  disabled={soldOut}
+                  onClick={handleBuyNow}
+                  className="flex-1 px-8 py-4 rounded-full bg-slate-900 text-white text-[11px] font-black uppercase tracking-widest hover:bg-black transition-all disabled:opacity-50"
+                >
+                  Buy now
+                </button>
+              </div>
+            )}
           </div>
-          )}
 
           {navOrigin === 'marketplace' && (
             <Link

@@ -24,6 +24,7 @@ import { VendorProducts, Product } from '@/components/dashboard/VendorProducts';
 import { VendorOrders } from '@/components/dashboard/VendorOrders';
 import { VendorFinances } from '@/components/dashboard/VendorFinances';
 import { VendorClickCredits } from '@/components/dashboard/VendorClickCredits';
+import { listingModeFromApi, type ListingMode } from '@/lib/whatsapp-clicks';
 import { VendorSettings } from '@/components/dashboard/VendorSettings';
 import { VendorNotifications } from '@/components/dashboard/VendorNotifications';
 import { VendorHelp } from '@/components/dashboard/VendorHelp';
@@ -83,7 +84,7 @@ function VendorDashboardInner() {
     const [formName, setFormName] = useState('');
     const [formPrice, setFormPrice] = useState('');
     const [formCategory, setFormCategory] = useState('Electronics');
-    const [formListingMode, setFormListingMode] = useState<'shop' | 'contact'>('shop');
+    const [formListingMode, setFormListingMode] = useState<ListingMode>('shop');
     const [formQuantity, setFormQuantity] = useState('');
     const vendorProductCategories = PRODUCT_CATEGORIES.filter((c) => c !== 'All Product');
     const [formTailoring, setFormTailoring] = useState('');
@@ -1192,7 +1193,7 @@ function VendorDashboardInner() {
                                     setFormName(p.name);
                                     setFormPrice(p.price);
                                     setFormCategory(p.category);
-                                    setFormListingMode(p.listingMode === 'contact' ? 'contact' : 'shop');
+                                    setFormListingMode(listingModeFromApi(p.listingMode));
                                     setFormQuantity(p.quantity.toString());
                                     setFormTailoring(p.tailoringTime);
                                     setFormRegion(p.region);
@@ -1229,7 +1230,7 @@ function VendorDashboardInner() {
                             setFormName(p.name);
                             setFormPrice(p.price);
                             setFormCategory(p.category);
-                            setFormListingMode(p.listingMode === 'contact' ? 'contact' : 'shop');
+                            setFormListingMode(listingModeFromApi(p.listingMode));
                             setFormQuantity(p.quantity.toString());
                             setFormTailoring(p.tailoringTime);
                             setFormRegion(p.region);
@@ -1355,7 +1356,7 @@ function VendorDashboardInner() {
                 );
             case 'wallet': return (
                 <div className="space-y-8">
-                    <VendorClickCredits user={user} token={token} />
+                    <VendorClickCredits user={user} token={token} onUser={updateUser} />
                     <VendorFinances user={user} dashboardData={dashboardData} commissionRate={commissionRate} handleWithdrawal={handleWithdrawal} />
                 </div>
             );
@@ -1612,7 +1613,7 @@ function VendorDashboardInner() {
                             )}
                         </div>
                         <div className="mt-6">
-                            <VendorClickCredits user={user} token={token} />
+                            <VendorClickCredits user={user} token={token} onUser={updateUser} />
                         </div>
                         </>
                     )}
@@ -1768,30 +1769,37 @@ function VendorDashboardInner() {
 
                             <div className="space-y-3">
                                 <p className="text-[12px] font-black text-slate-900 uppercase tracking-widest ml-1">How customers buy</p>
+                                <p className="text-xs text-slate-500 ml-1">Tap one or both. Both stay on the product together.</p>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     <button
                                         type="button"
-                                        onClick={() => setFormListingMode('shop')}
-                                        className={`text-left p-4 rounded-2xl border ${formListingMode === 'shop' ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-slate-50 text-slate-700'}`}
+                                        onClick={() => setFormListingMode((prev) => {
+                                            const shopOn = prev !== 'contact';
+                                            const waOn = prev === 'contact' || prev === 'both';
+                                            if (shopOn && !waOn) return prev;
+                                            if (!shopOn && waOn) return 'both';
+                                            return 'contact';
+                                        })}
+                                        className={`text-left p-4 rounded-2xl border ${formListingMode !== 'contact' ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-slate-50 text-slate-700'}`}
                                     >
                                         <p className="text-[11px] font-black uppercase tracking-widest">Shop listing</p>
-                                        <p className={`text-xs mt-1 leading-relaxed ${formListingMode === 'shop' ? 'text-white/70' : 'text-slate-500'}`}>
+                                        <p className={`text-xs mt-1 leading-relaxed ${formListingMode !== 'contact' ? 'text-white/70' : 'text-slate-500'}`}>
                                             Add to cart and Buy now. Payment stays on FLA.
                                         </p>
                                     </button>
                                     <button
                                         type="button"
-                                        onClick={() => {
-                                            setFormListingMode('contact');
-                                            if (!editingProduct) {
-                                                setFormHasSizes(false);
-                                                setFormHasColors(false);
-                                            }
-                                        }}
-                                        className={`text-left p-4 rounded-2xl border ${formListingMode === 'contact' ? 'border-[#128C7E] bg-[#25D366] text-white' : 'border-slate-200 bg-slate-50 text-slate-700'}`}
+                                        onClick={() => setFormListingMode((prev) => {
+                                            const shopOn = prev !== 'contact';
+                                            const waOn = prev === 'contact' || prev === 'both';
+                                            if (waOn && !shopOn) return prev;
+                                            if (!waOn && shopOn) return 'both';
+                                            return 'shop';
+                                        })}
+                                        className={`text-left p-4 rounded-2xl border ${formListingMode === 'contact' || formListingMode === 'both' ? 'border-[#128C7E] bg-[#25D366] text-white' : 'border-slate-200 bg-slate-50 text-slate-700'}`}
                                     >
                                         <p className="text-[11px] font-black uppercase tracking-widest">WhatsApp listing</p>
-                                        <p className={`text-xs mt-1 leading-relaxed ${formListingMode === 'contact' ? 'text-white/80' : 'text-slate-500'}`}>
+                                        <p className={`text-xs mt-1 leading-relaxed ${formListingMode === 'contact' || formListingMode === 'both' ? 'text-white/80' : 'text-slate-500'}`}>
                                             Customers open your WhatsApp. Each tap costs GHS 0.50 from your click balance.
                                         </p>
                                     </button>

@@ -101,6 +101,7 @@ export class AuthService {
       subscriptionPaymentRequired: Boolean(user.subscriptionPaymentRequired),
       subscriptionLastPaidAt: user.subscriptionLastPaidAt,
       walletBalance: user.walletBalance,
+      whatsappClickBalance: Number(user.whatsappClickBalance || 0),
       pendingBalance: user.pendingBalance,
       ghanaCardFront: user.ghanaCardFront,
       ghanaCardBack: user.ghanaCardBack,

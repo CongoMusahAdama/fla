@@ -22,9 +22,9 @@ export class CreateProductDto {
     category: string;
 
     /** shop keeps cart and Buy now. contact shows WhatsApp instead. */
-    @IsIn(['shop', 'contact'])
+    @IsIn(['shop', 'contact', 'both'])
     @IsOptional()
-    listingMode?: 'shop' | 'contact';
+    listingMode?: 'shop' | 'contact' | 'both';
 
     @IsArray()
     @IsString({ each: true })

@@ -20,6 +20,7 @@ import {
 
 import Swal from 'sweetalert2';
 import { WhatsAppLeadButton } from '@/components/WhatsAppLeadButton';
+import { showsShopCheckout, showsWhatsappLead } from '@/lib/whatsapp-clicks';
 
 interface ProductCardProps {
     id: string;
@@ -50,7 +51,7 @@ interface ProductCardProps {
     colorStock?: Record<string, number>;
     sizeStock?: Record<string, number>;
     variantStock?: Record<string, number>;
-    listingMode?: 'shop' | 'contact';
+    listingMode?: 'shop' | 'contact' | 'both';
     whatsappLeadAvailable?: boolean;
 }
 
@@ -75,14 +76,15 @@ export default React.memo(function ProductCard({ id, name, price, images, sizes 
     const { addToCart } = useCart();
     const { isAuthenticated, user, token } = useAuth();
     const [isWishlisted, setIsWishlisted] = useState(initialWishlistState);
-    const isContactListing = listingMode === 'contact';
+    const showShop = showsShopCheckout(listingMode);
+    const showWhatsapp = showsWhatsappLead(listingMode);
     const [leadAvailable, setLeadAvailable] = useState(
-        isContactListing && whatsappLeadAvailable !== false && Boolean(whatsappLeadAvailable),
+        showWhatsapp && whatsappLeadAvailable !== false && Boolean(whatsappLeadAvailable),
     );
     const [imgError, setImgError] = useState(false);
 
     useEffect(() => {
-        if (!isContactListing) return;
+        if (!showWhatsapp) return;
         if (typeof whatsappLeadAvailable === 'boolean') {
             setLeadAvailable(whatsappLeadAvailable);
             return;
@@ -102,7 +104,7 @@ export default React.memo(function ProductCard({ id, name, price, images, sizes 
         return () => {
             cancelled = true;
         };
-    }, [id, isContactListing, whatsappLeadAvailable]);
+    }, [id, showWhatsapp, whatsappLeadAvailable]);
     const router = useRouter();
 
     const vendorDocStatus =
@@ -997,20 +999,7 @@ export default React.memo(function ProductCard({ id, name, price, images, sizes 
                         >
                             Learn More
                         </button>
-                        {isContactListing ? (
-                            leadAvailable ? (
-                                <WhatsAppLeadButton
-                                    productId={id}
-                                    label="WhatsApp"
-                                    onUnavailable={() => setLeadAvailable(false)}
-                                    className="w-full py-2.5 px-3 rounded-full text-[10px] touch-manipulation relative z-50 !cursor-pointer !pointer-events-auto"
-                                />
-                            ) : (
-                                <span className="flex items-center justify-center py-2.5 px-3 rounded-full bg-slate-100 text-slate-400 text-[10px] font-bold">
-                                    Chat paused
-                                </span>
-                            )
-                        ) : (
+                        {showShop && (
                         <button
                             onClick={handleBuyNow}
                             disabled={checkoutChecking || selectionStock <= 0 || (stock ?? 0) <= 0}
@@ -1018,6 +1007,20 @@ export default React.memo(function ProductCard({ id, name, price, images, sizes 
                         >
                             {checkoutChecking ? 'Checking…' : (selectionStock <= 0 || (stock ?? 0) <= 0) ? 'Sold Out' : 'Quick Checkout'}
                         </button>
+                        )}
+                        {showWhatsapp && (
+                            leadAvailable ? (
+                                <WhatsAppLeadButton
+                                    productId={id}
+                                    label="WhatsApp"
+                                    onUnavailable={() => setLeadAvailable(false)}
+                                    className="w-full py-2.5 px-3 rounded-full text-[10px] touch-manipulation relative z-50 !cursor-pointer !pointer-events-auto sm:col-span-2"
+                                />
+                            ) : !showShop ? (
+                                <span className="flex items-center justify-center py-2.5 px-3 rounded-full bg-slate-100 text-slate-400 text-[10px] font-bold">
+                                    Chat paused
+                                </span>
+                            ) : null
                         )}
                     </div>
                 </div>
@@ -1314,38 +1317,41 @@ export default React.memo(function ProductCard({ id, name, price, images, sizes 
                             </div>
 
                             <div className="shrink-0 p-5 md:p-6 border-t border-slate-100 bg-white flex gap-3">
-                                {isContactListing ? (
-                                    leadAvailable ? (
-                                        <WhatsAppLeadButton
-                                            productId={id}
-                                            label="WhatsApp vendor"
-                                            onUnavailable={() => setLeadAvailable(false)}
-                                            className="flex-1 h-12 rounded-full text-sm"
-                                        />
-                                    ) : (
-                                        <p className="flex-1 text-center text-sm font-semibold text-slate-400 py-3">
-                                            WhatsApp contact is paused until this vendor recharges.
-                                        </p>
-                                    )
-                                ) : (
-                                    <>
-                                <button
-                                    onClick={handleAddToCart}
-                                    disabled={isAdding || stock <= 0}
-                                    className="flex-1 h-12 rounded-full border border-slate-300 text-sm font-semibold text-slate-900 hover:bg-slate-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
-                                >
-                                    <ShoppingBag className="w-4 h-4" />
-                                    {isAdding ? 'Adding…' : 'Add to bag'}
-                                </button>
-                                <button
-                                    onClick={handleBuyNow}
-                                    disabled={stock <= 0}
-                                    className="flex-[1.2] h-12 rounded-full bg-slate-900 text-white text-sm font-semibold hover:bg-black transition-colors disabled:opacity-50"
-                                >
-                                    Buy now
-                                </button>
-                                    </>
-                                )}
+                                <div className="flex flex-1 flex-col gap-3">
+                                    {showWhatsapp && (
+                                        leadAvailable ? (
+                                            <WhatsAppLeadButton
+                                                productId={id}
+                                                label="WhatsApp vendor"
+                                                onUnavailable={() => setLeadAvailable(false)}
+                                                className="w-full h-12 rounded-full text-sm"
+                                            />
+                                        ) : !showShop ? (
+                                            <p className="text-center text-sm font-semibold text-slate-400 py-3">
+                                                WhatsApp contact is paused until this vendor recharges.
+                                            </p>
+                                        ) : null
+                                    )}
+                                    {showShop && (
+                                        <div className="flex gap-3">
+                                            <button
+                                                onClick={handleAddToCart}
+                                                disabled={isAdding || stock <= 0}
+                                                className="flex-1 h-12 rounded-full border border-slate-300 text-sm font-semibold text-slate-900 hover:bg-slate-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                                            >
+                                                <ShoppingBag className="w-4 h-4" />
+                                                {isAdding ? 'Adding…' : 'Add to bag'}
+                                            </button>
+                                            <button
+                                                onClick={handleBuyNow}
+                                                disabled={stock <= 0}
+                                                className="flex-[1.2] h-12 rounded-full bg-slate-900 text-white text-sm font-semibold hover:bg-black transition-colors disabled:opacity-50"
+                                            >
+                                                Buy now
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </div>
