@@ -12,7 +12,7 @@ import { useAuth } from '@/context/AuthContext';
 import { getMarketplaceReturn, getProductNavOrigin, markMarketplaceScrollRestore } from '@/lib/marketplace-return';
 import { storeHomePath } from '@/lib/storefront';
 import { WhatsAppLeadButton } from '@/components/WhatsAppLeadButton';
-import { showsShopCheckout, showsWhatsappLead } from '@/lib/whatsapp-clicks';
+import { notifyVendorWhatsappPaused, showsShopCheckout, showsWhatsappLead } from '@/lib/whatsapp-clicks';
 
 const apiBase = () => process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
@@ -472,7 +472,10 @@ function ProductContent() {
                   <WhatsAppLeadButton
                     productId={product._id}
                     label="WhatsApp vendor"
-                    onUnavailable={() => setLeadHidden(true)}
+                    onUnavailable={() => {
+                      setLeadHidden(true);
+                      notifyVendorWhatsappPaused(vendorIdStr);
+                    }}
                     className="w-full h-14 rounded-2xl text-sm"
                   />
                 ) : !showsShopCheckout(product.listingMode) ? (

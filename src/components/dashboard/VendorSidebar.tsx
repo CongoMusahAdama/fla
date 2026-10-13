@@ -30,7 +30,7 @@ export const VendorSidebar: React.FC<VendorSidebarProps> = ({
     { id: 'dashboard', label: 'Overview', icon: LayoutDashboard },
     { id: 'products', label: 'Manage Your Shop', icon: ShoppingBag },
     { id: 'orders', label: 'Order Ledger', icon: Eye },
-    { id: 'wallet', label: 'Payouts & Ledger', icon: Wallet },
+    { id: 'wallet', label: 'WhatsApp clicks', icon: Wallet },
     { id: 'reviews', label: 'Customer Feedback', icon: Star },
     { id: 'notifications', label: 'Alert Center', icon: Bell },
     { id: 'settings', label: limitedMode ? 'Fix Application' : 'Studio Identity', icon: Settings },

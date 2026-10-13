@@ -224,11 +224,9 @@ export const VendorProducts: React.FC<VendorProductsProps> = ({
             <div className="space-y-3">
               <div className="space-y-1">
                 <h3 className="font-black text-slate-900 text-xs uppercase tracking-tight truncate pr-4">{product.name}</h3>
-                {(product.listingMode === 'contact' || product.listingMode === 'both') && (
-                  <p className="text-[9px] font-black uppercase tracking-widest text-[#128C7E]">
-                    {product.listingMode === 'both' ? 'Shop + WhatsApp' : 'WhatsApp listing'}
-                  </p>
-                )}
+                <p className="text-[9px] font-black uppercase tracking-widest text-[#128C7E]">
+                  WhatsApp on every listing
+                </p>
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-black text-slate-900">GH₵ {product.price}</p>
                   <span className={`text-[9px] font-black px-2.5 py-1 rounded-full uppercase tracking-tighter ${

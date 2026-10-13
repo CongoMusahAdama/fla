@@ -7,7 +7,7 @@ export const VendorHelp: React.FC = () => {
   const guides = [
     { title: 'Processing Orders', icon: Package, desc: 'How to handle new customer requests and manifest generation.' },
     { title: 'Global Logistics', icon: Truck, desc: 'Skynet delivery is arranged off-platform — coordinate costs directly with customers.' },
-    { title: 'Earnings & Payouts', icon: Wallet, desc: 'Revenue cycles, split payouts, and MoMo withdrawals.' },
+    { title: 'WhatsApp clicks', icon: Wallet, desc: 'Free starter clicks, then recharge so customers can message you.' },
     { title: 'Verified Status', icon: ShieldCheck, desc: 'Becoming a Master Artisan and building brand trust.' },
   ];
 

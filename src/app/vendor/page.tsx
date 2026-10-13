@@ -1,9 +1,9 @@
 "use client";
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-    LayoutDashboard, Package, ShoppingBag, Wallet, Star,
+    LayoutDashboard, Package, ShoppingBag, Star,
     Bell, User, HelpCircle, LogOut, Plus, Search,
-    Menu, X, ChevronRight, ArrowUpRight, TrendingUp,
+    Menu, X, ChevronRight, ArrowUpRight,
     Clock, CheckCircle2, ShieldAlert, MessageSquare, Truck,
     Image as ImageIcon, Edit2, Trash2, Camera, UploadCloud,
     Eye, EyeOff, ArrowLeft, Printer, MapPin, Copy, FileText
@@ -22,7 +22,6 @@ import { VendorHeader, VendorMobileHeader } from '@/components/dashboard/VendorH
 import { VendorStatsGrid } from '@/components/dashboard/VendorStatsGrid';
 import { VendorProducts, Product } from '@/components/dashboard/VendorProducts';
 import { VendorOrders } from '@/components/dashboard/VendorOrders';
-import { VendorFinances } from '@/components/dashboard/VendorFinances';
 import { VendorClickCredits } from '@/components/dashboard/VendorClickCredits';
 import { listingModeFromApi, type ListingMode } from '@/lib/whatsapp-clicks';
 import { VendorSettings } from '@/components/dashboard/VendorSettings';
@@ -75,8 +74,6 @@ function VendorDashboardInner() {
     const [vendorProductsTotalPages, setVendorProductsTotalPages] = useState(1);
     const [vendorProductsLoading, setVendorProductsLoading] = useState(false);
     const [selectedOrder, setSelectedOrder] = useState<any>(null);
-    const [commissionRate, setCommissionRate] = useState(3);
-    const [withdrawalMin, setWithdrawalMin] = useState(50);
     const [printingOrder, setPrintingOrder] = useState<any>(null);
 
     // Form States
@@ -92,8 +89,8 @@ function VendorDashboardInner() {
     const [formNarrative, setFormNarrative] = useState('');
     const [formImages, setFormImages] = useState<string[]>([]);
     const [formSizes, setFormSizes] = useState<string[]>([]);
-    const [formHasSizes, setFormHasSizes] = useState(true);
-    const [formHasColors, setFormHasColors] = useState(true);
+    const [formHasSizes, setFormHasSizes] = useState(false);
+    const [formHasColors, setFormHasColors] = useState(false);
     const [formColors, setFormColors] = useState<string[]>([]);
     const [formColorStock, setFormColorStock] = useState<Record<string, string>>({});
     const [formSizeStock, setFormSizeStock] = useState<Record<string, string>>({});
@@ -495,11 +492,9 @@ function VendorDashboardInner() {
                     fetch(`${api}/dashboard/vendor/stats`, { headers: { 'Authorization': `Bearer ${token}` }, credentials: 'include' }),
                     fetch(`${api}/orders/vendor-orders?page=1&limit=500`, { headers: { 'Authorization': `Bearer ${token}` }, credentials: 'include' }),
                     fetch(`${api}/notifications/my-notifications`, { headers: { 'Authorization': `Bearer ${token}` }, credentials: 'include' }),
-                    fetch(`${api}/payments/withdrawals/my-history`, { headers: { 'Authorization': `Bearer ${token}` }, credentials: 'include' }),
-                    fetch(`${api}/settings`, { headers: { 'Authorization': `Bearer ${token}` }, credentials: 'include' })
                 ]);
 
-                const [statsRes, ordsRes, notifsRes, withdrawalsRes, settingsRes] = results;
+                const [statsRes, ordsRes, notifsRes] = results;
 
                 if (statsRes.status === 'fulfilled' && statsRes.value.ok) {
                     setDashboardData(await statsRes.value.json());
@@ -514,16 +509,6 @@ function VendorDashboardInner() {
                     setNotifications(await notifsRes.value.json());
                 }
 
-                if (withdrawalsRes.status === 'fulfilled' && withdrawalsRes.value.ok) {
-                    const w = await withdrawalsRes.value.json();
-                    setDashboardData((prev: any) => ({ ...prev, withdrawalHistory: w }));
-                }
-
-                if (settingsRes.status === 'fulfilled' && settingsRes.value.ok) {
-                    const s = await settingsRes.value.json();
-                   if (s.platform_commission) setCommissionRate(Number(s.platform_commission));
-                   if (s.withdrawal_minimum) setWithdrawalMin(Number(s.withdrawal_minimum));
-                }
             } catch (err) {
                 console.error("Data Sync Failure:", err);
             } finally {
@@ -712,42 +697,6 @@ function VendorDashboardInner() {
                     text: err.message || 'The server could not process the removal.',
                     customClass: { popup: 'rounded-[32px]' }
                 });
-            }
-        }
-    };
-
-    const handleWithdrawal = async () => {
-        const bal = user?.walletBalance || 0;
-        if (bal < withdrawalMin) {
-            Swal.fire({ icon: 'info', title: 'BALANCE TOO LOW', text: `Minimum GH₵ ${withdrawalMin} required.` });
-            return;
-        }
-
-        const { value: amount } = await Swal.fire({
-            title: 'PAYOUT REQUEST',
-            input: 'number',
-            inputValue: bal,
-            inputLabel: 'Amount (GH₵)',
-            showCancelButton: true,
-            confirmButtonText: 'WITHDRAW',
-            customClass: { popup: 'rounded-[32px]' }
-        });
-
-        if (amount && parseFloat(amount) <= bal) {
-            try {
-                const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-                await fetch(`${api}/payments/withdrawals/request`, {
-                    method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    credentials: 'include',
-                    body: JSON.stringify({ amount: parseFloat(amount), paymentMethod: 'momo' })
-                });
-                Swal.fire({ icon: 'success', title: 'REQUEST RECEIVED', customClass: { popup: 'rounded-[32px]' } });
-            } catch (err) {
-                Swal.fire('Error', 'Request failed.', 'error');
             }
         }
     };
@@ -996,8 +945,8 @@ function VendorDashboardInner() {
         setFormNarrative('');
         setFormImages([]);
         setFormSizes([]);
-        setFormHasSizes(true);
-        setFormHasColors(true);
+        setFormHasSizes(false);
+        setFormHasColors(false);
         setFormColors([]);
         setFormColorStock({});
         setFormSizeStock({});
@@ -1354,7 +1303,6 @@ function VendorDashboardInner() {
             case 'wallet': return (
                 <div className="space-y-8">
                     <VendorClickCredits user={user} token={token} onUser={updateUser} />
-                    <VendorFinances user={user} dashboardData={dashboardData} commissionRate={commissionRate} handleWithdrawal={handleWithdrawal} />
                 </div>
             );
             case 'settings': return <VendorSettings user={user} shopName={shopName} setShopName={setShopName} storeCategory={storeCategory} setStoreCategory={setStoreCategory} storeAccentColor={storeAccentColor} setStoreAccentColor={setStoreAccentColor} storeThemeColor={storeThemeColor} setStoreThemeColor={setStoreThemeColor} phone={phone} setPhone={setPhone} momoNumber={momoNumber} setMomoNumber={setMomoNumber} momoNetwork={momoNetwork} setMomoNetwork={setMomoNetwork} accountName={accountName} setAccountName={setAccountName} shopLocation={shopLocation} setShopLocation={setShopLocation} bio={bio} setBio={setBio} bannerImage={bannerImage} profileImage={profileImage} businessRegistration={businessRegistration} ghanaCardFront={ghanaCardFront} ghanaCardBack={ghanaCardBack} selfie={selfie} handleImageUpload={handleImageUpload} handleUpdateVendorProfile={handleUpdateVendorProfile} startOnDocuments={needsKycUpload} />;
@@ -1725,42 +1673,16 @@ function VendorDashboardInner() {
                                     <input id="p-name" name="name" type="text" placeholder="e.g. Traditional Smock" value={formName} onChange={(e) => setFormName(e.target.value)} className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-slate-900/10 h-14" />
                                 </div>
                                 <div className="space-y-4">
-                                    <div className="flex justify-between items-center">
-                                        <label htmlFor="p-price" className="text-[12px] font-black text-slate-900 uppercase tracking-widest ml-1 cursor-pointer">Price (GH₵)</label>
-                                        {formPrice && (
-                                            <span className="text-[9px] font-black text-emerald-500 uppercase tracking-tighter">
-                                                Net: GH₵ {(parseFloat(formPrice) * (1 - commissionRate / 100)).toLocaleString()}
-                                            </span>
-                                        )}
-                                    </div>
-                                    <div className="relative group">
-                                        <input 
-                                            id="p-price" 
-                                            name="price" 
-                                            type="number" 
-                                            placeholder="0.00" 
-                                            value={formPrice} 
-                                            onChange={(e) => setFormPrice(e.target.value)} 
-                                            className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-slate-900/10 h-14" 
-                                        />
-                                        {formPrice && (
-                                            <div className="absolute right-4 top-[52px] bg-slate-900 text-white p-4 rounded-2xl shadow-2xl border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none w-48">
-                                                <div className="flex justify-between text-[8px] font-black uppercase tracking-widest mb-2 border-b border-white/10 pb-1">
-                                                    <span>Breakdown</span>
-                                                </div>
-                                                <div className="space-y-1.5">
-                                                    <div className="flex justify-between text-[10px] items-center">
-                                                        <span className="text-slate-400">Admin ({commissionRate}%):</span>
-                                                        <span className="text-red-400 font-bold">-GH₵ {(parseFloat(formPrice) * (commissionRate / 100)).toFixed(2)}</span>
-                                                    </div>
-                                                    <div className="flex justify-between text-[10px] items-center border-t border-white/5 pt-1.5">
-                                                        <span className="text-slate-400">Vendor Share:</span>
-                                                        <span className="text-emerald-400 font-black">GH₵ {(parseFloat(formPrice) * (1 - commissionRate / 100)).toFixed(2)}</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
+                                    <label htmlFor="p-price" className="text-[12px] font-black text-slate-900 uppercase tracking-widest ml-1 cursor-pointer">Price (GH₵)</label>
+                                    <input 
+                                        id="p-price" 
+                                        name="price" 
+                                        type="number" 
+                                        placeholder="0.00" 
+                                        value={formPrice} 
+                                        onChange={(e) => setFormPrice(e.target.value)} 
+                                        className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-slate-900/10 h-14" 
+                                    />
                                 </div>
                             </div>
 

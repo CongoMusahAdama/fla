@@ -20,7 +20,7 @@ import {
 
 import Swal from 'sweetalert2';
 import { WhatsAppLeadButton } from '@/components/WhatsAppLeadButton';
-import { showsShopCheckout, showsWhatsappLead } from '@/lib/whatsapp-clicks';
+import { isVendorWhatsappPaused, notifyVendorWhatsappPaused, showsShopCheckout, showsWhatsappLead, subscribeVendorWhatsappPaused } from '@/lib/whatsapp-clicks';
 
 interface ProductCardProps {
     id: string;
@@ -79,12 +79,20 @@ export default React.memo(function ProductCard({ id, name, price, images, sizes 
     const showShop = showsShopCheckout(listingMode);
     const showWhatsapp = showsWhatsappLead(listingMode);
     const [leadAvailable, setLeadAvailable] = useState(
-        showWhatsapp && whatsappLeadAvailable !== false && Boolean(whatsappLeadAvailable),
+        showWhatsapp && whatsappLeadAvailable === true && !isVendorWhatsappPaused(vendorId),
     );
     const [imgError, setImgError] = useState(false);
 
     useEffect(() => {
+        return subscribeVendorWhatsappPaused(vendorId, () => setLeadAvailable(false));
+    }, [vendorId]);
+
+    useEffect(() => {
         if (!showWhatsapp) return;
+        if (isVendorWhatsappPaused(vendorId)) {
+            setLeadAvailable(false);
+            return;
+        }
         if (typeof whatsappLeadAvailable === 'boolean') {
             setLeadAvailable(whatsappLeadAvailable);
             return;
@@ -1013,7 +1021,10 @@ export default React.memo(function ProductCard({ id, name, price, images, sizes 
                                 <WhatsAppLeadButton
                                     productId={id}
                                     label="WhatsApp"
-                                    onUnavailable={() => setLeadAvailable(false)}
+                                    onUnavailable={() => {
+                                        setLeadAvailable(false);
+                                        notifyVendorWhatsappPaused(vendorId);
+                                    }}
                                     className="w-full py-2.5 px-3 rounded-full text-[10px] touch-manipulation relative z-50 !cursor-pointer !pointer-events-auto sm:col-span-2"
                                 />
                             ) : !showShop ? (
@@ -1323,7 +1334,10 @@ export default React.memo(function ProductCard({ id, name, price, images, sizes 
                                             <WhatsAppLeadButton
                                                 productId={id}
                                                 label="WhatsApp vendor"
-                                                onUnavailable={() => setLeadAvailable(false)}
+                                                onUnavailable={() => {
+                                                    setLeadAvailable(false);
+                                                    notifyVendorWhatsappPaused(vendorId);
+                                                }}
                                                 className="w-full h-12 rounded-full text-sm"
                                             />
                                         ) : !showShop ? (

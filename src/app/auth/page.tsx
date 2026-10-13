@@ -297,7 +297,10 @@ export const RegisterForm = ({
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+    const [turnstileFailed, setTurnstileFailed] = useState(false);
     const turnstileRef = useRef<TurnstileInstance | null>(null);
+    const verificationRef = useRef<HTMLDivElement | null>(null);
+    const turnstileSiteKey = process.env.NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY || '';
     const [step, setStep] = useState(1);
 
     useEffect(() => {
@@ -443,23 +446,9 @@ export const RegisterForm = ({
             return;
         }
 
-        if (role === 'customer' && !turnstileToken) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Security check',
-                text: 'Please complete the verification checkbox before continuing.',
-                confirmButtonColor: '#0f172a',
-            });
-            return;
-        }
-
-        if (role === 'vendor' && !turnstileToken) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Security check',
-                text: 'Please complete the verification checkbox before creating your shop.',
-                confirmButtonColor: '#F9CF5A',
-            });
+        if (!turnstileToken) {
+            setTurnstileFailed(true);
+            verificationRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
             return;
         }
 
@@ -616,20 +605,6 @@ export const RegisterForm = ({
                                 <div className={`flex-1 h-1 rounded-full transition-all ${hasSpecialChar ? 'bg-emerald-500' : 'bg-slate-100'}`} />
                             </div>
                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">8+ Chars • Upper & Lower • 1 Number • 1 Special</p>
-                            
-                            {role === 'customer' && (
-                                <div className="pt-4 flex justify-center">
-                                    <Turnstile
-                                        key={`customer-ts-${turnstileResetKey}`}
-                                        ref={turnstileRef}
-                                        siteKey={process.env.NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY || ''}
-                                        onSuccess={(token) => setTurnstileToken(token)}
-                                        onExpire={() => setTurnstileToken(null)}
-                                        onError={() => setTurnstileToken(null)}
-                                        options={{ theme: 'light', size: 'normal' }}
-                                    />
-                                </div>
-                            )}
                         </div>
                     </div>
                 );
@@ -977,10 +952,42 @@ export const RegisterForm = ({
                 </div>
             </div>
 
-            <div className="flex flex-col rounded-xl border border-slate-200 bg-white overflow-hidden">
+            <div className="flex flex-col rounded-xl border border-slate-200 bg-white">
                 <div className="p-4 sm:p-5">
                     {renderStepContent()}
                 </div>
+
+                {step === totalSteps && (
+                    <div ref={verificationRef} className="px-4 sm:px-5 pt-4 pb-2 border-t border-slate-100 bg-slate-50">
+                        <p className="text-xs font-bold text-slate-800 text-center mb-3">Tick the box, then tap Sign Up</p>
+                        {turnstileSiteKey ? (
+                            <div className="w-full max-w-[300px] mx-auto min-h-[70px]">
+                                <Turnstile
+                                    key={`${role}-ts-${turnstileResetKey}`}
+                                    ref={turnstileRef}
+                                    siteKey={turnstileSiteKey}
+                                    onSuccess={(token) => {
+                                        setTurnstileToken(token);
+                                        setTurnstileFailed(false);
+                                    }}
+                                    onExpire={() => setTurnstileToken(null)}
+                                    onError={() => {
+                                        setTurnstileToken(null);
+                                        setTurnstileFailed(true);
+                                    }}
+                                    options={{ theme: 'light', size: 'flexible' }}
+                                />
+                            </div>
+                        ) : null}
+                        {turnstileFailed && (
+                            <p className="text-xs text-center text-rose-600 mt-2">
+                                {turnstileSiteKey
+                                    ? 'Tick the verification box above, then tap Sign Up.'
+                                    : 'Verification did not load. Refresh the page and try again.'}
+                            </p>
+                        )}
+                    </div>
+                )}
 
                 <div className="shrink-0 bg-white px-4 sm:px-5 py-3.5 border-t border-slate-100 flex gap-3 z-10">
                     {step > 1 && (
@@ -1627,19 +1634,15 @@ function AuthContent() {
                                 <ul className="space-y-3.5 text-sm text-slate-800/85 leading-relaxed">
                                     <li className="flex gap-3">
                                         <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-blue" />
-                                        <span>Start with basics: <strong className="font-medium text-slate-900">logo</strong>, shop name, and MoMo — you get dashboard access right away.</span>
+                                        <span>Your shop is live as soon as you sign up. Add the <strong className="font-medium text-slate-900">logo and shop name</strong> later in Studio Identity.</span>
                                     </li>
                                     <li className="flex gap-3">
                                         <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-blue" />
-                                        <span>Forgot documents? Upload <strong className="font-medium text-slate-900">Ghana Card + selfie</strong> later in Settings when ready.</span>
+                                        <span>Every product shows WhatsApp while you still have clicks. At zero, it comes off all of them together.</span>
                                     </li>
                                     <li className="flex gap-3">
                                         <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-blue" />
-                                        <span>Explore your studio first — <strong className="font-medium text-slate-900">selling unlocks</strong> after KYC approval (usually 4–5 hours).</span>
-                                    </li>
-                                    <li className="flex gap-3">
-                                        <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-blue" />
-                                        <span><strong className="font-medium text-slate-900">Free sales access</strong> — once your documents are approved, uploads unlock at no cost, for good.</span>
+                                        <span>You start with <strong className="font-medium text-slate-900">5 free clicks</strong>, then recharge from the dashboard.</span>
                                     </li>
                                 </ul>
                                 <p className="pt-1 text-sm text-slate-800/60">

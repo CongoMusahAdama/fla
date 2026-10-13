@@ -20,7 +20,7 @@ import {
 import { getStoreReturn, markStoreScrollRestore } from '@/lib/store-return';
 import { resolveStoreTheme } from '@/lib/store-theme';
 import { WhatsAppLeadButton } from '@/components/WhatsAppLeadButton';
-import { showsShopCheckout, showsWhatsappLead } from '@/lib/whatsapp-clicks';
+import { notifyVendorWhatsappPaused, showsShopCheckout, showsWhatsappLead } from '@/lib/whatsapp-clicks';
 
 type ProductDetail = {
   _id: string;
@@ -644,7 +644,10 @@ export default function StoreProductPage() {
                 <WhatsAppLeadButton
                   productId={product._id}
                   label="WhatsApp vendor"
-                  onUnavailable={() => setLeadHidden(true)}
+                  onUnavailable={() => {
+                    setLeadHidden(true);
+                    notifyVendorWhatsappPaused(vendorIdStr);
+                  }}
                   className="w-full px-8 py-4 rounded-full text-[11px]"
                 />
               ) : !showsShopCheckout(product.listingMode) ? (

@@ -18,6 +18,8 @@ import { resolveStoreTheme, storeThemeStyle } from '@/lib/store-theme';
 import { useProductCategories } from '@/hooks/useProductCategories';
 import { useCart } from '@/context/CartContext';
 import Footer from '@/components/Footer';
+import { WhatsAppLeadButton } from '@/components/WhatsAppLeadButton';
+import { isVendorWhatsappPaused, notifyVendorWhatsappPaused, subscribeVendorWhatsappPaused } from '@/lib/whatsapp-clicks';
 
 const CATEGORY_DROPDOWN_PANEL =
   'z-[70] bg-white shadow-2xl border border-gray-100 transition-all duration-200 ' +
@@ -54,6 +56,7 @@ type StoreProduct = {
   images?: string[];
   stock?: number;
   tailoringTime?: string;
+  whatsappLeadAvailable?: boolean;
 };
 
 const apiBase = () => process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
@@ -73,6 +76,7 @@ export default function VendorStorePage() {
   const [activeCategory, setActiveCategory] = useState('All Product');
   const [categoryOpen, setCategoryOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [leadsClosed, setLeadsClosed] = useState(false);
 
   // Instant restore when returning from a product (avoids full reload flash)
   useEffect(() => {
@@ -237,6 +241,17 @@ export default function VendorStorePage() {
     activeCategory !== 'All Product'
       ? activeCategory
       : 'All products';
+  useEffect(() => {
+    return subscribeVendorWhatsappPaused(vendor?._id, () => setLeadsClosed(true));
+  }, [vendor?._id]);
+
+  const anyLeadOpen = products.some((p) => p.whatsappLeadAvailable === true);
+  const anyLeadClosed = products.some((p) => p.whatsappLeadAvailable === false);
+  const leadsOpen =
+    !leadsClosed &&
+    !isVendorWhatsappPaused(vendor?._id) &&
+    (anyLeadOpen || !anyLeadClosed);
+
   const location = getVendorDisplayLocation({
     location: vendor?.location,
     region: vendor?.region,
@@ -514,13 +529,16 @@ export default function VendorStorePage() {
             {filteredProducts.map((product, i) => {
               const soldOut = (product.stock ?? 0) <= 0;
               return (
-                <Link
+                <div
                   key={product._id}
-                  href={storeProductPath(slug, product._id)}
                   data-product-id={product._id}
-                  onClick={() => saveStoreReturn(slug, product._id)}
-                  className="group bg-white rounded-3xl border border-slate-100 p-3 md:p-4 hover:shadow-xl hover:border-slate-200 transition-all duration-500"
+                  className="group bg-white rounded-3xl border border-slate-100 p-3 md:p-4 hover:shadow-xl hover:border-slate-200 transition-all duration-500 flex flex-col"
                   style={{ animationDelay: `${i * 40}ms` }}
+                >
+                <Link
+                  href={storeProductPath(slug, product._id)}
+                  onClick={() => saveStoreReturn(slug, product._id)}
+                  className="block"
                 >
                   <div className="relative aspect-[4/5] bg-[#F7F7F7] rounded-2xl overflow-hidden mb-4">
                     <Image
@@ -565,6 +583,22 @@ export default function VendorStorePage() {
                     </p>
                   )}
                 </Link>
+                  {leadsOpen ? (
+                    <WhatsAppLeadButton
+                      productId={product._id}
+                      label="WhatsApp"
+                      onUnavailable={() => {
+                        setLeadsClosed(true);
+                        notifyVendorWhatsappPaused(vendor._id);
+                      }}
+                      className="mt-3 w-full py-2.5 px-3 rounded-full text-[10px]"
+                    />
+                  ) : (
+                    <span className="mt-3 flex items-center justify-center py-2.5 px-3 rounded-full bg-slate-100 text-slate-400 text-[10px] font-bold">
+                      Chat paused
+                    </span>
+                  )}
+                </div>
               );
             })}
           </div>

@@ -171,10 +171,15 @@ export class ProductsService implements OnModuleInit {
     p.listingMode = listingMode;
     const balance = Number(vendor?.whatsappClickBalance || 0);
     const hasPhone = Boolean(normalizeWhatsAppPhone(vendor?.phone));
+    // One prepaid balance covers every listing. Copy the vendor before stripping
+    // phone and balance — list queries reuse one vendor object, and deleting
+    // those fields hid WhatsApp on every product after the first.
     p.whatsappLeadAvailable = showsWhatsappLead(listingMode) && balance > 0 && hasPhone;
     if (vendor) {
-      delete vendor.phone;
-      delete vendor.whatsappClickBalance;
+      const safeVendor = { ...vendor };
+      delete safeVendor.phone;
+      delete safeVendor.whatsappClickBalance;
+      p.vendorId = safeVendor;
     }
   }
 

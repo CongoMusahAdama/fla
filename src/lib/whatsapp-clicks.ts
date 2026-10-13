@@ -55,6 +55,46 @@ export function showsWhatsappLead(_mode?: string | null): boolean {
   return true;
 }
 
+const WHATSAPP_VENDOR_PAUSED = "fla-whatsapp-vendor-paused";
+const pausedVendorIds = new Set<string>();
+
+function vendorKey(vendorId?: unknown): string {
+  if (!vendorId) return "";
+  if (typeof vendorId === "string") return vendorId;
+  if (typeof vendorId === "object") {
+    const record = vendorId as { _id?: string; id?: string };
+    return String(record._id || record.id || "");
+  }
+  return "";
+}
+
+/** Hide WhatsApp on every listing for this vendor once their clicks hit zero. */
+export function notifyVendorWhatsappPaused(vendorId?: unknown) {
+  const id = vendorKey(vendorId);
+  if (!id || typeof window === "undefined") return;
+  pausedVendorIds.add(id);
+  window.dispatchEvent(new CustomEvent(WHATSAPP_VENDOR_PAUSED, { detail: { vendorId: id } }));
+}
+
+export function isVendorWhatsappPaused(vendorId?: unknown): boolean {
+  const id = vendorKey(vendorId);
+  return Boolean(id && pausedVendorIds.has(id));
+}
+
+export function subscribeVendorWhatsappPaused(
+  vendorId: unknown,
+  onPaused: () => void,
+) {
+  const id = vendorKey(vendorId);
+  if (!id || typeof window === "undefined") return () => {};
+  const handler = (event: Event) => {
+    const pausedId = (event as CustomEvent<{ vendorId?: string }>).detail?.vendorId;
+    if (pausedId && pausedId === id) onPaused();
+  };
+  window.addEventListener(WHATSAPP_VENDOR_PAUSED, handler);
+  return () => window.removeEventListener(WHATSAPP_VENDOR_PAUSED, handler);
+}
+
 export type WhatsappLeadResult = {
   available: boolean;
   url?: string;

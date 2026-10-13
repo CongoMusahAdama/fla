@@ -60,12 +60,11 @@ interface VendorSettingsProps {
   startOnDocuments?: boolean;
 }
 
-type WizardStep = 'brand' | 'payout' | 'documents';
+type WizardStep = 'brand' | 'documents';
 
 const STEPS: { id: WizardStep; label: string; hint: string }[] = [
   { id: 'brand', label: 'Brand', hint: 'Logo, banner & shop details' },
-  { id: 'payout', label: 'Payout', hint: 'MoMo or bank for settlements' },
-  { id: 'documents', label: 'Documents', hint: 'Ghana Card & selfie to sell' },
+  { id: 'documents', label: 'Documents', hint: 'Optional verification' },
 ];
 
 export const VendorSettings: React.FC<VendorSettingsProps> = ({
@@ -80,12 +79,6 @@ export const VendorSettings: React.FC<VendorSettingsProps> = ({
   setStoreThemeColor,
   phone,
   setPhone,
-  momoNumber,
-  setMomoNumber,
-  momoNetwork,
-  setMomoNetwork,
-  accountName,
-  setAccountName,
   shopLocation,
   setShopLocation,
   bio,
@@ -105,8 +98,6 @@ export const VendorSettings: React.FC<VendorSettingsProps> = ({
   const [step, setStep] = React.useState<WizardStep>(
     startOnDocuments || needsDocs ? 'documents' : 'brand',
   );
-  const [isVerifying, setIsVerifying] = React.useState(false);
-  const [verificationError, setVerificationError] = React.useState<string | null>(null);
   const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = React.useState(false);
 
   React.useEffect(() => {
@@ -117,33 +108,6 @@ export const VendorSettings: React.FC<VendorSettingsProps> = ({
 
   const stepIndex = STEPS.findIndex((s) => s.id === step);
   const docsReady = Boolean(ghanaCardFront && selfie);
-  const isMomo = momoNetwork?.length > 3 || ['MTN', 'VOD', 'ATL', 'Vodafone', 'AirtelTigo'].includes(momoNetwork);
-
-  const handleVerifyAccount = async () => {
-    if (!momoNumber || momoNumber.length < 10) {
-      setVerificationError('Please enter a valid account number');
-      return;
-    }
-
-    setIsVerifying(true);
-    setVerificationError(null);
-
-    try {
-      const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-      const res = await fetch(`${api}/payments/lookup-name/${momoNetwork}/${momoNumber}`);
-      const data = await res.json();
-
-      if (data.success) {
-        setAccountName(data.name);
-      } else {
-        setVerificationError(data.message || 'Verification failed');
-      }
-    } catch {
-      setVerificationError('Service unavailable');
-    } finally {
-      setIsVerifying(false);
-    }
-  };
 
   const goNext = () => {
     if (stepIndex < STEPS.length - 1) setStep(STEPS[stepIndex + 1].id);
@@ -158,14 +122,14 @@ export const VendorSettings: React.FC<VendorSettingsProps> = ({
         <h1 className="text-2xl md:text-3xl font-black text-slate-900 uppercase tracking-tighter">Store Profile</h1>
         <p className="text-slate-500 text-sm mt-1.5 leading-relaxed">
           {needsDocs
-            ? 'Finish these 3 short steps — documents unlock selling after admin approval.'
-            : 'Update your brand, payout, and verification details.'}
+            ? 'Add your logo and shop name. You can list products right away.'
+            : 'Update your logo, shop name, and store look anytime.'}
         </p>
       </div>
 
       {/* Step indicator */}
       <nav aria-label="Profile setup steps" className="bg-white rounded-2xl border border-slate-100 p-3 sm:p-4 md:p-5 shadow-sm">
-        <ol className="flex sm:grid sm:grid-cols-3 gap-2 sm:gap-3 overflow-x-auto no-scrollbar -mx-1 px-1">
+        <ol className="flex sm:grid sm:grid-cols-2 gap-2 sm:gap-3 overflow-x-auto no-scrollbar -mx-1 px-1">
           {STEPS.map((s, i) => {
             const active = s.id === step;
             const done = i < stepIndex || (s.id === 'documents' && Boolean(user?.kycApprovedAt || user?.kycSubmittedAt));
@@ -442,108 +406,13 @@ export const VendorSettings: React.FC<VendorSettingsProps> = ({
           </div>
         )}
 
-        {step === 'payout' && (
-          <div className="space-y-6 animate-in fade-in slide-in-from-right-2 duration-300">
-            <div>
-              <h2 className="text-sm font-black text-slate-900 uppercase tracking-widest">Payout details</h2>
-              <p className="text-xs text-slate-500 mt-1">Where FLA sends your share of each sale.</p>
-            </div>
-
-            <div className="grid md:grid-cols-2 gap-5">
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Payout Method Type</label>
-                <select
-                  value={user?.paymentMethods?.[0]?.type || (isMomo ? 'momo' : 'bank')}
-                  onChange={(e) => {
-                    setMomoNetwork(e.target.value === 'momo' ? 'MTN' : 'GCB');
-                  }}
-                  className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20 appearance-none cursor-pointer outline-none"
-                >
-                  <option value="momo">Mobile Money</option>
-                  <option value="bank">Bank Account</option>
-                </select>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                  {isMomo ? 'Network Provider' : 'Select Bank'}
-                </label>
-                <select
-                  value={momoNetwork}
-                  onChange={(e) => setMomoNetwork(e.target.value)}
-                  className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20 appearance-none cursor-pointer outline-none"
-                >
-                  {isMomo ? (
-                    <>
-                      <option value="MTN">MTN Mobile Money</option>
-                      <option value="Vodafone">Vodafone Cash</option>
-                      <option value="AirtelTigo">AirtelTigo Money</option>
-                    </>
-                  ) : (
-                    <>
-                      <option value="GCB">GCB Bank</option>
-                      <option value="ECO">Ecobank Ghana</option>
-                      <option value="ZEN">Zenith Bank</option>
-                      <option value="ABS">Absa Bank</option>
-                      <option value="FID">Fidelity Bank</option>
-                      <option value="STA">Standard Chartered</option>
-                      <option value="CAL">CalBank</option>
-                      <option value="ACC">Access Bank</option>
-                      <option value="GTB">GTBank</option>
-                      <option value="UBA">UBA Ghana</option>
-                    </>
-                  )}
-                </select>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Account Number</label>
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <input
-                    type="text"
-                    value={momoNumber}
-                    onChange={(e) => {
-                      setMomoNumber(e.target.value);
-                      setVerificationError(null);
-                    }}
-                    placeholder={isMomo ? '024XXXXXXX' : 'XXXXXXXXXX'}
-                    className={`w-full sm:flex-1 px-5 py-3.5 bg-slate-50 border ${verificationError ? 'border-red-200' : 'border-slate-100'} rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20 outline-none`}
-                  />
-                  <button
-                    type="button"
-                    onClick={handleVerifyAccount}
-                    disabled={isVerifying}
-                    className="h-12 sm:h-auto px-5 bg-slate-900 text-white text-[9px] font-black uppercase tracking-widest rounded-full hover:bg-black transition-all disabled:opacity-50 flex items-center justify-center sm:min-w-[100px] shrink-0"
-                  >
-                    {isVerifying ? (
-                      <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                    ) : (
-                      'Verify'
-                    )}
-                  </button>
-                </div>
-                {verificationError && (
-                  <p className="text-[9px] text-red-500 font-bold uppercase tracking-tight mt-1 ml-1">{verificationError}</p>
-                )}
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Account Holder Name</label>
-                <input
-                  type="text"
-                  value={accountName}
-                  onChange={(e) => setAccountName(e.target.value)}
-                  className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20 outline-none"
-                />
-              </div>
-            </div>
-          </div>
-        )}
-
         {step === 'documents' && (
           <div className="space-y-6 animate-in fade-in slide-in-from-right-2 duration-300">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <h2 className="text-sm font-black text-slate-900 uppercase tracking-widest">Verification documents</h2>
                 <p className="text-xs text-slate-500 mt-1">
-                  Required before listing products · approval usually 4–5 hours after you save.
+                  Optional. Your shop can stay live without these.
                 </p>
               </div>
               {user?.kycApprovedAt ? (
