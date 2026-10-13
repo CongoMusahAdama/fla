@@ -3,9 +3,9 @@
 import React from 'react';
 import Link from 'next/link';
 import { 
-  LayoutDashboard, ShoppingBag, Eye,
-  Settings, Wallet, Bell, 
-  ArrowLeft, LogOut, HelpCircle, Star
+  LayoutDashboard, ShoppingBag,
+  Settings, Wallet,
+  ArrowLeft, LogOut, HelpCircle,
 } from 'lucide-react';
 import Image from 'next/image';
 import { useAuth } from '@/context/AuthContext';
@@ -29,10 +29,7 @@ export const VendorSidebar: React.FC<VendorSidebarProps> = ({
   const sidebarItems = [
     { id: 'dashboard', label: 'Overview', icon: LayoutDashboard },
     { id: 'products', label: 'Manage Your Shop', icon: ShoppingBag },
-    { id: 'orders', label: 'Order Ledger', icon: Eye },
     { id: 'wallet', label: 'WhatsApp clicks', icon: Wallet },
-    { id: 'reviews', label: 'Customer Feedback', icon: Star },
-    { id: 'notifications', label: 'Alert Center', icon: Bell },
     { id: 'settings', label: limitedMode ? 'Fix Application' : 'Studio Identity', icon: Settings },
     { id: 'help', label: 'Mastery Guide', icon: HelpCircle },
   ];

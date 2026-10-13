@@ -270,6 +270,7 @@ export const VendorSettings: React.FC<VendorSettingsProps> = ({
                 <AreaSuggest
                   value={shopArea}
                   region={shopRegion}
+                  allowCreate
                   onChange={setShopArea}
                   placeholder="Search Tamale, East Legon..."
                   inputClassName="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20 outline-none"

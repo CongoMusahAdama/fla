@@ -577,11 +577,6 @@ export default function VendorStorePage() {
                         ? `Only ${product.stock} left`
                         : `${product.stock} in stock`}
                   </p>
-                  {product.tailoringTime && (
-                    <p className="mt-1 text-[9px] font-black uppercase tracking-widest text-slate-400">
-                      {product.tailoringTime}
-                    </p>
-                  )}
                 </Link>
                   {leadsOpen ? (
                     <WhatsAppLeadButton

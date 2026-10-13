@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { useAuth } from "@/context/AuthContext";
 
 type AreaHit = { name: string; region?: string };
 
@@ -10,6 +11,8 @@ type AreaSuggestProps = {
   region?: string;
   placeholder?: string;
   inputClassName?: string;
+  /** Vendors can add a missing area. Shoppers can only pick one that already exists. */
+  allowCreate?: boolean;
 };
 
 export function AreaSuggest({
@@ -18,7 +21,9 @@ export function AreaSuggest({
   region,
   placeholder = "Search your area",
   inputClassName = "",
+  allowCreate = false,
 }: AreaSuggestProps) {
+  const { token } = useAuth();
   const [open, setOpen] = useState(false);
   const [hits, setHits] = useState<AreaHit[]>([]);
 
@@ -42,7 +47,7 @@ export function AreaSuggest({
   }, [value, region]);
 
   const exact = hits.some((hit) => hit.name.toLowerCase() === value.trim().toLowerCase());
-  const canAdd = value.trim().length >= 2 && !exact;
+  const canAdd = allowCreate && value.trim().length >= 2 && !exact;
 
   const choose = async (name: string, create: boolean) => {
     const cleaned = name.trim().replace(/\s+/g, " ");
@@ -50,9 +55,12 @@ export function AreaSuggest({
     if (create) {
       try {
         const api = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
+        const headers: Record<string, string> = { "Content-Type": "application/json" };
+        if (token) headers.Authorization = `Bearer ${token}`;
         const res = await fetch(`${api}/users/areas`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers,
+          credentials: "include",
           body: JSON.stringify({ name: cleaned, region: region || undefined }),
         });
         const data = await res.json().catch(() => ({}));

@@ -2,7 +2,7 @@
 "use client";
 import React from 'react';
 import Image from 'next/image';
-import { Package, Plus, Search, Edit2, Eye, EyeOff, Trash2, ShoppingBag, Clock, MapPin, Link2, X, Music2 } from 'lucide-react';
+import { Package, Plus, Search, Edit2, Eye, EyeOff, Trash2, ShoppingBag, MapPin, Link2, X, Music2 } from 'lucide-react';
 import { getImageUrl } from '@/lib/utils';
 import { TableSearch } from '@/components/ui/TableSearch';
 import { matchesTableSearch } from '@/lib/table-search';
@@ -241,11 +241,7 @@ export const VendorProducts: React.FC<VendorProductsProps> = ({
                 </div>
               </div>
 
-              <div className="pt-3 border-t border-slate-50 flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-1.5 min-w-0">
-                      <Clock className="w-3.5 h-3.5 text-slate-300" />
-                      <span className="text-[9px] font-bold text-slate-500 uppercase truncate">{product.tailoringTime || '3 Days'}</span>
-                  </div>
+              <div className="pt-3 border-t border-slate-50 flex items-center justify-end gap-4">
                   <div className="flex items-center gap-1.5 min-w-0 text-right">
                       <MapPin className="w-3.5 h-3.5 text-slate-300" />
                       {product.region && (

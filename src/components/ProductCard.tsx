@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { Clock, ChevronLeft, ChevronRight, X, MessageSquare, ShoppingBag, Star, Zap, Shield, Check, Heart, MapPin } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X, MessageSquare, ShoppingBag, Star, Zap, Shield, Check, Heart, MapPin } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
@@ -940,12 +940,6 @@ export default React.memo(function ProductCard({ id, name, price, images, sizes 
                                 </span>
                             </div>
                         )}
-                        {duration && (
-                            <div className="flex items-center gap-1">
-                                <Clock className="w-3 h-3 text-brand-lemon shrink-0" />
-                                <span className="text-[9px] font-bold uppercase tracking-wide">{duration}</span>
-                            </div>
-                        )}
                     </div>
 
                     {/* Feature Highlights — one row */}
@@ -1177,11 +1171,6 @@ export default React.memo(function ProductCard({ id, name, price, images, sizes 
                                 <span className={`font-semibold ${stock > 0 ? (stock <= 5 ? 'text-amber-600' : 'text-emerald-600') : 'text-red-500'}`}>
                                     {stock > 0 ? `${stock} in stock` : 'Sold out'}
                                 </span>
-                                <span className="text-slate-300">·</span>
-                                <span className="inline-flex items-center gap-1">
-                                    <Clock className="w-3 h-3" />
-                                    {duration}
-                                </span>
                             </div>
                         </div>
 
@@ -1229,10 +1218,6 @@ export default React.memo(function ProductCard({ id, name, price, images, sizes 
                                 </div>
 
                                 <div className="hidden md:flex flex-wrap gap-3 text-sm text-slate-500">
-                                    <span className="inline-flex items-center gap-1.5">
-                                        <Clock className="w-4 h-4" />
-                                        {duration}
-                                    </span>
                                     {getVendorDisplayLocation({ location: vendorCity, region: vendorRegion }) && (
                                         <span className="inline-flex items-center gap-1.5">
                                             <MapPin className="w-4 h-4" />
@@ -1436,12 +1421,8 @@ export default React.memo(function ProductCard({ id, name, price, images, sizes 
                                     </div>
                                 )}
 
-                                <div className="rounded-xl border border-slate-100 bg-slate-50/80 p-4 space-y-3">
-                                    <div className="flex items-center justify-between text-sm">
-                                        <span className="text-slate-500">Prep time</span>
-                                        <span className="font-medium text-slate-900">{duration}</span>
-                                    </div>
-                                    <p className="text-xs text-slate-500 leading-relaxed border-t border-slate-200/80 pt-3">
+                                <div className="rounded-xl border border-slate-100 bg-slate-50/80 p-4">
+                                    <p className="text-xs text-slate-500 leading-relaxed">
                                         Payments are processed securely. FLA can help mediate disputes if needed.
                                     </p>
                                 </div>

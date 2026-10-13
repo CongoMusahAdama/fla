@@ -576,6 +576,7 @@ export const RegisterForm = ({
                                 <AreaSuggest
                                     value={location}
                                     region={region}
+                                    allowCreate
                                     onChange={setLocation}
                                     placeholder="Search Tamale, East Legon..."
                                     inputClassName="w-full px-4 py-4 bg-white border-2 border-slate-100 rounded-2xl text-base md:text-sm outline-none focus:border-slate-900"

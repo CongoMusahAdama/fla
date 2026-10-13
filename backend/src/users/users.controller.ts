@@ -42,7 +42,12 @@ export class UsersController {
   }
 
   @Post('areas')
-  addArea(@Body() body: { name?: string; region?: string }) {
+  @UseGuards(AuthGuard('jwt'))
+  addArea(@Request() req, @Body() body: { name?: string; region?: string }) {
+    const role = req.user?.role;
+    if (role !== 'vendor' && role !== 'admin') {
+      throw new ForbiddenException('Only vendors can add an area');
+    }
     return this.usersService.findOrCreateArea(String(body?.name || ''), body?.region);
   }
 

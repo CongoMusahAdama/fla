@@ -407,10 +407,6 @@ function ProductContent() {
 
           <div className="flex flex-wrap gap-6 py-6 border-y border-slate-200">
             <div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Tailoring Time</p>
-              <p className="text-sm font-semibold text-slate-900">{product.tailoringTime || 'Immediate'}</p>
-            </div>
-            <div>
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">In Stock</p>
               <p className={`text-sm font-semibold ${soldOut ? 'text-red-600' : 'text-slate-900'}`}>
                 {soldOut ? 'Sold out' : `${product.stock} available`}

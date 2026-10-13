@@ -21,13 +21,10 @@ import { VendorSidebar } from '@/components/dashboard/VendorSidebar';
 import { VendorHeader, VendorMobileHeader } from '@/components/dashboard/VendorHeader';
 import { VendorStatsGrid } from '@/components/dashboard/VendorStatsGrid';
 import { VendorProducts, Product } from '@/components/dashboard/VendorProducts';
-import { VendorOrders } from '@/components/dashboard/VendorOrders';
 import { VendorClickCredits } from '@/components/dashboard/VendorClickCredits';
 import { listingModeFromApi, type ListingMode } from '@/lib/whatsapp-clicks';
 import { VendorSettings } from '@/components/dashboard/VendorSettings';
-import { VendorNotifications } from '@/components/dashboard/VendorNotifications';
 import { VendorHelp } from '@/components/dashboard/VendorHelp';
-import { WaybillModal } from '@/components/dashboard/WaybillModal';
 
 
 import { GHANA_REGIONS } from '@/lib/ghana-regions';
@@ -38,10 +35,10 @@ import { mapApiProductToVendorProduct, parseProductsListResponse } from '@/lib/v
 
 const VENDOR_PRODUCTS_PAGE_SIZE = 24;
 
-type VendorSection = 'dashboard' | 'products' | 'orders' | 'wallet' | 'reviews' | 'notifications' | 'settings' | 'help';
+type VendorSection = 'dashboard' | 'products' | 'wallet' | 'settings' | 'help';
 
 const VENDOR_SECTIONS: VendorSection[] = [
-    'dashboard', 'products', 'orders', 'wallet', 'reviews', 'notifications', 'settings', 'help',
+    'dashboard', 'products', 'wallet', 'settings', 'help',
 ];
 
 const SUBSCRIPTION_ONE_TIME_GHS = 100;
@@ -62,8 +59,6 @@ function VendorDashboardInner() {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [changingPassword, setChangingPassword] = useState(false);
     const [dashboardData, setDashboardData] = useState<any>(null);
-    const [vendorOrders, setVendorOrders] = useState<any[]>([]);
-    const [notifications, setNotifications] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [isHydrated, setIsHydrated] = useState(false);
 
@@ -73,8 +68,6 @@ function VendorDashboardInner() {
     const [vendorProductsTotal, setVendorProductsTotal] = useState(0);
     const [vendorProductsTotalPages, setVendorProductsTotalPages] = useState(1);
     const [vendorProductsLoading, setVendorProductsLoading] = useState(false);
-    const [selectedOrder, setSelectedOrder] = useState<any>(null);
-    const [printingOrder, setPrintingOrder] = useState<any>(null);
 
     // Form States
     const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -84,7 +77,6 @@ function VendorDashboardInner() {
     const [formListingMode, setFormListingMode] = useState<ListingMode>('shop');
     const [formQuantity, setFormQuantity] = useState('');
     const vendorProductCategories = PRODUCT_CATEGORIES.filter((c) => c !== 'All Product');
-    const [formTailoring, setFormTailoring] = useState('');
     const [formRegion, setFormRegion] = useState('Greater Accra');
     const [formNarrative, setFormNarrative] = useState('');
     const [formImages, setFormImages] = useState<string[]>([]);
@@ -494,23 +486,12 @@ function VendorDashboardInner() {
                 const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
                 const results = await Promise.allSettled([
                     fetch(`${api}/dashboard/vendor/stats`, { headers: { 'Authorization': `Bearer ${token}` }, credentials: 'include' }),
-                    fetch(`${api}/orders/vendor-orders?page=1&limit=500`, { headers: { 'Authorization': `Bearer ${token}` }, credentials: 'include' }),
-                    fetch(`${api}/notifications/my-notifications`, { headers: { 'Authorization': `Bearer ${token}` }, credentials: 'include' }),
                 ]);
 
-                const [statsRes, ordsRes, notifsRes] = results;
+                const [statsRes] = results;
 
                 if (statsRes.status === 'fulfilled' && statsRes.value.ok) {
                     setDashboardData(await statsRes.value.json());
-                }
-
-                if (ordsRes.status === 'fulfilled' && ordsRes.value.ok) {
-                    const data = await ordsRes.value.json();
-                    setVendorOrders(data.orders || data);
-                }
-
-                if (notifsRes.status === 'fulfilled' && notifsRes.value.ok) {
-                    setNotifications(await notifsRes.value.json());
                 }
 
             } catch (err) {
@@ -614,7 +595,6 @@ function VendorDashboardInner() {
                     colors: formHasColors ? formColors : [],
                     hasColors: formHasColors,
                     imageLabels: formImages.map((url, idx) => url !== '' ? formImageLabels[idx] : null).filter(l => l !== null),
-                    tailoringTime: formTailoring,
                     region: formRegion,
                     vendorId: user?.id,
                     vendorName: user?.shopName,
@@ -940,7 +920,6 @@ function VendorDashboardInner() {
         setFormCategory(user?.productTypes || 'Electronics');
         setFormListingMode('shop');
         setFormQuantity('');
-        setFormTailoring('');
         setFormRegion('Greater Accra');
         setFormNarrative('');
         setFormImages([]);
@@ -1137,7 +1116,6 @@ function VendorDashboardInner() {
                                     setFormCategory(p.category);
                                     setFormListingMode(listingModeFromApi(p.listingMode));
                                     setFormQuantity(p.quantity.toString());
-                                    setFormTailoring(p.tailoringTime);
                                     setFormRegion(p.region);
                                     setFormNarrative(p.description);
                                     setFormImages(p.images?.map((img: any) => typeof img === 'string' ? img : img.url) || []);
@@ -1174,7 +1152,6 @@ function VendorDashboardInner() {
                             setFormCategory(p.category);
                             setFormListingMode(listingModeFromApi(p.listingMode));
                             setFormQuantity(p.quantity.toString());
-                            setFormTailoring(p.tailoringTime);
                             setFormRegion(p.region);
                             setFormNarrative(p.description);
                             setFormImages(p.images?.map((img: any) => typeof img === 'string' ? img : img.url) || []);
@@ -1192,117 +1169,12 @@ function VendorDashboardInner() {
                         onAddNew={() => { resetProductForm(); setShowAddProduct(true); }}
                     />
                 );
-            case 'orders':
-                return (
-                    <VendorOrders 
-                        orders={vendorOrders}
-                        onViewProof={(proof) => {
-                            Swal.fire({
-                                title: 'Payment Proof',
-                                imageUrl: getImageUrl(proof),
-                                imageAlt: 'Payment Screenshot',
-                                confirmButtonText: 'CLOSE',
-                                buttonsStyling: false,
-                                customClass: {
-                                    popup: 'rounded-[32px] p-8',
-                                    confirmButton: 'bg-slate-900 text-white px-8 py-3 rounded-full text-[10px] font-black uppercase tracking-widest'
-                                }
-                            });
-                        }}
-                        onShip={() => {}}
-                        onUpdateStatus={(id) => {
-                            Swal.fire({
-                                title: 'Update Progress',
-                                html: `
-                                    <div class="space-y-4 text-left">
-                                        <div>
-                                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Phase Select</label>
-                                            <select id="swal-status" class="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold">
-                                                <option value="processing">In Production</option>
-                                                <option value="preparing_shipment">Preparing Shipment</option>
-                                                <option value="in_transit">In Transit (Direct to Customer)</option>
-                                                <option value="delivered">Shipment Delivered</option>
-                                                <option value="cancelled">Cancelled</option>
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Carrier Details (Optional)</label>
-                                            <input id="swal-carrier" type="text" placeholder="e.g. DHL, FedEx, VIP" class="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold">
-                                        </div>
-                                    </div>
-                                `,
-                                showCancelButton: true,
-                                confirmButtonText: 'UPDATE',
-                                focusConfirm: false,
-                                preConfirm: () => {
-                                    return {
-                                        status: (document.getElementById('swal-status') as HTMLSelectElement).value,
-                                        carrier: (document.getElementById('swal-carrier') as HTMLInputElement).value
-                                    }
-                                },
-                                customClass: { popup: 'rounded-[32px] p-8' }
-                            }).then(async r => {
-                                if (r.isConfirmed && r.value) {
-                                    const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-                                    const { status, carrier } = r.value;
-                                    await fetch(`${api}/orders/${id}`, {
-                                        method: 'PATCH',
-                                        headers: { 
-                                            'Content-Type': 'application/json',
-                                            'Authorization': `Bearer ${token}`
-                                        },
-                                        credentials: 'include',
-                                        body: JSON.stringify({ status, carrier })
-                                    });
-                                    const updated = vendorOrders.map(o => o._id === id ? { ...o, status, carrier } : o);
-                                    setVendorOrders(updated);
-
-                                    if (status === 'cancelled') {
-                                        const order = updated.find(o => o._id === id);
-                                        if (order?.customerPhone) {
-                                            const { default: Swal } = await import('sweetalert2');
-                                            const shop = user?.shopName || user?.name || 'FLA Vendor';
-                                            const { buildVendorCancelledOrderToCustomerMessage, normalizeWhatsAppPhone, openWhatsAppChat } = await import('@/lib/whatsapp');
-                                            const wa = await Swal.fire({
-                                                title: 'Notify customer?',
-                                                text: 'Open WhatsApp with a prefilled message about this cancellation.',
-                                                icon: 'question',
-                                                showCancelButton: true,
-                                                confirmButtonText: 'OPEN WHATSAPP',
-                                                cancelButtonText: 'LATER',
-                                                confirmButtonColor: '#25D366',
-                                                customClass: { popup: 'rounded-[32px]' },
-                                            });
-                                            if (wa.isConfirmed) {
-                                                const phone = normalizeWhatsAppPhone(order.customerPhone);
-                                                if (phone) {
-                                                    openWhatsAppChat(phone, buildVendorCancelledOrderToCustomerMessage(order, shop));
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            });
-                        }}
-                        onDelete={async (id) => {
-                             const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/orders/${id}`, { 
-                                 method: 'DELETE', 
-                                 headers: { 'Authorization': `Bearer ${token}` },
-                                 credentials: 'include' 
-                             });
-                             if (res.ok) setVendorOrders(prev => prev.filter(o => o._id !== id));
-                        }}
-                        onPrintLabel={setPrintingOrder}
-                        shopName={user?.shopName || user?.name}
-                    />
-                );
             case 'wallet': return (
                 <div className="space-y-8">
                     <VendorClickCredits user={user} token={token} onUser={updateUser} />
                 </div>
             );
             case 'settings': return <VendorSettings user={user} shopName={shopName} setShopName={setShopName} storeCategory={storeCategory} setStoreCategory={setStoreCategory} storeAccentColor={storeAccentColor} setStoreAccentColor={setStoreAccentColor} storeThemeColor={storeThemeColor} setStoreThemeColor={setStoreThemeColor} phone={phone} setPhone={setPhone} momoNumber={momoNumber} setMomoNumber={setMomoNumber} momoNetwork={momoNetwork} setMomoNetwork={setMomoNetwork} accountName={accountName} setAccountName={setAccountName} shopLocation={shopLocation} setShopLocation={setShopLocation} shopArea={shopArea} setShopArea={setShopArea} shopRegion={shopRegion} setShopRegion={setShopRegion} bio={bio} setBio={setBio} bannerImage={bannerImage} profileImage={profileImage} businessRegistration={businessRegistration} ghanaCardFront={ghanaCardFront} ghanaCardBack={ghanaCardBack} selfie={selfie} handleImageUpload={handleImageUpload} handleUpdateVendorProfile={handleUpdateVendorProfile} startOnDocuments={needsKycUpload} />;
-            case 'notifications': return <VendorNotifications notifications={notifications} />;
             case 'help': return <VendorHelp />;
             default: return null;
         }
@@ -1720,10 +1592,6 @@ function VendorDashboardInner() {
                                     ) : null}
                                 </div>
                                 <div className="space-y-4">
-                                    <label htmlFor="p-tailoring" className="text-[12px] font-black text-slate-900 uppercase tracking-widest ml-1 cursor-pointer">Prep Time</label>
-                                    <input id="p-tailoring" name="tailoringTime" type="text" placeholder="e.g., 3-5 Days" value={formTailoring} onChange={(e) => setFormTailoring(e.target.value)} className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-slate-900/10 h-14" />
-                                </div>
-                                <div className="space-y-4">
                                     <label htmlFor="p-region" className="text-[12px] font-black text-slate-900 uppercase tracking-widest ml-1 cursor-pointer">Studio Region</label>
                                     <select id="p-region" name="region" value={formRegion} onChange={(e) => setFormRegion(e.target.value)} className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-slate-900/10 h-14">
                                         {GHANA_REGIONS.map((r) => <option key={r} value={r}>{r}</option>)}
@@ -1973,14 +1841,6 @@ function VendorDashboardInner() {
                 </div>
             )}
 
-            {/* Waybill Generator (Modal) */}
-            {printingOrder && (
-                <WaybillModal 
-                    order={printingOrder} 
-                    vendor={user} 
-                    onClose={() => setPrintingOrder(null)} 
-                />
-            )}
         </div>
     );
 }

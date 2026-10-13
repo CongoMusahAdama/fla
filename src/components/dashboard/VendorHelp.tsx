@@ -1,12 +1,10 @@
 
 "use client";
 import React from 'react';
-import { HelpCircle, ChevronRight, Package, Truck, Wallet, ShieldCheck } from 'lucide-react';
+import { HelpCircle, ChevronRight, Wallet, ShieldCheck } from 'lucide-react';
 
 export const VendorHelp: React.FC = () => {
   const guides = [
-    { title: 'Processing Orders', icon: Package, desc: 'How to handle new customer requests and manifest generation.' },
-    { title: 'Global Logistics', icon: Truck, desc: 'Skynet delivery is arranged off-platform — coordinate costs directly with customers.' },
     { title: 'WhatsApp clicks', icon: Wallet, desc: 'Free starter clicks, then recharge so customers can message you.' },
     { title: 'Verified Status', icon: ShieldCheck, desc: 'Becoming a Master Artisan and building brand trust.' },
   ];

@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Check, Clock, Copy, MapPin, Store } from 'lucide-react';
+import { ArrowLeft, Check, Copy, MapPin, Store } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { getImageUrl, getVendorDisplayLocation } from '@/lib/utils';
 import { storeHomePath, storeProductUrl } from '@/lib/storefront';
@@ -573,12 +573,6 @@ export default function StoreProductPage() {
                 <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest">
                   <MapPin className="w-3.5 h-3.5 text-brand-lemon" />
                   {location}
-                </span>
-              )}
-              {product.tailoringTime && (
-                <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest">
-                  <Clock className="w-3.5 h-3.5 text-brand-lemon" />
-                  {product.tailoringTime}
                 </span>
               )}
             </div>
