@@ -12,6 +12,7 @@ import {
   ForbiddenException,
   Res,
 } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import type { Response } from 'express';
 import { AuthGuard } from '@nestjs/passport';
 import { UsersService } from './users.service';
@@ -32,6 +33,17 @@ export class UsersController {
     if (req.user?.role === 'admin') return;
     if (req.user?.userId === targetId) return;
     throw new ForbiddenException('You do not have permission to access this user');
+  }
+
+  @SkipThrottle()
+  @Get('areas')
+  searchAreas(@Query('q') q = '', @Query('region') region = '') {
+    return this.usersService.searchAreas(q, region);
+  }
+
+  @Post('areas')
+  addArea(@Body() body: { name?: string; region?: string }) {
+    return this.usersService.findOrCreateArea(String(body?.name || ''), body?.region);
   }
 
   @Post()

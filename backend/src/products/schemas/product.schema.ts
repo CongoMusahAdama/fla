@@ -84,6 +84,10 @@ export class Product {
     @Prop()
     region: string;
 
+    /** Town or neighbourhood inside the region. */
+    @Prop()
+    area?: string;
+
     /** Vendor city/town (filled from User.location when listing products) */
     vendorLocation?: string;
 
@@ -111,6 +115,7 @@ ProductSchema.index({ region: 1 });
 ProductSchema.index({ isActive: 1, createdAt: -1 });       // Homepage latest
 ProductSchema.index({ isActive: 1, category: 1 });         // Shop category filter
 ProductSchema.index({ isActive: 1, region: 1 });           // Region filter
+ProductSchema.index({ isActive: 1, area: 1 });             // Area filter
 ProductSchema.index({ isActive: 1, rating: -1 });          // Best seller sort
 ProductSchema.index({ vendorId: 1, isActive: 1, createdAt: -1 }); // Storefront + vendor dashboard
 ProductSchema.index({ isActive: 1, stock: 1, createdAt: -1 }); // Default marketplace shelf

@@ -27,13 +27,12 @@ export function normalizeListingMode(value: unknown): ListingMode {
   return value === 'contact' || value === 'both' ? value : 'shop';
 }
 
-/** Cart and Buy now. Hidden only on a WhatsApp-only listing. */
-export function showsShopCheckout(mode: unknown): boolean {
-  return normalizeListingMode(mode) !== 'contact';
+/** Checkout is closed. Listings open WhatsApp. */
+export function showsShopCheckout(_mode?: unknown): boolean {
+  return false;
 }
 
-/** WhatsApp button, while the vendor still has clicks. */
-export function showsWhatsappLead(mode: unknown): boolean {
-  const listing = normalizeListingMode(mode);
-  return listing === 'contact' || listing === 'both';
+/** Every listing can open WhatsApp while the vendor still has clicks. */
+export function showsWhatsappLead(_mode?: unknown): boolean {
+  return true;
 }

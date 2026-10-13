@@ -47,6 +47,10 @@ export class User {
     @Prop()
     location?: string;
 
+    /** Town or neighbourhood. Finer than region. Vendors search or add it. */
+    @Prop()
+    area?: string;
+
     @Prop()
     address?: string;
 
@@ -262,6 +266,10 @@ export class User {
     /** Prepaid customer taps that open this vendor's WhatsApp. GHS 0.50 each. */
     @Prop({ default: 0 })
     whatsappClickBalance: number;
+
+    /** Set once when the starter 5 clicks are applied, so a restart cannot grant them again. */
+    @Prop()
+    freeClickGrantAt?: Date;
 
     /** Accumulated unpaid referee commissions (GHS) */
     @Prop({ default: 0 })

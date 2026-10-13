@@ -73,6 +73,7 @@ export class AuthService {
       name: user.name,
       role: user.role,
       phone: user.phone,
+      area: user.area,
       location: user.location,
       address: user.address,
       profileImage: user.profileImage,

@@ -9,6 +9,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Product } from '@/lib/types';
 import { PRODUCT_FILTERS } from '@/lib/constants';
 import { GHANA_REGIONS } from '@/lib/ghana-regions';
+import { AreaSuggest } from '@/components/AreaSuggest';
+import { readCookie, writeCookie } from '@/lib/site-cookies';
 import { useProductCategories } from '@/hooks/useProductCategories';
 import { restoreMarketplaceScrollIfNeeded, peekPendingMarketplaceScroll, getHomeMarketplaceFilters, saveHomeMarketplaceFilters } from '@/lib/marketplace-return';
 
@@ -40,6 +42,7 @@ export default function Home() {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [activeRegion, setActiveRegion] = useState('');
+  const [activeArea, setActiveArea] = useState('');
   const restoredFiltersRef = useRef(false);
 
   // Restore filter state when returning from a product detail page.
@@ -55,6 +58,12 @@ export default function Home() {
     setActiveCategory(saved.category);
     setActiveFilter(saved.filter);
     setActiveRegion(saved.region);
+    if (saved.area) setActiveArea(saved.area);
+  }, []);
+
+  useEffect(() => {
+    const saved = readCookie('fla_area');
+    if (saved) setActiveArea((prev) => prev || saved);
   }, []);
 
   // Persist filter state so it survives a round-trip through a product page.
@@ -63,31 +72,35 @@ export default function Home() {
       region: activeRegion,
       category: activeCategory,
       filter: activeFilter,
+      area: activeArea,
     });
-  }, [activeRegion, activeCategory, activeFilter]);
+  }, [activeRegion, activeCategory, activeFilter, activeArea]);
 
-  const buildProductsUrl = (cat: string, filt: string, region: string, pageNum: number) => {
+  const buildProductsUrl = (cat: string, filt: string, region: string, pageNum: number, area = '') => {
     const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
     let url = `${api}/products?page=${pageNum}&limit=${HOME_PAGE_SIZE}`;
     if (cat !== 'All Product') url += `&category=${encodeURIComponent(cat)}`;
     const effectiveFilter = resolveHomeShelfFilter(filt, cat, region);
     if (effectiveFilter) url += `&filter=${encodeURIComponent(effectiveFilter)}`;
     if (region) url += `&region=${encodeURIComponent(region)}`;
+    if (area) url += `&area=${encodeURIComponent(area)}`;
     if (!effectiveFilter) url += '&sort=latest';
     return url;
   };
 
-  const fetchLatestProducts = async (cat: string, filt: string, region: string) => {
+  const fetchLatestProducts = async (cat: string, filt: string, region: string, area = '') => {
     setLoading(true);
     setPage(1);
     try {
-      let res = await fetch(buildProductsUrl(cat, filt, region, 1));
+      let res = await fetch(buildProductsUrl(cat, filt, region, 1, area));
       let data = res.ok ? await res.json() : null;
       let list: Product[] = Array.isArray(data) ? data : (data?.products || []);
 
       // If the default new-arrival shelf is empty, fall back to all listings by upload date
       if (
         list.length === 0 &&
+        !area &&
+        !region &&
         resolveHomeShelfFilter(filt, cat, region) === 'New Arrival'
       ) {
         const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
@@ -122,7 +135,7 @@ export default function Home() {
     const nextPage = page + 1;
     setLoadingMore(true);
     try {
-      const res = await fetch(buildProductsUrl(activeCategory, activeFilter, activeRegion, nextPage));
+      const res = await fetch(buildProductsUrl(activeCategory, activeFilter, activeRegion, nextPage, activeArea));
       if (res.ok) {
         const data = await res.json();
         const list: Product[] = Array.isArray(data) ? data : (data.products || []);
@@ -142,8 +155,8 @@ export default function Home() {
   };
 
   useEffect(() => {
-    fetchLatestProducts(activeCategory, activeFilter, activeRegion);
-  }, [activeCategory, activeFilter, activeRegion]);
+    fetchLatestProducts(activeCategory, activeFilter, activeRegion, activeArea);
+  }, [activeCategory, activeFilter, activeRegion, activeArea]);
 
   useEffect(() => {
     try {
@@ -265,6 +278,19 @@ export default function Home() {
               </div>
 
               <div className="relative shrink-0 sm:w-52">
+                <AreaSuggest
+                  value={activeArea}
+                  region={activeRegion}
+                  onChange={(name) => {
+                    setActiveArea(name);
+                    if (name) writeCookie('fla_area', name);
+                  }}
+                  placeholder="Area"
+                  inputClassName="w-full h-10 px-3 bg-white border border-slate-200 rounded-md text-xs font-semibold outline-none focus:ring-2 focus:ring-brand-lemon/20"
+                />
+              </div>
+
+              <div className="relative shrink-0 sm:w-52">
                 <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-brand-lemon pointer-events-none" />
                 <select
                   value={activeRegion}
@@ -278,12 +304,13 @@ export default function Home() {
                 </select>
               </div>
 
-              {(activeFilter || activeRegion || activeCategory !== 'All Product') && (
+              {(activeFilter || activeRegion || activeArea || activeCategory !== 'All Product') && (
                 <button
                   type="button"
                   onClick={() => {
                     setActiveFilter('');
                     setActiveRegion('');
+                    setActiveArea('');
                     setActiveCategory('All Product');
                   }}
                   className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-red-500 hover:text-red-600 px-2"

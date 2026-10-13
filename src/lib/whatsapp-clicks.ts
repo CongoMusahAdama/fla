@@ -11,7 +11,9 @@ export function clicksForAmount(amountGhs: number): { clicks: number; chargeGhs:
   return { clicks, chargeGhs };
 }
 
-const CLIENT_KEY = 'fla_wa_click_client';
+import { readCookie, writeCookie } from "@/lib/site-cookies";
+
+const CLIENT_KEY = "fla_wa_click_client";
 
 export function getWhatsappClickClientId(): string {
   const makeId = () => {
@@ -20,11 +22,18 @@ export function getWhatsappClickClientId(): string {
     return `fla-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
   };
 
+  const valid = (value: string) => /^[a-zA-Z0-9-]{16,80}$/.test(value);
   try {
+    const fromCookie = readCookie(CLIENT_KEY);
+    if (valid(fromCookie)) return fromCookie;
     const existing = localStorage.getItem(CLIENT_KEY);
-    if (existing && /^[a-zA-Z0-9-]{16,80}$/.test(existing)) return existing;
+    if (existing && valid(existing)) {
+      writeCookie(CLIENT_KEY, existing);
+      return existing;
+    }
     const id = makeId().slice(0, 80);
     localStorage.setItem(CLIENT_KEY, id);
+    writeCookie(CLIENT_KEY, id);
     return id;
   } catch {
     return makeId().slice(0, 80);
@@ -37,13 +46,13 @@ export function listingModeFromApi(value: unknown): ListingMode {
   return value === 'contact' || value === 'both' ? value : 'shop';
 }
 
-/** Cart and Buy now stay on shop listings and on listings that also offer WhatsApp. */
-export function showsShopCheckout(mode?: string | null): boolean {
-  return mode !== 'contact';
+/** Checkout is closed. Buyers reach the vendor on WhatsApp. */
+export function showsShopCheckout(_mode?: string | null): boolean {
+  return false;
 }
 
-export function showsWhatsappLead(mode?: string | null): boolean {
-  return mode === 'contact' || mode === 'both';
+export function showsWhatsappLead(_mode?: string | null): boolean {
+  return true;
 }
 
 export type WhatsappLeadResult = {

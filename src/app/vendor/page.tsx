@@ -192,9 +192,10 @@ function VendorDashboardInner() {
 
     const isPendingReview = user?.status === 'pending' && user?.role === 'vendor';
     const mustChangePassword = Boolean(user?.mustChangePassword);
-    const canSell = Boolean(user?.kycApprovedAt);
-    const awaitingKycApproval = Boolean(user?.kycSubmittedAt && !user?.kycApprovedAt);
-    const needsKycUpload = !canSell && !awaitingKycApproval;
+    const vendorBlocked = user?.status === 'rejected' || user?.status === 'banned';
+    const canSell = user?.role === 'vendor' && !vendorBlocked;
+    const awaitingKycApproval = false;
+    const needsKycUpload = false;
     // Self-registered vendors are active immediately — never hard-lock the whole dashboard.
     // Only force settings when admin still marked them pending (legacy) or password change required.
     const limitedMode = isPendingReview;
@@ -206,13 +207,9 @@ function VendorDashboardInner() {
     // anything, even for vendors approved before the flow went free.
     const paymentRequired = false;
     // Legacy: approved + no endsAt + no paywall flag = grandfathered (still can upload)
-    const subscriptionExpired =
-        canSell &&
-        (paymentRequired ||
-            (subscriptionEndsAt != null && (subscriptionDaysLeft == null || subscriptionDaysLeft <= 0)));
-    const subscriptionExpiringSoon =
-        canSell && !subscriptionExpired && subscriptionDaysLeft != null && subscriptionDaysLeft <= 5;
-    const canUploadProducts = canSell && !subscriptionExpired;
+    const subscriptionExpired = false;
+    const subscriptionExpiringSoon = false;
+    const canUploadProducts = canSell;
     // Entry itself is free forever now. This amount only ever applies to the admin's manual
     // monthly-renewal tool for vendors placed on a paid plan — never to first-time approval.
     const subscriptionAmountDue = SUBSCRIPTION_ONE_TIME_GHS;
@@ -619,7 +616,7 @@ function VendorDashboardInner() {
                     name: formName,
                     price: parseFloat(formPrice),
                     category: formCategory,
-                    listingMode: formListingMode,
+                    listingMode: 'contact',
                     ...stockMapsForSave(),
                     description: formNarrative,
                     images: formImages.filter(url => url !== ''),
@@ -1768,42 +1765,8 @@ function VendorDashboardInner() {
                             </div>
 
                             <div className="space-y-3">
-                                <p className="text-[12px] font-black text-slate-900 uppercase tracking-widest ml-1">How customers buy</p>
-                                <p className="text-xs text-slate-500 ml-1">Tap one or both. Both stay on the product together.</p>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                    <button
-                                        type="button"
-                                        onClick={() => setFormListingMode((prev) => {
-                                            const shopOn = prev !== 'contact';
-                                            const waOn = prev === 'contact' || prev === 'both';
-                                            if (shopOn && !waOn) return prev;
-                                            if (!shopOn && waOn) return 'both';
-                                            return 'contact';
-                                        })}
-                                        className={`text-left p-4 rounded-2xl border ${formListingMode !== 'contact' ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-slate-50 text-slate-700'}`}
-                                    >
-                                        <p className="text-[11px] font-black uppercase tracking-widest">Shop listing</p>
-                                        <p className={`text-xs mt-1 leading-relaxed ${formListingMode !== 'contact' ? 'text-white/70' : 'text-slate-500'}`}>
-                                            Add to cart and Buy now. Payment stays on FLA.
-                                        </p>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => setFormListingMode((prev) => {
-                                            const shopOn = prev !== 'contact';
-                                            const waOn = prev === 'contact' || prev === 'both';
-                                            if (waOn && !shopOn) return prev;
-                                            if (!waOn && shopOn) return 'both';
-                                            return 'shop';
-                                        })}
-                                        className={`text-left p-4 rounded-2xl border ${formListingMode === 'contact' || formListingMode === 'both' ? 'border-[#128C7E] bg-[#25D366] text-white' : 'border-slate-200 bg-slate-50 text-slate-700'}`}
-                                    >
-                                        <p className="text-[11px] font-black uppercase tracking-widest">WhatsApp listing</p>
-                                        <p className={`text-xs mt-1 leading-relaxed ${formListingMode === 'contact' || formListingMode === 'both' ? 'text-white/80' : 'text-slate-500'}`}>
-                                            Customers open your WhatsApp. Each tap costs GHS 0.50 from your click balance.
-                                        </p>
-                                    </button>
-                                </div>
+                                <p className="text-[12px] font-black text-slate-900 uppercase tracking-widest ml-1">How customers reach you</p>
+                                <p className="text-xs text-slate-500 ml-1">Buyers open WhatsApp. Each tap uses one click from your balance. Checkout on FLA is closed.</p>
                             </div>
 
                             {/* Logistic Specs (Category, Stock, Tailoring, Region) */}

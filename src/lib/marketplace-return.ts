@@ -174,11 +174,13 @@ export type HomeFilters = {
   region: string;
   category: string;
   filter: string;
+  area?: string;
 };
 
 export type ShopFilters = {
   region: string;
   price: string;
+  area?: string;
 };
 
 /** Persist home-page filter state so it survives a round-trip through a product page. */

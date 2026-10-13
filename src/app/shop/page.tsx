@@ -9,6 +9,8 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { Suspense } from 'react';
 
 import { GHANA_REGIONS } from '@/lib/ghana-regions';
+import { AreaSuggest } from '@/components/AreaSuggest';
+import { readCookie, writeCookie } from '@/lib/site-cookies';
 import { useProductCategories } from '@/hooks/useProductCategories';
 import { restoreMarketplaceScrollIfNeeded, peekPendingMarketplaceScroll, getShopMarketplaceFilters, saveShopMarketplaceFilters } from '@/lib/marketplace-return';
 
@@ -56,7 +58,9 @@ function ShopContent() {
     const [catalogFilter, setCatalogFilter] = useState('');
     const [catalogSort, setCatalogSort] = useState('');
     const [openDropdown, setOpenDropdown] = useState<string | null>(null);
-    const [activeFilters, setActiveFilters] = useState<Record<string, string>>({});
+    const [activeFilters, setActiveFilters] = useState<Record<string, string>>(() => ({
+        Area: '',
+    }));
     const [localSearch, setLocalSearch] = useState('');
     const [suggestions, setSuggestions] = useState<any[]>([]);
     const [isSearchPinned, setIsSearchPinned] = useState(false);
@@ -74,7 +78,12 @@ function ShopContent() {
         if (!pending?.shopLoadedCount && !(pending?.shopPage && pending.shopPage > 1)) return;
         const saved = getShopMarketplaceFilters();
         if (!saved) return;
-        setActiveFilters(prev => ({ ...prev, Region: saved.region, Price: saved.price }));
+        setActiveFilters(prev => ({
+            ...prev,
+            Region: saved.region,
+            Price: saved.price,
+            Area: saved.area || readCookie('fla_area') || prev.Area || '',
+        }));
     }, []);
 
     // Persist Region/Price filter state so it survives a round-trip through a product page.
@@ -82,8 +91,16 @@ function ShopContent() {
         saveShopMarketplaceFilters({
             region: activeFilters.Region || '',
             price: activeFilters.Price || '',
+            area: activeFilters.Area || '',
         });
-    }, [activeFilters.Region, activeFilters.Price]);
+        if (activeFilters.Area) writeCookie('fla_area', activeFilters.Area);
+    }, [activeFilters.Region, activeFilters.Price, activeFilters.Area]);
+
+    useEffect(() => {
+        const saved = readCookie('fla_area');
+        if (!saved) return;
+        setActiveFilters((prev) => (prev.Area ? prev : { ...prev, Area: saved }));
+    }, []);
 
     const urlSearch = searchParams.get('search') || '';
     const urlCategory = searchParams.get('category');
@@ -170,6 +187,7 @@ function ShopContent() {
         if (catalogSort) params.set('sort', catalogSort);
         else if (!catalogFilter) params.set('sort', 'latest');
         if (activeFilters.Region) params.set('region', activeFilters.Region);
+        if (activeFilters.Area) params.set('area', activeFilters.Area);
         const priceParams = getPriceQueryParams(activeFilters.Price);
         Object.entries(priceParams).forEach(([key, value]) => params.set(key, value));
         return params.toString();
@@ -233,7 +251,7 @@ function ShopContent() {
             clearTimeout(timer);
             controller.abort();
         };
-    }, [activeCategory, localSearch, activeFilters.Region, activeFilters.Price, catalogFilter, catalogSort]);
+    }, [activeCategory, localSearch, activeFilters.Region, activeFilters.Area, activeFilters.Price, catalogFilter, catalogSort]);
 
     const handleShowMore = async () => {
         if (loadingMore || !hasMore || loading) return;
@@ -565,7 +583,17 @@ function ShopContent() {
                                 </div>
                             ))}
 
-                            {(localSearch || activeCategory !== 'All Product' || catalogFilter || catalogSort || activeFilters.Region || activeFilters.Price) && (
+                            <div className="relative w-full sm:w-56">
+                                <AreaSuggest
+                                    value={activeFilters.Area || ''}
+                                    region={activeFilters.Region || ''}
+                                    onChange={(name) => setActiveFilters(prev => ({ ...prev, Area: name }))}
+                                    placeholder="Area"
+                                    inputClassName="w-full h-8 px-3 rounded-lg border border-slate-200 text-xs font-medium text-slate-700 outline-none focus:border-brand-blue"
+                                />
+                            </div>
+
+                            {(localSearch || activeCategory !== 'All Product' || catalogFilter || catalogSort || activeFilters.Region || activeFilters.Area || activeFilters.Price) && (
                                 <button
                                     type="button"
                                     onClick={clearAll}

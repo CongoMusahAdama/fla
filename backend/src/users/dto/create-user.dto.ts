@@ -46,6 +46,10 @@ export class CreateUserDto {
 
     @IsString()
     @IsOptional()
+    area?: string;
+
+    @IsString()
+    @IsOptional()
     address?: string;
 
     @IsString()

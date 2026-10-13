@@ -1,8 +1,7 @@
 "use client";
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import {
-  ShoppingCart,
   Search,
   Menu,
   X,
@@ -30,7 +29,7 @@ export default function Navbar() {
   const searchParams = useSearchParams();
   const { categories: PRODUCT_CATEGORIES } = useProductCategories({ includeAll: true });
   const [isScrolled, setIsScrolled] = useState(false);
-  const { cartItems, cartCount, isCartOpen, setIsCartOpen, setIsSupportOpen } = useCart();
+  const { setIsSupportOpen } = useCart();
   const { user, token, isAuthenticated, logout } = useAuth();
   const router = useRouter();
 
@@ -54,10 +53,6 @@ export default function Navbar() {
     profileImage?: string;
   } | null>(null);
 
-  const cartTotal = useMemo(
-    () => cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0),
-    [cartItems],
-  );
 
   // Keep navbar search fields in sync with URL (from shop links / previous searches)
   useEffect(() => {
@@ -556,25 +551,6 @@ export default function Navbar() {
                   </span>
                 )}
               </Link>
-
-              <button
-                type="button"
-                onClick={() => setIsCartOpen(!isCartOpen)}
-                className="flex items-center gap-2 p-1.5 sm:p-2 text-slate-700 hover:text-brand-lemon transition-colors"
-              >
-                <span className="relative">
-                  <ShoppingCart className="w-5 h-5" strokeWidth={1.75} />
-                  <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 bg-brand-lemon text-slate-900 text-[9px] font-bold rounded-full flex items-center justify-center">
-                    {cartCount}
-                  </span>
-                </span>
-                <span className="hidden xl:flex flex-col items-start leading-tight text-left">
-                  <span className="text-[10px] font-medium text-slate-400">Your Cart</span>
-                  <span className="text-sm font-bold text-slate-900">
-                    GH₵{cartTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                  </span>
-                </span>
-              </button>
 
               {isAuthenticated && (
                 <button

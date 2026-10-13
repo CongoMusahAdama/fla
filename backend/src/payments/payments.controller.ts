@@ -347,9 +347,6 @@ export class PaymentsController {
         if (!vendor || (vendor as any).role !== 'vendor') {
             throw new BadRequestException('Vendor not found');
         }
-        if (!(vendor as any).kycApprovedAt) {
-            throw new ForbiddenException('Finish verification before buying WhatsApp clicks.');
-        }
         if (!normalizeWhatsAppPhone((vendor as any).phone)) {
             throw new BadRequestException('Add your WhatsApp number in Studio Identity before buying clicks.');
         }

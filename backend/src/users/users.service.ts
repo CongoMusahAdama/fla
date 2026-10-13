@@ -4,6 +4,7 @@ import { Model } from 'mongoose';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User, UserDocument } from './schemas/user.schema';
+import { Area, AreaDocument } from './schemas/area.schema';
 import { WhatsappClickTopup, WhatsappClickTopupDocument } from '../payments/schemas/whatsapp-click-topup.schema';
 import * as bcrypt from 'bcrypt';
 import { OrdersService } from '../orders/orders.service';
@@ -24,7 +25,6 @@ import {
 } from './vendor-agreement-pdf.util';
 import {
   introSubscriptionFields,
-  pendingApprovalSubscriptionFields,
   isSubscriptionActive,
   amountDueForRenewal,
   daysUntilSubscriptionEnd,
@@ -47,6 +47,7 @@ export class UsersService implements OnModuleInit {
 
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
+    @InjectModel(Area.name) private areaModel: Model<AreaDocument>,
     @InjectModel(WhatsappClickTopup.name) private whatsappClickTopupModel: Model<WhatsappClickTopupDocument>,
     @InjectModel(TempVerification.name) private tempVerificationModel: Model<TempVerification>,
     @Inject(forwardRef(() => OrdersService)) private ordersService: OrdersService,
@@ -61,9 +62,86 @@ export class UsersService implements OnModuleInit {
     this.backfillMissingStoreSlugs().catch((err) =>
       this.logger.error(`Store slug backfill failed: ${err.message}`),
     );
-    this.revokeUnattendedKycApprovals().catch((err) =>
-      this.logger.error(`KYC approval repair failed: ${err.message}`),
+    this.grantStarterClicks().catch((err) =>
+      this.logger.error(`Starter click grant failed: ${err.message}`),
     );
+    this.seedAreasFromVendors().catch((err) =>
+      this.logger.error(`Area seed failed: ${err.message}`),
+    );
+  }
+
+  /** Add 5 clicks once. Paid balances stay. A second boot does not add them again. */
+  async grantStarterClicks(): Promise<number> {
+    const result = await this.userModel.updateMany(
+      { role: 'vendor', freeClickGrantAt: { $exists: false } },
+      { $inc: { whatsappClickBalance: 5 }, $set: { freeClickGrantAt: new Date() } },
+    );
+    const granted = result.modifiedCount || 0;
+    if (granted > 0) {
+      this.logger.log(`Granted 5 starter WhatsApp clicks to ${granted} existing vendor(s)`);
+    }
+    return granted;
+  }
+
+  /** Copy an existing town into area when the vendor has not picked one yet. */
+  async seedAreasFromVendors(): Promise<void> {
+    await this.userModel.updateMany(
+      {
+        role: 'vendor',
+        $or: [{ area: { $exists: false } }, { area: null }, { area: '' }],
+        location: { $type: 'string', $nin: [''] },
+      },
+      [{ $set: { area: '$location' } }],
+    );
+    const vendors = await this.userModel
+      .find({ role: 'vendor', area: { $type: 'string', $nin: [''] } })
+      .select('area region')
+      .lean();
+    for (const vendor of vendors) {
+      const name = String((vendor as any).area || '').trim();
+      if (name.length < 2) continue;
+      await this.findOrCreateArea(name, (vendor as any).region);
+    }
+  }
+
+  areaKey(name: string): string {
+    return name.trim().replace(/\s+/g, ' ').toLowerCase();
+  }
+
+  async searchAreas(query: string, region?: string): Promise<Array<{ name: string; region?: string }>> {
+    const q = String(query || '').trim();
+    const filter: Record<string, unknown> = {};
+    if (region) filter.region = region;
+    if (q.length >= 1) {
+      const safe = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      filter.name = new RegExp(safe, 'i');
+    }
+    const rows = await this.areaModel.find(filter).sort({ name: 1 }).limit(8).select('name region').lean();
+    return rows.map((row: any) => ({ name: row.name, region: row.region }));
+  }
+
+  async findOrCreateArea(name: string, region?: string): Promise<{ name: string; region?: string }> {
+    const cleaned = String(name || '').trim().replace(/\s+/g, ' ');
+    if (cleaned.length < 2) {
+      throw new BadRequestException('Enter an area name');
+    }
+    const key = this.areaKey(cleaned);
+    const existing = await this.areaModel.findOne({ key }).lean();
+    if (existing) return { name: (existing as any).name, region: (existing as any).region };
+    try {
+      const created = await this.areaModel.create({
+        name: cleaned,
+        key,
+        region: region || undefined,
+      });
+      return { name: created.name, region: created.region };
+    } catch (err: any) {
+      if (err?.code === 11000) {
+        const raced = await this.areaModel.findOne({ key }).lean();
+        if (raced) return { name: (raced as any).name, region: (raced as any).region };
+      }
+      throw err;
+    }
   }
 
   /**
@@ -220,8 +298,11 @@ export class UsersService implements OnModuleInit {
   async create(createUserDto: CreateUserDto): Promise<User> {
     try {
       const { email, password, role: inputRole, name, phone, location } = createUserDto;
-      const hashedPassword = await bcrypt.hash(password, BCRYPT_ROUNDS);
       const role = inputRole || 'customer';
+      if (role === 'customer') {
+        throw new BadRequestException('Customer signup is closed. Existing customers can still sign in.');
+      }
+      const hashedPassword = await bcrypt.hash(password, BCRYPT_ROUNDS);
       const uniqueVendorId = role === 'vendor'
         ? `FLA-V-${crypto.randomBytes(3).toString('hex').toUpperCase()}`
         : undefined;
@@ -252,9 +333,14 @@ export class UsersService implements OnModuleInit {
         verificationStatus = 'submitted';
       }
 
+      let areaName = String(createUserDto.area || location || '').trim();
+      if (role === 'vendor' && areaName) {
+        const savedArea = await this.findOrCreateArea(areaName, createUserDto.region);
+        areaName = savedArea.name;
+      }
+
       const createdUser = new this.userModel({
         ...createUserDto,
-        // Store email lowercase for consistent fast index lookups
         email: email.toLowerCase().trim(),
         role,
         password: hashedPassword,
@@ -266,13 +352,16 @@ export class UsersService implements OnModuleInit {
         verificationDeclineReason,
         isIdentityVerified: isVerified,
         isEmailVerified: true,
-        // Dashboard access only. Selling stays locked until an admin taps Approve.
         status: 'active',
-        kycApprovedAt: undefined,
+        area: areaName || undefined,
+        location: areaName || location,
+        kycApprovedAt: role === 'vendor' ? new Date() : undefined,
         kycApprovedByAdmin: false,
         kycSubmittedAt,
         businessRegistrationSubmittedAt,
-        ...(role === 'vendor' ? pendingApprovalSubscriptionFields() : {}),
+        ...(role === 'vendor'
+          ? { whatsappClickBalance: 5, freeClickGrantAt: new Date(), subscriptionPaymentRequired: false }
+          : {}),
       });
       const savedUser = await createdUser.save();
 
@@ -285,7 +374,7 @@ export class UsersService implements OnModuleInit {
             this.sendRegistrationSms(savedUser.phone, welcomeMsg, 'customer-register');
           } else if (role === 'vendor') {
             // Registration received (same message as before). OTP code SMS is sent separately from AuthService.
-            const vendorMsg = `Welcome to FLA, ${namePart}! Your vendor application is under review. We'll notify you once approved.`;
+            const vendorMsg = `Welcome to FLA, ${namePart}! Your shop is live with 5 free WhatsApp clicks.`;
             this.sendRegistrationSms(savedUser.phone, vendorMsg, 'vendor-register');
 
             // Notify admin about the new vendor creation

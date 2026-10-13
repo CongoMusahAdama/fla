@@ -33,12 +33,11 @@ describe('normalizeListingMode', () => {
     expect(normalizeListingMode(undefined)).toBe('shop');
   });
 
-  it('shows checkout and WhatsApp together only when both are selected', () => {
-    expect(showsShopCheckout('shop')).toBe(true);
-    expect(showsWhatsappLead('shop')).toBe(false);
-    expect(showsShopCheckout('contact')).toBe(false);
+  it('keeps checkout closed and WhatsApp on every listing', () => {
+    expect(showsShopCheckout('shop')).toBe(false);
+    expect(showsShopCheckout('both')).toBe(false);
+    expect(showsWhatsappLead('shop')).toBe(true);
     expect(showsWhatsappLead('contact')).toBe(true);
-    expect(showsShopCheckout('both')).toBe(true);
     expect(showsWhatsappLead('both')).toBe(true);
   });
 });

@@ -16,6 +16,7 @@ import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile';
 import { TermsAcceptanceScreen } from '@/components/auth/TermsAcceptanceScreen';
 import { FLA_TERMS_VERSION } from '@/lib/fla-terms';
 import { GHANA_REGIONS } from '@/lib/ghana-regions';
+import { AreaSuggest } from '@/components/AreaSuggest';
 import { getFlaSupportMailtoHref } from '@/lib/support-contacts';
 import { DEFAULT_PRODUCT_CATEGORY_LABELS } from '@/lib/product-categories';
 
@@ -462,24 +463,22 @@ export const RegisterForm = ({
             return;
         }
 
-        if (role === 'vendor' && logoUploading) {
+        if (role === 'vendor' && !shopName.trim()) {
             Swal.fire({
-                icon: 'info',
-                title: 'Logo still uploading',
-                text: 'Please wait a moment for your shop logo to finish uploading.',
+                icon: 'warning',
+                title: 'Shop name required',
+                text: 'Enter the name customers will see.',
                 confirmButtonColor: '#F9CF5A',
             });
             return;
         }
-
-        if (role === 'vendor' && !logoUrl) {
+        if (role === 'vendor' && !location.trim()) {
             Swal.fire({
                 icon: 'warning',
-                title: 'Vendor logo required',
-                text: 'Please upload your shop logo before completing registration.',
+                title: 'Area required',
+                text: 'Search for your area and tap it, or add it if it is missing.',
                 confirmButtonColor: '#F9CF5A',
             });
-            setStep(3);
             return;
         }
 
@@ -533,11 +532,20 @@ export const RegisterForm = ({
             });
             return;
         }
-        setStep(prev => Math.min(prev + 1, role === 'vendor' ? 4 : 2));
+        if (step === 1 && !location.trim()) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Area required',
+                text: 'Search for your area and tap it, or add it if it is missing.',
+                confirmButtonColor: '#F9CF5A',
+            });
+            return;
+        }
+        setStep(prev => Math.min(prev + 1, 2));
     };
     const prevStep = () => setStep(prev => Math.max(prev - 1, 1));
 
-    const totalSteps = role === 'vendor' ? 4 : 2;
+    const totalSteps = 2;
 
     const renderRegionSelect = () => (
         <div className="space-y-1.5">
@@ -574,15 +582,17 @@ export const RegisterForm = ({
                             <AuthInput label="Email Address" type="email" placeholder="you@email.com" required value={email} onChange={setEmail} icon={Mail} />
                             <AuthInput label="Phone Number" type="tel" placeholder="024XXXXXXX" required value={phone} onChange={setPhone} icon={Phone} />
                             {renderRegionSelect()}
-                            <AuthInput
-                                label="City / Town"
-                                type="text"
-                                placeholder={role === 'vendor' ? 'Eg. Tamale' : 'Eg. East Legon'}
-                                required
-                                value={location}
-                                onChange={setLocation}
-                                icon={MapPin}
-                            />
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-bold text-slate-700 ml-1">Area</label>
+                                <AreaSuggest
+                                    value={location}
+                                    region={region}
+                                    onChange={setLocation}
+                                    placeholder="Search Tamale, East Legon..."
+                                    inputClassName="w-full px-4 py-4 bg-white border-2 border-slate-100 rounded-2xl text-base md:text-sm outline-none focus:border-slate-900"
+                                />
+                                <p className="text-xs text-slate-500 ml-1">Search and tap your area. Add it if it is not in the list.</p>
+                            </div>
                         </div>
                     </div>
                 );
@@ -594,6 +604,9 @@ export const RegisterForm = ({
                             <p className="text-sm text-slate-500">Create a strong password to protect your data.</p>
                         </div>
                         <div className="space-y-4">
+                            {role === 'vendor' && (
+                                <AuthInput label="Shop Name" type="text" placeholder="Eg. FLA Boutique" required value={shopName} onChange={setShopName} icon={Store} />
+                            )}
                             <AuthInput label="Password" type="password" placeholder="••••••••" required value={password} onChange={setPassword} icon={Lock} />
                             <AuthInput label="Confirm Password" type="password" placeholder="••••••••" required value={confirmPassword} onChange={setConfirmPassword} icon={Lock} />
                             <div className="flex gap-2 pt-2">
@@ -1004,7 +1017,7 @@ export const RegisterForm = ({
 
 function AuthContent() {
     const [isLogin, setIsLogin] = useState(true);
-    const [role, setRole] = useState<UserRole>('customer');
+    const [role, setRole] = useState<UserRole>('vendor');
     const [showForgotPassword, setShowForgotPassword] = useState(false);
 
     const [showOTP, setShowOTP] = useState(false);
@@ -1156,10 +1169,9 @@ function AuthContent() {
             else if (view === 'login') setIsLogin(true);
         } else if (urlRole === 'customer') {
             setRole('customer');
-            localStorage.setItem('last_intended_role', 'customer');
-            if (view === 'register') setIsLogin(false);
-            else if (view === 'login') setIsLogin(true);
+            setIsLogin(true);
         } else if (view === 'register') {
+            setRole('vendor');
             setIsLogin(false);
         } else if (view === 'login') {
             setIsLogin(true);
@@ -1220,19 +1232,7 @@ function AuthContent() {
             let kycUrls: any = {};
             let profileImage: string | undefined;
             if (role === 'vendor') {
-                // Logo is uploaded eagerly at selection time (see onLogoSelected in RegisterForm) —
-                // uploading it here instead would delay this request past the Turnstile token's
-                // validity window, especially on a slow connection, failing signup entirely.
-                if (!data.logoUrl) {
-                    throw new Error('Vendor logo is required. Please upload your shop logo.');
-                }
-                profileImage = data.logoUrl;
-                // KYC docs are optional at signup — vendors upload them later in the dashboard
-                if (data.kyc?.ghanaCardFront) kycUrls.ghanaCardFront = await uploadPublicFile(data.kyc.ghanaCardFront);
-                if (data.kyc?.ghanaCardBack) kycUrls.ghanaCardBack = await uploadPublicFile(data.kyc.ghanaCardBack);
-                if (data.kyc?.selfie) kycUrls.selfie = await uploadPublicFile(data.kyc.selfie);
-                if (data.kyc?.utilityBill) kycUrls.utilityBill = await uploadPublicFile(data.kyc.utilityBill);
-                if (data.kyc?.businessRegistration) kycUrls.businessRegistration = await uploadPublicFile(data.kyc.businessRegistration);
+                profileImage = data.logoUrl || undefined;
             } else if (data.kyc && role === 'customer') {
                 if (data.kyc.ghanaCardFront) kycUrls.ghanaCardFront = await uploadPublicFile(data.kyc.ghanaCardFront);
                 if (data.kyc.ghanaCardBack) kycUrls.ghanaCardBack = await uploadPublicFile(data.kyc.ghanaCardBack);
@@ -1244,19 +1244,8 @@ function AuthContent() {
                 ...(role === 'vendor' ? {
                     shopName: data.shopName,
                     productTypes: data.productTypes,
-                    paymentMethods: data.paymentMethods,
-                    momoNumber: data.paymentMethods?.[0]?.accountNumber,
-                    accountName: data.paymentMethods?.[0]?.accountName,
-                    ghanaCardNumber: data.kyc.ghanaCardNumber,
-                    selfie: kycUrls.selfie,
-                    utilityBill: kycUrls.utilityBill,
-                    businessRegistration: kycUrls.businessRegistration,
-                    digitalAddress: data.kyc.digitalAddress,
-                    dob: data.kyc.dob,
-                    utilityType: data.kyc.utilityType,
-                    employeeCount: data.kyc.employeeCount,
-                    yearsOfExistence: data.kyc.yearsOfExistence,
-                    bio: data.kyc.bio,
+                    area: data.location,
+                    bio: data.kyc?.bio,
                     profileImage,
                 } : {
                     ghanaCardNumber: data.kyc.ghanaCardNumber,
@@ -1810,25 +1799,6 @@ function AuthContent() {
                                 </header>
 
                                 {!isLogin && !showForgotPassword && !searchParams.get('role') && (
-                                    <div className="flex p-1 bg-slate-100 rounded-full mb-6">
-                                        <button
-                                            type="button"
-                                            onClick={() => { setRole('customer'); localStorage.setItem('last_intended_role', 'customer'); }}
-                                            className={`flex-1 py-2.5 text-xs font-semibold rounded-full transition-all ${role === 'customer' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                                        >
-                                            Customer
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => { setRole('vendor'); localStorage.setItem('last_intended_role', 'vendor'); }}
-                                            className={`flex-1 py-2.5 text-xs font-semibold rounded-full transition-all ${role === 'vendor' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                                        >
-                                            Vendor
-                                        </button>
-                                    </div>
-                                )}
-
-                                {!isLogin && !showForgotPassword && !searchParams.get('role') && (
                                     <p className="text-center text-xs text-slate-500 -mt-3 mb-6">
                                         Want to earn commission instead? <Link href="/referee" className="font-semibold text-slate-900 hover:underline">Become a Referee</Link>
                                     </p>
@@ -1859,7 +1829,7 @@ function AuthContent() {
                                         {isLogin ? (
                                             <>
                                                 New here?{' '}
-                                                <button type="button" onClick={() => setIsLogin(false)} className="font-semibold text-slate-900 hover:underline">
+                                                <button type="button" onClick={() => { setRole('vendor'); setIsLogin(false); }} className="font-semibold text-slate-900 hover:underline">
                                                     Create account
                                                 </button>
                                             </>

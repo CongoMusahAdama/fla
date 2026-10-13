@@ -8,14 +8,9 @@ export class SubscriptionReminderService {
 
   constructor(private readonly usersService: UsersService) {}
 
-  /** Every day at 09:00 Africa/Accra */
+  /** Subscription SMS is off. The method stays so the scheduler does not need a rewrite. */
   @Cron('0 9 * * *', { timeZone: 'Africa/Accra' })
   async handleDailySubscriptionReminders() {
-    try {
-      const result = await this.usersService.sendSubscriptionReminders();
-      this.logger.log(`Daily subscription reminders complete (reminded=${result.reminded})`);
-    } catch (err: any) {
-      this.logger.error(`Subscription reminder cron failed: ${err?.message || err}`);
-    }
+    return;
   }
 }

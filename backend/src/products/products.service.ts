@@ -13,10 +13,10 @@ import { accraDayKey, normalizeListingMode, showsWhatsappLead } from '../common/
 import { normalizeWhatsAppPhone } from '../common/whatsapp.util';
 
 const VENDOR_POPULATE_FIELDS =
-  'uniqueVendorId region location bio shopName vendorTier businessRegistration businessRegistrationApprovedAt businessRegistrationSubmittedAt storeSlug phone whatsappClickBalance';
+  'uniqueVendorId region area location bio shopName vendorTier businessRegistration businessRegistrationApprovedAt businessRegistrationSubmittedAt storeSlug phone whatsappClickBalance';
 
 const LIST_PRODUCT_FIELDS =
-  'name price images imageLabels sizes stock colorStock sizeStock variantStock vendorId vendorName uniqueVendorId description hasSizes hasColors colors tailoringTime region vendorLocation vendorBio vendorTier storeSlug category listingMode rating reviewCount originalPrice isFeatured createdAt isActive';
+  'name price images imageLabels sizes stock colorStock sizeStock variantStock vendorId vendorName uniqueVendorId description hasSizes hasColors colors tailoringTime region area vendorLocation vendorBio vendorTier storeSlug category listingMode rating reviewCount originalPrice isFeatured createdAt isActive';
 
 /** Match frontend `NEW_ARRIVAL_MAX_AGE_DAYS` in src/lib/product-freshness.ts */
 const NEW_ARRIVAL_MAX_AGE_DAYS = 30;
@@ -46,7 +46,7 @@ export class ProductsService implements OnModuleInit {
     // Never cache admin/vendor inventory (showAll) — freshness matters more there.
     if (query.showAll === 'true') return null;
     const keys = [
-      'page', 'limit', 'sort', 'filter', 'category', 'region', 'search',
+      'page', 'limit', 'sort', 'filter', 'category', 'region', 'area', 'search',
       'minPrice', 'maxPrice', 'priceLt', 'priceGt', 'vendorId', 'isFeatured',
     ];
     const parts: string[] = [];
@@ -63,6 +63,9 @@ export class ProductsService implements OnModuleInit {
     } catch {
       // Fresh databases never had the once-a-day unique index.
     }
+    this.backfillEmptyProductAreas().catch((err) =>
+      this.logger.error(`Area backfill failed: ${err.message}`),
+    );
 
     // Run the auto-archiver every hour
     setInterval(async () => {
@@ -89,6 +92,31 @@ export class ProductsService implements OnModuleInit {
     }, 60 * 60 * 1000); // 1 hour interval
   }
 
+  /** Fill area on older listings from the vendor profile. Never overwrites an area already set. */
+  private async backfillEmptyProductAreas() {
+    const vendors = await this.userModel
+      .find({
+        role: 'vendor',
+        $or: [
+          { area: { $type: 'string', $nin: [''] } },
+          { location: { $type: 'string', $nin: [''] } },
+        ],
+      })
+      .select('area location')
+      .lean();
+    for (const vendor of vendors) {
+      const area = String((vendor as any).area || (vendor as any).location || '').trim();
+      if (area.length < 2) continue;
+      await this.productModel.updateMany(
+        {
+          vendorId: (vendor as any)._id,
+          $or: [{ area: { $exists: false } }, { area: null }, { area: '' }],
+        },
+        { $set: { area } },
+      );
+    }
+  }
+
   async create(createProductDto: CreateProductDto): Promise<Product> {
     const payload = normalizeProductStockPayload(createProductDto as any) as any;
     payload.listingMode = normalizeListingMode(payload.listingMode);
@@ -105,6 +133,9 @@ export class ProductsService implements OnModuleInit {
     }
     if (!p.region && vendor?.region) {
       p.region = vendor.region;
+    }
+    if (!p.area && (vendor?.area || vendor?.location)) {
+      p.area = vendor.area || vendor.location;
     }
     if (!p.vendorLocation && vendor?.location) {
       p.vendorLocation = vendor.location;
@@ -167,7 +198,7 @@ export class ProductsService implements OnModuleInit {
     const vendors = await this.userModel
       .find({ _id: { $in: ids } })
       .select(
-        'uniqueVendorId region location bio shopName vendorTier businessRegistration businessRegistrationApprovedAt businessRegistrationSubmittedAt storeSlug phone whatsappClickBalance',
+        'uniqueVendorId region area location bio shopName vendorTier businessRegistration businessRegistrationApprovedAt businessRegistrationSubmittedAt storeSlug phone whatsappClickBalance',
       )
       .lean()
       .exec();
@@ -210,6 +241,14 @@ export class ProductsService implements OnModuleInit {
 
     if (query.region) {
       filters.region = query.region;
+    }
+
+    if (query.area) {
+      const area = String(query.area).trim();
+      if (area.length >= 2) {
+        const safe = area.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        filters.area = new RegExp(`^${safe}$`, 'i');
+      }
     }
 
     if (query.search) {

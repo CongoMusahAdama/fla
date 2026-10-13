@@ -9,8 +9,6 @@ import { AuthGuard } from '@nestjs/passport';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { User, UserDocument } from '../users/schemas/user.schema';
-import { FLA_CONSTANTS } from '../common/constants';
-import { isSubscriptionActive } from '../users/vendor-subscription.util';
 
 @Controller('products')
 export class ProductsController {
@@ -58,7 +56,7 @@ export class ProductsController {
     if (req.user.role === 'vendor') {
       const vendor = await this.userModel
         .findById(req.user.userId)
-        .select('mustChangePassword status kycApprovedAt subscriptionEndsAt subscriptionPaymentRequired subscriptionPlan subscriptionLastPaidAt businessRegistration vendorTier shopName name storeSlug uniqueVendorId')
+        .select('mustChangePassword status area region shopName name storeSlug uniqueVendorId')
         .lean()
         .exec();
       if ((vendor as any)?.mustChangePassword) {
@@ -67,16 +65,11 @@ export class ProductsController {
       if ((vendor as any)?.status === 'rejected' || (vendor as any)?.status === 'banned') {
         throw new ForbiddenException('This vendor account is not allowed to list products.');
       }
-      if (!(vendor as any)?.kycApprovedAt) {
-        throw new ForbiddenException(
-          'Upload your verification documents and wait for admin approval (usually 4–5 hours) before you can list products.',
-        );
+      if ((vendor as any)?.area && !(createProductDto as any).area) {
+        (createProductDto as any).area = (vendor as any).area;
       }
-      // Business registration is optional for listing — it only unlocks the green trust badge after admin confirm.
-      if (!isSubscriptionActive(vendor as any)) {
-        throw new ForbiddenException(
-          `Product uploads are locked until you renew via Paystack in your vendor dashboard (GHS ${FLA_CONSTANTS.SUBSCRIPTION_MONTHLY_GHS}). Existing listings stay live.`,
-        );
+      if ((vendor as any)?.region && !createProductDto.region) {
+        createProductDto.region = (vendor as any).region;
       }
       if ((vendor as any)?.storeSlug) {
         createProductDto.storeSlug = (vendor as any).storeSlug;

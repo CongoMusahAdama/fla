@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import ChatSupport from "@/components/ChatSupport";
 import Navbar from "@/components/Navbar";
+import { CookieNotice } from "@/components/CookieNotice";
 import CartDrawer from "@/components/CartDrawer";
 import { CartProvider } from "@/context/CartContext";
 import { AuthProvider } from "@/context/AuthContext";
@@ -35,6 +36,7 @@ export default function RootLayout({
             </Suspense>
             <CartDrawer />
             {children}
+            <CookieNotice />
             <ChatSupport />
           </CartProvider>
         </AuthProvider>

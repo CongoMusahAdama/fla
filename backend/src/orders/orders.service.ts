@@ -229,8 +229,8 @@ export class OrdersService implements OnModuleInit {
     return result.deletedCount;
   }
 
-  async create(createOrderDto: CreateOrderDto): Promise<{ order: Order; paymentLink: string }> {
-    return this.createOrderWithPayment(createOrderDto);
+  async create(_createOrderDto: CreateOrderDto): Promise<{ order: Order; paymentLink: string }> {
+    throw new BadRequestException('Checkout is closed. Message the vendor on WhatsApp.');
   }
 
   async checkoutCart(
@@ -247,6 +247,7 @@ export class OrdersService implements OnModuleInit {
       paymentLink: string;
     }>;
   }> {
+    throw new BadRequestException('Checkout is closed. Message the vendor on WhatsApp.');
     if (!dto.vendorGroups?.length) {
       throw new BadRequestException('Cart is empty');
     }
