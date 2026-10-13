@@ -176,6 +176,8 @@ function VendorDashboardInner() {
     const [momoNetwork, setMomoNetwork] = useState('MTN');
     const [accountName, setAccountName] = useState('');
     const [shopLocation, setShopLocation] = useState('');
+    const [shopArea, setShopArea] = useState('');
+    const [shopRegion, setShopRegion] = useState('');
     const [bio, setBio] = useState('');
     const [storeCategory, setStoreCategory] = useState('');
     const [storeAccentColor, setStoreAccentColor] = useState('#F6B01E');
@@ -404,7 +406,7 @@ function VendorDashboardInner() {
             Swal.fire({
                 icon: 'success',
                 title: 'Password updated',
-                text: 'You can now explore your dashboard. Upload verification docs to unlock product listing.',
+                text: 'You can now explore your dashboard.',
                 timer: 2500,
                 showConfirmButton: false,
             });
@@ -426,6 +428,8 @@ function VendorDashboardInner() {
             setAccountName(user.accountName || '');
             setMomoNetwork(user.paymentMethods?.[0]?.network || 'MTN');
             setShopLocation(user.location || '');
+            setShopArea(user.area || '');
+            setShopRegion(user.region || '');
             setBio(user.bio || '');
             setStoreCategory(user.productTypes || '');
             setStoreAccentColor(user.storeAccentColor || '#F6B01E');
@@ -719,7 +723,9 @@ function VendorDashboardInner() {
                     storeThemeColor: storeThemeColor || undefined,
                     momoNumber, 
                     accountName, 
-                    location: shopLocation, 
+                    location: shopLocation,
+                    area: shopArea,
+                    region: shopRegion || undefined, 
                     bio, 
                     ...(profileImage ? { profileImage } : {}),
                     ...(bannerImage ? { bannerImage } : {}),
@@ -749,15 +755,9 @@ function VendorDashboardInner() {
             if (ghanaCardBack) setGhanaCardBack(ghanaCardBack);
             if (selfie) setSelfie(selfie);
             if (businessRegistration) setBusinessRegistration(businessRegistration);
-            const submitted = Boolean(updated.kycSubmittedAt || (ghanaCardFront && selfie));
             Swal.fire({
                 icon: 'success',
-                title: user?.status === 'pending' ? 'DETAILS SAVED' : submitted ? 'DOCS SUBMITTED' : 'IDENTITY UPDATED',
-                text: user?.status === 'pending'
-                    ? 'Your MoMo and shop details are saved. Paystack payout is linked only after admin approves your documents.'
-                    : submitted
-                    ? 'Documents received. Approval usually takes 4–5 hours. After approval, open Overview and tap Pay on Paystack to unlock uploads.'
-                    : 'Your information has been successfully saved. Upload Ghana Card + selfie to submit for approval.',
+                title: 'Saved',
                 customClass: { popup: 'rounded-[32px]' },
             });
         } catch (err: any) {
@@ -1041,9 +1041,7 @@ function VendorDashboardInner() {
                                     </p>
                                     <p className="text-sm text-slate-700 leading-relaxed">
                                         {!canSell
-                                            ? awaitingKycApproval
-                                                ? 'Your documents are under review. Uploads unlock automatically, free of charge, as soon as an admin approves you.'
-                                                : 'Upload your Business Registration, Ghana Card, and selfie in Studio Identity first. Uploads unlock free of charge once an admin approves you.'
+                                            ? 'This shop cannot list products right now. Contact FLA support if that looks wrong.'
                                             : 'Contact FLA support if your uploads are locked.'}
                                     </p>
                                 </div>
@@ -1064,7 +1062,7 @@ function VendorDashboardInner() {
                                         onClick={() => setActiveSection('settings')}
                                         className="h-11 px-6 rounded-full bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800"
                                     >
-                                        {awaitingKycApproval ? 'View studio identity' : 'Upload verification docs'}
+                                        Open studio identity
                                     </button>
                                 )}
                             </div>
@@ -1084,9 +1082,7 @@ function VendorDashboardInner() {
                                 Product listing locked
                             </h2>
                             <p className="text-sm text-slate-500 leading-relaxed">
-                                {awaitingKycApproval
-                                    ? 'Your documents are under review. Approval usually takes 4–5 hours — uploads unlock automatically, free of charge, once approved.'
-                                    : 'Upload your Business Registration, Ghana Card, and selfie in Studio Identity first. Uploads unlock free of charge once an admin approves you.'}
+                                This shop cannot list products right now. Contact FLA support if that looks wrong.
                             </p>
                             <div className="flex flex-col sm:flex-row gap-3 justify-center">
                                 <button
@@ -1094,7 +1090,7 @@ function VendorDashboardInner() {
                                     onClick={() => setActiveSection('settings')}
                                     className="px-8 py-3 bg-brand-lemon text-slate-900 rounded-full text-[10px] font-black uppercase tracking-widest"
                                 >
-                                    {awaitingKycApproval ? 'View studio identity' : 'Upload verification docs'}
+                                    Open studio identity
                                 </button>
                                 <button
                                     type="button"
@@ -1305,7 +1301,7 @@ function VendorDashboardInner() {
                     <VendorClickCredits user={user} token={token} onUser={updateUser} />
                 </div>
             );
-            case 'settings': return <VendorSettings user={user} shopName={shopName} setShopName={setShopName} storeCategory={storeCategory} setStoreCategory={setStoreCategory} storeAccentColor={storeAccentColor} setStoreAccentColor={setStoreAccentColor} storeThemeColor={storeThemeColor} setStoreThemeColor={setStoreThemeColor} phone={phone} setPhone={setPhone} momoNumber={momoNumber} setMomoNumber={setMomoNumber} momoNetwork={momoNetwork} setMomoNetwork={setMomoNetwork} accountName={accountName} setAccountName={setAccountName} shopLocation={shopLocation} setShopLocation={setShopLocation} bio={bio} setBio={setBio} bannerImage={bannerImage} profileImage={profileImage} businessRegistration={businessRegistration} ghanaCardFront={ghanaCardFront} ghanaCardBack={ghanaCardBack} selfie={selfie} handleImageUpload={handleImageUpload} handleUpdateVendorProfile={handleUpdateVendorProfile} startOnDocuments={needsKycUpload} />;
+            case 'settings': return <VendorSettings user={user} shopName={shopName} setShopName={setShopName} storeCategory={storeCategory} setStoreCategory={setStoreCategory} storeAccentColor={storeAccentColor} setStoreAccentColor={setStoreAccentColor} storeThemeColor={storeThemeColor} setStoreThemeColor={setStoreThemeColor} phone={phone} setPhone={setPhone} momoNumber={momoNumber} setMomoNumber={setMomoNumber} momoNetwork={momoNetwork} setMomoNetwork={setMomoNetwork} accountName={accountName} setAccountName={setAccountName} shopLocation={shopLocation} setShopLocation={setShopLocation} shopArea={shopArea} setShopArea={setShopArea} shopRegion={shopRegion} setShopRegion={setShopRegion} bio={bio} setBio={setBio} bannerImage={bannerImage} profileImage={profileImage} businessRegistration={businessRegistration} ghanaCardFront={ghanaCardFront} ghanaCardBack={ghanaCardBack} selfie={selfie} handleImageUpload={handleImageUpload} handleUpdateVendorProfile={handleUpdateVendorProfile} startOnDocuments={needsKycUpload} />;
             case 'notifications': return <VendorNotifications notifications={notifications} />;
             case 'help': return <VendorHelp />;
             default: return null;
@@ -1407,7 +1403,7 @@ function VendorDashboardInner() {
                             <div className="space-y-2">
                                 <p className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Welcome — explore your dashboard</p>
                                 <p className="text-sm text-slate-700 leading-relaxed">
-                                    Your shop is live for browsing. Upload Ghana Card + selfie under <strong>Settings → Studio Identity</strong> whenever you have the docs. Product listing stays locked until we approve (usually <strong>4–5 hours</strong>).
+                                    Your shop details live in <strong>Studio Identity</strong>. Update your logo, shop name, and area there anytime.
                                 </p>
                             </div>
                             <div className="flex flex-wrap gap-2">
@@ -1416,7 +1412,7 @@ function VendorDashboardInner() {
                                     onClick={() => setActiveSection('settings')}
                                     className="h-10 px-5 rounded-full bg-brand-blue text-white text-xs font-semibold hover:bg-slate-800 transition-colors"
                                 >
-                                    Complete verification
+                                    Complete studio identity
                                 </button>
                                 <button
                                     type="button"

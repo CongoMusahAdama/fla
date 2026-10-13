@@ -5,6 +5,7 @@ import { SubscriptionReminderService } from './subscription-reminder.service';
 import { MongooseModule } from '@nestjs/mongoose';
 import { User, UserSchema } from './schemas/user.schema';
 import { Area, AreaSchema } from './schemas/area.schema';
+import { Product, ProductSchema } from '../products/schemas/product.schema';
 import { WhatsappClickTopup, WhatsappClickTopupSchema } from '../payments/schemas/whatsapp-click-topup.schema';
 import { OrdersModule } from '../orders/orders.module';
 import { EmailModule } from '../email/email.module';
@@ -15,6 +16,7 @@ import { SettingsModule } from '../settings/settings.module';
     MongooseModule.forFeature([
       { name: User.name, schema: UserSchema },
       { name: Area.name, schema: AreaSchema },
+      { name: Product.name, schema: ProductSchema },
       { name: WhatsappClickTopup.name, schema: WhatsappClickTopupSchema },
     ]),
     forwardRef(() => OrdersModule),

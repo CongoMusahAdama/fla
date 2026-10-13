@@ -13,6 +13,7 @@ import { AreaSuggest } from '@/components/AreaSuggest';
 import { readCookie, writeCookie } from '@/lib/site-cookies';
 import { useProductCategories } from '@/hooks/useProductCategories';
 import { restoreMarketplaceScrollIfNeeded, peekPendingMarketplaceScroll, getShopMarketplaceFilters, saveShopMarketplaceFilters } from '@/lib/marketplace-return';
+import { shareVendorWhatsappLead } from '@/lib/whatsapp-clicks';
 
 const REGION_ALL_LABEL = 'All Regions';
 const PRICE_ALL_LABEL = 'All Prices';
@@ -196,7 +197,7 @@ function ShopContent() {
     const applyProductsResponse = (data: unknown, append: boolean) => {
         if (Array.isArray(data)) {
             const list = data;
-            setProducts((prev) => (append ? [...prev, ...list] : list));
+            setProducts((prev) => shareVendorWhatsappLead((append ? [...prev, ...list] : list) as any[]));
             setHasMore(false);
             setTotalProducts(list.length);
             return 1;
@@ -205,15 +206,15 @@ function ShopContent() {
         const list = payload.products || [];
         const totalPages = payload.totalPages || 1;
         setProducts((prev) => {
-            if (!append) return list;
+            if (!append) return shareVendorWhatsappLead(list as any[]);
             const seen = new Set(prev.map((p) => p._id));
-            return [
+            return shareVendorWhatsappLead([
                 ...prev,
                 ...list.filter((item) => {
                     const id = (item as { _id?: string })._id;
                     return typeof id === 'string' && !seen.has(id);
                 }),
-            ];
+            ] as any[]);
         });
         setTotalProducts(payload.total ?? list.length);
         return totalPages;

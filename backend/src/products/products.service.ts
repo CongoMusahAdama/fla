@@ -215,7 +215,21 @@ export class ProductsService implements OnModuleInit {
           ? String(p.vendorId._id || p.vendorId.id || '')
           : String(p.vendorId || '');
       const vendor = byId.get(rawId);
-      return this.mapProductForClient({ ...p, vendorId: vendor || p.vendorId }, { listView: true });
+      // Read phone and balance off the shared vendor before mapping. One vendor
+      // record is reused for every product, so the flag must be decided here and
+      // applied to every listing, not only the first.
+      const leadOpen =
+        Number(vendor?.whatsappClickBalance || 0) > 0 &&
+        Boolean(normalizeWhatsAppPhone(vendor?.phone));
+      const vendorCopy = vendor
+        ? { ...vendor, phone: undefined, whatsappClickBalance: undefined }
+        : p.vendorId;
+      const mapped = this.mapProductForClient(
+        { ...p, vendorId: vendorCopy },
+        { listView: true },
+      );
+      if (vendor) mapped.whatsappLeadAvailable = leadOpen;
+      return mapped;
     });
   }
 

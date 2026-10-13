@@ -5,12 +5,6 @@ import {
   UploadCloud,
   Camera,
   ImageIcon,
-  FileText,
-  CheckCircle2,
-  ShieldAlert,
-  Clock,
-  ArrowLeft,
-  ArrowRight,
   ChevronRight,
 } from 'lucide-react';
 import { getImageUrl } from '@/lib/utils';
@@ -22,7 +16,8 @@ import {
   DEFAULT_STORE_THEME,
   normalizeStoreHex,
 } from '@/lib/store-theme';
-import { isBusinessRegistrationPendingReview, isVendorDocumented } from '@/lib/kyc';
+import { AreaSuggest } from '@/components/AreaSuggest';
+import { GHANA_REGIONS } from '@/lib/ghana-regions';
 
 interface VendorSettingsProps {
   user: any;
@@ -44,6 +39,10 @@ interface VendorSettingsProps {
   setAccountName: (val: string) => void;
   shopLocation: string;
   setShopLocation: (val: string) => void;
+  shopArea: string;
+  setShopArea: (val: string) => void;
+  shopRegion: string;
+  setShopRegion: (val: string) => void;
   bio: string;
   setBio: (val: string) => void;
   bannerImage: string | null;
@@ -56,19 +55,10 @@ interface VendorSettingsProps {
   handleUpdateVendorProfile: () => void;
   isVerifyingAccount?: boolean;
   setIsVerifyingAccount?: (val: boolean) => void;
-  /** Jump straight to documents when vendor still needs KYC upload */
   startOnDocuments?: boolean;
 }
 
-type WizardStep = 'brand' | 'documents';
-
-const STEPS: { id: WizardStep; label: string; hint: string }[] = [
-  { id: 'brand', label: 'Brand', hint: 'Logo, banner & shop details' },
-  { id: 'documents', label: 'Documents', hint: 'Optional verification' },
-];
-
 export const VendorSettings: React.FC<VendorSettingsProps> = ({
-  user,
   shopName,
   setShopName,
   storeCategory,
@@ -81,85 +71,31 @@ export const VendorSettings: React.FC<VendorSettingsProps> = ({
   setPhone,
   shopLocation,
   setShopLocation,
+  shopArea,
+  setShopArea,
+  shopRegion,
+  setShopRegion,
   bio,
   setBio,
   bannerImage,
   profileImage,
-  businessRegistration,
-  ghanaCardFront,
-  ghanaCardBack,
-  selfie,
   handleImageUpload,
   handleUpdateVendorProfile,
-  startOnDocuments = false,
 }) => {
   const { categories: categoryOptions } = useProductCategories({ includeAll: false });
-  const needsDocs = !user?.kycApprovedAt && !user?.kycSubmittedAt;
-  const [step, setStep] = React.useState<WizardStep>(
-    startOnDocuments || needsDocs ? 'documents' : 'brand',
-  );
   const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = React.useState(false);
-
-  React.useEffect(() => {
-    if (startOnDocuments || needsDocs) {
-      setStep('documents');
-    }
-  }, [startOnDocuments, needsDocs]);
-
-  const stepIndex = STEPS.findIndex((s) => s.id === step);
-  const docsReady = Boolean(ghanaCardFront && selfie);
-
-  const goNext = () => {
-    if (stepIndex < STEPS.length - 1) setStep(STEPS[stepIndex + 1].id);
-  };
-  const goBack = () => {
-    if (stepIndex > 0) setStep(STEPS[stepIndex - 1].id);
-  };
 
   return (
     <div className="w-full max-w-6xl space-y-8 animate-in fade-in duration-500">
       <div className="max-w-3xl">
         <h1 className="text-2xl md:text-3xl font-black text-slate-900 uppercase tracking-tighter">Store Profile</h1>
         <p className="text-slate-500 text-sm mt-1.5 leading-relaxed">
-          {needsDocs
-            ? 'Add your logo and shop name. You can list products right away.'
-            : 'Update your logo, shop name, and store look anytime.'}
+          Update your logo, shop name, area, and store look anytime.
         </p>
       </div>
 
-      {/* Step indicator */}
-      <nav aria-label="Profile setup steps" className="bg-white rounded-2xl border border-slate-100 p-3 sm:p-4 md:p-5 shadow-sm">
-        <ol className="flex sm:grid sm:grid-cols-2 gap-2 sm:gap-3 overflow-x-auto no-scrollbar -mx-1 px-1">
-          {STEPS.map((s, i) => {
-            const active = s.id === step;
-            const done = i < stepIndex || (s.id === 'documents' && Boolean(user?.kycApprovedAt || user?.kycSubmittedAt));
-            return (
-              <li key={s.id} className="min-w-[9.5rem] sm:min-w-0 shrink-0 sm:shrink">
-                <button
-                  type="button"
-                  onClick={() => setStep(s.id)}
-                  className={`w-full text-left rounded-xl px-3 sm:px-4 py-3 sm:py-4 transition-colors border ${
-                    active
-                      ? 'bg-brand-lemon/25 border-brand-lemon text-slate-900'
-                      : done
-                        ? 'bg-emerald-50 border-emerald-100 text-emerald-800'
-                        : 'bg-slate-50 border-slate-100 text-slate-500'
-                  }`}
-                >
-                  <span className="text-[9px] font-black uppercase tracking-widest block">
-                    Step {i + 1}
-                  </span>
-                  <span className="text-sm font-bold block mt-0.5">{s.label}</span>
-                  <span className="hidden sm:block text-[11px] text-slate-500 mt-1 leading-snug">{s.hint}</span>
-                </button>
-              </li>
-            );
-          })}
-        </ol>
-      </nav>
-
-      <div className="bg-white rounded-2xl border border-slate-100 p-6 md:p-10 lg:p-12 space-y-8 shadow-sm min-h-[480px]">
-        {step === 'brand' && (
+      <div className="bg-white rounded-2xl border border-slate-100 p-6 md:p-10 lg:p-12 space-y-8 shadow-sm">
+        {(
           <div className="space-y-8 animate-in fade-in slide-in-from-right-2 duration-300">
             <div>
               <h2 className="text-sm font-black text-slate-900 uppercase tracking-widest">Brand identity</h2>
@@ -316,6 +252,30 @@ export const VendorSettings: React.FC<VendorSettingsProps> = ({
                   className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20 outline-none"
                 />
               </div>
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Region</label>
+                <select
+                  value={shopRegion}
+                  onChange={(e) => setShopRegion(e.target.value)}
+                  className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20 outline-none"
+                >
+                  <option value="">Select your region</option>
+                  {GHANA_REGIONS.map((regionName) => (
+                    <option key={regionName} value={regionName}>{regionName}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Area</label>
+                <AreaSuggest
+                  value={shopArea}
+                  region={shopRegion}
+                  onChange={setShopArea}
+                  placeholder="Search Tamale, East Legon..."
+                  inputClassName="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20 outline-none"
+                />
+                <p className="text-[10px] text-slate-400 ml-1">Search and tap your area. Add it if it is not in the list. Buyers use this to find your shop.</p>
+              </div>
               <div className="md:col-span-2 space-y-1.5">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Business Address</label>
                 <input
@@ -406,169 +366,14 @@ export const VendorSettings: React.FC<VendorSettingsProps> = ({
           </div>
         )}
 
-        {step === 'documents' && (
-          <div className="space-y-6 animate-in fade-in slide-in-from-right-2 duration-300">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <h2 className="text-sm font-black text-slate-900 uppercase tracking-widest">Verification documents</h2>
-                <p className="text-xs text-slate-500 mt-1">
-                  Optional. Your shop can stay live without these.
-                </p>
-              </div>
-              {user?.kycApprovedAt ? (
-                <div className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-600 rounded-2xl border border-emerald-100 shrink-0">
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span className="text-[9px] font-black uppercase tracking-widest">Approved to sell</span>
-                </div>
-              ) : user?.kycSubmittedAt ? (
-                <div className="flex items-center gap-2 px-4 py-2 bg-sky-50 text-sky-700 rounded-2xl border border-sky-100 shrink-0">
-                  <Clock className="w-4 h-4" />
-                  <span className="text-[9px] font-black uppercase tracking-widest">Under review</span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2 px-4 py-2 bg-orange-50 text-orange-600 rounded-2xl border border-orange-100 shrink-0">
-                  <ShieldAlert className="w-4 h-4" />
-                  <span className="text-[9px] font-black uppercase tracking-widest">Upload required</span>
-                </div>
-              )}
-            </div>
-
-            {!user?.kycApprovedAt && !user?.kycSubmittedAt && (
-              <div className="rounded-xl bg-brand-lemon/20 border border-brand-lemon/40 px-4 py-3 text-sm text-slate-800">
-                Tap each card to upload. You need a <strong>Business Registration</strong>, <strong>Ghana Card (front)</strong>, and a{' '}
-                <strong>selfie with ID</strong>, then hit Save below.
-              </div>
-            )}
-
-            <div className="grid sm:grid-cols-3 gap-5 lg:gap-6">
-              {(
-                [
-                  { key: 'ghanaFront' as const, label: 'Ghana Card (front)', value: ghanaCardFront, required: true },
-                  { key: 'ghanaBack' as const, label: 'Ghana Card (back)', value: ghanaCardBack, required: false },
-                  { key: 'selfie' as const, label: 'Selfie with ID', value: selfie, required: true },
-                ] as const
-              ).map((doc) => (
-                <label
-                  key={doc.key}
-                  className={`relative block aspect-[4/3] min-h-[180px] bg-slate-50 rounded-2xl overflow-hidden border-2 border-dashed cursor-pointer hover:border-brand-lemon transition-colors ${
-                    doc.value ? 'border-emerald-300' : doc.required ? 'border-orange-200' : 'border-slate-200'
-                  }`}
-                >
-                  {doc.value ? (
-                    <Image src={getImageUrl(doc.value)} alt={doc.label} fill className="object-cover" unoptimized />
-                  ) : (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-3 text-center">
-                      <Camera className="w-6 h-6 text-slate-300" />
-                      <span className="text-[9px] font-black uppercase tracking-widest text-slate-600">{doc.label}</span>
-                      {doc.required && (
-                        <span className="text-[8px] font-bold uppercase tracking-widest text-orange-500">Required</span>
-                      )}
-                    </div>
-                  )}
-                  <input
-                    type="file"
-                    className="hidden"
-                    accept="image/*"
-                    onChange={(e) => e.target.files?.[0] && handleImageUpload(e.target.files[0], doc.key)}
-                  />
-                </label>
-              ))}
-            </div>
-
-            <div className="relative space-y-2">
-              {businessRegistration && isVendorDocumented(user) ? (
-                <p className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-emerald-700">
-                  <CheckCircle2 className="w-3.5 h-3.5" /> Business registration confirmed
-                </p>
-              ) : businessRegistration && isBusinessRegistrationPendingReview(user) ? (
-                <p className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-amber-700">
-                  <Clock className="w-3.5 h-3.5" /> Uploaded — waiting for FLA to confirm
-                </p>
-              ) : null}
-              {businessRegistration ? (
-                <div className="relative h-36 bg-slate-50 rounded-2xl overflow-hidden border border-slate-100 group">
-                  <Image
-                    src={getImageUrl(businessRegistration)}
-                    alt="Business Certificate"
-                    fill
-                    sizes="400px"
-                    className="object-cover opacity-60"
-                    unoptimized
-                  />
-                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
-                    <FileText className="w-7 h-7 text-slate-900" />
-                    <p className="text-[10px] font-black text-slate-900 uppercase tracking-[0.2em]">Business Certificate</p>
-                    <label className="cursor-pointer bg-slate-900 text-white px-5 py-2 rounded-2xl text-[9px] font-black uppercase tracking-widest">
-                      Update
-                      <input
-                        type="file"
-                        className="hidden"
-                        accept="image/*,.pdf"
-                        onChange={(e) => e.target.files?.[0] && handleImageUpload(e.target.files[0], 'doc')}
-                      />
-                    </label>
-                  </div>
-                </div>
-              ) : (
-                <label className="flex flex-col items-center justify-center gap-3 h-36 bg-slate-50 border-2 border-dashed border-orange-200 rounded-2xl hover:border-brand-lemon transition-all cursor-pointer">
-                  <UploadCloud className="w-7 h-7 text-slate-300" />
-                  <div className="text-center px-4">
-                    <p className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Business registration</p>
-                    <p className="text-[8px] font-bold text-orange-500 uppercase tracking-widest mt-1">Required · PDF or image</p>
-                  </div>
-                  <input
-                    type="file"
-                    className="hidden"
-                    accept="image/*,.pdf"
-                    onChange={(e) => e.target.files?.[0] && handleImageUpload(e.target.files[0], 'doc')}
-                  />
-                </label>
-              )}
-            </div>
-
-            {needsDocs && !docsReady && (
-              <p className="text-xs text-orange-600 font-semibold">
-                Upload the required documents above before saving so we can start your review.
-              </p>
-            )}
-          </div>
-        )}
-
-        {/* Wizard footer */}
-        <div className="flex flex-col-reverse sm:flex-row gap-3 pt-2 border-t border-slate-100">
-          {stepIndex > 0 ? (
-            <button
-              type="button"
-              onClick={goBack}
-              className="inline-flex items-center justify-center gap-2 h-12 px-5 rounded-full border border-slate-200 text-slate-700 text-xs font-bold uppercase tracking-widest hover:bg-slate-50 transition-colors"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Back
-            </button>
-          ) : (
-            <div className="hidden sm:block flex-1" />
-          )}
-
-          <div className="flex-1 flex flex-col sm:flex-row gap-3 sm:justify-end">
-            {step !== 'documents' ? (
-              <button
-                type="button"
-                onClick={goNext}
-                className="inline-flex items-center justify-center gap-2 h-12 px-6 rounded-full bg-brand-lemon text-slate-900 text-xs font-black uppercase tracking-widest hover:bg-brand-lemon/90 transition-colors"
-              >
-                Continue
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            ) : null}
-
-            <button
-              type="button"
-              onClick={handleUpdateVendorProfile}
-              className="inline-flex items-center justify-center gap-2 h-12 px-6 rounded-full bg-slate-900 text-white text-xs font-black uppercase tracking-widest hover:bg-brand-lemon hover:text-slate-900 transition-all border border-slate-800"
-            >
-              {step === 'documents' && needsDocs ? 'Save & submit for review' : 'Save store information'}
-            </button>
-          </div>
+        <div className="flex justify-end pt-2 border-t border-slate-100">
+          <button
+            type="button"
+            onClick={handleUpdateVendorProfile}
+            className="inline-flex items-center justify-center gap-2 h-12 px-6 rounded-full bg-slate-900 text-white text-xs font-black uppercase tracking-widest hover:bg-brand-lemon hover:text-slate-900 transition-all border border-slate-800"
+          >
+            Save store information
+          </button>
         </div>
       </div>
     </div>

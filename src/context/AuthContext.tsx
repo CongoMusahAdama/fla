@@ -47,6 +47,7 @@ export type User = {
     whatsappClickBalance?: number;
     pendingBalance?: number;
     region?: string;
+    area?: string;
     ghanaCardNumber?: string;
     ghanaCardFront?: string;
     ghanaCardBack?: string;
@@ -137,6 +138,7 @@ function mapApiUser(raw: Record<string, unknown>): User {
         whatsappClickBalance: raw.whatsappClickBalance as number | undefined,
         pendingBalance: raw.pendingBalance as number | undefined,
         region: raw.region as string | undefined,
+        area: raw.area as string | undefined,
         vendorTier: raw.vendorTier as 'low' | 'high' | undefined,
         termsAcceptedAt: raw.termsAcceptedAt as string | Date | null | undefined,
         termsVersion: raw.termsVersion as string | undefined,

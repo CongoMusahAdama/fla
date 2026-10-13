@@ -5,6 +5,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User, UserDocument } from './schemas/user.schema';
 import { Area, AreaDocument } from './schemas/area.schema';
+import { Product, ProductDocument } from '../products/schemas/product.schema';
 import { WhatsappClickTopup, WhatsappClickTopupDocument } from '../payments/schemas/whatsapp-click-topup.schema';
 import * as bcrypt from 'bcrypt';
 import { OrdersService } from '../orders/orders.service';
@@ -48,6 +49,7 @@ export class UsersService implements OnModuleInit {
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(Area.name) private areaModel: Model<AreaDocument>,
+    @InjectModel(Product.name) private productModel: Model<ProductDocument>,
     @InjectModel(WhatsappClickTopup.name) private whatsappClickTopupModel: Model<WhatsappClickTopupDocument>,
     @InjectModel(TempVerification.name) private tempVerificationModel: Model<TempVerification>,
     @Inject(forwardRef(() => OrdersService)) private ordersService: OrdersService,
@@ -517,10 +519,25 @@ export class UsersService implements OnModuleInit {
     const existing = await this.userModel
       .findById(id)
       .select(
-        'role shopName status storeSlug kycApprovedAt ghanaCardFront selfie businessRegistration kycSubmittedAt businessRegistrationApprovedAt verificationStatus',
+        'role shopName status storeSlug kycApprovedAt ghanaCardFront selfie businessRegistration kycSubmittedAt businessRegistrationApprovedAt verificationStatus area region location',
       )
       .lean()
       .exec();
+
+    let nextArea = '';
+    if ((existing as any)?.role === 'vendor' && typeof updateData.area === 'string') {
+      const cleaned = updateData.area.trim().replace(/\s+/g, ' ');
+      if (cleaned.length >= 2) {
+        const saved = await this.findOrCreateArea(
+          cleaned,
+          typeof updateData.region === 'string' ? updateData.region : (existing as any)?.region,
+        );
+        updateData.area = saved.name;
+        nextArea = saved.name;
+      } else {
+        delete updateData.area;
+      }
+    }
 
     const nextBusinessReg =
       typeof updateData.businessRegistration === 'string'
@@ -559,6 +576,25 @@ export class UsersService implements OnModuleInit {
     }
 
     const updatedUser = await this.userModel.findByIdAndUpdate(id, { $set: updateData }, { new: true }).lean().exec() as unknown as User;
+
+    if (nextArea && (existing as any)?.role === 'vendor') {
+      const previous = [String((existing as any)?.area || '').trim(), String((existing as any)?.location || '').trim()]
+        .filter((value) => value.length >= 2);
+      const areaMatch: Record<string, unknown>[] = [
+        { area: { $exists: false } },
+        { area: null },
+        { area: '' },
+        ...previous.map((value) => ({ area: value })),
+      ];
+      const productSet: Record<string, string> = { area: nextArea };
+      if (typeof updateData.region === 'string' && updateData.region.trim()) {
+        productSet.region = updateData.region.trim();
+      }
+      await this.productModel.updateMany(
+        { vendorId: id, $or: areaMatch },
+        { $set: productSet },
+      ).exec();
+    }
     
     // Do NOT sync Paystack subaccounts on vendor self-serve profile/KYC saves.
     // Subaccounts are created only when admin approves the vendor (approveVendorKycForSelling).

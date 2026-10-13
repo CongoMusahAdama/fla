@@ -76,6 +76,25 @@ export function notifyVendorWhatsappPaused(vendorId?: unknown) {
   window.dispatchEvent(new CustomEvent(WHATSAPP_VENDOR_PAUSED, { detail: { vendorId: id } }));
 }
 
+/** Same vendor, same button. One open listing means every listing of that shop stays open. */
+export function shareVendorWhatsappLead<T extends { vendorId?: unknown; whatsappLeadAvailable?: boolean }>(
+  products: T[],
+): T[] {
+  const open = new Set<string>();
+  for (const product of products) {
+    if (product.whatsappLeadAvailable === true) {
+      const id = vendorKey(product.vendorId);
+      if (id) open.add(id);
+    }
+  }
+  if (!open.size) return products;
+  return products.map((product) => {
+    const id = vendorKey(product.vendorId);
+    if (!id || !open.has(id) || product.whatsappLeadAvailable === true) return product;
+    return { ...product, whatsappLeadAvailable: true };
+  });
+}
+
 export function isVendorWhatsappPaused(vendorId?: unknown): boolean {
   const id = vendorKey(vendorId);
   return Boolean(id && pausedVendorIds.has(id));

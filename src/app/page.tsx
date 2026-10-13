@@ -13,6 +13,7 @@ import { AreaSuggest } from '@/components/AreaSuggest';
 import { readCookie, writeCookie } from '@/lib/site-cookies';
 import { useProductCategories } from '@/hooks/useProductCategories';
 import { restoreMarketplaceScrollIfNeeded, peekPendingMarketplaceScroll, getHomeMarketplaceFilters, saveHomeMarketplaceFilters } from '@/lib/marketplace-return';
+import { shareVendorWhatsappLead } from '@/lib/whatsapp-clicks';
 
 const HOME_PAGE_SIZE = 12;
 
@@ -113,7 +114,7 @@ export default function Home() {
 
       if (data || list.length) {
         const totalPages = Array.isArray(data) ? 1 : (data?.totalPages || 1);
-        setProducts(list);
+        setProducts(shareVendorWhatsappLead(list));
         setHasMore(1 < totalPages);
 
         if (cat === 'All Product' && !region && !resolveHomeShelfFilter(filt, cat, region)) {
@@ -142,7 +143,7 @@ export default function Home() {
         const totalPages = Array.isArray(data) ? 1 : (data.totalPages || 1);
         setProducts((prev) => {
           const seen = new Set(prev.map((p) => p._id));
-          return [...prev, ...list.filter((p) => !seen.has(p._id))];
+          return shareVendorWhatsappLead([...prev, ...list.filter((p) => !seen.has(p._id))]);
         });
         setPage(nextPage);
         setHasMore(nextPage < totalPages);
