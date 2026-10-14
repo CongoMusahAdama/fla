@@ -76,6 +76,10 @@ export class CreateProductDto {
 
     @IsString()
     @IsOptional()
+    city?: string;
+
+    @IsString()
+    @IsOptional()
     uniqueVendorId?: string;
 
     @IsString()

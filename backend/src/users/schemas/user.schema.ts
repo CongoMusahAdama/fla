@@ -47,7 +47,11 @@ export class User {
     @Prop()
     location?: string;
 
-    /** Town or neighbourhood. Finer than region. Vendors search or add it. */
+    /** Town, such as Tamale or Accra. Vendors add this separately from the area. */
+    @Prop()
+    city?: string;
+
+    /** Neighbourhood inside the city. Vendors search or add it. */
     @Prop()
     area?: string;
 

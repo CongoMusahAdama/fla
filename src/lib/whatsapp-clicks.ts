@@ -126,6 +126,7 @@ export type WhatsappLeadResult = {
 export async function openVendorWhatsappLead(
   productId: string,
   token?: string | null,
+  buyerPhone?: string,
 ): Promise<WhatsappLeadResult> {
   const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -135,7 +136,7 @@ export async function openVendorWhatsappLead(
     method: 'POST',
     headers,
     credentials: 'include',
-    body: JSON.stringify({ clientId: getWhatsappClickClientId() }),
+    body: JSON.stringify({ buyerPhone: buyerPhone || undefined }),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {

@@ -13,10 +13,10 @@ import { accraDayKey, normalizeListingMode, showsWhatsappLead } from '../common/
 import { normalizeWhatsAppPhone } from '../common/whatsapp.util';
 
 const VENDOR_POPULATE_FIELDS =
-  'uniqueVendorId region area location bio shopName vendorTier businessRegistration businessRegistrationApprovedAt businessRegistrationSubmittedAt storeSlug phone whatsappClickBalance';
+  'uniqueVendorId region city area location bio shopName vendorTier businessRegistration businessRegistrationApprovedAt businessRegistrationSubmittedAt storeSlug phone whatsappClickBalance';
 
 const LIST_PRODUCT_FIELDS =
-  'name price images imageLabels sizes stock colorStock sizeStock variantStock vendorId vendorName uniqueVendorId description hasSizes hasColors colors tailoringTime region area vendorLocation vendorBio vendorTier storeSlug category listingMode rating reviewCount originalPrice isFeatured createdAt isActive';
+  'name price images imageLabels sizes stock colorStock sizeStock variantStock vendorId vendorName uniqueVendorId description hasSizes hasColors colors tailoringTime region city area vendorLocation vendorBio vendorTier storeSlug category listingMode rating reviewCount originalPrice isFeatured createdAt isActive';
 
 /** Match frontend `NEW_ARRIVAL_MAX_AGE_DAYS` in src/lib/product-freshness.ts */
 const NEW_ARRIVAL_MAX_AGE_DAYS = 30;
@@ -46,7 +46,7 @@ export class ProductsService implements OnModuleInit {
     // Never cache admin/vendor inventory (showAll) — freshness matters more there.
     if (query.showAll === 'true') return null;
     const keys = [
-      'page', 'limit', 'sort', 'filter', 'category', 'region', 'area', 'search',
+      'page', 'limit', 'sort', 'filter', 'category', 'region', 'city', 'area', 'search',
       'minPrice', 'maxPrice', 'priceLt', 'priceGt', 'vendorId', 'isFeatured',
     ];
     const parts: string[] = [];
@@ -62,6 +62,14 @@ export class ProductsService implements OnModuleInit {
       await this.whatsappClickLogModel.collection.dropIndex('productId_1_buyerKey_1_dayKey_1');
     } catch {
       // Fresh databases never had the once-a-day unique index.
+    }
+    try {
+      await this.whatsappClickLogModel.collection.createIndex(
+        { buyerKey: 1 },
+        { unique: true, name: 'buyerKey_once_per_vendor' },
+      );
+    } catch (err: any) {
+      this.logger.warn(`WhatsApp click unique index: ${err?.message || err}`);
     }
     this.backfillEmptyProductAreas().catch((err) =>
       this.logger.error(`Area backfill failed: ${err.message}`),
@@ -102,17 +110,27 @@ export class ProductsService implements OnModuleInit {
           { location: { $type: 'string', $nin: [''] } },
         ],
       })
-      .select('area location')
+      .select('area location city')
       .lean();
     for (const vendor of vendors) {
       const area = String((vendor as any).area || (vendor as any).location || '').trim();
-      if (area.length < 2) continue;
+      if (area.length >= 2) {
+        await this.productModel.updateMany(
+          {
+            vendorId: (vendor as any)._id,
+            $or: [{ area: { $exists: false } }, { area: null }, { area: '' }],
+          },
+          { $set: { area } },
+        );
+      }
+      const city = String((vendor as any).city || '').trim();
+      if (city.length < 2) continue;
       await this.productModel.updateMany(
         {
           vendorId: (vendor as any)._id,
-          $or: [{ area: { $exists: false } }, { area: null }, { area: '' }],
+          $or: [{ city: { $exists: false } }, { city: null }, { city: '' }],
         },
-        { $set: { area } },
+        { $set: { city } },
       );
     }
   }
@@ -120,6 +138,20 @@ export class ProductsService implements OnModuleInit {
   async create(createProductDto: CreateProductDto): Promise<Product> {
     const payload = normalizeProductStockPayload(createProductDto as any) as any;
     payload.listingMode = normalizeListingMode(payload.listingMode);
+    if (payload.vendorId) {
+      const vendor = await this.userModel
+        .findById(payload.vendorId)
+        .select('region city area location')
+        .lean()
+        .exec();
+      if (vendor) {
+        if (!payload.region && (vendor as any).region) payload.region = (vendor as any).region;
+        if (!payload.city && (vendor as any).city) payload.city = (vendor as any).city;
+        if (!payload.area && ((vendor as any).area || (vendor as any).location)) {
+          payload.area = (vendor as any).area || (vendor as any).location;
+        }
+      }
+    }
     const createdProduct = new this.productModel(payload);
     const saved = await createdProduct.save();
     this.bustPublicCaches();
@@ -133,6 +165,9 @@ export class ProductsService implements OnModuleInit {
     }
     if (!p.region && vendor?.region) {
       p.region = vendor.region;
+    }
+    if (!p.city && vendor?.city) {
+      p.city = vendor.city;
     }
     if (!p.area && (vendor?.area || vendor?.location)) {
       p.area = vendor.area || vendor.location;
@@ -203,7 +238,7 @@ export class ProductsService implements OnModuleInit {
     const vendors = await this.userModel
       .find({ _id: { $in: ids } })
       .select(
-        'uniqueVendorId region area location bio shopName vendorTier businessRegistration businessRegistrationApprovedAt businessRegistrationSubmittedAt storeSlug phone whatsappClickBalance',
+        'uniqueVendorId region city area location bio shopName vendorTier businessRegistration businessRegistrationApprovedAt businessRegistrationSubmittedAt storeSlug phone whatsappClickBalance',
       )
       .lean()
       .exec();
@@ -262,17 +297,22 @@ export class ProductsService implements OnModuleInit {
       filters.region = query.region;
     }
 
+    if (query.city) {
+      await this.addPlaceFilter(filters, query.city, 'city');
+    }
+
     if (query.area) {
-      const area = String(query.area).trim();
-      if (area.length >= 2) {
-        const safe = area.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        filters.area = new RegExp(`^${safe}$`, 'i');
-      }
+      await this.addPlaceFilter(filters, query.area, 'area');
     }
 
     if (query.search) {
       const term = String(query.search).trim().slice(0, 120);
-      if (term.length >= 2) {
+      if (term.length >= 1 && term.length < 3) {
+        const safe = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const rx = new RegExp(safe, 'i');
+        const existingAnd = Array.isArray(filters.$and) ? filters.$and : [];
+        filters.$and = [...existingAnd, { $or: [{ name: rx }, { vendorName: rx }] }];
+      } else if (term.length >= 3) {
         filters.$text = { $search: term };
       }
     }
@@ -303,6 +343,40 @@ export class ProductsService implements OnModuleInit {
     }
 
     return filters;
+  }
+
+  /** City is a prefix (Tamale matches Tamale and older "Tamale, Gumani"). Area can be one letter. */
+  private async addPlaceFilter(
+    filters: Record<string, unknown>,
+    raw: unknown,
+    mode: 'city' | 'area',
+  ) {
+    const text = String(raw || '').trim().replace(/\s+/g, ' ');
+    if (!text) return;
+    const safe = text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(mode === 'city' ? `^${safe}` : safe, 'i');
+    const vendorFields = mode === 'city' ? ['city', 'area', 'location'] : ['area', 'location'];
+    const vendors = await this.userModel
+      .find({ $or: vendorFields.map((field) => ({ [field]: regex })) })
+      .select('_id')
+      .lean()
+      .exec();
+    const vendorIds = vendors.map((vendor: any) => vendor._id);
+    const placeMatch: Record<string, unknown>[] = mode === 'city'
+      ? [{ city: regex }, { area: regex }]
+      : [{ area: regex }];
+    if (vendorIds.length) {
+      const loose: Record<string, unknown>[] = [
+        { [mode]: { $exists: false } },
+        { [mode]: null },
+        { [mode]: '' },
+        { [mode]: regex },
+      ];
+      if (mode === 'city') loose.push({ area: regex });
+      placeMatch.push({ vendorId: { $in: vendorIds }, $or: loose });
+    }
+    const existingAnd = Array.isArray(filters.$and) ? filters.$and : [];
+    filters.$and = [...existingAnd, { $or: placeMatch }];
   }
 
   async findAll(query: any = {}): Promise<Product[] | {
@@ -424,13 +498,13 @@ export class ProductsService implements OnModuleInit {
   }
 
   /**
-   * Open the vendor WhatsApp for a contact or combined listing.
-   * Every tap costs one prepaid click. A second tap within a few seconds
-   * does not charge again. At zero, the button is unavailable on every listing.
+   * Open the vendor WhatsApp.
+   * One buyer phone is charged once for that vendor. A later tap from the same
+   * number still opens the chat and does not spend another click.
    */
   async consumeWhatsappClick(
     productId: string,
-    opts: { userId?: string; clientId?: string },
+    opts: { userId?: string; buyerPhone?: string },
   ) {
     if (!Types.ObjectId.isValid(productId)) {
       throw new NotFoundException('Product not found');
@@ -466,30 +540,32 @@ export class ProductsService implements OnModuleInit {
       message: 'WhatsApp contact is unavailable until this vendor recharges.',
     };
 
+    let buyerPhone = '';
     const requester = opts.userId ? String(opts.userId) : '';
-    let actorKey = '';
     if (requester) {
-      actorKey = `user:${requester}`;
-    } else {
-      const clientId = String(opts.clientId || '').trim();
-      if (!/^[a-zA-Z0-9-]{16,80}$/.test(clientId)) {
-        throw new BadRequestException('Missing click client id');
-      }
-      actorKey = `guest:${clientId}`;
+      const buyer = await this.userModel.findById(requester).select('phone').lean().exec();
+      buyerPhone = normalizeWhatsAppPhone((buyer as any)?.phone) || '';
+    }
+    if (!buyerPhone) {
+      buyerPhone = normalizeWhatsAppPhone(opts.buyerPhone) || '';
+    }
+    if (!buyerPhone) {
+      throw new BadRequestException('Enter your WhatsApp number.');
     }
 
-    const recent = await this.whatsappClickLogModel
-      .findOne({
-        productId: product._id,
-        actorKey,
-        createdAt: { $gte: new Date(Date.now() - 4_000) },
-      })
+    const actorKey = `phone:${buyerPhone}`;
+    const buyerKey = `vendor:${String(product.vendorId)}:${actorKey}`;
+    const liveBalance = Number((vendor as any)?.whatsappClickBalance || 0);
+
+    const already = await this.whatsappClickLogModel
+      .findOne({ vendorId: product.vendorId, actorKey })
       .select('_id')
       .lean()
       .exec();
-    if (recent) {
-      const live = Number((vendor as any)?.whatsappClickBalance || 0);
-      if (live < 1) return paused;
+    if (already) {
+      if (liveBalance < 1) {
+        return { available: true, url, charged: false, alreadyCounted: true, whatsappLeadAvailable: false };
+      }
       return { available: true, url, charged: false, alreadyCounted: true, whatsappLeadAvailable: true };
     }
 
@@ -511,7 +587,7 @@ export class ProductsService implements OnModuleInit {
         vendorId: product.vendorId,
         productId: product._id,
         actorKey,
-        buyerKey: `${actorKey}:${Date.now().toString(36)}:${Math.random().toString(36).slice(2, 8)}`,
+        buyerKey,
         dayKey: accraDayKey(),
       });
     } catch (err: any) {
@@ -520,8 +596,13 @@ export class ProductsService implements OnModuleInit {
         .exec();
       if (err?.code === 11000) {
         const live = remaining + 1;
-        if (live < 1) return paused;
-        return { available: true, url, charged: false, alreadyCounted: true, whatsappLeadAvailable: true };
+        return {
+          available: true,
+          url,
+          charged: false,
+          alreadyCounted: true,
+          whatsappLeadAvailable: live > 0,
+        };
       }
       throw err;
     }
@@ -578,19 +659,28 @@ export class ProductsService implements OnModuleInit {
 
   async getSuggestions(searchTerm: string) {
     const term = String(searchTerm || '').trim().slice(0, 80);
-    if (term.length < 2) return [];
+    if (term.length < 1) return [];
 
     const cacheKey = term.toLowerCase();
     const cached = this.suggestionsCache.get(cacheKey);
     if (cached) return cached;
 
-    // Prefer text index (fast under concurrent typers); regex fallback if text finds nothing.
-    let productNames = await this.productModel
-      .find({ isActive: true, $text: { $search: term } })
-      .limit(5)
-      .select('name')
-      .lean()
-      .exec();
+    const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const short = term.length < 3;
+    // One or two letters are dropped by the text index, so match the name directly.
+    let productNames = short
+      ? await this.productModel
+        .find({ isActive: true, name: { $regex: escaped, $options: 'i' } })
+        .limit(5)
+        .select('name')
+        .lean()
+        .exec()
+      : await this.productModel
+        .find({ isActive: true, $text: { $search: term } })
+        .limit(5)
+        .select('name')
+        .lean()
+        .exec();
 
     if (!productNames.length) {
       const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -605,27 +695,25 @@ export class ProductsService implements OnModuleInit {
         .exec();
     }
 
-    const vendorNames = await this.userModel
-      .find({
-        role: 'vendor',
-        $text: { $search: term },
-      })
-      .limit(5)
-      .select('shopName')
-      .lean()
-      .exec()
-      .catch(async () => {
-        const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        return this.userModel
-          .find({
-            role: 'vendor',
-            shopName: { $regex: escaped, $options: 'i' },
-          })
+    const vendorNames = short
+      ? await this.userModel
+        .find({ role: 'vendor', shopName: { $regex: escaped, $options: 'i' } })
+        .limit(5)
+        .select('shopName')
+        .lean()
+        .exec()
+      : await this.userModel
+        .find({ role: 'vendor', $text: { $search: term } })
+        .limit(5)
+        .select('shopName')
+        .lean()
+        .exec()
+        .catch(async () => this.userModel
+          .find({ role: 'vendor', shopName: { $regex: escaped, $options: 'i' } })
           .limit(5)
           .select('shopName')
           .lean()
-          .exec();
-      });
+          .exec());
 
     const suggestions = [
       ...productNames.map((p) => ({ text: p.name, type: 'product' })),

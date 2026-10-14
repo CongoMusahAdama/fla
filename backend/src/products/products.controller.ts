@@ -115,12 +115,12 @@ export class ProductsController {
   @UseGuards(OptionalJwtAuthGuard)
   consumeWhatsappClick(
     @Param('id') id: string,
-    @Body() body: { clientId?: string },
+    @Body() body: { buyerPhone?: string },
     @Request() req: { user?: { userId?: string } },
   ) {
     return this.productsService.consumeWhatsappClick(id, {
       userId: req.user?.userId,
-      clientId: body?.clientId,
+      buyerPhone: body?.buyerPhone,
     });
   }
 

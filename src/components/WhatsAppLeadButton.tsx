@@ -19,14 +19,33 @@ export function WhatsAppLeadButton({
   className = "",
   onUnavailable,
 }: WhatsAppLeadButtonProps) {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const [opening, setOpening] = useState(false);
 
   const open = async () => {
     if (opening || !productId) return;
+    let buyerPhone = user?.phone?.trim() || "";
+    if (!buyerPhone) {
+      const ask = await Swal.fire({
+        title: "Your WhatsApp number",
+        text: "This number is counted once for this shop. Another number can still message them.",
+        input: "tel",
+        inputPlaceholder: "024XXXXXXX",
+        showCancelButton: true,
+        confirmButtonText: "Continue",
+        confirmButtonColor: "#0f172a",
+        inputValidator: (value) => {
+          const digits = String(value || "").replace(/\D/g, "");
+          if (digits.length < 10) return "Enter a WhatsApp number";
+          return undefined;
+        },
+      });
+      if (!ask.isConfirmed) return;
+      buyerPhone = String(ask.value || "").trim();
+    }
     setOpening(true);
     try {
-      const result = await openVendorWhatsappLead(productId, token);
+      const result = await openVendorWhatsappLead(productId, token, buyerPhone);
       if (!result.available || !result.url) {
         onUnavailable?.();
         Swal.fire({

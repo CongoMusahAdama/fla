@@ -25,6 +25,16 @@ import { AdminDisputeCaseCard } from '@/components/admin/AdminDisputeCaseCard';
 import { DEFAULT_PRODUCT_CATEGORY_LABELS, normalizeCategoryList } from '@/lib/product-categories';
 import AdminBillboards from '@/components/admin/AdminBillboards';
 
+function formatVisitDay(day: string): string {
+    const [year, month, date] = day.split('-').map(Number);
+    if (!year || !month || !date) return day;
+    return new Date(Date.UTC(year, month - 1, date)).toLocaleDateString('en-GB', {
+        day: 'numeric',
+        month: 'short',
+        timeZone: 'UTC',
+    });
+}
+
 function formatKycDetailValue(value: unknown): string {
     if (value == null || value === '') return '—';
     if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
@@ -852,19 +862,22 @@ export default function AdminDashboard() {
     ] as const;
 
     const statsCards = [
+        { id: 'dashboard' as const, label: 'People Today', value: (adminData?.peopleToday ?? 0).toLocaleString(), icon: Users, iconWrap: 'bg-sky-50', iconColor: 'text-sky-600' },
+        { id: 'customers' as const, label: 'New Accounts Today', value: (adminData?.newAccountsToday ?? 0).toLocaleString(), icon: User, iconWrap: 'bg-indigo-50', iconColor: 'text-indigo-600' },
         { id: 'orders' as const, label: 'Platform Commission', value: `GH₵ ${adminData?.totalCommission?.toLocaleString() || '0'}`, icon: ShieldCheck, iconWrap: 'bg-violet-50', iconColor: 'text-violet-600' },
         { id: 'orders' as const, label: 'Total Revenue', value: `GH₵ ${adminData?.totalRevenue?.toLocaleString() || '0'}`, icon: Wallet, iconWrap: 'bg-amber-50', iconColor: 'text-amber-600' },
         { id: 'orders' as const, label: 'Total Orders', value: adminData?.totalOrders?.toString() || '0', icon: ShoppingBag, iconWrap: 'bg-sky-50', iconColor: 'text-sky-600' },
         { id: 'vendors' as const, label: 'Total Vendors', value: adminData?.totalVendors?.toString() || '0', icon: ShieldCheck, iconWrap: 'bg-fuchsia-50', iconColor: 'text-fuchsia-600' },
         { id: 'products' as const, label: 'Total Products', value: adminData?.totalProducts?.toString() || '0', icon: Package, iconWrap: 'bg-emerald-50', iconColor: 'text-emerald-600' },
     ];
+    const dailyPeople = Array.isArray(adminData?.dailyPeople) ? [...adminData.dailyPeople].reverse() : [];
 
     const renderSection = () => {
         switch (activeSection) {
             case 'dashboard':
                 return (
                     <div className="space-y-8 animate-in fade-in duration-500">
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 md:gap-4">
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
                             {statsCards.map((stat, i) => (
                                 <button
                                     key={i}
@@ -878,6 +891,19 @@ export default function AdminDashboard() {
                                     <p className="text-lg md:text-2xl font-semibold text-slate-900 tracking-tight">{stat.value}</p>
                                 </button>
                             ))}
+                        </div>
+
+                        <div className="bg-white border border-slate-200 p-4 md:p-5">
+                            <p className="text-[11px] md:text-xs font-medium tracking-wide text-slate-500 mb-3">People on the platform, last 7 days</p>
+                            <div className="grid grid-cols-7 gap-1 md:gap-2">
+                                {dailyPeople.map((row: { day: string; people: number }) => (
+                                    <div key={row.day} className="text-center">
+                                        <p className="text-base md:text-xl font-semibold text-slate-900">{row.people}</p>
+                                        <p className="text-[10px] text-slate-400 mt-1">{formatVisitDay(row.day)}</p>
+                                    </div>
+                                ))}
+                            </div>
+                            <p className="text-[11px] text-slate-400 mt-3">Each person counts once a day. Coming back the same day does not add another.</p>
                         </div>
 
                         {/* Tab Switcher */}

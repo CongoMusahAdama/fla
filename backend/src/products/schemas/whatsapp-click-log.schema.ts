@@ -3,7 +3,7 @@ import { Document, Types } from 'mongoose';
 
 export type WhatsappClickLogDocument = WhatsappClickLog & Document;
 
-/** One charged tap per buyer per product per Ghana day. */
+/** One charged lead per buyer phone per vendor. Later taps from that number are free. */
 @Schema({ timestamps: true })
 export class WhatsappClickLog {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
@@ -16,7 +16,7 @@ export class WhatsappClickLog {
   @Prop({ required: true })
   actorKey: string;
 
-  /** Unique per tap so an older once-a-day index cannot block the next charge. */
+  /** Stable per vendor and buyer phone so the same number cannot be charged twice. */
   @Prop({ required: true })
   buyerKey: string;
 
@@ -26,4 +26,5 @@ export class WhatsappClickLog {
 
 export const WhatsappClickLogSchema = SchemaFactory.createForClass(WhatsappClickLog);
 
-WhatsappClickLogSchema.index({ productId: 1, actorKey: 1, createdAt: -1 });
+WhatsappClickLogSchema.index({ vendorId: 1, actorKey: 1 });
+WhatsappClickLogSchema.index({ buyerKey: 1 }, { unique: true });

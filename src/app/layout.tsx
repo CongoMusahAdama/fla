@@ -3,6 +3,7 @@ import "./globals.css";
 import ChatSupport from "@/components/ChatSupport";
 import Navbar from "@/components/Navbar";
 import { CookieNotice } from "@/components/CookieNotice";
+import { DailyVisitPing } from "@/components/DailyVisitPing";
 import CartDrawer from "@/components/CartDrawer";
 import { CartProvider } from "@/context/CartContext";
 import { AuthProvider } from "@/context/AuthContext";
@@ -37,6 +38,7 @@ export default function RootLayout({
             <CartDrawer />
             {children}
             <CookieNotice />
+            <DailyVisitPing />
             <ChatSupport />
           </CartProvider>
         </AuthProvider>

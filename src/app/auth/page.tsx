@@ -21,7 +21,7 @@ import { getFlaSupportMailtoHref } from '@/lib/support-contacts';
 import { DEFAULT_PRODUCT_CATEGORY_LABELS } from '@/lib/product-categories';
 
 // Memoized Input Component to prevent re-renders of the entire page on every keystroke
-const AuthInput = React.memo(({ label, type, placeholder, value, onChange, required, icon: Icon }: any) => {
+const AuthInput = React.memo(({ label, type, placeholder, value, onChange, required, icon: Icon, name, autoComplete }: any) => {
     const [showPassword, setShowPassword] = useState(false);
     const isPassword = type === 'password';
     const inputType = isPassword ? (showPassword ? 'text' : 'password') : type;
@@ -41,6 +41,8 @@ const AuthInput = React.memo(({ label, type, placeholder, value, onChange, requi
                 )}
                 <input
                     type={inputType}
+                    name={name}
+                    autoComplete={autoComplete}
                     placeholder={placeholder}
                     required={required}
                     value={value}
@@ -126,10 +128,12 @@ const LoginForm = ({ onLogin, onForgotPassword }: { onLogin: (id: string, pass: 
     const [password, setPassword] = useState('');
 
     return (
-        <form onSubmit={(e) => { e.preventDefault(); onLogin(identifier, password); }} className="space-y-5 animate-in fade-in duration-500">
+        <form onSubmit={(e) => { e.preventDefault(); onLogin(identifier, password); }} autoComplete="on" method="post" action="#" className="space-y-5 animate-in fade-in duration-500">
             <AuthInput
                 label="Email or Phone"
                 type="text"
+                name="username"
+                autoComplete="username"
                 placeholder="Example@mail.com"
                 required
                 value={identifier}
@@ -140,7 +144,9 @@ const LoginForm = ({ onLogin, onForgotPassword }: { onLogin: (id: string, pass: 
                 <AuthInput
                     label="Password"
                     type="password"
-                    placeholder="8 characters"
+                    name="password"
+                    autoComplete="current-password"
+                    placeholder="Your password"
                     required
                     value={password}
                     onChange={setPassword}
@@ -284,15 +290,18 @@ export const RegisterForm = ({
     role,
     onSignup,
     turnstileResetKey = 0,
+    signupBusy = false,
 }: {
     role: UserRole;
     onSignup: (data: any) => void;
     turnstileResetKey?: number;
+    signupBusy?: boolean;
 }) => {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [phone, setPhone] = useState('');
     const [location, setLocation] = useState('');
+    const [city, setCity] = useState('');
     const [region, setRegion] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
@@ -333,14 +342,6 @@ export const RegisterForm = ({
     const [businessDescription, setBusinessDescription] = useState('');
     const [employeeCount, setEmployeeCount] = useState('1-5');
     const [yearsOfExistence, setYearsOfExistence] = useState('0-1');
-
-    // Password Validation Rules (aligned with backend CreateUserDto)
-    const hasMinLength = password.length >= 8;
-    const hasUppercase = /[A-Z]/.test(password);
-    const hasLowercase = /[a-z]/.test(password);
-    const hasNumber = /\d/.test(password);
-    const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
-    const allRulesPassed = hasMinLength && hasUppercase && hasLowercase && hasNumber && hasSpecialChar;
 
     // Vendor Specific
     const [shopName, setShopName] = useState('');
@@ -436,12 +437,12 @@ export const RegisterForm = ({
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (role === 'vendor' && !allRulesPassed) {
+        if (!password) {
             Swal.fire({
                 icon: 'warning',
-                title: 'Weak Password',
-                text: 'Please ensure your studio password meets all security requirements.',
-                confirmButtonColor: '#0f172a'
+                title: 'Password required',
+                text: 'Choose any password you will remember.',
+                confirmButtonColor: '#F9CF5A',
             });
             return;
         }
@@ -461,6 +462,15 @@ export const RegisterForm = ({
             });
             return;
         }
+        if (role === 'vendor' && !city.trim()) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'City required',
+                text: 'Add your city, such as Tamale or Accra.',
+                confirmButtonColor: '#F9CF5A',
+            });
+            return;
+        }
         if (role === 'vendor' && !location.trim()) {
             Swal.fire({
                 icon: 'warning',
@@ -472,7 +482,7 @@ export const RegisterForm = ({
         }
 
         onSignup({
-            name, email, phone, location, region, password, confirmPassword,
+            name, email, phone, location, city, region, password, confirmPassword,
             shopName, productTypes, paymentMethods, turnstileToken,
             logoUrl,
             kyc: {
@@ -521,7 +531,25 @@ export const RegisterForm = ({
             });
             return;
         }
-        if (step === 1 && !location.trim()) {
+        if (step === 1 && !region.trim()) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Region required',
+                text: 'Select your region.',
+                confirmButtonColor: '#F9CF5A',
+            });
+            return;
+        }
+        if (step === 1 && city.trim().length < 2) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'City required',
+                text: 'Add your city, such as Tamale or Accra.',
+                confirmButtonColor: '#F9CF5A',
+            });
+            return;
+        }
+        if (step === 1 && location.trim().length < 2) {
             Swal.fire({
                 icon: 'warning',
                 title: 'Area required',
@@ -568,20 +596,34 @@ export const RegisterForm = ({
                         </div>
                         <div className="space-y-4">
                             <AuthInput label="Full Name" type="text" placeholder="Eg. Yasir Noori" required value={name} onChange={setName} icon={User} />
-                            <AuthInput label="Email Address" type="email" placeholder="you@email.com" required value={email} onChange={setEmail} icon={Mail} />
+                            <AuthInput label="Email Address" type="email" name="email" autoComplete="username" placeholder="you@email.com" required value={email} onChange={setEmail} icon={Mail} />
                             <AuthInput label="Phone Number" type="tel" placeholder="024XXXXXXX" required value={phone} onChange={setPhone} icon={Phone} />
                             {renderRegionSelect()}
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-bold text-slate-700 ml-1">City</label>
+                                <AreaSuggest
+                                    value={city}
+                                    region={region}
+                                    kind="city"
+                                    allowCreate
+                                    onChange={setCity}
+                                    placeholder="Tamale, Accra, Kumasi..."
+                                    inputClassName="w-full px-4 py-4 bg-white border-2 border-slate-100 rounded-2xl text-base md:text-sm outline-none focus:border-slate-900"
+                                />
+                                <p className="text-xs text-slate-500 ml-1">The town. Add it if it is not in the list.</p>
+                            </div>
                             <div className="space-y-1.5">
                                 <label className="text-xs font-bold text-slate-700 ml-1">Area</label>
                                 <AreaSuggest
                                     value={location}
                                     region={region}
+                                    kind="area"
                                     allowCreate
                                     onChange={setLocation}
-                                    placeholder="Search Tamale, East Legon..."
+                                    placeholder="Gumani, East Legon..."
                                     inputClassName="w-full px-4 py-4 bg-white border-2 border-slate-100 rounded-2xl text-base md:text-sm outline-none focus:border-slate-900"
                                 />
-                                <p className="text-xs text-slate-500 ml-1">Search and tap your area. Add it if it is not in the list.</p>
+                                <p className="text-xs text-slate-500 ml-1">The neighbourhood. Add it if it is not in the list.</p>
                             </div>
                         </div>
                     </div>
@@ -591,21 +633,15 @@ export const RegisterForm = ({
                     <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
                         <div>
                             <h3 className="text-2xl font-black text-slate-900 mb-2">Secure your account</h3>
-                            <p className="text-sm text-slate-500">Create a strong password to protect your data.</p>
+                            <p className="text-sm text-slate-500">Choose any password you will remember. You can save it in your phone.</p>
                         </div>
                         <div className="space-y-4">
                             {role === 'vendor' && (
                                 <AuthInput label="Shop Name" type="text" placeholder="Eg. FLA Boutique" required value={shopName} onChange={setShopName} icon={Store} />
                             )}
-                            <AuthInput label="Password" type="password" placeholder="••••••••" required value={password} onChange={setPassword} icon={Lock} />
-                            <AuthInput label="Confirm Password" type="password" placeholder="••••••••" required value={confirmPassword} onChange={setConfirmPassword} icon={Lock} />
-                            <div className="flex gap-2 pt-2">
-                                <div className={`flex-1 h-1 rounded-full transition-all ${hasMinLength ? 'bg-emerald-500' : 'bg-slate-100'}`} />
-                                <div className={`flex-1 h-1 rounded-full transition-all ${hasUppercase && hasLowercase ? 'bg-emerald-500' : 'bg-slate-100'}`} />
-                                <div className={`flex-1 h-1 rounded-full transition-all ${hasNumber ? 'bg-emerald-500' : 'bg-slate-100'}`} />
-                                <div className={`flex-1 h-1 rounded-full transition-all ${hasSpecialChar ? 'bg-emerald-500' : 'bg-slate-100'}`} />
-                            </div>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">8+ Chars • Upper & Lower • 1 Number • 1 Special</p>
+                            <AuthInput label="Email" type="email" name="email" autoComplete="username" placeholder="you@email.com" required value={email} onChange={setEmail} icon={Mail} />
+                            <AuthInput label="Password" type="password" name="password" autoComplete="new-password" placeholder="Any password" required value={password} onChange={setPassword} icon={Lock} />
+                            <AuthInput label="Confirm Password" type="password" name="confirm-password" autoComplete="new-password" placeholder="Repeat the password" required value={confirmPassword} onChange={setConfirmPassword} icon={Lock} />
                         </div>
                     </div>
                 );
@@ -931,7 +967,20 @@ export const RegisterForm = ({
     };
 
     return (
-        <div className="w-full space-y-6">
+        <form
+            onSubmit={(e) => {
+                if (step < 2) {
+                    e.preventDefault();
+                    nextStep();
+                    return;
+                }
+                handleSubmit(e);
+            }}
+            autoComplete="on"
+            method="post"
+            action="#"
+            className="w-full space-y-6"
+        >
             {/* Progress Header */}
             <div className="space-y-3">
                 <div className="flex items-center justify-between">
@@ -1011,15 +1060,15 @@ export const RegisterForm = ({
                     ) : (
                         <button
                             type="submit"
-                            onClick={handleSubmit}
-                            className="flex-1 h-11 bg-brand-lemon text-slate-900 rounded-full text-sm font-semibold tracking-wide hover:bg-brand-lemon-hover transition-all shadow-md flex items-center justify-center gap-2 active:scale-[0.98]"
+                            disabled={signupBusy}
+                            className="flex-1 h-11 bg-brand-lemon text-slate-900 rounded-full text-sm font-semibold tracking-wide hover:bg-brand-lemon-hover transition-all shadow-md flex items-center justify-center gap-2 active:scale-[0.98] disabled:opacity-60"
                         >
-                            Sign Up now <ArrowRight className="w-4 h-4" />
+                            {signupBusy ? 'Creating account…' : 'Sign Up now'} {!signupBusy && <ArrowRight className="w-4 h-4" />}
                         </button>
                     )}
                 </div>
             </div>
-        </div>
+        </form>
     );
 };
 
@@ -1227,16 +1276,6 @@ function AuthContent() {
 
         setSignupBusy(true);
         try {
-            Swal.fire({
-                title: role === 'vendor' ? 'Creating your shop…' : 'Creating your account...',
-                html: role === 'vendor'
-                    ? '<div class="text-slate-600 text-sm">Setting up your dashboard — verification docs can wait</div>'
-                    : '<div class="text-slate-600 text-sm">Setting up your FLA account</div>',
-                didOpen: () => Swal.showLoading(),
-                allowOutsideClick: false,
-                customClass: { popup: 'rounded-[32px] border-none shadow-2xl p-10 bg-white' }
-            });
-
             let kycUrls: any = {};
             let profileImage: string | undefined;
             if (role === 'vendor') {
@@ -1253,6 +1292,7 @@ function AuthContent() {
                     shopName: data.shopName,
                     productTypes: data.productTypes,
                     area: data.location,
+                    city: data.city,
                     bio: data.kyc?.bio,
                     profileImage,
                 } : {
@@ -1267,7 +1307,6 @@ function AuthContent() {
             );
 
             if (result.requiresEmailVerification) {
-                await Swal.close();
                 setPendingVendorEmail(data.email.toLowerCase().trim());
                 setPendingVendorPhone(normalizePhoneForApi(data.phone || '') || data.phone || '');
                 setPendingVendorPassword(data.password);
@@ -1291,7 +1330,6 @@ function AuthContent() {
                 return;
             }
 
-            await Swal.close();
             if (result.loginFailed) {
                 Swal.fire({
                     icon: 'success',
@@ -1305,7 +1343,6 @@ function AuthContent() {
             }
             openTermsGate(result.user.role, result.user.email, false, result.message, result.user.termsAcceptedAt);
         } catch (error: any) {
-            await Swal.close();
             const msg = error.message || '';
             if (
                 msg.toLowerCase().includes('security verification') ||
@@ -1824,6 +1861,7 @@ function AuthContent() {
                                         role={role}
                                         onSignup={handleSignup}
                                         turnstileResetKey={turnstileResetKey}
+                                        signupBusy={signupBusy}
                                     />
                                 )}
 

@@ -110,9 +110,15 @@ export class UsersService implements OnModuleInit {
     return name.trim().replace(/\s+/g, ' ').toLowerCase();
   }
 
-  async searchAreas(query: string, region?: string): Promise<Array<{ name: string; region?: string }>> {
+  async searchAreas(
+    query: string,
+    region?: string,
+    kind: 'area' | 'city' = 'area',
+  ): Promise<Array<{ name: string; region?: string }>> {
     const q = String(query || '').trim();
-    const filter: Record<string, unknown> = {};
+    const filter: Record<string, unknown> = kind === 'city'
+      ? { kind: 'city' }
+      : { $or: [{ kind: 'area' }, { kind: { $exists: false } }, { kind: null }, { kind: '' }] };
     if (region) filter.region = region;
     if (q.length >= 1) {
       const safe = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -122,12 +128,16 @@ export class UsersService implements OnModuleInit {
     return rows.map((row: any) => ({ name: row.name, region: row.region }));
   }
 
-  async findOrCreateArea(name: string, region?: string): Promise<{ name: string; region?: string }> {
+  async findOrCreateArea(
+    name: string,
+    region?: string,
+    kind: 'area' | 'city' = 'area',
+  ): Promise<{ name: string; region?: string }> {
     const cleaned = String(name || '').trim().replace(/\s+/g, ' ');
     if (cleaned.length < 2) {
-      throw new BadRequestException('Enter an area name');
+      throw new BadRequestException(kind === 'city' ? 'Enter a city name' : 'Enter an area name');
     }
-    const key = this.areaKey(cleaned);
+    const key = kind === 'city' ? `city:${this.areaKey(cleaned)}` : this.areaKey(cleaned);
     const existing = await this.areaModel.findOne({ key }).lean();
     if (existing) return { name: (existing as any).name, region: (existing as any).region };
     try {
@@ -135,6 +145,7 @@ export class UsersService implements OnModuleInit {
         name: cleaned,
         key,
         region: region || undefined,
+        kind,
       });
       return { name: created.name, region: created.region };
     } catch (err: any) {
@@ -336,9 +347,14 @@ export class UsersService implements OnModuleInit {
       }
 
       let areaName = String(createUserDto.area || location || '').trim();
+      let cityName = String(createUserDto.city || '').trim();
       if (role === 'vendor' && areaName) {
-        const savedArea = await this.findOrCreateArea(areaName, createUserDto.region);
+        const savedArea = await this.findOrCreateArea(areaName, createUserDto.region, 'area');
         areaName = savedArea.name;
+      }
+      if (role === 'vendor' && cityName) {
+        const savedCity = await this.findOrCreateArea(cityName, createUserDto.region, 'city');
+        cityName = savedCity.name;
       }
 
       const createdUser = new this.userModel({
@@ -356,6 +372,7 @@ export class UsersService implements OnModuleInit {
         isEmailVerified: true,
         status: 'active',
         area: areaName || undefined,
+        city: cityName || undefined,
         location: areaName || location,
         kycApprovedAt: role === 'vendor' ? new Date() : undefined,
         kycApprovedByAdmin: false,
@@ -472,6 +489,10 @@ export class UsersService implements OnModuleInit {
     return this.userModel.countDocuments({ role }).exec();
   }
 
+  async countCreatedSince(since: Date): Promise<number> {
+    return this.userModel.countDocuments({ createdAt: { $gte: since } }).exec();
+  }
+
   async findOneById(id: string): Promise<User | null> {
     return this.userModel
       .findById(id)
@@ -519,23 +540,32 @@ export class UsersService implements OnModuleInit {
     const existing = await this.userModel
       .findById(id)
       .select(
-        'role shopName status storeSlug kycApprovedAt ghanaCardFront selfie businessRegistration kycSubmittedAt businessRegistrationApprovedAt verificationStatus area region location',
+        'role shopName status storeSlug kycApprovedAt ghanaCardFront selfie businessRegistration kycSubmittedAt businessRegistrationApprovedAt verificationStatus area city region location',
       )
       .lean()
       .exec();
 
     let nextArea = '';
+    let nextCity = '';
+    const placeRegion = typeof updateData.region === 'string' ? updateData.region : (existing as any)?.region;
     if ((existing as any)?.role === 'vendor' && typeof updateData.area === 'string') {
       const cleaned = updateData.area.trim().replace(/\s+/g, ' ');
       if (cleaned.length >= 2) {
-        const saved = await this.findOrCreateArea(
-          cleaned,
-          typeof updateData.region === 'string' ? updateData.region : (existing as any)?.region,
-        );
+        const saved = await this.findOrCreateArea(cleaned, placeRegion, 'area');
         updateData.area = saved.name;
         nextArea = saved.name;
       } else {
         delete updateData.area;
+      }
+    }
+    if ((existing as any)?.role === 'vendor' && typeof updateData.city === 'string') {
+      const cleaned = updateData.city.trim().replace(/\s+/g, ' ');
+      if (cleaned.length >= 2) {
+        const saved = await this.findOrCreateArea(cleaned, placeRegion, 'city');
+        updateData.city = saved.name;
+        nextCity = saved.name;
+      } else {
+        delete updateData.city;
       }
     }
 
@@ -577,23 +607,41 @@ export class UsersService implements OnModuleInit {
 
     const updatedUser = await this.userModel.findByIdAndUpdate(id, { $set: updateData }, { new: true }).lean().exec() as unknown as User;
 
-    if (nextArea && (existing as any)?.role === 'vendor') {
-      const previous = [String((existing as any)?.area || '').trim(), String((existing as any)?.location || '').trim()]
-        .filter((value) => value.length >= 2);
-      const areaMatch: Record<string, unknown>[] = [
-        { area: { $exists: false } },
-        { area: null },
-        { area: '' },
-        ...previous.map((value) => ({ area: value })),
-      ];
-      const productSet: Record<string, string> = { area: nextArea };
-      if (typeof updateData.region === 'string' && updateData.region.trim()) {
-        productSet.region = updateData.region.trim();
+    if ((existing as any)?.role === 'vendor') {
+      const regionSet = typeof updateData.region === 'string' && updateData.region.trim()
+        ? { region: updateData.region.trim() }
+        : {};
+      if (nextArea) {
+        const previous = [String((existing as any)?.area || '').trim(), String((existing as any)?.location || '').trim()]
+          .filter((value) => value.length >= 2);
+        await this.productModel.updateMany(
+          {
+            vendorId: id,
+            $or: [
+              { area: { $exists: false } },
+              { area: null },
+              { area: '' },
+              ...previous.map((value) => ({ area: value })),
+            ],
+          },
+          { $set: { area: nextArea, ...regionSet } },
+        ).exec();
       }
-      await this.productModel.updateMany(
-        { vendorId: id, $or: areaMatch },
-        { $set: productSet },
-      ).exec();
+      if (nextCity) {
+        const previousCity = String((existing as any)?.city || '').trim();
+        await this.productModel.updateMany(
+          {
+            vendorId: id,
+            $or: [
+              { city: { $exists: false } },
+              { city: null },
+              { city: '' },
+              ...(previousCity ? [{ city: previousCity }] : []),
+            ],
+          },
+          { $set: { city: nextCity, ...regionSet } },
+        ).exec();
+      }
     }
     
     // Do NOT sync Paystack subaccounts on vendor self-serve profile/KYC saves.

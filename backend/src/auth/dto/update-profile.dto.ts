@@ -31,6 +31,10 @@ export class UpdateProfileDto {
 
   @IsOptional()
   @IsString()
+  city?: string;
+
+  @IsOptional()
+  @IsString()
   address?: string;
 
   @IsOptional()

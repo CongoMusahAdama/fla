@@ -47,6 +47,8 @@ export default function Navbar() {
   const [wishlistCount, setWishlistCount] = useState(0);
   const catRef = useRef<HTMLDivElement>(null);
   const searchCatRef = useRef<HTMLDivElement>(null);
+  const desktopSearchRef = useRef<HTMLDivElement>(null);
+  const mobileSearchWrapRef = useRef<HTMLDivElement>(null);
   const [searchCatOpen, setSearchCatOpen] = useState(false);
   const [storeBrand, setStoreBrand] = useState<{
     shopName: string;
@@ -95,7 +97,7 @@ export default function Navbar() {
   }, [isAuthenticated, token, pathname]);
 
   useEffect(() => {
-    if (searchQuery.length < 2) {
+    if (searchQuery.trim().length < 1) {
       setSuggestions([]);
       return;
     }
@@ -115,6 +117,18 @@ export default function Navbar() {
     }, 280);
     return () => clearTimeout(timer);
   }, [searchQuery]);
+
+  useEffect(() => {
+    if (!suggestions.length) return;
+    const close = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (desktopSearchRef.current?.contains(target)) return;
+      if (mobileSearchWrapRef.current?.contains(target)) return;
+      setSuggestions([]);
+    };
+    document.addEventListener('pointerdown', close, true);
+    return () => document.removeEventListener('pointerdown', close, true);
+  }, [suggestions.length]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -372,6 +386,7 @@ export default function Navbar() {
 
             {!hideGlobalSearch && (
               <div
+                ref={mobileSearchWrapRef}
                 className={`md:hidden relative transition-all duration-300 ${
                   mobileSearchOpen ? 'w-[7.5rem] shrink-0' : 'w-7 shrink-0'
                 }`}
@@ -410,7 +425,7 @@ export default function Navbar() {
                   </button>
                 )}
                 </div>
-                {mobileSearchOpen && (suggestions.length > 0 || isSuggestionsLoading) && searchQuery.length >= 2 && (
+                {mobileSearchOpen && (suggestions.length > 0 || isSuggestionsLoading) && searchQuery.trim().length >= 1 && (
                   <div className="absolute top-full left-0 right-0 mt-2 bg-white shadow-2xl rounded-md border border-slate-100 overflow-hidden z-[120]">
                     {isSuggestionsLoading ? (
                       <div className="p-4 flex justify-center">
@@ -440,7 +455,7 @@ export default function Navbar() {
 
             {/* Search — marketplace only; hidden on vendor storefronts */}
             {!hideGlobalSearch && (
-            <div className="relative flex-1 max-w-2xl mx-auto hidden md:block">
+            <div ref={desktopSearchRef} className="relative flex-1 max-w-2xl mx-auto hidden md:block">
               <div className="flex items-stretch h-12 rounded-md border-2 border-brand-lemon overflow-hidden bg-white">
                 <div className="relative shrink-0" ref={searchCatRef}>
                   <button
@@ -491,7 +506,7 @@ export default function Navbar() {
                   <Search className="w-5 h-5" />
                 </button>
               </div>
-              {(suggestions.length > 0 || isSuggestionsLoading) && searchQuery.length >= 2 && (
+              {(suggestions.length > 0 || isSuggestionsLoading) && searchQuery.trim().length >= 1 && (
                 <div className="absolute top-full left-0 right-0 mt-2 bg-white shadow-2xl rounded-md border border-slate-100 overflow-hidden z-[120]">
                   {isSuggestionsLoading ? (
                     <div className="p-5 flex justify-center">

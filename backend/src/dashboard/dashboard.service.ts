@@ -1,9 +1,12 @@
 import { Injectable } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
 import { OrdersService } from '../orders/orders.service';
 import { WishlistService } from '../wishlist/wishlist.service';
 import { ProductsService } from '../products/products.service';
 import { UsersService } from '../users/users.service';
-import { Types } from 'mongoose';
+import { accraDayKey } from '../common/whatsapp-clicks.util';
+import { PlatformVisit, PlatformVisitDocument } from './schemas/platform-visit.schema';
 
 @Injectable()
 export class DashboardService {
@@ -12,6 +15,7 @@ export class DashboardService {
         private readonly wishlistService: WishlistService,
         private readonly productsService: ProductsService,
         private readonly usersService: UsersService,
+        @InjectModel(PlatformVisit.name) private visitModel: Model<PlatformVisitDocument>,
     ) { }
 
     async getCustomerStats(userId: string) {
@@ -136,11 +140,21 @@ export class DashboardService {
         // Fetch aggregation stats from services instead of loading all data into memory
         const stats = await this.ordersService.getAdminDashboardStats();
 
-        const [totalUsers, totalVendors, totalProducts] = await Promise.all([
+        const today = accraDayKey();
+        const recentDays = Array.from({ length: 7 }, (_, index) =>
+            accraDayKey(new Date(Date.now() - index * 24 * 60 * 60 * 1000)),
+        );
+        const [totalUsers, totalVendors, totalProducts, newAccountsToday, visitDays] = await Promise.all([
             this.usersService.countAll(),
             this.usersService.countByRole('vendor'),
             this.productsService.countCatalog(),
+            this.usersService.countCreatedSince(new Date(`${today}T00:00:00.000Z`)),
+            this.visitModel.aggregate([
+                { $match: { dayKey: { $in: recentDays } } },
+                { $group: { _id: '$dayKey', people: { $sum: 1 } } },
+            ]).exec(),
         ]);
+        const peopleByDay = new Map(visitDays.map((row: { _id: string; people: number }) => [row._id, row.people]));
 
         // Recent limit
         const recentOrders = await this.ordersService.getRecentOrders(10);
@@ -157,8 +171,32 @@ export class DashboardService {
             totalOrders: stats.totalOrders,
             completedTransactions: stats.completedTransactions,
             pendingOrders: stats.pendingOrders,
+            peopleToday: peopleByDay.get(today) || 0,
+            newAccountsToday,
+            dailyPeople: recentDays.map((day) => ({
+                day,
+                people: peopleByDay.get(day) || 0,
+            })),
             recentOrders,
             chartData
         };
+    }
+
+    async recordVisit(visitorId?: string) {
+        const visitorKey = String(visitorId || '').trim();
+        if (!/^[a-zA-Z0-9-]{16,80}$/.test(visitorKey)) {
+            return { ok: false };
+        }
+        const dayKey = accraDayKey();
+        try {
+            await this.visitModel.updateOne(
+                { visitorKey, dayKey },
+                { $setOnInsert: { visitorKey, dayKey } },
+                { upsert: true },
+            );
+        } catch (err: any) {
+            if (err?.code !== 11000) throw err;
+        }
+        return { ok: true };
     }
 }

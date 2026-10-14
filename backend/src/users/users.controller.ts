@@ -37,18 +37,19 @@ export class UsersController {
 
   @SkipThrottle()
   @Get('areas')
-  searchAreas(@Query('q') q = '', @Query('region') region = '') {
-    return this.usersService.searchAreas(q, region);
+  searchAreas(@Query('q') q = '', @Query('region') region = '', @Query('kind') kind = '') {
+    return this.usersService.searchAreas(q, region, kind === 'city' ? 'city' : 'area');
   }
 
   @Post('areas')
   @UseGuards(AuthGuard('jwt'))
-  addArea(@Request() req, @Body() body: { name?: string; region?: string }) {
+  addArea(@Request() req, @Body() body: { name?: string; region?: string; kind?: string }) {
     const role = req.user?.role;
     if (role !== 'vendor' && role !== 'admin') {
       throw new ForbiddenException('Only vendors can add an area');
     }
-    return this.usersService.findOrCreateArea(String(body?.name || ''), body?.region);
+    const kind = body?.kind === 'city' ? 'city' : 'area';
+    return this.usersService.findOrCreateArea(String(body?.name || ''), body?.region, kind);
   }
 
   @Post()

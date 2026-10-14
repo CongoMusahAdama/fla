@@ -41,6 +41,8 @@ interface VendorSettingsProps {
   setShopLocation: (val: string) => void;
   shopArea: string;
   setShopArea: (val: string) => void;
+  shopCity: string;
+  setShopCity: (val: string) => void;
   shopRegion: string;
   setShopRegion: (val: string) => void;
   bio: string;
@@ -73,6 +75,8 @@ export const VendorSettings: React.FC<VendorSettingsProps> = ({
   setShopLocation,
   shopArea,
   setShopArea,
+  shopCity,
+  setShopCity,
   shopRegion,
   setShopRegion,
   bio,
@@ -266,16 +270,30 @@ export const VendorSettings: React.FC<VendorSettingsProps> = ({
                 </select>
               </div>
               <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">City</label>
+                <AreaSuggest
+                  value={shopCity}
+                  region={shopRegion}
+                  kind="city"
+                  allowCreate
+                  onChange={setShopCity}
+                  placeholder="Tamale, Accra, Kumasi..."
+                  inputClassName="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20 outline-none"
+                />
+                <p className="text-[10px] text-slate-400 ml-1">The town. Add it if it is not in the list.</p>
+              </div>
+              <div className="space-y-1.5">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Area</label>
                 <AreaSuggest
                   value={shopArea}
                   region={shopRegion}
+                  kind="area"
                   allowCreate
                   onChange={setShopArea}
-                  placeholder="Search Tamale, East Legon..."
+                  placeholder="Gumani, East Legon..."
                   inputClassName="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-brand-lemon/20 outline-none"
                 />
-                <p className="text-[10px] text-slate-400 ml-1">Search and tap your area. Add it if it is not in the list. Buyers use this to find your shop.</p>
+                <p className="text-[10px] text-slate-400 ml-1">The neighbourhood. Add it if it is not in the list. Buyers use this to find your shop.</p>
               </div>
               <div className="md:col-span-2 space-y-1.5">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Business Address</label>

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 
 type AreaHit = { name: string; region?: string };
@@ -11,8 +11,10 @@ type AreaSuggestProps = {
   region?: string;
   placeholder?: string;
   inputClassName?: string;
-  /** Vendors can add a missing area. Shoppers can only pick one that already exists. */
+  /** Vendors can add a missing place. Shoppers can only pick one that already exists. */
   allowCreate?: boolean;
+  /** city is the town. area is the neighbourhood. */
+  kind?: "area" | "city";
 };
 
 export function AreaSuggest({
@@ -22,10 +24,21 @@ export function AreaSuggest({
   placeholder = "Search your area",
   inputClassName = "",
   allowCreate = false,
+  kind = "area",
 }: AreaSuggestProps) {
   const { token } = useAuth();
+  const rootRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [hits, setHits] = useState<AreaHit[]>([]);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener("pointerdown", close, true);
+    return () => document.removeEventListener("pointerdown", close, true);
+  }, [open]);
 
   useEffect(() => {
     const q = value.trim();
@@ -35,6 +48,7 @@ export function AreaSuggest({
         const params = new URLSearchParams();
         if (q) params.set("q", q);
         if (region) params.set("region", region);
+        params.set("kind", kind);
         const res = await fetch(`${api}/users/areas?${params.toString()}`);
         if (!res.ok) return;
         const data = await res.json();
@@ -44,7 +58,7 @@ export function AreaSuggest({
       }
     }, 200);
     return () => window.clearTimeout(timer);
-  }, [value, region]);
+  }, [value, region, kind]);
 
   const exact = hits.some((hit) => hit.name.toLowerCase() === value.trim().toLowerCase());
   const canAdd = allowCreate && value.trim().length >= 2 && !exact;
@@ -61,7 +75,7 @@ export function AreaSuggest({
           method: "POST",
           headers,
           credentials: "include",
-          body: JSON.stringify({ name: cleaned, region: region || undefined }),
+          body: JSON.stringify({ name: cleaned, region: region || undefined, kind }),
         });
         const data = await res.json().catch(() => ({}));
         if (res.ok && data?.name) {
@@ -78,7 +92,7 @@ export function AreaSuggest({
   };
 
   return (
-    <div className="relative">
+    <div ref={rootRef} className="relative">
       <input
         value={value}
         placeholder={placeholder}
@@ -87,6 +101,13 @@ export function AreaSuggest({
           setOpen(true);
         }}
         onFocus={() => setOpen(true)}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") setOpen(false);
+          if (e.key === "Enter" && open) {
+            e.preventDefault();
+            setOpen(false);
+          }
+        }}
         className={inputClassName}
       />
       {open && (hits.length > 0 || canAdd) && (

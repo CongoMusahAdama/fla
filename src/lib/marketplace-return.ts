@@ -174,12 +174,14 @@ export type HomeFilters = {
   region: string;
   category: string;
   filter: string;
+  city?: string;
   area?: string;
 };
 
 export type ShopFilters = {
   region: string;
   price: string;
+  city?: string;
   area?: string;
 };
 

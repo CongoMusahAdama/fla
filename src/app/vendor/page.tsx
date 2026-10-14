@@ -169,6 +169,7 @@ function VendorDashboardInner() {
     const [accountName, setAccountName] = useState('');
     const [shopLocation, setShopLocation] = useState('');
     const [shopArea, setShopArea] = useState('');
+    const [shopCity, setShopCity] = useState('');
     const [shopRegion, setShopRegion] = useState('');
     const [bio, setBio] = useState('');
     const [storeCategory, setStoreCategory] = useState('');
@@ -384,8 +385,8 @@ function VendorDashboardInner() {
 
     const handleForcedPasswordChange = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (newPassword.length < 8) {
-            Swal.fire('Too short', 'Use at least 8 characters for your new password.', 'warning');
+        if (!newPassword.trim()) {
+            Swal.fire('Password required', 'Choose any password you will remember.', 'warning');
             return;
         }
         if (newPassword !== confirmPassword) {
@@ -421,6 +422,7 @@ function VendorDashboardInner() {
             setMomoNetwork(user.paymentMethods?.[0]?.network || 'MTN');
             setShopLocation(user.location || '');
             setShopArea(user.area || '');
+            setShopCity(user.city || '');
             setShopRegion(user.region || '');
             setBio(user.bio || '');
             setStoreCategory(user.productTypes || '');
@@ -705,6 +707,7 @@ function VendorDashboardInner() {
                     accountName, 
                     location: shopLocation,
                     area: shopArea,
+                    city: shopCity,
                     region: shopRegion || undefined, 
                     bio, 
                     ...(profileImage ? { profileImage } : {}),
@@ -1174,7 +1177,7 @@ function VendorDashboardInner() {
                     <VendorClickCredits user={user} token={token} onUser={updateUser} />
                 </div>
             );
-            case 'settings': return <VendorSettings user={user} shopName={shopName} setShopName={setShopName} storeCategory={storeCategory} setStoreCategory={setStoreCategory} storeAccentColor={storeAccentColor} setStoreAccentColor={setStoreAccentColor} storeThemeColor={storeThemeColor} setStoreThemeColor={setStoreThemeColor} phone={phone} setPhone={setPhone} momoNumber={momoNumber} setMomoNumber={setMomoNumber} momoNetwork={momoNetwork} setMomoNetwork={setMomoNetwork} accountName={accountName} setAccountName={setAccountName} shopLocation={shopLocation} setShopLocation={setShopLocation} shopArea={shopArea} setShopArea={setShopArea} shopRegion={shopRegion} setShopRegion={setShopRegion} bio={bio} setBio={setBio} bannerImage={bannerImage} profileImage={profileImage} businessRegistration={businessRegistration} ghanaCardFront={ghanaCardFront} ghanaCardBack={ghanaCardBack} selfie={selfie} handleImageUpload={handleImageUpload} handleUpdateVendorProfile={handleUpdateVendorProfile} startOnDocuments={needsKycUpload} />;
+            case 'settings': return <VendorSettings user={user} shopName={shopName} setShopName={setShopName} storeCategory={storeCategory} setStoreCategory={setStoreCategory} storeAccentColor={storeAccentColor} setStoreAccentColor={setStoreAccentColor} storeThemeColor={storeThemeColor} setStoreThemeColor={setStoreThemeColor} phone={phone} setPhone={setPhone} momoNumber={momoNumber} setMomoNumber={setMomoNumber} momoNetwork={momoNetwork} setMomoNetwork={setMomoNetwork} accountName={accountName} setAccountName={setAccountName} shopLocation={shopLocation} setShopLocation={setShopLocation} shopArea={shopArea} setShopArea={setShopArea} shopCity={shopCity} setShopCity={setShopCity} shopRegion={shopRegion} setShopRegion={setShopRegion} bio={bio} setBio={setBio} bannerImage={bannerImage} profileImage={profileImage} businessRegistration={businessRegistration} ghanaCardFront={ghanaCardFront} ghanaCardBack={ghanaCardBack} selfie={selfie} handleImageUpload={handleImageUpload} handleUpdateVendorProfile={handleUpdateVendorProfile} startOnDocuments={needsKycUpload} />;
             case 'help': return <VendorHelp />;
             default: return null;
         }

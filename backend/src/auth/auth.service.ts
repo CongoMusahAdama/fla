@@ -74,6 +74,7 @@ export class AuthService {
       role: user.role,
       phone: user.phone,
       area: user.area,
+      city: user.city,
       location: user.location,
       address: user.address,
       profileImage: user.profileImage,
@@ -375,8 +376,8 @@ export class AuthService {
       if (!ok) throw new UnauthorizedException('Temporary password is incorrect');
     }
 
-    if (!newPassword || newPassword.length < 8) {
-      throw new ConflictException('New password must be at least 8 characters');
+    if (!newPassword || !newPassword.trim()) {
+      throw new ConflictException('Enter a password');
     }
 
     await this.usersService.updatePassword(userId, newPassword);

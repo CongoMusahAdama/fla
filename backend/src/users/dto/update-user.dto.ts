@@ -39,6 +39,14 @@ export class UpdateUserDto {
 
     @IsString()
     @IsOptional()
+    city?: string;
+
+    @IsString()
+    @IsOptional()
+    area?: string;
+
+    @IsString()
+    @IsOptional()
     profileImage?: string;
 
     @IsString()

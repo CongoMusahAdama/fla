@@ -14,6 +14,10 @@ export class Area {
 
   @Prop()
   region?: string;
+
+  /** city = town, area = neighbourhood. Older rows are areas. */
+  @Prop({ default: 'area' })
+  kind?: string;
 }
 
 export const AreaSchema = SchemaFactory.createForClass(Area);

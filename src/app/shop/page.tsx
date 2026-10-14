@@ -61,12 +61,14 @@ function ShopContent() {
     const [openDropdown, setOpenDropdown] = useState<string | null>(null);
     const [activeFilters, setActiveFilters] = useState<Record<string, string>>(() => ({
         Area: '',
+        City: '',
     }));
     const [localSearch, setLocalSearch] = useState('');
     const [suggestions, setSuggestions] = useState<any[]>([]);
     const [isSearchPinned, setIsSearchPinned] = useState(false);
     const suppressSuggestionsRef = useRef(false);
     const searchSentinelRef = useRef<HTMLDivElement>(null);
+    const searchBoxRef = useRef<HTMLDivElement>(null);
     const restoredFiltersRef = useRef(false);
 
     // Restore Region/Price filter state when returning from a product detail page.
@@ -84,6 +86,7 @@ function ShopContent() {
             Region: saved.region,
             Price: saved.price,
             Area: saved.area || readCookie('fla_area') || prev.Area || '',
+            City: saved.city || readCookie('fla_city') || prev.City || '',
         }));
     }, []);
 
@@ -93,14 +96,21 @@ function ShopContent() {
             region: activeFilters.Region || '',
             price: activeFilters.Price || '',
             area: activeFilters.Area || '',
+            city: activeFilters.City || '',
         });
         if (activeFilters.Area) writeCookie('fla_area', activeFilters.Area);
-    }, [activeFilters.Region, activeFilters.Price, activeFilters.Area]);
+        if (activeFilters.City) writeCookie('fla_city', activeFilters.City);
+    }, [activeFilters.Region, activeFilters.Price, activeFilters.Area, activeFilters.City]);
 
     useEffect(() => {
         const saved = readCookie('fla_area');
-        if (!saved) return;
-        setActiveFilters((prev) => (prev.Area ? prev : { ...prev, Area: saved }));
+        const savedCity = readCookie('fla_city');
+        if (!saved && !savedCity) return;
+        setActiveFilters((prev) => ({
+            ...prev,
+            Area: prev.Area || saved || '',
+            City: prev.City || savedCity || '',
+        }));
     }, []);
 
     const urlSearch = searchParams.get('search') || '';
@@ -160,7 +170,7 @@ function ShopContent() {
         }
 
         const fetchSuggestions = async () => {
-            if (localSearch.length < 2) {
+            if (localSearch.trim().length < 1) {
                 setSuggestions([]);
                 return;
             }
@@ -178,6 +188,15 @@ function ShopContent() {
         return () => clearTimeout(timer);
     }, [localSearch]);
 
+    useEffect(() => {
+        if (!suggestions.length) return;
+        const close = (event: PointerEvent) => {
+            if (!searchBoxRef.current?.contains(event.target as Node)) setSuggestions([]);
+        };
+        document.addEventListener('pointerdown', close, true);
+        return () => document.removeEventListener('pointerdown', close, true);
+    }, [suggestions.length]);
+
     const buildProductsQuery = (pageNum: number) => {
         const params = new URLSearchParams();
         params.set('page', String(pageNum));
@@ -188,6 +207,7 @@ function ShopContent() {
         if (catalogSort) params.set('sort', catalogSort);
         else if (!catalogFilter) params.set('sort', 'latest');
         if (activeFilters.Region) params.set('region', activeFilters.Region);
+        if (activeFilters.City) params.set('city', activeFilters.City);
         if (activeFilters.Area) params.set('area', activeFilters.Area);
         const priceParams = getPriceQueryParams(activeFilters.Price);
         Object.entries(priceParams).forEach(([key, value]) => params.set(key, value));
@@ -252,7 +272,7 @@ function ShopContent() {
             clearTimeout(timer);
             controller.abort();
         };
-    }, [activeCategory, localSearch, activeFilters.Region, activeFilters.Area, activeFilters.Price, catalogFilter, catalogSort]);
+    }, [activeCategory, localSearch, activeFilters.Region, activeFilters.City, activeFilters.Area, activeFilters.Price, catalogFilter, catalogSort]);
 
     const handleShowMore = async () => {
         if (loadingMore || !hasMore || loading) return;
@@ -385,7 +405,7 @@ function ShopContent() {
                             isSearchPinned ? 'max-h-0 opacity-0 pointer-events-none' : 'max-h-36 opacity-100 pt-5 md:pt-6'
                         }`}
                     >
-                        <div className="relative max-w-2xl mb-4">
+                        <div ref={searchBoxRef} className="relative max-w-2xl mb-4">
                             <div className="flex items-stretch h-12 rounded-xl border border-slate-200 overflow-hidden bg-white focus-within:border-brand-blue focus-within:ring-2 focus-within:ring-brand-blue/15 transition-shadow">
                                 <div className="flex items-center pl-3.5 pr-1 text-slate-400">
                                     <Search className="w-4.5 h-4.5 w-4 h-4" />
@@ -429,7 +449,7 @@ function ShopContent() {
                                 </button>
                             </div>
 
-                            {localSearch.length >= 2 && suggestions.length > 0 && !isSearchPinned && (
+                            {localSearch.trim().length >= 1 && suggestions.length > 0 && !isSearchPinned && (
                                 <div className="absolute top-full left-0 right-0 mt-2 bg-white shadow-xl rounded-xl border border-slate-200 overflow-hidden z-[50]">
                                     <p className="px-4 py-2 text-[11px] font-medium tracking-wide text-slate-500 bg-slate-50 border-b border-slate-100">
                                         Suggestions
@@ -584,17 +604,29 @@ function ShopContent() {
                                 </div>
                             ))}
 
-                            <div className="relative w-full sm:w-56">
+                            <div className="relative w-full sm:w-40">
+                                <AreaSuggest
+                                    value={activeFilters.City || ''}
+                                    region={activeFilters.Region || ''}
+                                    kind="city"
+                                    onChange={(name) => setActiveFilters(prev => ({ ...prev, City: name }))}
+                                    placeholder="City"
+                                    inputClassName="w-full h-8 px-3 rounded-lg border border-slate-200 text-xs font-medium text-slate-700 outline-none focus:border-brand-blue"
+                                />
+                            </div>
+
+                            <div className="relative w-full sm:w-40">
                                 <AreaSuggest
                                     value={activeFilters.Area || ''}
                                     region={activeFilters.Region || ''}
+                                    kind="area"
                                     onChange={(name) => setActiveFilters(prev => ({ ...prev, Area: name }))}
                                     placeholder="Area"
                                     inputClassName="w-full h-8 px-3 rounded-lg border border-slate-200 text-xs font-medium text-slate-700 outline-none focus:border-brand-blue"
                                 />
                             </div>
 
-                            {(localSearch || activeCategory !== 'All Product' || catalogFilter || catalogSort || activeFilters.Region || activeFilters.Area || activeFilters.Price) && (
+                            {(localSearch || activeCategory !== 'All Product' || catalogFilter || catalogSort || activeFilters.Region || activeFilters.City || activeFilters.Area || activeFilters.Price) && (
                                 <button
                                     type="button"
                                     onClick={clearAll}
