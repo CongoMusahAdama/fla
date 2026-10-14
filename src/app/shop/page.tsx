@@ -702,20 +702,6 @@ function ShopContent() {
                                     : 'Browse verified vendors across Ghana'}
                             </p>
                         </div>
-                        <div className="flex flex-wrap items-center gap-4 text-[11px] font-medium text-slate-500">
-                            <span className="inline-flex items-center gap-1.5">
-                                <span className="w-3.5 h-3.5 rounded-full bg-emerald-500 inline-flex items-center justify-center">
-                                    <Check className="w-2 h-2 text-white" strokeWidth={3} />
-                                </span>
-                                Documented
-                            </span>
-                            <span className="inline-flex items-center gap-1.5">
-                                <span className="w-3.5 h-3.5 rounded-full bg-amber-400 inline-flex items-center justify-center">
-                                    <Check className="w-2 h-2 text-white" strokeWidth={3} />
-                                </span>
-                                Pending docs
-                            </span>
-                        </div>
                     </div>
 
                     {loading ? (
