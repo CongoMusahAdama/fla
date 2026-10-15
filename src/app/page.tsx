@@ -10,7 +10,7 @@ import { Product } from '@/lib/types';
 import { PRODUCT_FILTERS } from '@/lib/constants';
 import { GHANA_REGIONS } from '@/lib/ghana-regions';
 import { AreaSuggest } from '@/components/AreaSuggest';
-import { readCookie, writeCookie } from '@/lib/site-cookies';
+
 import { useProductCategories } from '@/hooks/useProductCategories';
 import { restoreMarketplaceScrollIfNeeded, peekPendingMarketplaceScroll, getHomeMarketplaceFilters, saveHomeMarketplaceFilters } from '@/lib/marketplace-return';
 import { shareVendorWhatsappLead } from '@/lib/whatsapp-clicks';
@@ -64,12 +64,7 @@ export default function Home() {
     if (saved.area) setActiveArea(saved.area);
   }, []);
 
-  useEffect(() => {
-    const saved = readCookie('fla_area');
-    if (saved) setActiveArea((prev) => prev || saved);
-    const savedCity = readCookie('fla_city');
-    if (savedCity) setActiveCity((prev) => prev || savedCity);
-  }, []);
+
 
   // Persist filter state so it survives a round-trip through a product page.
   useEffect(() => {
@@ -292,7 +287,6 @@ export default function Home() {
                   kind="city"
                   onChange={(name) => {
                     setActiveCity(name);
-                    if (name) writeCookie('fla_city', name);
                   }}
                   placeholder="City"
                   inputClassName="w-full h-10 px-3 bg-white border border-slate-200 rounded-md text-xs font-semibold outline-none focus:ring-2 focus:ring-brand-lemon/20"
@@ -306,7 +300,6 @@ export default function Home() {
                   kind="area"
                   onChange={(name) => {
                     setActiveArea(name);
-                    if (name) writeCookie('fla_area', name);
                   }}
                   placeholder="Area"
                   inputClassName="w-full h-10 px-3 bg-white border border-slate-200 rounded-md text-xs font-semibold outline-none focus:ring-2 focus:ring-brand-lemon/20"

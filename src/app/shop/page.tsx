@@ -10,7 +10,6 @@ import { Suspense } from 'react';
 
 import { GHANA_REGIONS } from '@/lib/ghana-regions';
 import { AreaSuggest } from '@/components/AreaSuggest';
-import { readCookie, writeCookie } from '@/lib/site-cookies';
 import { useProductCategories } from '@/hooks/useProductCategories';
 import { restoreMarketplaceScrollIfNeeded, peekPendingMarketplaceScroll, getShopMarketplaceFilters, saveShopMarketplaceFilters } from '@/lib/marketplace-return';
 import { shareVendorWhatsappLead } from '@/lib/whatsapp-clicks';
@@ -85,8 +84,8 @@ function ShopContent() {
             ...prev,
             Region: saved.region,
             Price: saved.price,
-            Area: saved.area || readCookie('fla_area') || prev.Area || '',
-            City: saved.city || readCookie('fla_city') || prev.City || '',
+            Area: saved.area || prev.Area || '',
+            City: saved.city || prev.City || '',
         }));
     }, []);
 
@@ -98,20 +97,9 @@ function ShopContent() {
             area: activeFilters.Area || '',
             city: activeFilters.City || '',
         });
-        if (activeFilters.Area) writeCookie('fla_area', activeFilters.Area);
-        if (activeFilters.City) writeCookie('fla_city', activeFilters.City);
     }, [activeFilters.Region, activeFilters.Price, activeFilters.Area, activeFilters.City]);
 
-    useEffect(() => {
-        const saved = readCookie('fla_area');
-        const savedCity = readCookie('fla_city');
-        if (!saved && !savedCity) return;
-        setActiveFilters((prev) => ({
-            ...prev,
-            Area: prev.Area || saved || '',
-            City: prev.City || savedCity || '',
-        }));
-    }, []);
+
 
     const urlSearch = searchParams.get('search') || '';
     const urlCategory = searchParams.get('category');

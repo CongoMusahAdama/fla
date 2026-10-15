@@ -28,7 +28,6 @@ export function WhatsAppLeadButton({
     if (!buyerPhone) {
       const ask = await Swal.fire({
         title: "Your WhatsApp number",
-        text: "This number is counted once for this shop. Another number can still message them.",
         input: "tel",
         inputPlaceholder: "024XXXXXXX",
         showCancelButton: true,

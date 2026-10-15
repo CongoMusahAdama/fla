@@ -27,7 +27,7 @@ import { VendorSettings } from '@/components/dashboard/VendorSettings';
 import { VendorHelp } from '@/components/dashboard/VendorHelp';
 
 
-import { GHANA_REGIONS } from '@/lib/ghana-regions';
+
 import { useProductCategories } from '@/hooks/useProductCategories';
 import { storeHomePath, storefrontUrl } from '@/lib/storefront';
 import { VARIANT_STOCK_SEP } from '@/lib/product-stock';
@@ -77,7 +77,7 @@ function VendorDashboardInner() {
     const [formListingMode, setFormListingMode] = useState<ListingMode>('shop');
     const [formQuantity, setFormQuantity] = useState('');
     const vendorProductCategories = PRODUCT_CATEGORIES.filter((c) => c !== 'All Product');
-    const [formRegion, setFormRegion] = useState('Greater Accra');
+
     const [formNarrative, setFormNarrative] = useState('');
     const [formImages, setFormImages] = useState<string[]>([]);
     const [formSizes, setFormSizes] = useState<string[]>([]);
@@ -597,7 +597,7 @@ function VendorDashboardInner() {
                     colors: formHasColors ? formColors : [],
                     hasColors: formHasColors,
                     imageLabels: formImages.map((url, idx) => url !== '' ? formImageLabels[idx] : null).filter(l => l !== null),
-                    region: formRegion,
+                    region: user?.region || 'Greater Accra',
                     vendorId: user?.id,
                     vendorName: user?.shopName,
                     uniqueVendorId: user?.uniqueVendorId
@@ -923,7 +923,7 @@ function VendorDashboardInner() {
         setFormCategory(user?.productTypes || 'Electronics');
         setFormListingMode('shop');
         setFormQuantity('');
-        setFormRegion('Greater Accra');
+
         setFormNarrative('');
         setFormImages([]);
         setFormSizes([]);
@@ -1119,7 +1119,7 @@ function VendorDashboardInner() {
                                     setFormCategory(p.category);
                                     setFormListingMode(listingModeFromApi(p.listingMode));
                                     setFormQuantity(p.quantity.toString());
-                                    setFormRegion(p.region);
+
                                     setFormNarrative(p.description);
                                     setFormImages(p.images?.map((img: any) => typeof img === 'string' ? img : img.url) || []);
                                     setFormSizes(p.sizes || []);
@@ -1593,12 +1593,6 @@ function VendorDashboardInner() {
                                     ) : formQuantity === '' ? (
                                         <p className="text-[10px] font-bold text-red-500 ml-1">Stock quantity is required before you can publish.</p>
                                     ) : null}
-                                </div>
-                                <div className="space-y-4">
-                                    <label htmlFor="p-region" className="text-[12px] font-black text-slate-900 uppercase tracking-widest ml-1 cursor-pointer">Studio Region</label>
-                                    <select id="p-region" name="region" value={formRegion} onChange={(e) => setFormRegion(e.target.value)} className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-slate-900/10 h-14">
-                                        {GHANA_REGIONS.map((r) => <option key={r} value={r}>{r}</option>)}
-                                    </select>
                                 </div>
                             </div>
 

@@ -16,8 +16,8 @@ const steps = [
     },
     {
         icon: ShieldCheck,
-        title: 'Pay with protection',
-        description: 'Split payment keeps funds secure for you, the vendor, and FLA.',
+        title: 'Meet the vendor in person',
+        description: 'Connect directly with verified vendors to see, try, and buy in person.',
     },
     {
         icon: Truck,
