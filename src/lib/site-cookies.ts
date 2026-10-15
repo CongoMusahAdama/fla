@@ -15,3 +15,14 @@ export function writeCookie(name: string, value: string) {
   if (typeof document === 'undefined') return;
   document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${YEAR}; samesite=lax`;
 }
+
+export function clearCookie(name: string) {
+  if (typeof document === 'undefined') return;
+  document.cookie = `${name}=; path=/; max-age=0; samesite=lax`;
+}
+
+/** Remember a place filter, including when the shopper clears it. */
+export function writeOrClearCookie(name: string, value: string) {
+  if (value) writeCookie(name, value);
+  else clearCookie(name);
+}

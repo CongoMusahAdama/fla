@@ -10,6 +10,7 @@ import { Suspense } from 'react';
 
 import { GHANA_REGIONS } from '@/lib/ghana-regions';
 import { AreaSuggest } from '@/components/AreaSuggest';
+import { readCookie, writeOrClearCookie } from '@/lib/site-cookies';
 import { useProductCategories } from '@/hooks/useProductCategories';
 import { restoreMarketplaceScrollIfNeeded, peekPendingMarketplaceScroll, getShopMarketplaceFilters, saveShopMarketplaceFilters } from '@/lib/marketplace-return';
 import { shareVendorWhatsappLead } from '@/lib/whatsapp-clicks';
@@ -69,27 +70,40 @@ function ShopContent() {
     const searchSentinelRef = useRef<HTMLDivElement>(null);
     const searchBoxRef = useRef<HTMLDivElement>(null);
     const restoredFiltersRef = useRef(false);
+    const skipPlaceCookieWrite = useRef(true);
 
-    // Restore Region/Price filter state when returning from a product detail page.
-    // Only do this once on mount, and only if the scroll-pending marker is set
-    // (i.e. the user actually navigated away from this page to a product).
+    // Restore the last city and area, including a cleared search.
+    // A trip back from a product uses that saved shelf, empty fields included.
     useEffect(() => {
         if (restoredFiltersRef.current) return;
         restoredFiltersRef.current = true;
         const pending = peekPendingMarketplaceScroll();
-        if (!pending?.shopLoadedCount && !(pending?.shopPage && pending.shopPage > 1)) return;
-        const saved = getShopMarketplaceFilters();
-        if (!saved) return;
+        const returning = Boolean(pending?.shopLoadedCount || (pending?.shopPage && pending.shopPage > 1));
+        const saved = returning ? getShopMarketplaceFilters() : null;
+        if (saved) {
+            setActiveFilters(prev => ({
+                ...prev,
+                Region: saved.region,
+                Price: saved.price,
+                Area: saved.area || '',
+                City: saved.city || '',
+            }));
+            writeOrClearCookie('fla_city', saved.city || '');
+            writeOrClearCookie('fla_area', saved.area || '');
+            return;
+        }
+        const savedCity = readCookie('fla_city');
+        const savedArea = readCookie('fla_area');
+        if (!savedCity && !savedArea) return;
         setActiveFilters(prev => ({
             ...prev,
-            Region: saved.region,
-            Price: saved.price,
-            Area: saved.area || prev.Area || '',
-            City: saved.city || prev.City || '',
+            Area: prev.Area || savedArea || '',
+            City: prev.City || savedCity || '',
         }));
     }, []);
 
-    // Persist Region/Price filter state so it survives a round-trip through a product page.
+    // Persist filter state so it survives a round-trip through a product page.
+    // Skip the first write so the empty starting state does not erase a saved place.
     useEffect(() => {
         saveShopMarketplaceFilters({
             region: activeFilters.Region || '',
@@ -97,6 +111,12 @@ function ShopContent() {
             area: activeFilters.Area || '',
             city: activeFilters.City || '',
         });
+        if (skipPlaceCookieWrite.current) {
+            skipPlaceCookieWrite.current = false;
+            return;
+        }
+        writeOrClearCookie('fla_city', activeFilters.City || '');
+        writeOrClearCookie('fla_area', activeFilters.Area || '');
     }, [activeFilters.Region, activeFilters.Price, activeFilters.Area, activeFilters.City]);
 
 

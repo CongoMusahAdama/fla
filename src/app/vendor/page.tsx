@@ -1562,8 +1562,7 @@ function VendorDashboardInner() {
                                 <p className="text-xs text-slate-500 ml-1">Buyers open WhatsApp. Each tap uses one click from your balance. Checkout on FLA is closed.</p>
                             </div>
 
-                            {/* Logistic Specs (Category, Stock, Tailoring, Region) */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 md:gap-8">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-8">
                                 <div className="space-y-4">
                                     <label htmlFor="p-category" className="text-[12px] font-black text-slate-900 uppercase tracking-widest ml-1 cursor-pointer">Category</label>
                                     <select id="p-category" name="category" value={formCategory} onChange={(e) => setFormCategory(e.target.value)} className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-slate-900/10 h-14">

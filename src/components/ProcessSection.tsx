@@ -1,28 +1,28 @@
 'use client';
 
-import { Package, ShieldCheck, Clock, Truck } from 'lucide-react';
+import { Package, MessageCircle, ShieldCheck, Truck } from 'lucide-react';
 import Link from 'next/link';
 
 const steps = [
     {
         icon: Package,
-        title: 'Place your order',
-        description: 'Pick what you love from verified vendors — ready-made or made to order.',
+        title: 'Pick a product',
+        description: 'Browse listings from shops across Ghana.',
     },
     {
-        icon: Clock,
-        title: 'Follow every step',
-        description: 'See processing and delivery status in real time until it reaches you.',
+        icon: MessageCircle,
+        title: 'Message the shop',
+        description: 'Tap WhatsApp and talk to the vendor about that product.',
     },
     {
         icon: ShieldCheck,
         title: 'Meet the vendor in person',
-        description: 'Connect directly with verified vendors to see, try, and buy in person.',
+        description: 'See, try, and buy directly with the shop.',
     },
     {
         icon: Truck,
         title: 'Get it delivered',
-        description: 'Professionally packed and sent to your door across Ghana.',
+        description: 'The shop can pack it and send it to you across Ghana.',
     },
 ];
 
@@ -43,7 +43,7 @@ export default function ProcessSection() {
                         Shop with confidence
                     </h2>
                     <p className="mt-4 text-sm sm:text-base text-slate-500 leading-relaxed max-w-lg">
-                        From order to delivery — tracked, secured, and powered by split payments.
+                        Browse a shop, message them on WhatsApp, and buy directly.
                     </p>
                 </div>
 
@@ -90,7 +90,7 @@ export default function ProcessSection() {
                         Browse the shop
                     </Link>
                     <p className="text-sm text-slate-400">
-                        Verified vendors · Secure checkout · Ghana-wide delivery
+                        Verified vendors · WhatsApp · Across Ghana
                     </p>
                 </div>
             </div>

@@ -96,6 +96,7 @@ export function AreaSuggest({
       <input
         value={value}
         placeholder={placeholder}
+        autoComplete="off"
         onChange={(e) => {
           onChange(e.target.value);
           setOpen(true);
