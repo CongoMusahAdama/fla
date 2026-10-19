@@ -155,7 +155,7 @@ export class AuthService {
 
   private buildRegisterResponse(user: any, otpSent: boolean, resumed = false) {
     const safeUser = this.toSafeUser(user);
-    const message = 'Account created successfully. A confirmation SMS has been sent to your phone.';
+    const message = 'Account created successfully.';
 
     return {
       user: safeUser,

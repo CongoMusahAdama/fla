@@ -7,14 +7,22 @@ export class SmsService {
     private apiKey: string;
     private apiEndpoint: string;
     private senderId: string;
+    /** SMS is paused unless SMS_ENABLED=true. */
+    private enabled: boolean;
 
     constructor(private configService: ConfigService) {
         this.apiKey = this.configService.get<string>('MNOTIFY_API_KEY') || '';
         this.apiEndpoint = this.configService.get<string>('SMS_API_ENDPOINT') || 'https://api.mnotify.com/api/sms/quick';
         this.senderId = this.configService.get<string>('MNOTIFY_SENDER_ID') || 'FLA';
+        this.enabled = this.configService.get<string>('SMS_ENABLED') === 'true';
     }
 
     async sendSms(phone: string, message: string): Promise<boolean> {
+        if (!this.enabled) {
+            this.logger.log(`SMS paused — skipped message to ${phone}`);
+            return false;
+        }
+
         if (!this.apiKey || !phone) {
             this.logger.warn('SMS not sent: Missing API key or phone number');
             return false;

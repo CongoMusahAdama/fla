@@ -740,9 +740,7 @@ export class OrdersService implements OnModuleInit {
       if (order.customerId) {
         this.notificationsService.create(order.customerId.toString(), {
           title: 'Payment Confirmed ✅',
-          message: vendorWaPhone
-            ? `Order #ORD-${orderShortId} is paid. Open your dashboard or use the WhatsApp link in your SMS to message ${shopName}.`
-            : `Order #ORD-${orderShortId} is paid. Open your dashboard to message ${shopName}.`,
+          message: `Order #ORD-${orderShortId} is paid. Open your dashboard to message ${shopName}.`,
           type: 'order',
           orderId: order._id,
         }).catch(err => this.logger.error(`Failed to notify customer: ${err.message}`));
@@ -774,9 +772,7 @@ export class OrdersService implements OnModuleInit {
         }
         this.notificationsService.create(order.vendorId.toString(), {
           title: 'New Order Payment Received 💰',
-          message: customerWaPhone
-            ? `Order #ORD-${orderShortId} paid — GHS ${order.totalAmount}. WhatsApp link sent via SMS to message ${customerName}.`
-            : `Order #ORD-${orderShortId} has been paid — GHS ${order.totalAmount}. Please begin fulfillment immediately.`,
+          message: `Order #ORD-${orderShortId} has been paid — GHS ${order.totalAmount}. Please begin fulfillment immediately.`,
           type: 'order',
           orderId: order._id,
         }).catch(err => this.logger.error(`Vendor in-app notification failed: ${err.message}`));

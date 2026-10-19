@@ -1155,7 +1155,6 @@ function VendorDashboardInner() {
                             setFormCategory(p.category);
                             setFormListingMode(listingModeFromApi(p.listingMode));
                             setFormQuantity(p.quantity.toString());
-                            setFormRegion(p.region);
                             setFormNarrative(p.description);
                             setFormImages(p.images?.map((img: any) => typeof img === 'string' ? img : img.url) || []);
                             setFormSizes(p.sizes || []);

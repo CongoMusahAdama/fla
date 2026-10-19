@@ -1377,7 +1377,7 @@ function AuthContent() {
         const defaultText = isLog
             ? 'Your fashion journey continues...'
             : userRole === 'customer'
-                ? 'Welcome to FLA Purchase! A confirmation SMS has been sent to your phone.'
+                ? 'Welcome to FLA Purchase!'
                 : 'Welcome to the world of FLA Purchase.';
         Swal.fire({
             icon: 'success',

@@ -494,7 +494,7 @@ export default function AdminDashboard() {
             Swal.fire({
                 icon: 'success',
                     title: 'REFEREE APPROVED',
-                    text: 'Their Paystack payout account is being linked and they have been notified by SMS.',
+                    text: 'Their Paystack payout account is being linked.',
                     timer: 2500,
                     showConfirmButton: false,
                     customClass: { popup: 'rounded-[32px]' },

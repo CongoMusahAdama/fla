@@ -6,6 +6,8 @@ export class SmsService {
   private readonly logger = new Logger(SmsService.name);
   private readonly apiKey: string;
   private readonly senderId: string;
+  /** SMS is paused unless SMS_ENABLED=true. Callers already treat a false return as "not sent". */
+  private readonly enabled: boolean;
   private readonly baseUrl = 'https://api.mnotify.com/api/sms/quick';
   /** Last mNotify failure — surfaced in API errors for Postman/debugging */
   lastError: string | null = null;
@@ -13,6 +15,10 @@ export class SmsService {
   constructor(private configService: ConfigService) {
     this.apiKey = this.configService.get<string>('MNOTIFY_API_KEY') || '';
     this.senderId = this.configService.get<string>('MNOTIFY_SENDER_ID') || 'FLA';
+    this.enabled = this.configService.get<string>('SMS_ENABLED') === 'true';
+    if (!this.enabled) {
+      this.logger.warn('SMS is paused (SMS_ENABLED is not "true"). No mNotify messages will be sent.');
+    }
   }
 
   /**
@@ -61,6 +67,12 @@ export class SmsService {
    * Sends a quick SMS via mNotify
    */
   async sendSms(to: string, message: string, options?: { smsType?: 'otp' }): Promise<boolean> {
+    if (!this.enabled) {
+      this.lastError = 'SMS is paused on this server';
+      this.logger.log(`SMS paused — skipped message to ${to}`);
+      return false;
+    }
+
     const formattedPhone = this.formatPhoneNumber(to);
     
     if (!formattedPhone) {
