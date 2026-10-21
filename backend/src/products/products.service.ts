@@ -75,29 +75,34 @@ export class ProductsService implements OnModuleInit {
       this.logger.error(`Area backfill failed: ${err.message}`),
     );
 
-    // Run the auto-archiver every hour
-    setInterval(async () => {
-      try {
-        const twoDaysAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
-        
-        const result = await this.productModel.updateMany(
-          {
-            stock: { $lte: 0 },
-            soldOutAt: { $lt: twoDaysAgo },
-            isActive: true
-          },
-          {
-            $set: { isActive: false }
-          }
-        ).exec();
-
-        if (result.modifiedCount > 0) {
-          this.logger.log(`Auto-archived ${result.modifiedCount} products that were sold out for over 48 hours.`);
-        }
-      } catch (err) {
-        this.logger.error(`Error running auto-archiver: ${err.message}`);
-      }
+    // Run the auto-archiver every hour. On Vercel, /api/cron/maintenance runs it instead.
+    if (process.env.VERCEL) return;
+    setInterval(() => {
+      this.archiveSoldOutProducts().catch((err) =>
+        this.logger.error(`Error running auto-archiver: ${err.message}`),
+      );
     }, 60 * 60 * 1000); // 1 hour interval
+  }
+
+  /** Hide listings that have been sold out for over 48 hours. */
+  async archiveSoldOutProducts(): Promise<number> {
+    const twoDaysAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
+
+    const result = await this.productModel.updateMany(
+      {
+        stock: { $lte: 0 },
+        soldOutAt: { $lt: twoDaysAgo },
+        isActive: true
+      },
+      {
+        $set: { isActive: false }
+      }
+    ).exec();
+
+    if (result.modifiedCount > 0) {
+      this.logger.log(`Auto-archived ${result.modifiedCount} products that were sold out for over 48 hours.`);
+    }
+    return result.modifiedCount;
   }
 
   /** Fill area on older listings from the vendor profile. Never overwrites an area already set. */

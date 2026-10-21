@@ -19,6 +19,7 @@ import { GHANA_REGIONS } from '@/lib/ghana-regions';
 import { AreaSuggest } from '@/components/AreaSuggest';
 import { getFlaSupportMailtoHref } from '@/lib/support-contacts';
 import { DEFAULT_PRODUCT_CATEGORY_LABELS } from '@/lib/product-categories';
+import { shrinkImageForUpload } from '@/lib/shrink-image';
 
 // Memoized Input Component to prevent re-renders of the entire page on every keystroke
 const AuthInput = React.memo(({ label, type, placeholder, value, onChange, required, icon: Icon, name, autoComplete }: any) => {
@@ -276,7 +277,7 @@ const ForgotPasswordForm = ({ onBack, onSubmit, onResetWithOTP }: { onBack: () =
 async function uploadPublicFile(file: File | null): Promise<string | null> {
     if (!file) return null;
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('file', await shrinkImageForUpload(file));
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/upload/public`, {
         method: 'POST',
         body: formData,

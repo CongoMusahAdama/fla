@@ -51,6 +51,8 @@ export class OrdersService implements OnModuleInit {
   ) { }
 
   onModuleInit() {
+    // On Vercel there is no long-running process; /api/cron/maintenance runs the purge instead.
+    if (process.env.VERCEL) return;
     const intervalMs = 30 * 60 * 1000;
     setInterval(() => {
       this.purgeAbandonedCheckouts().catch(err =>

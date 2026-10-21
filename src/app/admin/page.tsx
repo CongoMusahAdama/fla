@@ -24,6 +24,7 @@ import { RecentTransactionsTable } from '@/components/admin/RecentTransactionsTa
 import { AdminDisputeCaseCard } from '@/components/admin/AdminDisputeCaseCard';
 import { DEFAULT_PRODUCT_CATEGORY_LABELS, normalizeCategoryList } from '@/lib/product-categories';
 import AdminBillboards from '@/components/admin/AdminBillboards';
+import { shrinkImageForUpload } from '@/lib/shrink-image';
 
 function formatVisitDay(day: string): string {
     const [year, month, date] = day.split('-').map(Number);
@@ -748,7 +749,7 @@ export default function AdminDashboard() {
             const uploadFile = async (file: File | null) => {
                 if (!file) return null;
                 const formData = new FormData();
-                formData.append('file', file);
+                formData.append('file', await shrinkImageForUpload(file));
                 const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/upload/public`, {
                     method: 'POST',
                     headers: { 'Authorization': `Bearer ${token}` },

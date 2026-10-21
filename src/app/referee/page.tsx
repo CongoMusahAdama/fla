@@ -10,13 +10,14 @@ import Swal from 'sweetalert2';
 import { Suspense } from 'react';
 import { Turnstile } from '@marsidev/react-turnstile';
 import { GHANA_REGIONS } from '@/lib/ghana-regions';
+import { shrinkImageForUpload } from '@/lib/shrink-image';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
 async function uploadFile(file: File | null): Promise<string | undefined> {
     if (!file) return undefined;
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('file', await shrinkImageForUpload(file));
     const res = await fetch(`${API_URL}/upload/public`, { method: 'POST', body: formData });
     if (!res.ok) throw new Error('Document upload failed. Please try again.');
     const result = await res.json();

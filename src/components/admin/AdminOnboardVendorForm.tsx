@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { GHANA_REGIONS } from '@/lib/ghana-regions';
+import { shrinkImageForUpload } from '@/lib/shrink-image';
 
 type Props = {
   token: string | null;
@@ -118,7 +119,7 @@ export default function AdminOnboardVendorForm({ token, onCreated, onClose }: Pr
     if (!logoFile) throw new Error('Vendor logo is required');
     const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
     const formData = new FormData();
-    formData.append('file', logoFile);
+    formData.append('file', await shrinkImageForUpload(logoFile));
     const res = await fetch(`${api}/upload`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },

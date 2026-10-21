@@ -32,6 +32,7 @@ import { useProductCategories } from '@/hooks/useProductCategories';
 import { storeHomePath, storefrontUrl } from '@/lib/storefront';
 import { VARIANT_STOCK_SEP } from '@/lib/product-stock';
 import { mapApiProductToVendorProduct, parseProductsListResponse } from '@/lib/vendor-product-mapper';
+import { shrinkImageForUpload } from '@/lib/shrink-image';
 
 const VENDOR_PRODUCTS_PAGE_SIZE = 24;
 
@@ -814,7 +815,7 @@ function VendorDashboardInner() {
             }
             const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
             const formData = new FormData();
-            formData.append('file', file);
+            formData.append('file', await shrinkImageForUpload(file));
             const res = await fetch(`${api}/upload`, { 
                 method: 'POST', 
                 headers: { 'Authorization': `Bearer ${token}` },
@@ -847,7 +848,7 @@ function VendorDashboardInner() {
             }
             const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
             const formData = new FormData();
-            formData.append('file', file);
+            formData.append('file', await shrinkImageForUpload(file));
             const res = await fetch(`${api}/upload`, { 
                 method: 'POST', 
                 headers: { 'Authorization': `Bearer ${token}` },

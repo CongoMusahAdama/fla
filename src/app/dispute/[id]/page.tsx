@@ -13,6 +13,7 @@ import Swal from 'sweetalert2';
 import { DisputeChat } from '@/components/dashboard/DisputeChat';
 import { WhatsAppButton } from '@/components/WhatsAppButton';
 import { buildDisputeWhatsAppMessage } from '@/lib/whatsapp';
+import { shrinkImageForUpload } from '@/lib/shrink-image';
 
 export default function DisputeCenter() {
     const { id } = useParams();
@@ -87,7 +88,7 @@ export default function DisputeCenter() {
         if (!file) return;
 
         const formData = new FormData();
-        formData.append('file', file);
+        formData.append('file', await shrinkImageForUpload(file));
 
         try {
             Swal.fire({ title: 'Uploading Evidence...', didOpen: () => { Swal.showLoading(); } });

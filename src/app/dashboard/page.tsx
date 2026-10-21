@@ -29,6 +29,7 @@ import { getMultiCheckoutQueue, clearMultiCheckoutQueue } from '@/lib/cart-vendo
 import { getOrderEstimatedDelivery } from '@/lib/utils';
 import { TableSearch } from '@/components/ui/TableSearch';
 import { matchesTableSearch, customerOrderSearchValues } from '@/lib/table-search';
+import { shrinkImageForUpload } from '@/lib/shrink-image';
 
 type DashboardSection = 'home' | 'orders' | 'wishlist' | 'notifications' | 'profile' | 'help';
 
@@ -469,7 +470,7 @@ export default function CustomerDashboard() {
         try {
             const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
             const formData = new FormData();
-            formData.append('file', file);
+            formData.append('file', await shrinkImageForUpload(file));
             const res = await fetch(`${api}/upload`, {
                 method: 'POST',
                 headers: { Authorization: `Bearer ${token}` },

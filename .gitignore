@@ -47,6 +47,7 @@ PRODUCTION_CHECKLIST.md
 
 # Helper scripts and tests
 *.js
+!backend/api/index.js
 !next.config.js
 !eslint.config.js
 !postcss.config.js

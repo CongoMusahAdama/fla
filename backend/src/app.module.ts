@@ -4,6 +4,7 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller';
+import { CronController } from './cron.controller';
 import { AppService } from './app.service';
 import { MongooseModule } from '@nestjs/mongoose';
 import { UsersModule } from './users/users.module';
@@ -55,7 +56,7 @@ import { ReferralModule } from './referral/referral.module';
     BillboardsModule,
     ReferralModule,
   ],
-  controllers: [AppController],
+  controllers: [AppController, CronController],
   providers: [
     AppService,
     {

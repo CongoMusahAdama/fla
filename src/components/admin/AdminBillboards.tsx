@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { Megaphone, Plus, Trash2, CheckCircle2, Clock, UploadCloud, ImageIcon, X } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { getImageUrl } from '@/lib/utils';
+import { shrinkImageForUpload } from '@/lib/shrink-image';
 
 type Slot = 'hero_main' | 'hero_side';
 
@@ -181,7 +182,7 @@ export default function AdminBillboards({
     }
 
     const body = new FormData();
-    body.append('file', file);
+    body.append('file', await shrinkImageForUpload(file));
     setUploading(true);
     try {
       const res = await fetch(`${api}/upload`, {
