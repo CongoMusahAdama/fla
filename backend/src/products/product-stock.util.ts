@@ -1,15 +1,22 @@
 export type ProductStockFields = {
   stock?: number;
+  trackStock?: boolean;
   hasColors?: boolean;
   hasSizes?: boolean;
   colors?: string[];
   sizes?: string[];
-  colorStock?: Record<string, number>;
-  sizeStock?: Record<string, number>;
-  variantStock?: Record<string, number>;
+  colorStock?: Record<string, number> | null;
+  sizeStock?: Record<string, number> | null;
+  variantStock?: Record<string, number> | null;
 };
 
 export const VARIANT_STOCK_SEP = '|';
+
+/**
+ * Stock held for listings whose vendor doesn't count units. It keeps them out of
+ * sold-out filters and the auto-archiver; the UI shows "In stock" without a number.
+ */
+export const UNTRACKED_STOCK = 100000;
 
 export function variantStockKey(color?: string | null, size?: string | null): string | null {
   const c = color?.trim();
@@ -46,6 +53,16 @@ export function usesVariantMatrix(p: ProductStockFields): boolean {
 
 /** Sum totals and drop options with zero stock from listing arrays. */
 export function normalizeProductStockPayload(dto: ProductStockFields): ProductStockFields {
+  if (dto.trackStock === false) {
+    // null (not undefined) so an update clears per-option counts left from before
+    return {
+      ...dto,
+      stock: UNTRACKED_STOCK,
+      colorStock: null,
+      sizeStock: null,
+      variantStock: null,
+    };
+  }
   const hasColors = !!dto.hasColors;
   const hasSizes = !!dto.hasSizes;
   let colorStock = { ...(dto.colorStock || {}) };

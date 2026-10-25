@@ -77,6 +77,7 @@ function VendorDashboardInner() {
     const [formCategory, setFormCategory] = useState('Electronics');
     const [formListingMode, setFormListingMode] = useState<ListingMode>('shop');
     const [formQuantity, setFormQuantity] = useState('');
+    const [formTrackStock, setFormTrackStock] = useState(true);
     const vendorProductCategories = PRODUCT_CATEGORIES.filter((c) => c !== 'All Product');
 
     const [formNarrative, setFormNarrative] = useState('');
@@ -95,7 +96,7 @@ function VendorDashboardInner() {
 
     const PRESET_SIZES = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL'];
 
-    const usesPerOptionStock = formHasColors || formHasSizes;
+    const usesPerOptionStock = formTrackStock && (formHasColors || formHasSizes);
 
     const computeFormTotalStock = () => {
         if (formHasColors && formHasSizes && formColors.length > 0 && formSizes.length > 0) {
@@ -116,6 +117,7 @@ function VendorDashboardInner() {
     };
 
     const stockMapsForSave = () => {
+        if (!formTrackStock) return { trackStock: false };
         const total = computeFormTotalStock();
         if (formHasColors && formHasSizes && formColors.length && formSizes.length) {
             const variantStock: Record<string, number> = {};
@@ -125,23 +127,23 @@ function VendorDashboardInner() {
                     variantStock[key] = Math.max(0, parseInt(formVariantStock[key] || '0', 10) || 0);
                 }
             }
-            return { stock: total, variantStock, colorStock: undefined, sizeStock: undefined };
+            return { trackStock: true, stock: total, variantStock, colorStock: undefined, sizeStock: undefined };
         }
         if (formHasColors && formColors.length) {
             const colorStock: Record<string, number> = {};
             for (const c of formColors) {
                 colorStock[c] = Math.max(0, parseInt(formColorStock[c] || '0', 10) || 0);
             }
-            return { stock: total, colorStock, sizeStock: undefined, variantStock: undefined };
+            return { trackStock: true, stock: total, colorStock, sizeStock: undefined, variantStock: undefined };
         }
         if (formHasSizes && formSizes.length) {
             const sizeStock: Record<string, number> = {};
             for (const s of formSizes) {
                 sizeStock[s] = Math.max(0, parseInt(formSizeStock[s] || '0', 10) || 0);
             }
-            return { stock: total, sizeStock, colorStock: undefined, variantStock: undefined };
+            return { trackStock: true, stock: total, sizeStock, colorStock: undefined, variantStock: undefined };
         }
-        return { stock: total };
+        return { trackStock: true, stock: total };
     };
 
     useEffect(() => {
@@ -545,7 +547,9 @@ function VendorDashboardInner() {
         }
 
         const totalStock = computeFormTotalStock();
-        if (usesPerOptionStock) {
+        if (!formTrackStock) {
+            // No count to check — the listing shows as in stock.
+        } else if (usesPerOptionStock) {
             if (formHasColors && formColors.length === 0) {
                 Swal.fire({ icon: 'warning', title: 'Colors', text: 'Add at least one color with a quantity.', confirmButtonColor: '#0f172a' });
                 return;
@@ -924,6 +928,7 @@ function VendorDashboardInner() {
         setFormCategory(user?.productTypes || 'Electronics');
         setFormListingMode('shop');
         setFormQuantity('');
+        setFormTrackStock(true);
 
         setFormNarrative('');
         setFormImages([]);
@@ -1119,7 +1124,8 @@ function VendorDashboardInner() {
                                     setFormPrice(p.price);
                                     setFormCategory(p.category);
                                     setFormListingMode(listingModeFromApi(p.listingMode));
-                                    setFormQuantity(p.quantity.toString());
+                                    setFormTrackStock(p.trackStock !== false);
+                                    setFormQuantity(p.trackStock === false ? '' : p.quantity.toString());
 
                                     setFormNarrative(p.description);
                                     setFormImages(p.images?.map((img: any) => typeof img === 'string' ? img : img.url) || []);
@@ -1155,7 +1161,8 @@ function VendorDashboardInner() {
                             setFormPrice(p.price);
                             setFormCategory(p.category);
                             setFormListingMode(listingModeFromApi(p.listingMode));
-                            setFormQuantity(p.quantity.toString());
+                            setFormTrackStock(p.trackStock !== false);
+                            setFormQuantity(p.trackStock === false ? '' : p.quantity.toString());
                             setFormNarrative(p.description);
                             setFormImages(p.images?.map((img: any) => typeof img === 'string' ? img : img.url) || []);
                             setFormSizes(p.sizes || []);
@@ -1572,9 +1579,20 @@ function VendorDashboardInner() {
                                     </select>
                                 </div>
                                 <div className="space-y-4">
-                                    <label htmlFor="p-stock" className="text-[12px] font-black text-slate-900 uppercase tracking-widest ml-1 cursor-pointer">
-                                        {usesPerOptionStock ? 'Total units' : 'Stock Vol.'} <span className="text-red-500">*</span>
-                                    </label>
+                                    <div className="flex items-center justify-between">
+                                        <label htmlFor="p-stock" className="text-[12px] font-black text-slate-900 uppercase tracking-widest ml-1 cursor-pointer">
+                                            {usesPerOptionStock ? 'Total units' : 'Stock Vol.'} {formTrackStock && <span className="text-red-500">*</span>}
+                                        </label>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[10px] font-bold text-slate-400">{formTrackStock ? 'ACTIVE' : 'INACTIVE'}</span>
+                                            <button type="button" aria-label="Count stock" onClick={() => setFormTrackStock(!formTrackStock)} className={`w-12 h-6 rounded-full transition-all relative ${formTrackStock ? 'bg-slate-900' : 'bg-slate-200'}`}>
+                                                <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${formTrackStock ? 'left-[26px]' : 'left-1'}`} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                    {!formTrackStock ? (
+                                        <p className="text-[10px] font-bold text-slate-500 ml-1">No stock count. Buyers see this item as in stock.</p>
+                                    ) : (<>
                                     <input
                                         id="p-stock"
                                         name="stock"
@@ -1592,6 +1610,7 @@ function VendorDashboardInner() {
                                     ) : formQuantity === '' ? (
                                         <p className="text-[10px] font-bold text-red-500 ml-1">Stock quantity is required before you can publish.</p>
                                     ) : null}
+                                    </>)}
                                 </div>
                             </div>
 

@@ -383,7 +383,9 @@ export default function Home() {
                   variantStock={product.variantStock}
                   duration={product.tailoringTime}
                   vendorRegion={product.region}
-                  vendorCity={product.vendorLocation}
+                  vendorArea={product.area || product.vendorLocation}
+                  vendorCity={product.city}
+                  trackStock={product.trackStock}
                   vendorBio={product.vendorBio}
                   vendorDocumented={product.vendorDocumented}
                   vendorTier={product.vendorTier}

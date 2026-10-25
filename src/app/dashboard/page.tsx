@@ -1360,6 +1360,7 @@ export default function CustomerDashboard() {
                                         images={item.productId?.images || ['/product-1.jpg']}
                                         sizes={item.productId?.sizes}
                                         stock={item.productId?.stock || 0}
+                                        trackStock={item.productId?.trackStock}
                                         vendorId={item.productId?.vendorId}
                                         index={i}
                                         duration={item.productId?.tailoringTime}

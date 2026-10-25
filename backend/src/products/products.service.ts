@@ -16,7 +16,7 @@ const VENDOR_POPULATE_FIELDS =
   'uniqueVendorId region city area location bio shopName vendorTier businessRegistration businessRegistrationApprovedAt businessRegistrationSubmittedAt storeSlug phone whatsappClickBalance';
 
 const LIST_PRODUCT_FIELDS =
-  'name price images imageLabels sizes stock colorStock sizeStock variantStock vendorId vendorName uniqueVendorId description hasSizes hasColors colors tailoringTime region city area vendorLocation vendorBio vendorTier storeSlug category listingMode rating reviewCount originalPrice isFeatured createdAt isActive';
+  'name price images imageLabels sizes stock trackStock colorStock sizeStock variantStock vendorId vendorName uniqueVendorId description hasSizes hasColors colors tailoringTime region city area vendorLocation vendorBio vendorTier storeSlug category listingMode rating reviewCount originalPrice isFeatured createdAt isActive';
 
 /** Match frontend `NEW_ARRIVAL_MAX_AGE_DAYS` in src/lib/product-freshness.ts */
 const NEW_ARRIVAL_MAX_AGE_DAYS = 30;

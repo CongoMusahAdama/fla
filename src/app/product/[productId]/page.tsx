@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Store } from 'lucide-react';
 import Swal from 'sweetalert2';
-import { getImageUrl } from '@/lib/utils';
+import { getImageUrl, getVendorDisplayLocation } from '@/lib/utils';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
 import { getMarketplaceReturn, getProductNavOrigin, markMarketplaceScrollRestore } from '@/lib/marketplace-return';
@@ -409,13 +409,15 @@ function ProductContent() {
             <div>
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">In Stock</p>
               <p className={`text-sm font-semibold ${soldOut ? 'text-red-600' : 'text-slate-900'}`}>
-                {soldOut ? 'Sold out' : `${product.stock} available`}
+                {soldOut ? 'Sold out' : product.trackStock === false ? 'Available' : `${product.stock} available`}
               </p>
             </div>
-            {(product.vendorLocation || product.region) && (
+            {getVendorDisplayLocation({ area: product.area, city: product.city, location: product.vendorLocation, region: product.region }) && (
               <div>
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Location</p>
-                <p className="text-sm font-semibold text-slate-900">{product.vendorLocation || product.region}</p>
+                <p className="text-sm font-semibold text-slate-900">
+                  {getVendorDisplayLocation({ area: product.area, city: product.city, location: product.vendorLocation, region: product.region })}
+                </p>
               </div>
             )}
           </div>

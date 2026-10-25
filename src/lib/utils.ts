@@ -1,15 +1,17 @@
 type OrderItemWithTailoring = { tailoringTime?: string | null };
 
+/** "Area, City, Region" — `location` is the older field that holds the area. */
 export function getVendorDisplayLocation(
-    vendor?: { location?: string | null; region?: string | null } | null,
+    vendor?: { area?: string | null; city?: string | null; location?: string | null; region?: string | null } | null,
     productRegion?: string | null,
 ): string | null {
-    const city = vendor?.location?.trim();
-    const region = (vendor?.region || productRegion)?.trim();
-    if (city && region) return `${city}, ${region}`;
-    if (city) return city;
-    if (region) return region;
-    return null;
+    const parts = [vendor?.area || vendor?.location, vendor?.city, vendor?.region || productRegion]
+        .map((part) => part?.trim())
+        .filter((part): part is string => Boolean(part));
+    const unique = parts.filter(
+        (part, i) => parts.findIndex((other) => other.toLowerCase() === part.toLowerCase()) === i,
+    );
+    return unique.length ? unique.join(', ') : null;
 }
 
 export function getOrderEstimatedDelivery(

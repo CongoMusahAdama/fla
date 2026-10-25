@@ -48,6 +48,10 @@ export class CreateProductDto {
     @IsOptional()
     stock?: number;
 
+    @IsBoolean()
+    @IsOptional()
+    trackStock?: boolean;
+
     @IsArray()
     @IsString({ each: true })
     @IsOptional()

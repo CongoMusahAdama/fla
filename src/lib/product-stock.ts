@@ -2,6 +2,8 @@ export const VARIANT_STOCK_SEP = '|';
 
 export type ProductStockView = {
   stock?: number;
+  /** False when the vendor doesn't count units — show "In stock" without a number. */
+  trackStock?: boolean;
   hasColors?: boolean;
   hasSizes?: boolean;
   colors?: string[];

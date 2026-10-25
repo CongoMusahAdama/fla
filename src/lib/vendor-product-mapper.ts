@@ -15,6 +15,7 @@ export function mapApiProductToVendorProduct(prod: any): VendorProduct {
     status: prod.stock < 10 ? 'Low Stock' : 'In Stock',
     sales: 0,
     quantity: prod.stock,
+    trackStock: prod.trackStock !== false,
     tailoringTime: prod.tailoringTime || '3 Days',
     region: prod.region || 'Greater Accra',
     description: prod.description || '',

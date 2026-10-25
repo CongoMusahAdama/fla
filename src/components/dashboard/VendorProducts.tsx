@@ -105,6 +105,7 @@ export interface Product {
   status: string;
   sales: number;
   quantity: number;
+  trackStock?: boolean;
   tailoringTime: string;
   region: string;
   description: string;

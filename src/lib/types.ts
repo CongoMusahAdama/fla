@@ -17,6 +17,9 @@ export interface Product {
   tailoringTime?: string;
   region?: string;
   vendorLocation?: string;
+  city?: string;
+  area?: string;
+  trackStock?: boolean;
   vendorBio?: string;
   vendorDocumented?: boolean;
   vendorTier?: 'low' | 'high';

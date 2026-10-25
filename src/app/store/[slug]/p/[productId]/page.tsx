@@ -37,7 +37,10 @@ type ProductDetail = {
   vendorId?: string | { _id?: string; shopName?: string; storeSlug?: string; location?: string; region?: string };
   vendorName?: string;
   storeSlug?: string;
+  trackStock?: boolean;
   region?: string;
+  city?: string;
+  area?: string;
   vendorLocation?: string;
   listingMode?: 'shop' | 'contact' | 'both';
   whatsappLeadAvailable?: boolean;
@@ -157,6 +160,8 @@ export default function StoreProductPage() {
         : undefined;
 
   const location = getVendorDisplayLocation({
+    area: product?.area,
+    city: product?.city,
     location: product?.vendorLocation,
     region: product?.region,
   });
@@ -558,14 +563,16 @@ export default function StoreProductPage() {
                 className={`inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest ${
                   soldOut
                     ? 'text-slate-400'
-                    : (product.stock ?? 0) <= 5
+                    : product.trackStock !== false && (product.stock ?? 0) <= 5
                       ? 'text-orange-500'
                       : 'text-emerald-600'
                 }`}
               >
                 {soldOut
                   ? 'Sold out'
-                  : (product.stock ?? 0) <= 5
+                  : product.trackStock === false
+                    ? 'In stock'
+                    : (product.stock ?? 0) <= 5
                     ? `Only ${product.stock} left`
                     : `${product.stock} in stock`}
               </span>

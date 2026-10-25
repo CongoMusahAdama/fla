@@ -3163,7 +3163,7 @@ export default function AdminDashboard() {
                                         <div className="border border-slate-200 p-3">
                                             <p className="text-[11px] text-slate-500 mb-1">Stock</p>
                                             <p className="font-semibold text-slate-900">
-                                                {selectedProduct.stock ?? selectedProduct.quantity ?? '—'}
+                                                {selectedProduct.trackStock === false ? 'Not counted' : (selectedProduct.stock ?? selectedProduct.quantity ?? '—')}
                                             </p>
                                         </div>
                                     </div>

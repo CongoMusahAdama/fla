@@ -44,6 +44,8 @@ interface ProductCardProps {
     colors?: string[];
     vendorRegion?: string;
     vendorCity?: string;
+    vendorArea?: string;
+    trackStock?: boolean;
     vendorBio?: string;
     vendorDocumented?: boolean;
     vendorTier?: 'low' | 'high';
@@ -55,7 +57,7 @@ interface ProductCardProps {
     whatsappLeadAvailable?: boolean;
 }
 
-export default React.memo(function ProductCard({ id, name, price, images, sizes = [], imageLabels, duration = '6-7 working days', stock, index, vendorId, initialWishlistState = false, description, vendorName, uniqueVendorId, storeSlug, hasSizes = true, hasColors = true, colors = [], vendorRegion, vendorCity, vendorBio, vendorDocumented, vendorTier, createdAt, colorStock, sizeStock, variantStock, listingMode = 'shop', whatsappLeadAvailable }: ProductCardProps) {
+export default React.memo(function ProductCard({ id, name, price, images, sizes = [], imageLabels, duration = '6-7 working days', stock, index, vendorId, initialWishlistState = false, description, vendorName, uniqueVendorId, storeSlug, hasSizes = true, hasColors = true, colors = [], vendorRegion, vendorCity, vendorArea, trackStock, vendorBio, vendorDocumented, vendorTier, createdAt, colorStock, sizeStock, variantStock, listingMode = 'shop', whatsappLeadAvailable }: ProductCardProps) {
     const isBatch = false;
     const currentPrice = price;
 
@@ -204,7 +206,7 @@ export default React.memo(function ProductCard({ id, name, price, images, sizes 
                 bio: vendor.bio,
                 profileImage: vendor.profileImage ? getImageUrl(vendor.profileImage) : undefined,
                 location: getVendorDisplayLocation(
-                    { location: vendor.location || vendorCity, region: vendor.region },
+                    { area: vendor.area || vendor.location || vendorArea, city: vendor.city || vendorCity, region: vendor.region },
                     vendorRegion,
                 ),
                 documented: isVendorDocumented({
@@ -932,11 +934,11 @@ export default React.memo(function ProductCard({ id, name, price, images, sizes 
 
                     {/* Region & Shipping — single compact row */}
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-slate-400">
-                        {getVendorDisplayLocation({ location: vendorCity, region: vendorRegion }) && (
+                        {getVendorDisplayLocation({ area: vendorArea, city: vendorCity, region: vendorRegion }) && (
                             <div className="flex items-center gap-1 min-w-0">
                                 <MapPin className="w-3 h-3 text-brand-lemon shrink-0" />
                                 <span className="text-[9px] font-bold uppercase tracking-wide truncate">
-                                    {getVendorDisplayLocation({ location: vendorCity, region: vendorRegion })}
+                                    {getVendorDisplayLocation({ area: vendorArea, city: vendorCity, region: vendorRegion })}
                                 </span>
                             </div>
                         )}
@@ -961,7 +963,7 @@ export default React.memo(function ProductCard({ id, name, price, images, sizes 
                         </div>
                         <div className="flex flex-col items-end">
                             <span className={`text-[9px] font-black uppercase tracking-wide ${selectionStock > 5 ? 'text-emerald-500' : 'text-orange-500'}`}>
-                                {selectionStock > 0 ? `${selectionStock} Left` : 'Sold Out'}
+                                {selectionStock <= 0 ? 'Sold Out' : trackStock === false ? 'In Stock' : `${selectionStock} Left`}
                             </span>
                             <div className={`w-10 h-1 bg-slate-100 rounded-full mt-1 overflow-hidden`}>
                                 <div 
@@ -1168,8 +1170,8 @@ export default React.memo(function ProductCard({ id, name, price, images, sizes 
                                 <p className="text-lg font-black text-slate-900 shrink-0">GH₵{price.toLocaleString()}</p>
                             </div>
                             <div className="flex flex-wrap items-center gap-2 mt-1.5 text-xs text-slate-500">
-                                <span className={`font-semibold ${stock > 0 ? (stock <= 5 ? 'text-amber-600' : 'text-emerald-600') : 'text-red-500'}`}>
-                                    {stock > 0 ? `${stock} in stock` : 'Sold out'}
+                                <span className={`font-semibold ${stock > 0 ? (trackStock !== false && stock <= 5 ? 'text-amber-600' : 'text-emerald-600') : 'text-red-500'}`}>
+                                    {stock <= 0 ? 'Sold out' : trackStock === false ? 'In stock' : `${stock} in stock`}
                                 </span>
                             </div>
                         </div>
@@ -1212,16 +1214,16 @@ export default React.memo(function ProductCard({ id, name, price, images, sizes 
                             <div className="flex-1 overflow-y-auto overscroll-contain px-5 md:px-8 py-4 space-y-5 md:space-y-6">
                                 <div className="hidden md:flex flex-wrap items-baseline gap-x-4 gap-y-2">
                                     <p className="text-2xl md:text-3xl font-bold text-slate-900">GH₵{price.toLocaleString()}</p>
-                                    <span className={`text-sm font-medium ${stock > 0 ? (stock <= 5 ? 'text-amber-600' : 'text-emerald-600') : 'text-red-500'}`}>
-                                        {stock > 0 ? `${stock} in stock` : 'Sold out'}
+                                    <span className={`text-sm font-medium ${stock > 0 ? (trackStock !== false && stock <= 5 ? 'text-amber-600' : 'text-emerald-600') : 'text-red-500'}`}>
+                                        {stock <= 0 ? 'Sold out' : trackStock === false ? 'In stock' : `${stock} in stock`}
                                     </span>
                                 </div>
 
                                 <div className="hidden md:flex flex-wrap gap-3 text-sm text-slate-500">
-                                    {getVendorDisplayLocation({ location: vendorCity, region: vendorRegion }) && (
+                                    {getVendorDisplayLocation({ area: vendorArea, city: vendorCity, region: vendorRegion }) && (
                                         <span className="inline-flex items-center gap-1.5">
                                             <MapPin className="w-4 h-4" />
-                                            {getVendorDisplayLocation({ location: vendorCity, region: vendorRegion })}
+                                            {getVendorDisplayLocation({ area: vendorArea, city: vendorCity, region: vendorRegion })}
                                         </span>
                                     )}
                                 </div>

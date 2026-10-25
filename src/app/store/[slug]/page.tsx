@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { MapPin, ShoppingBag, Copy, Check, ChevronDown, Search } from 'lucide-react';
+import { MapPin, Copy, Check, ChevronDown, Search } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { getImageUrl, getVendorDisplayLocation } from '@/lib/utils';
 import { storeProductPath, storefrontUrl } from '@/lib/storefront';
@@ -16,7 +16,6 @@ import {
 } from '@/lib/store-return';
 import { resolveStoreTheme, storeThemeStyle } from '@/lib/store-theme';
 import { useProductCategories } from '@/hooks/useProductCategories';
-import { useCart } from '@/context/CartContext';
 import Footer from '@/components/Footer';
 import { WhatsAppLeadButton } from '@/components/WhatsAppLeadButton';
 import { isVendorWhatsappPaused, notifyVendorWhatsappPaused, subscribeVendorWhatsappPaused } from '@/lib/whatsapp-clicks';
@@ -38,6 +37,8 @@ type StoreVendor = {
   bannerImage?: string;
   profileImage?: string;
   location?: string;
+  city?: string;
+  area?: string;
   region?: string;
   uniqueVendorId?: string;
   storeSlug?: string;
@@ -55,6 +56,7 @@ type StoreProduct = {
   category?: string;
   images?: string[];
   stock?: number;
+  trackStock?: boolean;
   tailoringTime?: string;
   whatsappLeadAvailable?: boolean;
 };
@@ -65,7 +67,6 @@ export default function VendorStorePage() {
   const params = useParams();
   const rawSlug = params?.slug;
   const slug = Array.isArray(rawSlug) ? rawSlug[0] : String(rawSlug || '');
-  const { cartCount, setIsCartOpen } = useCart();
   const { categories } = useProductCategories({ includeAll: true });
 
   const [vendor, setVendor] = useState<StoreVendor | null>(null);
@@ -253,6 +254,8 @@ export default function VendorStorePage() {
     (anyLeadOpen || !anyLeadClosed);
 
   const location = getVendorDisplayLocation({
+    area: vendor?.area,
+    city: vendor?.city,
     location: vendor?.location,
     region: vendor?.region,
   });
@@ -325,17 +328,6 @@ export default function VendorStorePage() {
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-transparent" />
 
         <div className="relative z-10 max-w-6xl mx-auto px-4 pt-24 pb-10 md:pt-28 md:pb-14 flex flex-col justify-end min-h-[42vh] md:min-h-[48vh]">
-          <div className="flex flex-wrap items-center justify-end gap-3 mb-4">
-            <button
-              type="button"
-              onClick={() => setIsCartOpen(true)}
-              className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white/90"
-            >
-              <ShoppingBag className="w-4 h-4" />
-              Cart{cartCount > 0 ? ` (${cartCount})` : ''}
-            </button>
-          </div>
-
           <div className="min-w-0">
               <h1 className="font-heading text-3xl md:text-5xl font-black text-white tracking-tighter leading-none truncate">
                 {shopName}
@@ -566,14 +558,16 @@ export default function VendorStorePage() {
                     className={`mt-1 text-[9px] font-black uppercase tracking-widest ${
                       soldOut
                         ? 'text-slate-400'
-                        : (product.stock ?? 0) <= 5
+                        : product.trackStock !== false && (product.stock ?? 0) <= 5
                           ? 'text-orange-500'
                           : 'text-emerald-600'
                     }`}
                   >
                     {soldOut
                       ? 'Sold out'
-                      : (product.stock ?? 0) <= 5
+                      : product.trackStock === false
+                        ? 'In stock'
+                        : (product.stock ?? 0) <= 5
                         ? `Only ${product.stock} left`
                         : `${product.stock} in stock`}
                   </p>

@@ -42,6 +42,10 @@ export class Product {
     @Prop({ default: 0 })
     stock: number;
 
+    /** False when the vendor doesn't count units — stock is then held at UNTRACKED_STOCK. */
+    @Prop({ default: true })
+    trackStock: boolean;
+
     @Prop({ type: [String], default: [] })
     sizes: string[];
 
